@@ -1,0 +1,34 @@
+// O Worker do Nuno's Lab: a API e a base. Não há segredos: as sessões são
+// testemunhos aleatórios e a base só guarda o resumo deles.
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "nunos-lab",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-20",
+  "observability": { "enabled": true },
+  // A base nasceu com «--jurisdiction=eu» a 21 out 2026; isso é uma
+  // propriedade da base, não deste ficheiro. O código fala com o BINDING «DB».
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nunos-lab",
+      "database_id": "03a1f41b-7ea3-42fc-a995-4ce5223af8eb",
+      "migrations_dir": "../../base/migracoes",
+      "migrations_table": "d1_migrations"
+    }
+  ],
+  // Travões por IP: entrar no backoffice (10 por minuto) e as contagens da
+  // app (60 por minuto). O namespace_id é único na conta (o Carimbo usa os 1000
+  // e os 2000, o Armazém o 1101).
+  "ratelimits": [
+    { "name": "TRAVAO", "namespace_id": "7101", "simple": { "limit": 10, "period": 60 } },
+    { "name": "CONTAR", "namespace_id": "7102", "simple": { "limit": 60, "period": 60 } }
+  ],
+  // A limpeza da madrugada: ligações e sessões caducadas, imagens sem dono.
+  "triggers": { "crons": ["23 3 * * *"] },
+  "vars": {
+    // A app e o backoffice vivem no GitHub Pages; a API só responde a esta origem.
+    // No «wrangler dev», o .dev.vars sobrepõe-na com as do localhost.
+    "ORIGENS": "https://renatovalente5.github.io"
+  }
+}

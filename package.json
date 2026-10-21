@@ -1,0 +1,15 @@
+{
+  "name": "nunos-lab",
+  "private": true,
+  "description": "Nuno's Lab — vantagens em parceiros para os clientes da barbearia",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "verificar": "npm run verificar --workspaces --if-present",
+    "testar": "npm run testar --workspaces --if-present",
+    "formatar": "prettier --write .",
+    "formatado": "prettier --check .",
+    "tudo": "npm run formatado && npm run verificar && npm run testar"
+  },
+  "engines": { "node": ">=22" },
+  "devDependencies": { "prettier": "^3.9.9" }
+}

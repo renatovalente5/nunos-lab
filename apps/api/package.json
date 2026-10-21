@@ -1,0 +1,24 @@
+{
+  "name": "@nunos-lab/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "O Worker do Nuno's Lab: a API, a base e as imagens",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8870 --var MODO:desenvolvimento",
+    "tipos": "wrangler types",
+    "verificar": "tsc --noEmit",
+    "migrar:local": "wrangler d1 migrations apply DB --local",
+    "migrar:remoto": "wrangler d1 migrations apply DB --remote",
+    "publicar": "wrangler deploy"
+  },
+  "dependencies": {
+    "@nunos-lab/dominio": "*",
+    "hono": "^4.13.13",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3",
+    "wrangler": "^4.151.3"
+  }
+}

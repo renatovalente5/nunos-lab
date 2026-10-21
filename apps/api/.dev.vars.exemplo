@@ -1,0 +1,2 @@
+# Copiar para .dev.vars (não vai para o git): as origens do localhost.
+ORIGENS=http://localhost:8871,http://localhost:8872

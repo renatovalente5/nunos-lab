@@ -1,0 +1,17 @@
+node_modules/
+.wrangler/
+.dev.vars
+*.log
+.DS_Store
+dist/
+apps/api/publico/
+apps/cliente/.expo/
+apps/cliente/dist/
+apps/cliente/ios/
+apps/cliente/android/
+.e2e-estado/
+test-results/
+_site/
+
+# As notas internas do projecto ficam só no Mac: o repositório é público (GitHub Pages grátis).
+docs/

@@ -1,0 +1,20 @@
+{
+  "name": "@nunos-lab/dominio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "As regras do Nuno's Lab escritas uma vez: limites, datas, estado das promoções",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "verificar": "tsc --noEmit",
+    "testar": "node --experimental-strip-types --no-warnings --test src/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "~6.0.3"
+  }
+}
