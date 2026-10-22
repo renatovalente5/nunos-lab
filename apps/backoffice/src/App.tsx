@@ -9,7 +9,7 @@ import { Categorias } from './paginas/Categorias';
 import { Parceiro } from './paginas/Parceiro';
 import { Parceiros } from './paginas/Parceiros';
 import { Promocoes } from './paginas/Promocoes';
-import { Registo } from './paginas/Registo';
+import { Historico } from './paginas/Historico';
 import { Resumo } from './paginas/Resumo';
 import { Icone, type NomeDoIcone } from './pecas';
 import { useRota } from './util';
@@ -23,7 +23,7 @@ const SECCOES: { caminho: string; nome: string; icone: NomeDoIcone }[] = [
   { caminho: 'categorias', nome: 'Categorias', icone: 'categorias' },
   { caminho: 'barbearia', nome: 'Barbearia', icone: 'barbearia' },
   { caminho: 'acessos', nome: 'Acessos', icone: 'acessos' },
-  { caminho: 'registo', nome: 'Registo', icone: 'registo' },
+  { caminho: 'historico', nome: 'Histórico', icone: 'registo' },
 ];
 
 /** A ligação de acesso traz o código no fragmento: «…/backoffice/#acesso=XXXX». */
@@ -127,7 +127,7 @@ function Casca() {
   const rota = useRota();
   const eu = useQuery({ queryKey: ['eu'], queryFn: () => pedir<Eu>('/api/bo/eu') });
   const principal = useRef<HTMLElement>(null);
-  const actual = rota[0] ?? '';
+  const actual = rota[0] === 'registo' ? 'historico' : (rota[0] ?? '');
   useEffect(() => {
     principal.current?.scrollTo?.(0, 0);
     window.scrollTo(0, 0);
@@ -137,13 +137,14 @@ function Casca() {
   if (eu.error instanceof ErroDaApi && eu.error.codigo === 'sessao') return null;
 
   let pagina;
-  if (actual === 'parceiros' && rota[1]) pagina = <Parceiro id={rota[1]} />;
+  if (actual === 'parceiros' && rota[1]) pagina = <Parceiro key={rota[1]} id={rota[1]} />;
   else if (actual === 'parceiros') pagina = <Parceiros />;
   else if (actual === 'promocoes') pagina = <Promocoes />;
   else if (actual === 'categorias') pagina = <Categorias />;
   else if (actual === 'barbearia') pagina = <Barbearia />;
   else if (actual === 'acessos') pagina = <Acessos />;
-  else if (actual === 'registo') pagina = <Registo />;
+  // «registo» era o nome antigo: as moradas antigas continuam a abrir.
+  else if (actual === 'historico' || actual === 'registo') pagina = <Historico />;
   else pagina = <Resumo />;
 
   return (
@@ -166,6 +167,19 @@ function Casca() {
         {eu.data && (
           <div className="rodape-lateral">
             Entraste como <strong>{eu.data.nome}</strong>
+            <button
+              type="button"
+              className="sair"
+              onClick={async () => {
+                try {
+                  await pedir('/api/bo/sair', { metodo: 'POST' });
+                } finally {
+                  guardarSessao(null);
+                }
+              }}
+            >
+              <Icone nome="sair" tamanho={16} /> Sair
+            </button>
           </div>
         )}
       </aside>

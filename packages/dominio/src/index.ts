@@ -7,5 +7,6 @@ export * from './datas.ts';
 export * from './promocoes.ts';
 export * from './ligacoes.ts';
 export * from './cores.ts';
+export * from './desenhos.ts';
 export * from './texto.ts';
 export * from './tipos.ts';

@@ -1,27 +1,21 @@
-import {
-  ICONES_DAS_CATEGORIAS,
-  LIMITES,
-  type CategoriaComContagem,
-  type IconeDaCategoria,
-} from '@nunos-lab/dominio';
+import { LIMITES, type CategoriaComContagem, type IconeDaCategoria } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { pedir, refrescar } from '../api';
-import { Esqueleto, Folha, Icone, Campo, Seletor, useAccao, useConfirmar, Vazio } from '../pecas';
+import { mensagemDe, pedir, refrescar } from '../api';
+import { ListaArrastavel } from '../arrastar';
+import {
+  Campo,
+  DesenhoDaCategoria,
+  EscolhaDoDesenho,
+  Esqueleto,
+  Folha,
+  Icone,
+  useAccao,
+  useAvisar,
+  useConfirmar,
+  Vazio,
+} from '../pecas';
 import { plural } from '../util';
-
-const NOMES_DOS_ICONES: Record<IconeDaCategoria, string> = {
-  comer: 'Garfo e faca',
-  cafe: 'Chávena',
-  carro: 'Carro',
-  treino: 'Haltere',
-  beleza: 'Brilho',
-  saude: 'Coração',
-  compras: 'Saco',
-  casa: 'Casa',
-  lazer: 'Estrela',
-  outro: 'Pontos',
-};
 
 export function Categorias() {
   const { data } = useQuery({
@@ -34,16 +28,20 @@ export function Categorias() {
     icone: IconeDaCategoria;
   } | null>(null);
   const { correr, aCorrer } = useAccao();
+  const avisar = useAvisar();
   const { confirmar, dialogo } = useConfirmar();
 
-  const mover = (i: number, d: -1 | 1) => {
-    if (!data) return;
-    const ids = data.map((k) => k.id);
-    [ids[i], ids[i + d]] = [ids[i + d]!, ids[i]!];
-    return correr(async () => {
-      await pedir('/api/bo/categorias/ordem', { metodo: 'POST', corpo: { ids } });
+  const reordenar = async (novas: CategoriaComContagem[]) => {
+    try {
+      await pedir('/api/bo/categorias/ordem', {
+        metodo: 'POST',
+        corpo: { ids: novas.map((k) => k.id) },
+      });
       await refrescar();
-    });
+    } catch (e) {
+      avisar(mensagemDe(e), true);
+      await refrescar();
+    }
   };
 
   return (
@@ -51,9 +49,7 @@ export function Categorias() {
       <div className="cabecalho">
         <div>
           <h1>Categorias</h1>
-          <p className="subtitulo">
-            Os filtros por cima da lista de parceiros. Só aparecem as que têm parceiros na app.
-          </p>
+          <p className="subtitulo">Os filtros por cima dos parceiros, na app, por esta ordem.</p>
         </div>
         <button
           type="button"
@@ -71,41 +67,29 @@ export function Categorias() {
         </div>
       ) : (
         <div className="cartao">
-          <ol className="lista">
-            {data.map((k, i) => (
-              <li key={k.id}>
-                <div className="linha">
+          <ListaArrastavel
+            itens={data}
+            chave={(k) => k.id}
+            nome={(k) => k.nome}
+            aoReordenar={reordenar}
+            desenhar={(k, pega) => (
+              <>
+                {pega}
+                <div className="linha linha-ordenavel">
+                  <span className="icone-categoria">
+                    <DesenhoDaCategoria icone={k.icone} />
+                  </span>
                   <div className="meio">
                     <div className="titulo-linha">{k.nome}</div>
-                    <div className="detalhe">
-                      {NOMES_DOS_ICONES[k.icone]} · {plural(k.parceiros, 'parceiro', 'parceiros')}
-                    </div>
+                    <div className="detalhe">{plural(k.parceiros, 'parceiro', 'parceiros')}</div>
                   </div>
                   <div className="lado">
-                    <button
-                      type="button"
-                      className="botao secundario icone"
-                      aria-label={`Subir ${k.nome}`}
-                      disabled={i === 0 || aCorrer}
-                      onClick={() => mover(i, -1)}
-                    >
-                      <Icone nome="subir" tamanho={18} />
-                    </button>
-                    <button
-                      type="button"
-                      className="botao secundario icone"
-                      aria-label={`Descer ${k.nome}`}
-                      disabled={i === data.length - 1 || aCorrer}
-                      onClick={() => mover(i, 1)}
-                    >
-                      <Icone nome="descer" tamanho={18} />
-                    </button>
                     <button
                       type="button"
                       className="botao secundario pequeno"
                       onClick={() => setEditar({ id: k.id, nome: k.nome, icone: k.icone })}
                     >
-                      Mudar
+                      Editar
                     </button>
                     <button
                       type="button"
@@ -130,16 +114,16 @@ export function Categorias() {
                     </button>
                   </div>
                 </div>
-              </li>
-            ))}
-          </ol>
+              </>
+            )}
+          />
         </div>
       )}
 
       <Folha
         aberta={!!editar}
         fechar={() => setEditar(null)}
-        titulo={editar?.id ? 'Mudar a categoria' : 'Nova categoria'}
+        titulo={editar?.id ? 'Editar a categoria' : 'Nova categoria'}
         pe={
           <button
             type="button"
@@ -171,11 +155,9 @@ export function Categorias() {
               obrigatorio
               autoFocus
             />
-            <Seletor<IconeDaCategoria>
-              rotulo="Desenho"
+            <EscolhaDoDesenho
               valor={editar.icone}
-              mudar={(icone) => icone && setEditar({ ...editar, icone })}
-              opcoes={ICONES_DAS_CATEGORIAS.map((i) => ({ valor: i, nome: NOMES_DOS_ICONES[i] }))}
+              mudar={(icone) => setEditar({ ...editar, icone })}
             />
           </div>
         )}

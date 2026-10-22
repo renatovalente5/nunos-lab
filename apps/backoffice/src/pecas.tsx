@@ -1,5 +1,8 @@
 import {
   CORES_DOS_PARCEIROS,
+  DESENHOS_DAS_CATEGORIAS,
+  ICONES_DAS_CATEGORIAS,
+  NOMES_DOS_DESENHOS,
   misturar,
   semPartir,
   tintaSobre,
@@ -655,6 +658,64 @@ export function PrevisaoDaPromocao({
           <div className="condicoes">{semPartir(detalhe)}</div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ——— os desenhos das categorias (os mesmos da app) ———
+
+export function DesenhoDaCategoria({
+  icone,
+  tamanho = 22,
+}: {
+  icone: IconeDaCategoria;
+  tamanho?: number;
+}) {
+  return (
+    <svg width={tamanho} height={tamanho} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {DESENHOS_DAS_CATEGORIAS[icone].map((d) => (
+        <path
+          key={d}
+          d={d}
+          stroke="currentColor"
+          strokeWidth={1.8}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ))}
+    </svg>
+  );
+}
+
+/** Escolher o desenho de uma categoria a ver os desenhos, e não uma lista de nomes. */
+export function EscolhaDoDesenho({
+  valor,
+  mudar,
+}: {
+  valor: IconeDaCategoria;
+  mudar: (v: IconeDaCategoria) => void;
+}) {
+  return (
+    <div className="campo">
+      <span className="rotulo-campo" id="desenho-da-categoria">
+        Desenho
+      </span>
+      <div className="desenhos" role="radiogroup" aria-labelledby="desenho-da-categoria">
+        {ICONES_DAS_CATEGORIAS.map((i) => (
+          <button
+            key={i}
+            type="button"
+            role="radio"
+            aria-checked={valor === i}
+            aria-label={NOMES_DOS_DESENHOS[i]}
+            title={NOMES_DOS_DESENHOS[i]}
+            className="desenho"
+            onClick={() => mudar(i)}
+          >
+            <DesenhoDaCategoria icone={i} tamanho={24} />
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

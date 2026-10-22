@@ -7,7 +7,7 @@
   --linha-forte: #d6d2ca;
   --tinta: #141414;
   --tinta-2: #5e5a53;
-  --tinta-3: #7d786f;
+  --tinta-3: #6b665e;
   --marca: #0a0a0a;
   --sobre-marca: #f4f1ec;
   --bom: #1e7a3c;
@@ -1030,7 +1030,7 @@ details.tabela th {
 }
 
 /* ——— o editor do parceiro: formulário + pré-visualização ——— */
-@media (max-width: 980px) {
+@media (max-width: 1180px) {
   .editor-parceiro {
     grid-template-columns: 1fr !important;
   }
@@ -1046,4 +1046,166 @@ details.tabela th {
 }
 .botao-google {
   color-scheme: light;
+}
+
+/* ——— ordenar a arrastar ——— */
+.pega {
+  flex: none;
+  width: 36px;
+  height: 44px;
+  margin: 0 -6px 0 2px;
+  border: 0;
+  background: none;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: var(--tinta-3);
+  cursor: grab;
+  touch-action: none;
+}
+.pega:hover {
+  background: var(--superficie-2);
+  color: var(--tinta);
+}
+.arrastavel {
+  position: relative;
+  background: var(--superficie);
+  transition: transform 0.18s ease;
+}
+.arrastavel.a-arrastar {
+  z-index: 5;
+  transition: none;
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(20, 20, 20, 0.18);
+}
+.arrastavel.a-arrastar .pega {
+  cursor: grabbing;
+  color: var(--tinta);
+}
+body.a-arrastar-algo,
+body.a-arrastar-algo * {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grabbing;
+}
+.lista > li.arrastavel {
+  display: flex;
+  align-items: center;
+}
+.lista > li.arrastavel > .linha,
+.lista > li.arrastavel > .linha-ordenavel {
+  flex: 1;
+  min-width: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .arrastavel {
+    transition: none;
+  }
+}
+
+/* ——— a escolha do desenho das categorias ——— */
+.desenhos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 8px;
+}
+.desenho {
+  height: 52px;
+  border-radius: 14px;
+  border: 1px solid var(--linha-forte);
+  background: var(--superficie);
+  display: grid;
+  place-items: center;
+  color: var(--tinta);
+  cursor: pointer;
+}
+.desenho:hover {
+  background: var(--superficie-2);
+}
+.desenho[aria-checked='true'] {
+  background: var(--marca);
+  border-color: var(--marca);
+  color: var(--sobre-marca);
+}
+.icone-categoria {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--superficie-2);
+  display: grid;
+  place-items: center;
+  color: var(--tinta);
+}
+
+/* ——— sair, no rodapé da barra lateral ——— */
+.lateral .sair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  color: #bdb8b0;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lateral .sair:hover {
+  color: #fff;
+}
+
+/* ——— sair, no rodapé da barra lateral ——— */
+.lateral .sair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  color: #bdb8b0;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lateral .sair:hover {
+  color: #fff;
+}
+
+/* ——— uma promoção numa linha: o grande à esquerda, o resto por baixo do título ——— */
+.promocao-grande {
+  flex: none;
+  min-width: 78px;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+.etiquetas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* ——— no telemóvel: os filtros rolam de lado, e a estrela do destaque fica só no editor ——— */
+.segmentado {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.segmentado::-webkit-scrollbar {
+  display: none;
+}
+.segmentado button {
+  flex: none;
+}
+@media (max-width: 640px) {
+  .so-largo {
+    display: none !important;
+  }
+  .promocao-grande {
+    min-width: 62px;
+    font-size: 16px;
+  }
 }

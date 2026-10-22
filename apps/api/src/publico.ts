@@ -25,7 +25,8 @@ export const rotasPublicas = new Hono<Ambiente>();
 /**
  * Tudo o que a app mostra, num pedido só: a app abre, pede isto, e tem o
  * início e todas as páginas dos parceiros. Só vão os parceiros activos com
- * pelo menos uma promoção na app hoje.
+ * pelo menos uma promoção na app hoje. As promoções vêm pela ordem que o
+ * Nuno arrasta no backoffice (a 1.ª é a que aparece na lista da app).
  */
 rotasPublicas.get('/app', async (c) => {
   const db = c.env.DB;
@@ -38,7 +39,7 @@ rotasPublicas.get('/app', async (c) => {
         `SELECT p.* FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
          WHERE pa.activo = 1 AND p.activa = 1
            AND (p.inicio IS NULL OR p.inicio <= ?1) AND (p.fim IS NULL OR p.fim >= ?1)
-         ORDER BY p.em_destaque DESC, p.ordem, p.id`,
+         ORDER BY p.ordem, p.id`,
       )
       .bind(hoje),
     db.prepare('SELECT * FROM lojas ORDER BY ordem, id'),

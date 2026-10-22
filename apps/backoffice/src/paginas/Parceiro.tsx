@@ -1,7 +1,6 @@
 import {
   LIMITES,
   diaEmLisboa,
-  periodoEmTexto,
   type CategoriaComContagem,
   type Parceiro as ParceiroDoContrato,
   type ParceiroComPromocoes,
@@ -28,8 +27,12 @@ import {
   useConfirmar,
   Vazio,
 } from '../pecas';
-import { ir, useAvisoAoSair } from '../util';
-import { EditorDePromocao, EtiquetaDoEstado } from './Promocoes';
+import { ListaArrastavel } from '../arrastar';
+import { ir, parametro, useAvisoAoSair } from '../util';
+import { ConteudoDaPromocao, EditorDePromocao } from './Promocoes';
+
+/** A app do cliente (para «Ver na app»). */
+const APP = (import.meta.env.VITE_APP as string).replace(/\/$/, '');
 
 type Formulario = {
   nome: string;
@@ -109,6 +112,13 @@ export function Parceiro({ id }: { id: string }) {
     }
   }, [dados.data, original]);
 
+  useEffect(() => {
+    if (dados.data && parametro('nova') === 'promocao') {
+      history.replaceState(null, '', `#/parceiros/${id}`);
+      setEditor({ promocao: null });
+    }
+  }, [dados.data, id]);
+
   const sujo = useMemo(() => JSON.stringify(f) !== JSON.stringify(original), [f, original]);
   useAvisoAoSair(sujo);
 
@@ -134,8 +144,8 @@ export function Parceiro({ id }: { id: string }) {
         const r = await pedir<{ id: number }>('/api/bo/parceiros', { metodo: 'POST', corpo: f });
         setOriginal(f);
         await refrescar();
-        avisar('Parceiro criado. Junta-lhe uma promoção para aparecer na app.');
-        history.replaceState(null, '', `#/parceiros/${r.id}`);
+        avisar('Parceiro criado. Agora, a primeira promoção.');
+        history.replaceState(null, '', `#/parceiros/${r.id}?nova=promocao`);
         window.dispatchEvent(new HashChangeEvent('hashchange'));
       } else {
         await pedir(`/api/bo/parceiros/${id}`, { metodo: 'PATCH', corpo: f });
@@ -150,6 +160,28 @@ export function Parceiro({ id }: { id: string }) {
   }
 
   const promocoes = dados.data?.promocoes ?? [];
+  const naApp = !novo && f.activo && (dados.data?.parceiro.promocoesNaApp ?? 0) > 0;
+
+  const reordenarPromocoes = async (novas: Promocao[]) => {
+    try {
+      await pedir('/api/bo/promocoes/ordem', {
+        metodo: 'POST',
+        corpo: { ids: novas.map((p) => p.id) },
+      });
+      await refrescar();
+    } catch (e) {
+      avisar(mensagemDe(e), true);
+      await refrescar();
+    }
+  };
+  const ligarPromocao = (p: Promocao) =>
+    correr(
+      async () => {
+        await pedir(`/api/bo/promocoes/${p.id}`, { metodo: 'PATCH', corpo: { activa: !p.activa } });
+        await refrescar();
+      },
+      p.activa ? 'Promoção desligada' : 'Promoção ligada',
+    );
   const categoria = categorias.data?.find((k) => k.id === f.categoriaId);
   const primeira = promocoes.find((p) => p.estado === 'activa');
 
@@ -173,6 +205,16 @@ export function Parceiro({ id }: { id: string }) {
             </p>
           )}
         </div>
+        {naApp && (
+          <a
+            className="botao secundario"
+            href={`${APP}/parceiro/${id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Icone nome="aberto" tamanho={18} /> Ver na app
+          </a>
+        )}
       </div>
 
       <div
@@ -313,29 +355,33 @@ export function Parceiro({ id }: { id: string }) {
               </div>
               <div className="cartao">
                 {promocoes.length ? (
-                  <ul className="lista">
-                    {promocoes.map((p) => (
-                      <li key={p.id}>
+                  <ListaArrastavel
+                    itens={promocoes}
+                    chave={(p) => p.id}
+                    nome={(p) => `${p.destaque} ${p.titulo}`}
+                    aoReordenar={reordenarPromocoes}
+                    desenhar={(p, pega) => (
+                      <>
+                        {promocoes.length > 1 && pega}
                         <button
                           type="button"
                           className="linha"
                           onClick={() => setEditor({ promocao: p })}
                         >
-                          <span style={{ fontWeight: 800, fontSize: 18, minWidth: 74 }}>
-                            {p.destaque}
-                          </span>
-                          <div className="meio">
-                            <div className="titulo-linha">{p.titulo}</div>
-                            <div className="detalhe">{periodoEmTexto(p, hoje)}</div>
-                          </div>
-                          <div className="lado">
-                            {p.emDestaque && <Etiqueta semPonto>Em destaque</Etiqueta>}
-                            <EtiquetaDoEstado estado={p.estado} />
-                          </div>
+                          <ConteudoDaPromocao p={p} hoje={hoje} />
                         </button>
-                      </li>
-                    ))}
-                  </ul>
+                        <button
+                          type="button"
+                          role="switch"
+                          className="interruptor"
+                          style={{ margin: '0 18px 0 4px' }}
+                          aria-checked={p.activa}
+                          aria-label={`${p.destaque} ${p.titulo}: ligada`}
+                          onClick={() => ligarPromocao(p)}
+                        />
+                      </>
+                    )}
+                  />
                 ) : (
                   <Vazio titulo="Ainda sem promoções">
                     Sem uma promoção ligada, o parceiro não aparece na app.

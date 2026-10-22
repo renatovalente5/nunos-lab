@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
 import { Campo, Esqueleto, Icone, useAccao, useAvisar } from '../pecas';
+import { ListaArrastavel } from '../arrastar';
 import { useAvisoAoSair } from '../util';
 
 type LojaNoFormulario = {
@@ -51,13 +52,8 @@ export function Barbearia() {
   useAvisoAoSair(sujo);
   if (!f) return <Esqueleto linhas={6} />;
 
-  const mudarLoja = (i: number, campo: keyof LojaNoFormulario, valor: string) =>
-    setF({ ...f, lojas: f.lojas.map((l, j) => (j === i ? { ...l, [campo]: valor } : l)) });
-  const mover = (i: number, d: -1 | 1) => {
-    const lojas = [...f.lojas];
-    [lojas[i], lojas[i + d]] = [lojas[i + d]!, lojas[i]!];
-    setF({ ...f, lojas });
-  };
+  const mudarLoja = (chave: string, campo: keyof LojaNoFormulario, valor: string) =>
+    setF({ ...f, lojas: f.lojas.map((l) => (l.chave === chave ? { ...l, [campo]: valor } : l)) });
 
   async function guardar() {
     if (!f) return;
@@ -128,77 +124,59 @@ export function Barbearia() {
 
       <h2 className="seccao">Lojas</h2>
       <div className="formulario">
-        {f.lojas.map((l, i) => (
-          <div key={l.chave} className="cartao recheado formulario">
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: 10,
-              }}
-            >
-              <strong>{l.nome || 'Loja nova'}</strong>
-              <div className="botoes">
-                <button
-                  type="button"
-                  className="botao secundario icone"
-                  aria-label={`Subir ${l.nome}`}
-                  disabled={i === 0}
-                  onClick={() => mover(i, -1)}
-                >
-                  <Icone nome="subir" tamanho={18} />
-                </button>
-                <button
-                  type="button"
-                  className="botao secundario icone"
-                  aria-label={`Descer ${l.nome}`}
-                  disabled={i === f.lojas.length - 1}
-                  onClick={() => mover(i, 1)}
-                >
-                  <Icone nome="descer" tamanho={18} />
-                </button>
+        <ListaArrastavel
+          como="div"
+          className="formulario"
+          itens={f.lojas}
+          chave={(l) => l.chave}
+          nome={(l) => l.nome || 'Loja nova'}
+          aoReordenar={(lojas) => setF({ ...f, lojas })}
+          desenhar={(l, pega) => (
+            <div className="cartao recheado formulario">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {pega}
+                <strong style={{ flex: 1, minWidth: 0 }}>{l.nome || 'Loja nova'}</strong>
                 <button
                   type="button"
                   className="botao perigo pequeno"
-                  onClick={() => setF({ ...f, lojas: f.lojas.filter((_, j) => j !== i) })}
+                  onClick={() => setF({ ...f, lojas: f.lojas.filter((x) => x.chave !== l.chave) })}
                 >
                   Tirar
                 </button>
               </div>
-            </div>
-            <div className="duas-colunas">
+              <div className="duas-colunas">
+                <Campo
+                  rotulo="Nome"
+                  valor={l.nome}
+                  mudar={(v) => mudarLoja(l.chave, 'nome', v)}
+                  max={LIMITES.loja}
+                  obrigatorio
+                />
+                <Campo
+                  rotulo="Telefone"
+                  tipo="tel"
+                  valor={l.telefone}
+                  mudar={(v) => mudarLoja(l.chave, 'telefone', v)}
+                  max={LIMITES.telefone}
+                />
+              </div>
               <Campo
-                rotulo="Nome"
-                valor={l.nome}
-                mudar={(v) => mudarLoja(i, 'nome', v)}
-                max={LIMITES.loja}
-                obrigatorio
+                rotulo="Morada"
+                valor={l.morada}
+                mudar={(v) => mudarLoja(l.chave, 'morada', v)}
+                max={LIMITES.morada}
               />
               <Campo
-                rotulo="Telefone"
-                tipo="tel"
-                valor={l.telefone}
-                mudar={(v) => mudarLoja(i, 'telefone', v)}
-                max={LIMITES.telefone}
+                rotulo="Ligação de marcação"
+                tipo="url"
+                valor={l.marcar}
+                mudar={(v) => mudarLoja(l.chave, 'marcar', v)}
+                max={500}
+                ajuda="A página da Fresha desta loja. O botão «Marcar» abre-a."
               />
             </div>
-            <Campo
-              rotulo="Morada"
-              valor={l.morada}
-              mudar={(v) => mudarLoja(i, 'morada', v)}
-              max={LIMITES.morada}
-            />
-            <Campo
-              rotulo="Ligação de marcação"
-              tipo="url"
-              valor={l.marcar}
-              mudar={(v) => mudarLoja(i, 'marcar', v)}
-              max={500}
-              ajuda="A página da Fresha desta loja. O botão «Marcar» abre-a."
-            />
-          </div>
-        ))}
+          )}
+        />
         <div>
           <button
             type="button"

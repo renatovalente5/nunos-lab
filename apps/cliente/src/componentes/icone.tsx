@@ -1,4 +1,4 @@
-import type { IconeDaCategoria } from '@nunos-lab/dominio';
+import { DESENHOS_DAS_CATEGORIAS, type IconeDaCategoria } from '@nunos-lab/dominio';
 import Svg, { Path } from 'react-native-svg';
 
 /** Desenhos de linha, 24×24, traço redondo. Feitos aqui, sem biblioteca de ícones. */
@@ -48,38 +48,8 @@ const DESENHOS = {
     'M18.8 6a8.5 8.5 0 0 1 0 12',
   ],
   escudo: ['M12 21s7-3.2 7-9.5V5.5L12 3 5 5.5v6c0 6.3 7 9.5 7 9.5z'],
-  comer: [
-    'M7 3v7',
-    'M4.5 3v4.5a2.5 2.5 0 0 0 5 0V3',
-    'M7 10v11',
-    'M17 21V3c-2.2 1-3.5 3.6-3.5 7v3H17',
-  ],
-  cafe: [
-    'M4 9h12v5a6 6 0 0 1-6 6 6 6 0 0 1-6-6V9z',
-    'M16 11h1.5a2.5 2.5 0 0 1 0 5H16',
-    'M8 3.5c0 1 1 1.5 1 2.5',
-    'M12 3.5c0 1 1 1.5 1 2.5',
-  ],
-  carro: [
-    'M5 16H3.5v-3.5l2-5A2 2 0 0 1 7.4 6h9.2a2 2 0 0 1 1.9 1.5l2 5V16H19',
-    'M3.5 12.5h17',
-    'M9.5 16h5',
-    'M7.3 18a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6z',
-    'M16.7 18a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6z',
-  ],
-  treino: ['M6.5 6.5v11', 'M3.5 9v6', 'M17.5 6.5v11', 'M20.5 9v6', 'M6.5 12h11'],
-  beleza: [
-    'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z',
-    'M18.5 16l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z',
-  ],
-  saude: [
-    'M12 20.5s-8.5-4.8-8.5-11A4.8 4.8 0 0 1 12 6.6a4.8 4.8 0 0 1 8.5 2.9c0 6.2-8.5 11-8.5 11z',
-  ],
-  compras: ['M5 8h14l-1.2 12.1a1 1 0 0 1-1 .9H7.2a1 1 0 0 1-1-.9z', 'M9 10V6.5a3 3 0 0 1 6 0V10'],
-  casa: ['M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z'],
-  lazer: ['M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z'],
-  outro: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M8 12h.01', 'M12 12h.01', 'M16 12h.01'],
-} satisfies Record<string, string[]> & Record<IconeDaCategoria, string[]>;
+  ...DESENHOS_DAS_CATEGORIAS,
+} satisfies Record<string, readonly string[]> & Record<IconeDaCategoria, readonly string[]>;
 
 export type NomeDoIcone = keyof typeof DESENHOS;
 

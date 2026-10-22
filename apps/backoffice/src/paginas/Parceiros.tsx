@@ -1,7 +1,8 @@
 import type { CategoriaComContagem, Parceiro } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { pedir, refrescar } from '../api';
+import { mensagemDe, pedir, refrescar } from '../api';
+import { ListaArrastavel } from '../arrastar';
 import {
   Esqueleto,
   Etiqueta,
@@ -9,6 +10,7 @@ import {
   Logotipo,
   Segmentado,
   useAccao,
+  useAvisar,
   useConfirmar,
   Vazio,
 } from '../pecas';
@@ -27,8 +29,8 @@ export function Parceiros() {
   });
   const [filtro, setFiltro] = useState<Filtro>('todos');
   const [procura, setProcura] = useState('');
-  const [ordem, setOrdem] = useState<number[] | null>(null);
-  const { correr, aCorrer } = useAccao();
+  const { correr } = useAccao();
+  const avisar = useAvisar();
   const { confirmar, dialogo } = useConfirmar();
 
   const lista = useMemo(() => {
@@ -46,80 +48,45 @@ export function Parceiros() {
   const nomeDaCategoria = (id: number | null) => categorias.data?.find((k) => k.id === id)?.nome;
   const naApp = (parceiros.data ?? []).filter((p) => p.activo && p.promocoesNaApp > 0).length;
   const exemplos = (parceiros.data ?? []).filter((p) => p.exemplo).length;
+  // A ordem é a da lista inteira: só se arrasta com tudo à vista (sem filtro nem procura).
+  const ordenavel = filtro === 'todos' && !procura.trim() && lista.length > 1;
 
-  if (ordem) {
-    const porId = new Map((parceiros.data ?? []).map((p) => [p.id, p]));
-    const mover = (i: number, d: -1 | 1) => {
-      const n = [...ordem];
-      [n[i], n[i + d]] = [n[i + d]!, n[i]!];
-      setOrdem(n);
-    };
-    return (
-      <>
-        <div className="cabecalho">
-          <div>
-            <h1>Ordenar parceiros</h1>
-            <p className="subtitulo">É a ordem da lista na app.</p>
-          </div>
-          <div className="botoes">
-            <button
-              type="button"
-              className="botao"
-              disabled={aCorrer}
-              onClick={() =>
-                correr(async () => {
-                  await pedir('/api/bo/parceiros/ordem', { metodo: 'POST', corpo: { ids: ordem } });
-                  await refrescar();
-                  setOrdem(null);
-                }, 'Ordem guardada')
-              }
-            >
-              Guardar a ordem
-            </button>
-            <button type="button" className="botao secundario" onClick={() => setOrdem(null)}>
-              Cancelar
-            </button>
-          </div>
+  const reordenar = async (novos: Parceiro[]) => {
+    try {
+      await pedir('/api/bo/parceiros/ordem', {
+        metodo: 'POST',
+        corpo: { ids: novos.map((p) => p.id) },
+      });
+      await refrescar();
+    } catch (e) {
+      avisar(mensagemDe(e), true);
+      await refrescar();
+    }
+  };
+
+  const linha = (p: Parceiro) => (
+    <a className="linha" href={`#/parceiros/${p.id}`}>
+      <Logotipo nome={p.nome} cor={p.cor} logotipo={p.logotipo} />
+      <div className="meio">
+        <div className="titulo-linha">{p.nome}</div>
+        <div className="detalhe">
+          {[nomeDaCategoria(p.categoriaId), p.localidade].filter(Boolean).join(' · ') || '—'}
         </div>
-        <div className="cartao">
-          <ol className="lista">
-            {ordem.map((id, i) => {
-              const p = porId.get(id);
-              if (!p) return null;
-              return (
-                <li key={id}>
-                  <div className="linha">
-                    <Logotipo nome={p.nome} cor={p.cor} logotipo={p.logotipo} />
-                    <div className="meio titulo-linha">{p.nome}</div>
-                    <div className="lado">
-                      <button
-                        type="button"
-                        className="botao secundario icone"
-                        aria-label={`Subir ${p.nome}`}
-                        disabled={i === 0}
-                        onClick={() => mover(i, -1)}
-                      >
-                        <Icone nome="subir" tamanho={18} />
-                      </button>
-                      <button
-                        type="button"
-                        className="botao secundario icone"
-                        aria-label={`Descer ${p.nome}`}
-                        disabled={i === ordem.length - 1}
-                        onClick={() => mover(i, 1)}
-                      >
-                        <Icone nome="descer" tamanho={18} />
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-      </>
-    );
-  }
+      </div>
+      <div className="lado">
+        {p.exemplo && <Etiqueta semPonto>Exemplo</Etiqueta>}
+        {!p.activo ? (
+          <Etiqueta>Pausado</Etiqueta>
+        ) : p.promocoesNaApp > 0 ? (
+          <Etiqueta tom="bom">
+            {plural(p.promocoesNaApp, 'promoção na app', 'promoções na app')}
+          </Etiqueta>
+        ) : (
+          <Etiqueta tom="mau">Sem promoções</Etiqueta>
+        )}
+      </div>
+    </a>
+  );
 
   return (
     <>
@@ -127,22 +94,14 @@ export function Parceiros() {
         <div>
           <h1>Parceiros</h1>
           <p className="subtitulo">
-            {parceiros.data ? `${plural(naApp, 'parceiro', 'parceiros')} na app` : ' '}
+            {parceiros.data
+              ? `${plural(naApp, 'parceiro', 'parceiros')} na app, por esta ordem`
+              : ' '}
           </p>
         </div>
-        <div className="botoes">
-          <button
-            type="button"
-            className="botao secundario"
-            disabled={!parceiros.data?.length}
-            onClick={() => setOrdem((parceiros.data ?? []).map((p) => p.id))}
-          >
-            Ordenar
-          </button>
-          <a className="botao" href="#/parceiros/novo">
-            <Icone nome="mais" tamanho={18} /> Novo parceiro
-          </a>
-        </div>
+        <a className="botao" href="#/parceiros/novo">
+          <Icone nome="mais" tamanho={18} /> Novo parceiro
+        </a>
       </div>
 
       {exemplos > 0 && (
@@ -218,34 +177,26 @@ export function Parceiros() {
             )}
           </Vazio>
         </div>
+      ) : ordenavel ? (
+        <div className="cartao">
+          <ListaArrastavel
+            itens={lista}
+            chave={(p) => p.id}
+            nome={(p) => p.nome}
+            aoReordenar={reordenar}
+            desenhar={(p, pega) => (
+              <>
+                {pega}
+                {linha(p)}
+              </>
+            )}
+          />
+        </div>
       ) : (
         <div className="cartao">
           <ul className="lista">
             {lista.map((p) => (
-              <li key={p.id}>
-                <a className="linha" href={`#/parceiros/${p.id}`}>
-                  <Logotipo nome={p.nome} cor={p.cor} logotipo={p.logotipo} />
-                  <div className="meio">
-                    <div className="titulo-linha">{p.nome}</div>
-                    <div className="detalhe">
-                      {[nomeDaCategoria(p.categoriaId), p.localidade].filter(Boolean).join(' · ') ||
-                        '—'}
-                    </div>
-                  </div>
-                  <div className="lado">
-                    {p.exemplo && <Etiqueta semPonto>Exemplo</Etiqueta>}
-                    {!p.activo ? (
-                      <Etiqueta>Pausado</Etiqueta>
-                    ) : p.promocoesNaApp > 0 ? (
-                      <Etiqueta tom="bom">
-                        {plural(p.promocoesNaApp, 'promoção na app', 'promoções na app')}
-                      </Etiqueta>
-                    ) : (
-                      <Etiqueta tom="mau">Sem promoções</Etiqueta>
-                    )}
-                  </div>
-                </a>
-              </li>
+              <li key={p.id}>{linha(p)}</li>
             ))}
           </ul>
         </div>

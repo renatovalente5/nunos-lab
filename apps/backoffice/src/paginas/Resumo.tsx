@@ -65,7 +65,7 @@ export function Resumo() {
               <ul className="lista">
                 {r.aAcabar.map((p) => (
                   <li key={`a${p.id}`}>
-                    <a className="linha" href="#/promocoes">
+                    <a className="linha" href={`#/promocoes?abrir=${p.id}`}>
                       <div className="meio">
                         <div className="titulo-linha">
                           {p.destaque} {p.titulo}

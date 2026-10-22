@@ -148,7 +148,7 @@ export function Acessos() {
                       setMudarEmail({ id: p.id, nome: p.nome, email: p.email ?? '' });
                     }}
                   >
-                    {p.email ? 'Mudar o email' : 'Juntar email'}
+                    {p.email ? 'Editar o email' : 'Juntar email'}
                   </button>
                   <button
                     type="button"

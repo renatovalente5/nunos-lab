@@ -25,12 +25,18 @@ export const LIMITES = {
 export const ICONES_DAS_CATEGORIAS = [
   'comer',
   'cafe',
+  'bebidas',
   'carro',
+  'oficina',
   'treino',
   'beleza',
   'saude',
+  'roupa',
   'compras',
   'casa',
+  'animais',
+  'tecnologia',
+  'educacao',
   'lazer',
   'outro',
 ] as const;

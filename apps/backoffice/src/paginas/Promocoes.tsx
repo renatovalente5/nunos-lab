@@ -11,7 +11,7 @@ import {
   type Promocao,
 } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
 import {
   AreaDeTexto,
@@ -30,6 +30,41 @@ import {
   Vazio,
 } from '../pecas';
 import { parametro, plural } from '../util';
+
+/**
+ * O conteúdo de uma linha de promoção: o texto grande, o título e, por baixo,
+ * o período e só as etiquetas que o interruptor não diz (agendada, terminou).
+ */
+export function ConteudoDaPromocao({
+  p,
+  hoje,
+  comParceiro = false,
+}: {
+  p: Promocao;
+  hoje: string;
+  comParceiro?: boolean;
+}) {
+  return (
+    <>
+      <span className="promocao-grande">{p.destaque}</span>
+      <div className="meio">
+        <div className="titulo-linha">{p.titulo}</div>
+        <div className="detalhe">
+          {comParceiro ? `${p.parceiro} · ` : ''}
+          {periodoEmTexto(p, hoje)}
+        </div>
+        {(p.emDestaque || p.estado === 'agendada' || p.estado === 'terminada') && (
+          <div className="etiquetas">
+            {p.emDestaque && <Etiqueta semPonto>Em destaque</Etiqueta>}
+            {(p.estado === 'agendada' || p.estado === 'terminada') && (
+              <EtiquetaDoEstado estado={p.estado} />
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
 
 export function EtiquetaDoEstado({ estado }: { estado: EstadoDaPromocao }) {
   const tom = estado === 'activa' ? 'bom' : estado === 'agendada' ? 'atencao' : undefined;
@@ -68,6 +103,22 @@ export function Promocoes() {
   }, [promocoes.data, filtro, doParceiro, procura]);
   const conta = (e: EstadoDaPromocao) =>
     (promocoes.data ?? []).filter((p) => p.estado === e).length;
+
+  // «#/promocoes?abrir=12» (do Resumo) abre logo essa promoção. Com a página
+  // já aberta, mudar o fragmento não a volta a montar: ouve-se o «hashchange».
+  const [abrir, setAbrir] = useState(() => Number(parametro('abrir')) || 0);
+  useEffect(() => {
+    const mudou = () => setAbrir(Number(parametro('abrir')) || 0);
+    window.addEventListener('hashchange', mudou);
+    return () => window.removeEventListener('hashchange', mudou);
+  }, []);
+  useEffect(() => {
+    if (!abrir || !promocoes.data) return;
+    const p = promocoes.data.find((x) => x.id === abrir);
+    history.replaceState(null, '', '#/promocoes');
+    setAbrir(0);
+    if (p) setEditor({ promocao: p });
+  }, [abrir, promocoes.data]);
 
   const alternar = (p: Promocao, campo: 'activa' | 'emDestaque') =>
     correr(
@@ -162,21 +213,12 @@ export function Promocoes() {
                   onClick={() => setEditor({ promocao: p })}
                   style={{ flex: 1, minWidth: 0 }}
                 >
-                  <span style={{ fontWeight: 800, fontSize: 18, minWidth: 78 }}>{p.destaque}</span>
-                  <div className="meio">
-                    <div className="titulo-linha">{p.titulo}</div>
-                    <div className="detalhe">
-                      {p.parceiro} · {periodoEmTexto(p, hoje)}
-                    </div>
-                  </div>
-                  <div className="lado">
-                    <EtiquetaDoEstado estado={p.estado} />
-                  </div>
+                  <ConteudoDaPromocao p={p} hoje={hoje} comParceiro />
                 </button>
                 <div className="botoes" style={{ padding: '0 18px 0 4px', flexWrap: 'nowrap' }}>
                   <button
                     type="button"
-                    className="botao secundario icone"
+                    className="botao secundario icone so-largo"
                     aria-pressed={p.emDestaque}
                     aria-label={
                       p.emDestaque ? `Tirar ${p.titulo} do destaque` : `Pôr ${p.titulo} em destaque`
