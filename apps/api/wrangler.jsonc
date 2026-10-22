@@ -29,6 +29,9 @@
   "vars": {
     // A app e o backoffice vivem no GitHub Pages; a API só responde a esta origem.
     // No «wrangler dev», o .dev.vars sobrepõe-na com as do localhost.
-    "ORIGENS": "https://renatovalente5.github.io"
+    "ORIGENS": "https://renatovalente5.github.io",
+    // O cliente do «Entrar com o Google» (projecto «Nuno's Lab» no Google Cloud
+    // do Renato, criado a 22 out 2026). É público: identifica a app, não abre nada.
+    "GOOGLE_CLIENTE": "695283550331-vert2ikpluksqb954jl0j3ed0ukphha4.apps.googleusercontent.com"
   }
 }

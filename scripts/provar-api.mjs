@@ -319,6 +319,59 @@ await passo('o registo guarda o que se fez', async () => {
     assert.ok(accoes.includes(a), `falta ${a}`);
 });
 
+await passo('entrar com o Google: um token que não bate certo dá 401', async () => {
+  const lixo = await pedir('/api/bo/entrar/google', {
+    method: 'POST',
+    body: json({ credencial: 'x'.repeat(40) }),
+  });
+  assert.equal(lixo.status, 401);
+  assert.equal((await lixo.json()).erro, 'google_invalido');
+  // Com a forma de um JWT, mas assinado por ninguém: a API vai às chaves do Google e recusa.
+  const cab = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'nao-existe' })).toString(
+    'base64url',
+  );
+  const corpo = Buffer.from(
+    JSON.stringify({ email: 'renato.lima.valente@gmail.com', email_verified: true }),
+  ).toString('base64url');
+  const falso = await pedir('/api/bo/entrar/google', {
+    method: 'POST',
+    body: json({ credencial: `${cab}.${corpo}.YXNzaW5hdHVyYQ` }),
+  });
+  assert.equal(falso.status, 401);
+});
+
+await passo('pessoas: dar acesso com o email, sem repetir, e mudar o email', async () => {
+  const r = await pedir('/api/bo/pessoas', {
+    method: 'POST',
+    token,
+    body: json({ nome: 'Teste Google', email: '  Teste.Google@Gmail.com ' }),
+  });
+  assert.equal(r.status, 201);
+  const { id } = await r.json();
+  const lista = await (await pedir('/api/bo/acessos', { token })).json();
+  assert.equal(lista.find((p) => p.id === id).email, 'teste.google@gmail.com');
+  const repetida = await pedir('/api/bo/pessoas', {
+    method: 'POST',
+    token,
+    body: json({ nome: 'Outra', email: 'teste.google@gmail.com' }),
+  });
+  assert.equal(repetida.status, 409);
+  const ma = await pedir(`/api/bo/pessoas/${id}`, {
+    method: 'PATCH',
+    token,
+    body: json({ email: 'sem-arroba' }),
+  });
+  assert.equal(ma.status, 400);
+  assert.equal(
+    (await pedir(`/api/bo/pessoas/${id}`, { method: 'PATCH', token, body: json({ email: null }) }))
+      .status,
+    204,
+  );
+  const depois = await (await pedir('/api/bo/acessos', { token })).json();
+  assert.equal(depois.find((p) => p.id === id).email, null);
+  assert.equal((await pedir(`/api/bo/pessoas/${id}`, { method: 'DELETE', token })).status, 204);
+});
+
 await passo('sair termina a sessão', async () => {
   assert.equal((await pedir('/api/bo/sair', { method: 'POST', token })).status, 204);
   assert.equal((await pedir('/api/bo/eu', { token })).status, 401);

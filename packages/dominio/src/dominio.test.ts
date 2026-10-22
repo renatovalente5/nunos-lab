@@ -9,6 +9,7 @@ import {
   estadoDaPromocao,
   ligacaoDoTelefone,
   normalizarDestaque,
+  normalizarEmail,
   normalizarInstagram,
   normalizarLigacao,
   normalizarSite,
@@ -114,4 +115,10 @@ test('o que se lê de uma vez não parte, e aplicar duas vezes dá o mesmo', () 
   assert.equal(semPartir('9:00 - 19:00'), `9:00${J}-${J}19:00`);
   for (const t of ['Seg a sex · 9:00–19:00 · Sáb · 9:00–13:00', '−300 €', 'Grátis'])
     assert.equal(semPartir(semPartir(t)), semPartir(t));
+});
+
+test('um email compara-se sem espaços e em minúsculas', () => {
+  assert.equal(normalizarEmail('  NunoDib16@Gmail.com '), 'nunodib16@gmail.com');
+  assert.equal(normalizarEmail('sem-arroba'), null);
+  assert.equal(normalizarEmail('a@b'), null);
 });

@@ -23,6 +23,8 @@ export const ACCOES: Record<string, string> = {
   'acesso.criado': 'criou uma ligação de acesso para',
   'sessao.terminada': 'terminou a sessão de',
   'pessoa.removida': 'tirou o acesso a',
+  'pessoa.criada': 'deu acesso a',
+  'pessoa.email': 'mudou o email de',
   'parceiro.criado': 'criou o parceiro',
   'parceiro.alterado': 'alterou o parceiro',
   'parceiro.activado': 'pôs na app o parceiro',

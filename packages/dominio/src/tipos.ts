@@ -121,6 +121,8 @@ export type SessaoDoBackoffice = {
 export type PessoaComAcesso = {
   id: number;
   nome: string;
+  /** O email da conta Google com que entra (null: só por ligação de acesso). */
+  email: string | null;
   criadoEm: number;
   eu: boolean;
   sessoes: SessaoDoBackoffice[];

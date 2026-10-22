@@ -8,12 +8,15 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
  * gravado num campo nunca chega a correr nem a levar a sessão para outro lado.
  */
 function politica(api: string): Plugin {
+  // O botão «Entrar com o Google» precisa destes quatro (a lista que o Google publica).
+  const google = 'https://accounts.google.com/gsi/';
   const csp = [
     "default-src 'self'",
-    "script-src 'self'",
-    "style-src 'self' 'unsafe-inline'",
+    `script-src 'self' ${google}client`,
+    `style-src 'self' 'unsafe-inline' ${google}style`,
     `img-src 'self' data: blob: ${api}`,
-    `connect-src ${api}`,
+    `connect-src ${api} ${google}`,
+    `frame-src ${google}`,
     "font-src 'self'",
     "base-uri 'self'",
     "form-action 'none'",

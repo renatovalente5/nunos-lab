@@ -27,7 +27,9 @@ export function guardarSessao(testemunho: string | null) {
 
 const MENSAGENS: Record<string, string> = {
   sessao: 'A sessão acabou. Entra outra vez com uma ligação de acesso.',
-  ligacao_invalida: 'Esta ligação já foi usada ou já caducou. Pede outra.',
+  ligacao_invalida: 'Esta ligação já foi usada ou já caducou. Entra com o Google.',
+  google_invalido: 'O Google não confirmou a entrada. Tenta outra vez.',
+  sem_acesso: 'Esta conta Google não tem acesso ao backoffice.',
   muitas_tentativas: 'Demasiadas tentativas. Espera um minuto.',
   invalido: 'Há campos por corrigir.',
   json: 'O pedido chegou partido. Tenta outra vez.',

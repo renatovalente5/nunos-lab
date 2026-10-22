@@ -1,7 +1,13 @@
 import { Hono, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
-import { DIAS_DA_LIGACAO, DIAS_DA_SESSAO, LIMITES, type PessoaComAcesso } from '@nunos-lab/dominio';
-import type { Ambiente } from '../ambiente.ts';
+import {
+  DIAS_DA_LIGACAO,
+  DIAS_DA_SESSAO,
+  LIMITES,
+  normalizarEmail,
+  type PessoaComAcesso,
+} from '@nunos-lab/dominio';
+import type { Ambiente, C } from '../ambiente.ts';
 import {
   DIA,
   agora,
@@ -13,14 +19,17 @@ import {
   recusar,
   registar,
   sha256,
+  traduzirErroDaBase,
 } from '../util.ts';
+import { conferirCredencialGoogle } from './google.ts';
 
 /**
- * Entrar no backoffice é abrir uma LIGAÇÃO DE ACESSO: vale uma vez, por 7
- * dias, e troca-se por uma sessão deste aparelho. Não há palavras-passe nem
- * emails: quem já está dentro cria a ligação para outra pessoa (ou para outro
- * aparelho seu), e a primeira cria-se com «node scripts/acesso.mjs», pela
- * sessão do wrangler de quem publica.
+ * Entrar no backoffice faz-se de duas formas:
+ *  · com o GOOGLE: o botão devolve um token assinado pelo Google, e entra quem
+ *    tiver o email numa das pessoas da lista (é a forma do dia a dia);
+ *  · com uma LIGAÇÃO DE ACESSO: vale uma vez, por 7 dias, para quem não tiver
+ *    conta Google (a primeira cria-se com «node scripts/acesso.mjs»).
+ * As duas abrem uma sessão deste aparelho, que dura 90 dias sem uso.
  */
 
 /** A guarda: todas as rotas do backoffice, menos «entrar», precisam de sessão. */
@@ -69,6 +78,12 @@ rotasDaSessao.post('/entrar', async (c) => {
     .bind(blob(await sha256(acesso)))
     .first<{ admin_id: number }>();
   if (!gasta) recusar(401, 'ligacao_invalida');
+  return c.json(await abrirSessao(c, gasta.admin_id, 'ligação'));
+});
+
+/** Abre uma sessão para a pessoa, regista a entrada, e devolve o testemunho UMA vez. */
+async function abrirSessao(c: C, adminId: number, como: 'ligação' | 'Google') {
+  const db = c.env.DB;
   const testemunho = aleatorio(32);
   const aparelho = aparelhoDe(c.req.header('User-Agent') ?? '');
   const [sessao, , admin] = await db.batch([
@@ -76,17 +91,38 @@ rotasDaSessao.post('/entrar', async (c) => {
       .prepare(
         'INSERT INTO sessoes (resumo, admin_id, aparelho, expira_em) VALUES (?, ?, ?, unixepoch() + ?) RETURNING id',
       )
-      .bind(blob(await sha256(testemunho)), gasta.admin_id, aparelho, DIAS_DA_SESSAO * DIA),
+      .bind(blob(await sha256(testemunho)), adminId, aparelho, DIAS_DA_SESSAO * DIA),
     db
       .prepare("INSERT INTO registo (admin_id, accao, alvo) VALUES (?, 'entrou', ?)")
-      .bind(gasta.admin_id, aparelho),
-    db.prepare('SELECT id, nome FROM admins WHERE id = ?').bind(gasta.admin_id),
+      .bind(adminId, `${aparelho} · ${como}`),
+    db.prepare('SELECT id, nome FROM admins WHERE id = ?').bind(adminId),
   ]);
   const quem = admin!.results[0] as { id: number; nome: string };
-  return c.json({
+  return {
     sessao: testemunho,
     eu: { id: quem.id, nome: quem.nome, sessao: (sessao!.results[0] as { id: number }).id },
-  });
+  };
+}
+
+/**
+ * Entrar com o Google. Um token certo de um email que não está na lista dá
+ * 403 «sem_acesso» (a pessoa existe no Google, mas não aqui); um token que não
+ * bate certo dá 401.
+ */
+rotasDaSessao.post('/entrar/google', async (c) => {
+  const ip = c.req.header('CF-Connecting-IP') ?? 'local';
+  if (!(await c.env.TRAVAO.limit({ key: `entrar:${ip}` })).success)
+    recusar(429, 'muitas_tentativas');
+  const { credencial } = await corpo(c, z.object({ credencial: z.string().min(20).max(4096) }));
+  const id = await conferirCredencialGoogle(credencial, c.env.GOOGLE_CLIENTE);
+  if (!id) recusar(401, 'google_invalido');
+  const pessoa = await c.env.DB.prepare(
+    'SELECT id FROM admins WHERE email = ? AND removido_em IS NULL',
+  )
+    .bind(id.email)
+    .first<{ id: number }>();
+  if (!pessoa) recusar(403, 'sem_acesso');
+  return c.json(await abrirSessao(c, pessoa.id, 'Google'));
 });
 
 export const rotasDosAcessos = new Hono<Ambiente>();
@@ -105,7 +141,9 @@ rotasDosAcessos.get('/acessos', async (c) => {
   const db = c.env.DB;
   const eu = c.get('admin');
   const [admins, sessoes, ligacoes] = await db.batch([
-    db.prepare('SELECT id, nome, criado_em FROM admins WHERE removido_em IS NULL ORDER BY id'),
+    db.prepare(
+      'SELECT id, nome, email, criado_em FROM admins WHERE removido_em IS NULL ORDER BY id',
+    ),
     db.prepare(
       'SELECT id, admin_id, aparelho, criada_em, vista_em FROM sessoes WHERE revogada_em IS NULL AND expira_em > unixepoch() ORDER BY vista_em DESC',
     ),
@@ -116,10 +154,11 @@ rotasDosAcessos.get('/acessos', async (c) => {
   type S = { id: number; admin_id: number; aparelho: string; criada_em: number; vista_em: number };
   type L = { id: number; admin_id: number; criado_em: number; expira_em: number };
   const pessoas: PessoaComAcesso[] = (
-    admins!.results as { id: number; nome: string; criado_em: number }[]
+    admins!.results as { id: number; nome: string; email: string | null; criado_em: number }[]
   ).map((a) => ({
     id: a.id,
     nome: a.nome,
+    email: a.email,
     criadoEm: a.criado_em,
     eu: a.id === eu.id,
     sessoes: (sessoes!.results as S[])
@@ -227,5 +266,51 @@ rotasDosAcessos.delete('/pessoas/:id', async (c) => {
     db.prepare('DELETE FROM acessos WHERE admin_id = ? AND usado_em IS NULL').bind(id),
     registar(c, 'pessoa.removida', a.nome),
   ]);
+  return c.body(null, 204);
+});
+
+const EmailDoGoogle = z
+  .string()
+  .refine((v) => normalizarEmail(v) !== null)
+  .transform((v) => normalizarEmail(v)!);
+
+/** Dar acesso a uma pessoa nova: o nome e o email da conta Google com que vai entrar. */
+rotasDosAcessos.post('/pessoas', async (c) => {
+  const p = await corpo(
+    c,
+    z.object({ nome: z.string().trim().min(1).max(LIMITES.pessoa), email: EmailDoGoogle }),
+  );
+  const db = c.env.DB;
+  try {
+    const [nova] = await db.batch([
+      db
+        .prepare('INSERT INTO admins (nome, email) VALUES (?, ?) RETURNING id')
+        .bind(p.nome, p.email),
+      registar(c, 'pessoa.criada', `${p.nome} · ${p.email}`),
+    ]);
+    return c.json({ id: (nova!.results[0] as { id: number }).id }, 201);
+  } catch (e) {
+    traduzirErroDaBase(e);
+  }
+});
+
+/** Mudar (ou tirar, com null) o email Google de uma pessoa. */
+rotasDosAcessos.patch('/pessoas/:id', async (c) => {
+  const id = idDaMorada(c);
+  const { email } = await corpo(c, z.object({ email: EmailDoGoogle.nullable() }));
+  const db = c.env.DB;
+  const a = await db
+    .prepare('SELECT nome FROM admins WHERE id = ? AND removido_em IS NULL')
+    .bind(id)
+    .first<{ nome: string }>();
+  if (!a) recusar(404, 'nao_existe');
+  try {
+    await db.batch([
+      db.prepare('UPDATE admins SET email = ? WHERE id = ?').bind(email, id),
+      registar(c, 'pessoa.email', `${a.nome} · ${email ?? 'sem email'}`),
+    ]);
+  } catch (e) {
+    traduzirErroDaBase(e);
+  }
   return c.body(null, 204);
 });

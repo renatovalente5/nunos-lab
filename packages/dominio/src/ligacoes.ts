@@ -59,3 +59,10 @@ export function normalizarLigacao(entrada: string): string | null {
   if (n === null || n === '') return n;
   return n.startsWith('https://') ? n : null;
 }
+
+/** Um email para comparar: sem espaços e em minúsculas. `null` se não tiver forma de email. */
+export function normalizarEmail(entrada: string): string | null {
+  const t = entrada.trim().toLowerCase();
+  if (t.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) return null;
+  return t;
+}

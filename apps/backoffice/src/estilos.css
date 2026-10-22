@@ -1039,3 +1039,11 @@ details.tabela th {
     max-width: 420px;
   }
 }
+
+/* ——— o botão do Google na entrada ——— */
+.entrada-pagina h1 {
+  margin-bottom: 22px;
+}
+.botao-google {
+  color-scheme: light;
+}

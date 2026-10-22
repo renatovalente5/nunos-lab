@@ -2,6 +2,7 @@ import type { Eu } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { ErroDaApi, guardarSessao, mensagemDe, pedir, sessao } from './api';
+import { BotaoDoGoogle, CLIENTE_GOOGLE, emailDoToken } from './google';
 import { Acessos } from './paginas/Acessos';
 import { Barbearia } from './paginas/Barbearia';
 import { Categorias } from './paginas/Categorias';
@@ -73,25 +74,48 @@ export function App() {
 }
 
 function Entrar({ estado, mensagem }: { estado: string; mensagem?: string }) {
+  const [erro, setErro] = useState<string | null>(null);
+  const [aEntrar, setAEntrar] = useState(false);
+  const entrarComGoogle = async (credencial: string) => {
+    setAEntrar(true);
+    setErro(null);
+    try {
+      const r = await pedir<{ sessao: string }>('/api/bo/entrar/google', {
+        metodo: 'POST',
+        corpo: { credencial },
+      });
+      guardarSessao(r.sessao);
+    } catch (e) {
+      const email = emailDoToken(credencial);
+      setErro(
+        e instanceof ErroDaApi && e.codigo === 'sem_acesso' && email
+          ? `${email} não tem acesso ao backoffice. Entra com a conta que te deu acesso, ou pede ao Renato para a juntar.`
+          : mensagemDe(e),
+      );
+    } finally {
+      setAEntrar(false);
+    }
+  };
   return (
     <main className="entrada-pagina">
       <div className="caixa">
         <img className="palavra" src={PALAVRA} alt="Nuno's Lab" />
         <div className="sobre-palavra">Backoffice</div>
-        {estado === 'a-entrar' ? (
+        {estado === 'a-entrar' || aEntrar ? (
           <h1>A entrar…</h1>
         ) : (
           <>
-            <h1>Abre a tua ligação de acesso</h1>
-            <p>
-              Quem já tem acesso cria uma em «Acessos» e manda-ta. Cada ligação entra uma vez, neste
-              aparelho.
-            </p>
+            <h1>Entrar</h1>
+            {CLIENTE_GOOGLE ? (
+              <BotaoDoGoogle aoEntrar={entrarComGoogle} />
+            ) : (
+              <p>Abre a ligação de acesso que te mandaram.</p>
+            )}
           </>
         )}
-        {estado === 'erro' && (
+        {(erro || estado === 'erro') && (
           <div className="caixa-aviso mau" role="alert">
-            {mensagem}
+            {erro ?? mensagem}
           </div>
         )}
       </div>

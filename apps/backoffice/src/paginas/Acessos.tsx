@@ -1,7 +1,7 @@
-import { LIMITES, type PessoaComAcesso } from '@nunos-lab/dominio';
+import { LIMITES, normalizarEmail, type PessoaComAcesso } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { guardarSessao, pedir, refrescar } from '../api';
+import { ErroDaApi, guardarSessao, mensagemDe, pedir, refrescar } from '../api';
 import {
   Campo,
   Esqueleto,
@@ -19,27 +19,78 @@ function ligacaoDe(codigo: string): string {
   return `${location.origin}${location.pathname}#acesso=${codigo}`;
 }
 
+/**
+ * Quem entra no backoffice. Cada pessoa entra com a conta Google do email que
+ * aqui está; a ligação de acesso fica para quem não tiver conta Google.
+ */
 export function Acessos() {
   const { data } = useQuery({
     queryKey: ['acessos'],
     queryFn: () => pedir<PessoaComAcesso[]>('/api/bo/acessos'),
   });
   const [ligacao, setLigacao] = useState<{ para: string; url: string; ate: number } | null>(null);
-  const [novaPessoa, setNovaPessoa] = useState<string | null>(null);
+  const [nova, setNova] = useState<{ nome: string; email: string } | null>(null);
+  const [mudarEmail, setMudarEmail] = useState<{ id: number; nome: string; email: string } | null>(
+    null,
+  );
+  const [erroDoEmail, setErroDoEmail] = useState(false);
   const { correr, aCorrer } = useAccao();
   const avisar = useAvisar();
   const { confirmar, dialogo } = useConfirmar();
 
-  const criar = (corpo: { adminId: number } | { nome: string }, para: string) =>
+  const criarLigacao = (adminId: number, para: string) =>
     correr(async () => {
       const r = await pedir<{ codigo: string; expiraEm: number }>('/api/bo/acessos', {
         metodo: 'POST',
-        corpo,
+        corpo: { adminId },
       });
       await refrescar();
-      setNovaPessoa(null);
       setLigacao({ para, url: ligacaoDe(r.codigo), ate: r.expiraEm });
     });
+
+  const darAcesso = async () => {
+    if (!nova) return;
+    const email = normalizarEmail(nova.email);
+    if (!nova.nome.trim() || !email) {
+      setErroDoEmail(!email);
+      return;
+    }
+    try {
+      await pedir('/api/bo/pessoas', { metodo: 'POST', corpo: { nome: nova.nome.trim(), email } });
+      await refrescar();
+      avisar(`${nova.nome.trim()} já pode entrar com o Google`);
+      setNova(null);
+    } catch (e) {
+      avisar(
+        e instanceof ErroDaApi && e.codigo === 'repetido'
+          ? 'Esse email já tem acesso.'
+          : mensagemDe(e),
+        true,
+      );
+    }
+  };
+
+  const guardarEmail = async () => {
+    if (!mudarEmail) return;
+    const email = mudarEmail.email.trim() ? normalizarEmail(mudarEmail.email) : null;
+    if (mudarEmail.email.trim() && !email) {
+      setErroDoEmail(true);
+      return;
+    }
+    try {
+      await pedir(`/api/bo/pessoas/${mudarEmail.id}`, { metodo: 'PATCH', corpo: { email } });
+      await refrescar();
+      avisar('Email guardado');
+      setMudarEmail(null);
+    } catch (e) {
+      avisar(
+        e instanceof ErroDaApi && e.codigo === 'repetido'
+          ? 'Esse email já é de outra pessoa.'
+          : mensagemDe(e),
+        true,
+      );
+    }
+  };
 
   return (
     <>
@@ -48,7 +99,14 @@ export function Acessos() {
           <h1>Acessos</h1>
           <p className="subtitulo">Quem entra no backoffice, e em que aparelhos.</p>
         </div>
-        <button type="button" className="botao" onClick={() => setNovaPessoa('')}>
+        <button
+          type="button"
+          className="botao"
+          onClick={() => {
+            setErroDoEmail(false);
+            setNova({ nome: '', email: '' });
+          }}
+        >
           <Icone nome="mais" tamanho={18} /> Dar acesso a alguém
         </button>
       </div>
@@ -62,7 +120,7 @@ export function Acessos() {
               <div
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
+                  alignItems: 'flex-start',
                   justifyContent: 'space-between',
                   gap: 12,
                   padding: '18px 20px 8px',
@@ -72,15 +130,33 @@ export function Acessos() {
                 <div>
                   <strong style={{ fontSize: 17 }}>{p.nome}</strong>{' '}
                   {p.eu && <Etiqueta semPonto>Tu</Etiqueta>}
+                  <div
+                    className="detalhe"
+                    style={{ color: 'var(--tinta-2)', fontSize: 14, marginTop: 2 }}
+                  >
+                    {p.email
+                      ? `Entra com o Google: ${p.email}`
+                      : 'Sem conta Google: só entra por ligação'}
+                  </div>
                 </div>
                 <div className="botoes">
                   <button
                     type="button"
                     className="botao secundario pequeno"
-                    disabled={aCorrer}
-                    onClick={() => criar({ adminId: p.id }, p.nome)}
+                    onClick={() => {
+                      setErroDoEmail(false);
+                      setMudarEmail({ id: p.id, nome: p.nome, email: p.email ?? '' });
+                    }}
                   >
-                    Ligar outro aparelho
+                    {p.email ? 'Mudar o email' : 'Juntar email'}
+                  </button>
+                  <button
+                    type="button"
+                    className="botao secundario pequeno"
+                    disabled={aCorrer}
+                    onClick={() => criarLigacao(p.id, p.nome)}
+                  >
+                    Criar ligação
                   </button>
                   {!p.eu && (
                     <button
@@ -90,7 +166,7 @@ export function Acessos() {
                         if (
                           await confirmar(
                             `Tirar o acesso a ${p.nome}?`,
-                            'Sai já de todos os aparelhos, e as ligações por usar deixam de entrar.',
+                            'Sai já de todos os aparelhos, e deixa de conseguir entrar.',
                             'Tirar o acesso',
                           )
                         )
@@ -174,7 +250,7 @@ export function Acessos() {
                 ))}
                 {!p.sessoes.length && !p.ligacoes.length && (
                   <li>
-                    <div className="linha detalhe">Sem aparelhos.</div>
+                    <div className="linha detalhe">Ainda não entrou.</div>
                   </li>
                 )}
               </ul>
@@ -184,28 +260,71 @@ export function Acessos() {
       )}
 
       <Folha
-        aberta={novaPessoa !== null}
-        fechar={() => setNovaPessoa(null)}
+        aberta={nova !== null}
+        fechar={() => setNova(null)}
         titulo="Dar acesso a alguém"
         pe={
           <button
             type="button"
             className="botao"
-            disabled={!novaPessoa?.trim() || aCorrer}
-            onClick={() => novaPessoa && criar({ nome: novaPessoa.trim() }, novaPessoa.trim())}
+            disabled={!nova?.nome.trim() || !nova?.email.trim()}
+            onClick={() => correr(darAcesso)}
           >
-            Criar a ligação
+            Dar acesso
           </button>
         }
       >
-        <Campo
-          rotulo="Nome"
-          valor={novaPessoa ?? ''}
-          mudar={setNovaPessoa}
-          max={LIMITES.pessoa}
-          placeholder="Nuno"
-          autoFocus
-        />
+        {nova && (
+          <div className="formulario">
+            <Campo
+              rotulo="Nome"
+              valor={nova.nome}
+              mudar={(nome) => setNova({ ...nova, nome })}
+              max={LIMITES.pessoa}
+              placeholder="Nuno"
+              autoFocus
+            />
+            <Campo
+              rotulo="Email da conta Google"
+              valor={nova.email}
+              mudar={(email) => {
+                setErroDoEmail(false);
+                setNova({ ...nova, email });
+              }}
+              max={254}
+              erro={erroDoEmail}
+              placeholder="nome@gmail.com"
+              ajuda="Entra no backoffice com o botão do Google, com esta conta."
+            />
+          </div>
+        )}
+      </Folha>
+
+      <Folha
+        aberta={mudarEmail !== null}
+        fechar={() => setMudarEmail(null)}
+        titulo={`O email de ${mudarEmail?.nome ?? ''}`}
+        pe={
+          <button type="button" className="botao" onClick={() => correr(guardarEmail)}>
+            Guardar
+          </button>
+        }
+      >
+        {mudarEmail && (
+          <Campo
+            rotulo="Email da conta Google"
+            valor={mudarEmail.email}
+            mudar={(email) => {
+              setErroDoEmail(false);
+              setMudarEmail({ ...mudarEmail, email });
+            }}
+            max={254}
+            erro={erroDoEmail}
+            placeholder="nome@gmail.com"
+            ajuda="Vazio: deixa de entrar com o Google."
+            autoFocus
+          />
+        )}
       </Folha>
 
       <Folha
