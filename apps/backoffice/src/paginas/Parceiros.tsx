@@ -74,12 +74,17 @@ export function Parceiros() {
         </div>
       </div>
       <div className="lado">
-        {p.exemplo && <Etiqueta semPonto>Exemplo</Etiqueta>}
+        {p.exemplo && (
+          <span className="so-largo">
+            <Etiqueta semPonto>Exemplo</Etiqueta>
+          </span>
+        )}
         {!p.activo ? (
           <Etiqueta>Pausado</Etiqueta>
         ) : p.promocoesNaApp > 0 ? (
           <Etiqueta tom="bom">
-            {plural(p.promocoesNaApp, 'promoção na app', 'promoções na app')}
+            {plural(p.promocoesNaApp, 'promoção', 'promoções')}
+            <span className="so-largo">na app</span>
           </Etiqueta>
         ) : (
           <Etiqueta tom="mau">Sem promoções</Etiqueta>

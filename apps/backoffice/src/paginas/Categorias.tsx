@@ -26,6 +26,7 @@ export function Categorias() {
     id: number | null;
     nome: string;
     icone: IconeDaCategoria;
+    parceiros: number;
   } | null>(null);
   const { correr, aCorrer } = useAccao();
   const avisar = useAvisar();
@@ -54,7 +55,7 @@ export function Categorias() {
         <button
           type="button"
           className="botao"
-          onClick={() => setEditar({ id: null, nome: '', icone: 'outro' })}
+          onClick={() => setEditar({ id: null, nome: '', icone: 'outro', parceiros: 0 })}
         >
           <Icone nome="mais" tamanho={18} /> Nova categoria
         </button>
@@ -75,7 +76,14 @@ export function Categorias() {
             desenhar={(k, pega) => (
               <>
                 {pega}
-                <div className="linha linha-ordenavel">
+                <button
+                  type="button"
+                  className="linha"
+                  aria-label={`Editar ${k.nome}`}
+                  onClick={() =>
+                    setEditar({ id: k.id, nome: k.nome, icone: k.icone, parceiros: k.parceiros })
+                  }
+                >
                   <span className="icone-categoria">
                     <DesenhoDaCategoria icone={k.icone} />
                   </span>
@@ -83,37 +91,10 @@ export function Categorias() {
                     <div className="titulo-linha">{k.nome}</div>
                     <div className="detalhe">{plural(k.parceiros, 'parceiro', 'parceiros')}</div>
                   </div>
-                  <div className="lado">
-                    <button
-                      type="button"
-                      className="botao secundario pequeno"
-                      onClick={() => setEditar({ id: k.id, nome: k.nome, icone: k.icone })}
-                    >
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      className="botao perigo pequeno"
-                      onClick={async () => {
-                        if (
-                          await confirmar(
-                            `Apagar «${k.nome}»?`,
-                            k.parceiros
-                              ? `${plural(k.parceiros, 'parceiro fica', 'parceiros ficam')} sem categoria (continuam na app).`
-                              : 'Nenhum parceiro a usa.',
-                            'Apagar',
-                          )
-                        )
-                          await correr(async () => {
-                            await pedir(`/api/bo/categorias/${k.id}`, { metodo: 'DELETE' });
-                            await refrescar();
-                          }, 'Categoria apagada');
-                      }}
-                    >
-                      Apagar
-                    </button>
-                  </div>
-                </div>
+                  <span className="botao secundario pequeno so-largo" aria-hidden="true">
+                    Editar
+                  </span>
+                </button>
               </>
             )}
           />
@@ -125,24 +106,53 @@ export function Categorias() {
         fechar={() => setEditar(null)}
         titulo={editar?.id ? 'Editar a categoria' : 'Nova categoria'}
         pe={
-          <button
-            type="button"
-            className="botao"
-            disabled={!editar?.nome.trim() || aCorrer}
-            onClick={() =>
-              editar &&
-              correr(async () => {
-                const corpo = { nome: editar.nome, icone: editar.icone };
-                if (editar.id)
-                  await pedir(`/api/bo/categorias/${editar.id}`, { metodo: 'PATCH', corpo });
-                else await pedir('/api/bo/categorias', { metodo: 'POST', corpo });
-                await refrescar();
-                setEditar(null);
-              }, 'Guardado')
-            }
-          >
-            Guardar
-          </button>
+          <>
+            <button
+              type="button"
+              className="botao"
+              disabled={!editar?.nome.trim() || aCorrer}
+              onClick={() =>
+                editar &&
+                correr(async () => {
+                  const corpo = { nome: editar.nome, icone: editar.icone };
+                  if (editar.id)
+                    await pedir(`/api/bo/categorias/${editar.id}`, { metodo: 'PATCH', corpo });
+                  else await pedir('/api/bo/categorias', { metodo: 'POST', corpo });
+                  await refrescar();
+                  setEditar(null);
+                }, 'Guardado')
+              }
+            >
+              Guardar
+            </button>
+            {editar?.id && (
+              <button
+                type="button"
+                className="botao perigo"
+                style={{ marginLeft: 'auto' }}
+                onClick={async () => {
+                  if (!editar?.id) return;
+                  const { id, nome, parceiros } = editar;
+                  if (
+                    await confirmar(
+                      `Apagar «${nome}»?`,
+                      parceiros
+                        ? `${plural(parceiros, 'parceiro fica', 'parceiros ficam')} sem categoria (continuam na app).`
+                        : 'Nenhum parceiro a usa.',
+                      'Apagar',
+                    )
+                  )
+                    await correr(async () => {
+                      await pedir(`/api/bo/categorias/${id}`, { metodo: 'DELETE' });
+                      await refrescar();
+                      setEditar(null);
+                    }, 'Categoria apagada');
+                }}
+              >
+                Apagar
+              </button>
+            )}
+          </>
         }
       >
         {editar && (

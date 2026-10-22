@@ -30,9 +30,12 @@ export function Acessos() {
   });
   const [ligacao, setLigacao] = useState<{ para: string; url: string; ate: number } | null>(null);
   const [nova, setNova] = useState<{ nome: string; email: string } | null>(null);
-  const [mudarEmail, setMudarEmail] = useState<{ id: number; nome: string; email: string } | null>(
-    null,
-  );
+  const [mudarEmail, setMudarEmail] = useState<{
+    id: number;
+    nome: string;
+    email: string;
+    eu: boolean;
+  } | null>(null);
   const [erroDoEmail, setErroDoEmail] = useState(false);
   const { correr, aCorrer } = useAccao();
   const avisar = useAvisar();
@@ -124,62 +127,34 @@ export function Acessos() {
                   justifyContent: 'space-between',
                   gap: 12,
                   padding: '18px 20px 8px',
-                  flexWrap: 'wrap',
+                  flexWrap: 'nowrap',
                 }}
               >
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <strong style={{ fontSize: 17 }}>{p.nome}</strong>{' '}
                   {p.eu && <Etiqueta semPonto>Tu</Etiqueta>}
                   <div
                     className="detalhe"
-                    style={{ color: 'var(--tinta-2)', fontSize: 14, marginTop: 2 }}
-                  >
-                    {p.email
-                      ? `Entra com o Google: ${p.email}`
-                      : 'Sem conta Google: só entra por ligação'}
-                  </div>
-                </div>
-                <div className="botoes">
-                  <button
-                    type="button"
-                    className="botao secundario pequeno"
-                    onClick={() => {
-                      setErroDoEmail(false);
-                      setMudarEmail({ id: p.id, nome: p.nome, email: p.email ?? '' });
+                    style={{
+                      color: 'var(--tinta-2)',
+                      fontSize: 14,
+                      marginTop: 2,
+                      overflowWrap: 'anywhere',
                     }}
                   >
-                    {p.email ? 'Editar o email' : 'Juntar email'}
-                  </button>
-                  <button
-                    type="button"
-                    className="botao secundario pequeno"
-                    disabled={aCorrer}
-                    onClick={() => criarLigacao(p.id, p.nome)}
-                  >
-                    Criar ligação
-                  </button>
-                  {!p.eu && (
-                    <button
-                      type="button"
-                      className="botao perigo pequeno"
-                      onClick={async () => {
-                        if (
-                          await confirmar(
-                            `Tirar o acesso a ${p.nome}?`,
-                            'Sai já de todos os aparelhos, e deixa de conseguir entrar.',
-                            'Tirar o acesso',
-                          )
-                        )
-                          await correr(async () => {
-                            await pedir(`/api/bo/pessoas/${p.id}`, { metodo: 'DELETE' });
-                            await refrescar();
-                          }, 'Acesso tirado');
-                      }}
-                    >
-                      Tirar o acesso
-                    </button>
-                  )}
+                    {p.email ?? 'Só entra por ligação'}
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  className="botao secundario pequeno"
+                  onClick={() => {
+                    setErroDoEmail(false);
+                    setMudarEmail({ id: p.id, nome: p.nome, email: p.email ?? '', eu: p.eu });
+                  }}
+                >
+                  Editar
+                </button>
               </div>
               <ul className="lista">
                 {p.sessoes.map((s) => (
@@ -303,7 +278,7 @@ export function Acessos() {
       <Folha
         aberta={mudarEmail !== null}
         fechar={() => setMudarEmail(null)}
-        titulo={`O email de ${mudarEmail?.nome ?? ''}`}
+        titulo={`Editar ${mudarEmail?.nome ?? ''}`}
         pe={
           <button type="button" className="botao" onClick={() => correr(guardarEmail)}>
             Guardar
@@ -311,19 +286,57 @@ export function Acessos() {
         }
       >
         {mudarEmail && (
-          <Campo
-            rotulo="Email da conta Google"
-            valor={mudarEmail.email}
-            mudar={(email) => {
-              setErroDoEmail(false);
-              setMudarEmail({ ...mudarEmail, email });
-            }}
-            max={254}
-            erro={erroDoEmail}
-            placeholder="nome@gmail.com"
-            ajuda="Vazio: deixa de entrar com o Google."
-            autoFocus
-          />
+          <div className="formulario">
+            <Campo
+              rotulo="Email da conta Google"
+              valor={mudarEmail.email}
+              mudar={(email) => {
+                setErroDoEmail(false);
+                setMudarEmail({ ...mudarEmail, email });
+              }}
+              max={254}
+              erro={erroDoEmail}
+              placeholder="nome@gmail.com"
+              ajuda="Vazio: deixa de entrar com o Google."
+            />
+            <div className="botoes">
+              <button
+                type="button"
+                className="botao secundario pequeno"
+                disabled={aCorrer}
+                onClick={() => {
+                  const { id, nome } = mudarEmail;
+                  setMudarEmail(null);
+                  criarLigacao(id, nome);
+                }}
+              >
+                Criar ligação de acesso
+              </button>
+              {!mudarEmail.eu && (
+                <button
+                  type="button"
+                  className="botao perigo pequeno"
+                  onClick={async () => {
+                    const { id, nome } = mudarEmail;
+                    if (
+                      await confirmar(
+                        `Tirar o acesso a ${nome}?`,
+                        'Sai já de todos os aparelhos, e deixa de conseguir entrar.',
+                        'Tirar o acesso',
+                      )
+                    )
+                      await correr(async () => {
+                        await pedir(`/api/bo/pessoas/${id}`, { metodo: 'DELETE' });
+                        await refrescar();
+                        setMudarEmail(null);
+                      }, 'Acesso tirado');
+                  }}
+                >
+                  Tirar o acesso
+                </button>
+              )}
+            </div>
+          </div>
         )}
       </Folha>
 

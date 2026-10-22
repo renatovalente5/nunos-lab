@@ -145,6 +145,8 @@ img {
      largura de todas as secções juntas, e a página passa a ser mais larga do que o ecrã. */
   .casca {
     grid-template-columns: minmax(0, 1fr);
+    /* Sem isto, numa página curta a grelha reparte a altura que sobra e a barra preta cresce. */
+    grid-template-rows: auto 1fr;
   }
   .lateral {
     min-width: 0;
@@ -303,13 +305,15 @@ button.linha:hover {
   gap: 10px;
   flex: none;
 }
+/* No telemóvel tudo fica na mesma linha: o texto encolhe e parte, as etiquetas e os botões não descem. */
 @media (max-width: 640px) {
   .linha {
-    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 14px;
+    min-height: 60px;
   }
   .linha .lado {
-    width: 100%;
-    padding-left: 58px;
+    gap: 6px;
   }
 }
 
@@ -1220,4 +1224,42 @@ select.entrada {
   background-position: right 16px center;
   background-size: 18px 18px;
   cursor: pointer;
+}
+
+/* ——— no telemóvel: o título e o botão da página lado a lado, a frase por baixo ——— */
+@media (max-width: 640px) {
+  .cabecalho {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 4px;
+    margin-bottom: 16px;
+  }
+  .cabecalho > div:first-child {
+    display: contents;
+  }
+  .cabecalho h1 {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 26px;
+  }
+  .cabecalho .subtitulo {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin: 0;
+    font-size: 14px;
+  }
+  .cabecalho > :not(:first-child) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .cabecalho .botao {
+    height: 38px;
+    padding: 0 14px;
+    font-size: 14px;
+  }
+  .so-estreito-esconde {
+    display: none;
+  }
 }
