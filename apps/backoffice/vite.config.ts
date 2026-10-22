@@ -17,7 +17,8 @@ function politica(api: string): Plugin {
     `img-src 'self' data: blob: ${api}`,
     `connect-src ${api} ${google}`,
     `frame-src ${google}`,
-    "font-src 'self'",
+    // O botão do Google traz a letra dele dentro da folha de estilos (data:).
+    "font-src 'self' data:",
     "base-uri 'self'",
     "form-action 'none'",
     "object-src 'none'",
