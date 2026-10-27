@@ -69,6 +69,9 @@ export function useDados() {
     // como velha, por isso a app pede logo a nova.
     initialData: lerGuardados,
     initialDataUpdatedAt: 0,
+    // Com o telemóvel sem rede, o modo de origem PÕE A CONSULTA EM PAUSA (não
+    // falha): sem lista guardada, o ecrã ficava a carregar para sempre.
+    networkMode: 'always',
     select: soDeHoje,
     staleTime: 20_000,
     refetchInterval: 5 * 60_000,
