@@ -381,6 +381,9 @@ export function Folha({
   pe?: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  // Fecha com um clique FORA, e só se o clique também começou fora: seleccionar
+  // texto num campo e largar o rato fora da folha não a fecha.
+  const comecouFora = useRef(false);
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
@@ -396,8 +399,12 @@ export function Folha({
         e.preventDefault();
         fechar();
       }}
+      onPointerDown={(e) => {
+        comecouFora.current = e.target === ref.current;
+      }}
       onClick={(e) => {
-        if (e.target === ref.current) fechar();
+        if (e.target === ref.current && comecouFora.current) fechar();
+        comecouFora.current = false;
       }}
     >
       {aberta && (

@@ -61,6 +61,8 @@ export type DadosDaApp = {
   hoje: string;
   barbearia: Barbearia;
   aviso: string | null;
+  /** Último dia do aviso (a app sem rede tira-o no dia seguinte). */
+  avisoAte?: string | null;
   categorias: Categoria[];
   parceiros: ParceiroPublico[];
 };
@@ -99,6 +101,8 @@ export type Parceiro = ContactosDoParceiro & {
 export type Promocao = PromocaoPublica & {
   parceiroId: number;
   parceiro: string;
+  /** O parceiro está desligado: a promoção, mesmo ligada, não está na app. */
+  parceiroPausado: boolean;
   activa: boolean;
   ordem: number;
   criadaEm: number;

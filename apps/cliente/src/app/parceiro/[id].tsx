@@ -54,9 +54,12 @@ function BotaoSobreACapa({
 
 export default function PaginaDoParceiro() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data, isPending, isError, refetch } = useDados();
+  const { data, isError, isFetching, dataUpdatedAt, refetch } = useDados();
   const margens = useSafeAreaInsets();
   const parceiro = data?.parceiros.find((p) => String(p.id) === id);
+  // A lista guardada no aparelho pode ser de antes deste parceiro (uma ligação
+  // partilhada de um parceiro novo): só se diz que não está depois de a rede responder.
+  const aEsperar = !data || (!parceiro && !dataUpdatedAt);
 
   useEffect(() => {
     if (parceiro) definirTitulo(`${parceiro.nome} · Nuno's Lab`);
@@ -65,14 +68,13 @@ export default function PaginaDoParceiro() {
     if (id && /^\d+$/.test(id)) contar('parceiro', Number(id));
   }, [id]);
 
-  if (!data) {
+  if (aEsperar) {
     return (
       <Ecra comBarra={false}>
         <View style={{ paddingHorizontal: MARGEM }}>
           <BotaoSobreACapa icone="voltar" rotulo="Voltar" onPress={voltar} />
         </View>
-        {isPending && <Esqueleto />}
-        {isError && <SemLigacao tentar={() => refetch()} />}
+        {isError && !isFetching ? <SemLigacao tentar={() => refetch()} /> : <Esqueleto />}
       </Ecra>
     );
   }

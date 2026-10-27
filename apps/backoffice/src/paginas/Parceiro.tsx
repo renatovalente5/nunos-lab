@@ -148,12 +148,17 @@ export function Parceiro({ id }: { id: string }) {
         history.replaceState(null, '', `#/parceiros/${r.id}?nova=promocao`);
         window.dispatchEvent(new HashChangeEvent('hashchange'));
       } else {
-        await pedir(`/api/bo/parceiros/${id}`, { metodo: 'PATCH', corpo: f });
-        setOriginal(f);
+        const enviado = f;
+        const guardado = await pedir<ParceiroDoContrato>(`/api/bo/parceiros/${id}`, {
+          metodo: 'PATCH',
+          corpo: f,
+        });
+        // O formulário fica com o que ficou gravado (o servidor arruma os contactos:
+        // «instagram.com/conta/» fica «conta»), menos o que se escreveu entretanto.
+        const novoFormulario = doParceiro(guardado);
+        setOriginal(novoFormulario);
+        setF((agora) => (agora === enviado ? novoFormulario : agora));
         await refrescar();
-        // O formulário volta a ler o que ficou gravado: o servidor arruma os
-        // contactos («instagram.com/conta/» fica «conta», o site ganha https://).
-        setOriginal(null);
         avisar('Guardado');
       }
     } catch (e) {

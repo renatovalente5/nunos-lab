@@ -88,6 +88,10 @@ test('o destaque arruma-se, e arrumar duas vezes dá o mesmo', () => {
 test('os contactos aceitam-se como as pessoas os escrevem', () => {
   assert.equal(normalizarInstagram('@tasca.do_cravo'), 'tasca.do_cravo');
   assert.equal(normalizarInstagram('https://www.instagram.com/nunoslab/?hl=pt'), 'nunoslab');
+  assert.equal(normalizarInstagram('m.instagram.com/tasca'), 'tasca');
+  assert.equal(normalizarInstagram('https://instagram.com/stories/tasca/3141592/'), 'tasca');
+  assert.equal(normalizarInstagram('https://www.instagram.com/p/C1abc/'), null);
+  assert.equal(normalizarInstagram('https://www.instagram.com/reel/C1abc/?igsh=x'), null);
   assert.equal(normalizarInstagram('não serve'), null);
   assert.equal(normalizarInstagram(''), '');
   assert.equal(normalizarSite('tasca.pt'), 'https://tasca.pt/');

@@ -36,7 +36,8 @@ async function buscar(): Promise<DadosDaApp> {
 
 /**
  * Tira o que já não vale HOJE neste aparelho: com dados guardados de ontem e
- * sem rede, uma promoção que acabou ontem não pode aparecer.
+ * sem rede, uma promoção que acabou ontem não pode aparecer (nem o aviso que
+ * acabou, nem uma categoria que ficou sem parceiros).
  */
 function soDeHoje(d: DadosDaApp): DadosDaApp {
   const hoje = diaEmLisboa();
@@ -49,7 +50,14 @@ function soDeHoje(d: DadosDaApp): DadosDaApp {
       ),
     }))
     .filter((p) => p.promocoes.length > 0);
-  return { ...d, hoje, parceiros };
+  const usadas = new Set(parceiros.map((p) => p.categoriaId));
+  return {
+    ...d,
+    hoje,
+    parceiros,
+    aviso: d.aviso && (!d.avisoAte || hoje <= d.avisoAte) ? d.aviso : null,
+    categorias: d.categorias.filter((k) => usadas.has(k.id)),
+  };
 }
 
 export function useDados() {

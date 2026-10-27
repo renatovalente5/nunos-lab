@@ -68,7 +68,8 @@ rotasPublicas.get('/app', async (c) => {
     (defs!.results as { chave: string; valor: string }[]).map((d) => [d.chave, d.valor]),
   );
   const avisoAte = def.get('aviso_ate') ?? '';
-  const aviso = def.get('aviso')?.trim() || null;
+  const textoDoAviso = def.get('aviso')?.trim() || null;
+  const aviso = textoDoAviso && (!avisoAte || hoje <= avisoAte) ? textoDoAviso : null;
 
   const dados: DadosDaApp = {
     hoje,
@@ -79,7 +80,8 @@ rotasPublicas.get('/app', async (c) => {
       site: def.get('site') ?? '',
       lojas: (lojas!.results as LinhaLoja[]).map(loja),
     },
-    aviso: aviso && (!avisoAte || hoje <= avisoAte) ? aviso : null,
+    aviso,
+    avisoAte: aviso && avisoAte ? avisoAte : null,
     categorias: (cats!.results as LinhaCategoria[]).filter((l) => usadas.has(l.id)).map(categoria),
     parceiros,
   };

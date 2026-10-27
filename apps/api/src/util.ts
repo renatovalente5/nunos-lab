@@ -28,7 +28,13 @@ export async function corpo<T extends z.ZodType>(c: C, esquema: T): Promise<z.ou
   }
   const r = esquema.safeParse(dados);
   if (!r.success) {
-    const campos = [...new Set(r.error.issues.map((i) => String(i.path[0] ?? '')))].filter(Boolean);
+    // O nome de cima («lojas») e o caminho inteiro («lojas.0.telefone»), para o
+    // backoffice marcar o campo certo dentro de uma lista.
+    const campos = [
+      ...new Set(
+        r.error.issues.flatMap((i) => [String(i.path[0] ?? ''), i.path.map(String).join('.')]),
+      ),
+    ].filter(Boolean);
     throw new HTTPException(400, {
       res: new Response(JSON.stringify({ erro: 'invalido', campos }), {
         status: 400,

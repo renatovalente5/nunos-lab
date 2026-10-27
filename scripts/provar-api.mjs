@@ -40,6 +40,15 @@ naBaseLocal(
     .join(' '),
 );
 naBaseLocal('--file', '../../base/exemplos.sql');
+/** Uma consulta à base local, com as linhas que vierem. */
+const daBaseLocal = (sql) =>
+  JSON.parse(
+    execFileSync(
+      'npx',
+      ['wrangler', 'd1', 'execute', 'nunos-lab', '--local', '--json', '--command', sql],
+      { cwd: pastaDaApi, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    ),
+  )[0].results;
 let passos = 0;
 async function passo(nome, f) {
   try {
@@ -278,6 +287,31 @@ await passo('pausar a promoção tira o parceiro da app', async () => {
   assert.ok(!d.parceiros.some((x) => x.id === parceiro));
 });
 
+await passo('desligar o parceiro: as promoções ligadas dele contam como pausadas', async () => {
+  const ligar = (activa) =>
+    pedir(`/api/bo/promocoes/${promocao}`, { method: 'PATCH', token, body: json({ activa }) });
+  await ligar(true);
+  const r = await pedir(`/api/bo/parceiros/${parceiro}`, {
+    method: 'PATCH',
+    token,
+    body: json({ activo: false, instagram: 'https://m.instagram.com/outra.prova/' }),
+  });
+  assert.equal(r.status, 200, 'o PATCH devolve o parceiro gravado');
+  const gravado = await r.json();
+  assert.equal(gravado.activo, false);
+  assert.equal(gravado.instagram, 'outra.prova', 'com os contactos arrumados');
+  const lista = await (await pedir('/api/bo/promocoes', { token })).json();
+  const p = lista.find((x) => x.id === promocao);
+  assert.equal(p.estado, 'pausada');
+  assert.equal(p.parceiroPausado, true);
+  await pedir(`/api/bo/parceiros/${parceiro}`, {
+    method: 'PATCH',
+    token,
+    body: json({ activo: true }),
+  });
+  await ligar(false);
+});
+
 await passo('o resumo conta as contagens e o que precisa de atenção', async () => {
   const r = await (await pedir('/api/bo/resumo?dias=7', { token })).json();
   assert.equal(r.aberturas.length, 7);
@@ -288,12 +322,25 @@ await passo('o resumo conta as contagens e o que precisa de atenção', async ()
   assert.equal(r.marcacoes.length, 3);
 });
 
-await passo('apagar o parceiro apaga as promoções dele', async () => {
+await passo('apagar o parceiro apaga as promoções e as contagens dele', async () => {
+  for (const [tipo, ref] of [
+    ['parceiro', parceiro],
+    ['ligar', parceiro],
+    ['promocao', promocao],
+  ])
+    await fetch(`${API}/api/contar`, { method: 'POST', body: json({ tipo, ref }) });
+  await new Promise((r) => setTimeout(r, 400));
+  const contar = () =>
+    daBaseLocal(
+      `SELECT count(*) AS n FROM contagens WHERE (tipo IN ('parceiro', 'ligar') AND ref = ${parceiro}) OR (tipo = 'promocao' AND ref = ${promocao})`,
+    )[0].n;
+  assert.ok(contar() >= 3, 'as contagens entraram');
   assert.equal(
     (await pedir(`/api/bo/parceiros/${parceiro}`, { method: 'DELETE', token })).status,
     204,
   );
   assert.equal((await pedir(`/api/bo/promocoes/${promocao}`, { token })).status, 404);
+  assert.equal(contar(), 0, 'um parceiro novo com o mesmo id não herda as vistas');
 });
 
 await passo('a barbearia grava-se inteira, e uma ligação sem https é recusada', async () => {
@@ -309,7 +356,10 @@ await passo('a barbearia grava-se inteira, e uma ligação sem https é recusada
     token,
     body: json({ ...b, aviso: 'Novos parceiros esta semana', avisoAte: null }),
   });
-  assert.equal(boa.status, 204);
+  assert.equal(boa.status, 200, 'devolve o que gravou');
+  const gravada = await boa.json();
+  assert.equal(gravada.aviso, 'Novos parceiros esta semana');
+  assert.ok(gravada.lojas.every((l) => Number.isInteger(l.id)));
   const d = await (await pedir('/api/app')).json();
   assert.equal(d.aviso, 'Novos parceiros esta semana');
   await pedir('/api/bo/barbearia', { method: 'PUT', token, body: json({ ...b, aviso: '' }) });

@@ -26,7 +26,7 @@ export function guardarSessao(testemunho: string | null) {
 }
 
 const MENSAGENS: Record<string, string> = {
-  sessao: 'A sessão acabou. Entra outra vez com uma ligação de acesso.',
+  sessao: 'A sessão acabou. Entra outra vez.',
   ligacao_invalida: 'Esta ligação já foi usada ou já caducou. Entra com o Google.',
   google_invalido: 'O Google não confirmou a entrada. Tenta outra vez.',
   sem_acesso: 'Esta conta Google não tem acesso ao backoffice.',
@@ -38,6 +38,7 @@ const MENSAGENS: Record<string, string> = {
   imagem_grande: 'A imagem é grande demais.',
   tipo_de_imagem: 'Esse formato não serve. Usa JPG, PNG ou WebP.',
   imagem_invalida: 'Esse ficheiro não é uma imagem.',
+  imagem_por_abrir: 'Este browser não abre essa imagem. Usa JPG ou PNG.',
   imagem_vazia: 'Esse ficheiro está vazio.',
   medidas: 'Não consegui ler as medidas da imagem.',
   a_si_proprio: 'Não podes tirar o teu próprio acesso.',
@@ -86,7 +87,8 @@ export async function pedir<T = void>(
   } catch {
     throw new ErroDaApi('rede');
   }
-  if (r.status === 401 && caminho !== '/api/bo/entrar') {
+  // Uma recusa ao ENTRAR (ligação gasta, Google que não confirma) não é uma sessão que acabou.
+  if (r.status === 401 && !caminho.startsWith('/api/bo/entrar')) {
     guardarSessao(null);
     throw new ErroDaApi('sessao');
   }

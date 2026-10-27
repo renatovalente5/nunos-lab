@@ -1,4 +1,9 @@
-import { ligacaoDoInstagram, ligacaoDoMapa, semPartir } from '@nunos-lab/dominio';
+import {
+  ligacaoDoInstagram,
+  ligacaoDoMapa,
+  ligacaoDoTelefone,
+  semPartir,
+} from '@nunos-lab/dominio';
 import { Link } from 'expo-router';
 import { useEffect } from 'react';
 import { Image, Pressable, View } from 'react-native';
@@ -81,6 +86,15 @@ export default function Barbearia() {
                       onPress={() => abrir(ligacaoDoMapa(l.morada, "Nuno's Lab"))}
                     />
                   )}
+                  {!!l.telefone && (
+                    <Botao
+                      nome="Ligar"
+                      icone="ligar"
+                      secundario
+                      rotulo={`Ligar para ${l.nome}`}
+                      onPress={() => abrir(ligacaoDoTelefone(l.telefone))}
+                    />
+                  )}
                 </View>
               </View>
             ))}
@@ -88,7 +102,7 @@ export default function Barbearia() {
         </>
       )}
 
-      {b && (!!b.whatsapp || !!b.instagram || !!b.tiktok) && (
+      {b && (!!b.whatsapp || !!b.instagram || !!b.tiktok || !!b.site) && (
         <>
           <Rotulo>Mais</Rotulo>
           <Grupo>
@@ -115,6 +129,15 @@ export default function Barbearia() {
                 nome="TikTok"
                 onPress={() => abrir(b.tiktok)}
                 separador={!!(b.whatsapp || b.instagram)}
+              />
+            )}
+            {!!b.site && (
+              <Linha
+                icone="site"
+                nome="Site"
+                detalhe={b.site.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
+                onPress={() => abrir(b.site)}
+                separador={!!(b.whatsapp || b.instagram || b.tiktok)}
               />
             )}
           </Grupo>

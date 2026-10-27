@@ -44,27 +44,62 @@ export function ListaArrastavel<T>({
   itens: T[];
   chave: (item: T) => string | number;
   nome: (item: T) => string;
-  aoReordenar: (novos: T[]) => void;
+  aoReordenar: (novos: T[]) => void | Promise<unknown>;
   desenhar: (item: T, pega: ReactNode) => ReactNode;
   como?: 'ul' | 'ol' | 'div';
   className?: string;
 }) {
-  const [ordem, setOrdem] = useState(itens);
+  // Só a ORDEM é desta lista, e só enquanto os dados não a trazem (a meio de um
+  // arrasto, ou enquanto se grava). O conteúdo de cada linha vem sempre dos
+  // dados de agora: uma cópia atrasada fazia o cursor saltar nos campos.
+  const [chavesLocais, setChavesLocais] = useState<(string | number)[] | null>(null);
   const [aArrastar, setAArrastar] = useState<string | number | null>(null);
   const [anuncio, setAnuncio] = useState('');
   const arrasto = useRef<Arrasto | null>(null);
   const elementos = useRef(new Map<string | number, HTMLElement>());
   // As funções de quem usa a lista mudam a cada desenho dele: guardam-se aqui,
   // para um arrasto nunca ser interrompido por um desenho a meio.
-  const deFora = useRef({ aoReordenar, nome });
-  deFora.current = { aoReordenar, nome };
+  const deFora = useRef({ aoReordenar, nome, chave });
+  deFora.current = { aoReordenar, nome, chave };
+  const fila = useRef<{ aGravar: boolean; seguinte: T[] | null }>({
+    aGravar: false,
+    seguinte: null,
+  });
+
+  let ordem = itens;
+  if (chavesLocais) {
+    const porChave = new Map(itens.map((x) => [chave(x), x] as const));
+    const vistas = new Set(chavesLocais);
+    ordem = [
+      ...chavesLocais.map((k) => porChave.get(k)).filter((x): x is T => x !== undefined),
+      ...itens.filter((x) => !vistas.has(chave(x))),
+    ];
+  }
   const ordemAgora = useRef(ordem);
   ordemAgora.current = ordem;
 
-  // Os dados novos (depois de gravar, ou de outro ecrã) só entram fora de um arrasto.
-  useEffect(() => {
-    if (!arrasto.current) setOrdem(itens);
-  }, [itens]);
+  // Grava uma ordem de cada vez, e só a última: carregar três vezes na seta
+  // depressa não manda três pedidos que se atropelam. No fim, a lista volta a
+  // mostrar os dados como estão (a ordem gravada, ou a antiga se falhou).
+  const entregar = useCallback((nova: T[]) => {
+    setChavesLocais(nova.map(deFora.current.chave));
+    fila.current.seguinte = nova;
+    if (fila.current.aGravar) return;
+    fila.current.aGravar = true;
+    void (async () => {
+      while (fila.current.seguinte) {
+        const esta = fila.current.seguinte;
+        fila.current.seguinte = null;
+        try {
+          await deFora.current.aoReordenar(esta);
+        } catch {
+          // Quem usa a lista avisa e volta a ler os dados.
+        }
+      }
+      fila.current.aGravar = false;
+      if (!arrasto.current) setChavesLocais(null);
+    })();
+  }, []);
 
   const posicionar = useCallback(() => {
     const a = arrasto.current;
@@ -105,27 +140,32 @@ export function ListaArrastavel<T>({
     a.rolar = requestAnimationFrame(rolarSozinho);
   }, [posicionar]);
 
-  const largar = useCallback((cancelar = false) => {
-    const a = arrasto.current;
-    if (!a) return;
-    if (a.rolar) cancelAnimationFrame(a.rolar);
-    arrasto.current = null;
-    document.body.classList.remove('a-arrastar-algo');
-    // Sem transição neste instante: a lista muda de ordem e as linhas voltam ao sítio ao mesmo tempo.
-    a.elementos.forEach((el) => {
-      el.style.transition = 'none';
-      el.style.transform = '';
-    });
-    requestAnimationFrame(() => a.elementos.forEach((el) => (el.style.transition = '')));
-    setAArrastar(null);
-    if (cancelar || a.alvo === a.inicio) return;
-    const nova = [...ordemAgora.current];
-    const [movido] = nova.splice(a.inicio, 1);
-    nova.splice(a.alvo, 0, movido!);
-    setOrdem(nova);
-    deFora.current.aoReordenar(nova);
-    setAnuncio(`${deFora.current.nome(movido!)}: posição ${a.alvo + 1} de ${nova.length}`);
-  }, []);
+  const largar = useCallback(
+    (cancelar = false) => {
+      const a = arrasto.current;
+      if (!a) return;
+      if (a.rolar) cancelAnimationFrame(a.rolar);
+      arrasto.current = null;
+      document.body.classList.remove('a-arrastar-algo');
+      // Sem transição neste instante: a lista muda de ordem e as linhas voltam ao sítio ao mesmo tempo.
+      a.elementos.forEach((el) => {
+        el.style.transition = 'none';
+        el.style.transform = '';
+      });
+      requestAnimationFrame(() => a.elementos.forEach((el) => (el.style.transition = '')));
+      setAArrastar(null);
+      if (cancelar || a.alvo === a.inicio) {
+        if (!fila.current.aGravar) setChavesLocais(null);
+        return;
+      }
+      const nova = [...ordemAgora.current];
+      const [movido] = nova.splice(a.inicio, 1);
+      nova.splice(a.alvo, 0, movido!);
+      entregar(nova);
+      setAnuncio(`${deFora.current.nome(movido!)}: posição ${a.alvo + 1} de ${nova.length}`);
+    },
+    [entregar],
+  );
 
   // Se a lista sair do ecrã a meio de um arrasto, larga-se sem mudar nada.
   useEffect(() => () => largar(true), [largar]);
@@ -161,6 +201,8 @@ export function ListaArrastavel<T>({
       rolar: null,
     };
     document.body.classList.add('a-arrastar-algo');
+    // A meio de um arrasto, a ordem não muda por baixo do dedo (dados novos esperam).
+    setChavesLocais(chaves);
     setAArrastar(chave(item));
     arrasto.current.rolar = requestAnimationFrame(rolarSozinho);
   };
@@ -180,8 +222,7 @@ export function ListaArrastavel<T>({
     if (j < 0 || j >= ordem.length) return;
     const nova = [...ordem];
     [nova[i], nova[j]] = [nova[j]!, nova[i]!];
-    setOrdem(nova);
-    aoReordenar(nova);
+    entregar(nova);
     setAnuncio(`${nome(item)}: posição ${j + 1} de ${nova.length}`);
   };
 

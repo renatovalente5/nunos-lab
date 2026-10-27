@@ -6,13 +6,24 @@
 
 const INSTAGRAM = /^[A-Za-z0-9._]{1,30}$/;
 
-/** «@tasca», «tasca», «instagram.com/tasca/?hl=pt» → «tasca». */
+/** Caminhos do Instagram que não são contas: uma publicação colada não grava a conta «p». */
+const NAO_SAO_CONTAS = new Set(['p', 'reel', 'reels', 'tv', 'explore', 'accounts', 'direct']);
+
+/**
+ * «@tasca», «tasca», «instagram.com/tasca/?hl=pt», «m.instagram.com/tasca»,
+ * «instagram.com/stories/tasca/123» → «tasca». A ligação de uma publicação
+ * (/p/…, /reel/…) não diz de quem é: recusa-se.
+ */
 export function normalizarInstagram(entrada: string): string | null {
   let t = entrada.trim();
   if (!t) return '';
-  t = t.replace(/^https?:\/\//i, '').replace(/^(www\.)?instagram\.com\//i, '');
-  t = t.replace(/^@/, '').split(/[/?#]/)[0] ?? '';
-  return INSTAGRAM.test(t) ? t : null;
+  const eLigacao = /^(https?:\/\/)?([a-z]+\.)?instagram\.com\//i.test(t);
+  t = t.replace(/^https?:\/\//i, '').replace(/^([a-z]+\.)?instagram\.com\//i, '');
+  const partes = t.replace(/^@/, '').split(/[?#]/)[0]!.split('/').filter(Boolean);
+  if (eLigacao && partes[0] === 'stories') partes.shift();
+  const conta = partes[0] ?? '';
+  if (eLigacao && NAO_SAO_CONTAS.has(conta.toLowerCase())) return null;
+  return INSTAGRAM.test(conta) ? conta : null;
 }
 
 export function ligacaoDoInstagram(conta: string): string {

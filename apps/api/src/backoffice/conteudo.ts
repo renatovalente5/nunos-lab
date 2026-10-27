@@ -72,7 +72,7 @@ rotasDoConteudo.get('/parceiros/:id', async (c) => {
   return c.json({
     parceiro: parceiroDoBackoffice(linha),
     promocoes: (proms!.results as LinhaPromocao[]).map((l) =>
-      promocaoDoBackoffice(l, linha.nome, hoje),
+      promocaoDoBackoffice(l, linha.nome, linha.activo === 1, hoje),
     ),
   });
 });
@@ -152,8 +152,16 @@ rotasDoConteudo.patch('/parceiros/:id', async (c) => {
   } catch (e) {
     traduzirErroDaBase(e);
   }
-  return c.body(null, 204);
+  // Devolve o que ficou gravado (com os contactos arrumados): o formulário fica com isto.
+  const linha = await db
+    .prepare(`${SELECT_PARCEIROS} WHERE p.id = ?2`)
+    .bind(diaEmLisboa(), id)
+    .first<LinhaComContagens>();
+  return c.json(parceiroDoBackoffice(linha!));
 });
+
+/** Os toques da app que apontam para um parceiro (a referência é o id dele). */
+const TIPOS_DO_PARCEIRO = "'parceiro', 'mapa', 'ligar', 'instagram', 'site'";
 
 rotasDoConteudo.delete('/parceiros/:id', async (c) => {
   const id = idDaMorada(c);
@@ -164,6 +172,14 @@ rotasDoConteudo.delete('/parceiros/:id', async (c) => {
     .first<{ nome: string }>();
   if (!antes) recusar(404, 'nao_existe');
   await db.batch([
+    // As contagens vão com ele: os ids reaproveitam-se, e um parceiro novo com
+    // o mesmo número não pode herdar as vistas do apagado.
+    db
+      .prepare(
+        `DELETE FROM contagens WHERE (tipo IN (${TIPOS_DO_PARCEIRO}) AND ref = ?1)
+           OR (tipo = 'promocao' AND ref IN (SELECT id FROM promocoes WHERE parceiro_id = ?1))`,
+      )
+      .bind(id),
     db.prepare('DELETE FROM parceiros WHERE id = ?').bind(id),
     registar(c, 'parceiro.apagado', antes.nome),
   ]);
@@ -186,7 +202,11 @@ rotasDoConteudo.post('/parceiros/ordem', async (c) => {
 /** Apagar de uma vez os parceiros inventados para a demonstração. */
 rotasDoConteudo.post('/exemplos/apagar', async (c) => {
   const db = c.env.DB;
-  const [r] = await db.batch([
+  const [, r] = await db.batch([
+    db.prepare(
+      `DELETE FROM contagens WHERE (tipo IN (${TIPOS_DO_PARCEIRO}) AND ref IN (SELECT id FROM parceiros WHERE exemplo = 1))
+         OR (tipo = 'promocao' AND ref IN (SELECT p.id FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id WHERE pa.exemplo = 1))`,
+    ),
     db.prepare('DELETE FROM parceiros WHERE exemplo = 1'),
     registar(c, 'exemplos.apagados'),
   ]);
@@ -195,41 +215,53 @@ rotasDoConteudo.post('/exemplos/apagar', async (c) => {
 
 // ——— promoções ———
 
+/**
+ * Uma promoção ligada de um parceiro desligado também não está na app: conta
+ * como pausada, e `parceiroPausado` diz porquê.
+ */
 function promocaoDoBackoffice(
   l: LinhaPromocao,
   parceiro: string,
+  parceiroActivo: boolean,
   hoje: string,
 ): PromocaoDoContrato {
   return {
     ...promocaoPublica(l),
     parceiroId: l.parceiro_id,
     parceiro,
+    parceiroPausado: !parceiroActivo,
     activa: l.activa === 1,
     ordem: l.ordem,
     criadaEm: l.criada_em,
     alteradaEm: l.alterada_em,
-    estado: estadoDaPromocao({ activa: l.activa === 1, inicio: l.inicio, fim: l.fim }, hoje),
+    estado: estadoDaPromocao(
+      { activa: l.activa === 1 && parceiroActivo, inicio: l.inicio, fim: l.fim },
+      hoje,
+    ),
   };
 }
 
 rotasDoConteudo.get('/promocoes', async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT p.*, pa.nome AS parceiro FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
+    `SELECT p.*, pa.nome AS parceiro, pa.activo AS parceiro_activo FROM promocoes p
+     JOIN parceiros pa ON pa.id = p.parceiro_id
      ORDER BY pa.ordem, pa.nome, p.ordem, p.id`,
-  ).all<LinhaPromocao & { parceiro: string }>();
+  ).all<LinhaPromocao & { parceiro: string; parceiro_activo: number }>();
   const hoje = diaEmLisboa();
-  return c.json(results.map((l) => promocaoDoBackoffice(l, l.parceiro, hoje)));
+  return c.json(
+    results.map((l) => promocaoDoBackoffice(l, l.parceiro, l.parceiro_activo === 1, hoje)),
+  );
 });
 
 rotasDoConteudo.get('/promocoes/:id', async (c) => {
   const id = idDaMorada(c);
   const l = await c.env.DB.prepare(
-    'SELECT p.*, pa.nome AS parceiro FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id WHERE p.id = ?',
+    'SELECT p.*, pa.nome AS parceiro, pa.activo AS parceiro_activo FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id WHERE p.id = ?',
   )
     .bind(id)
-    .first<LinhaPromocao & { parceiro: string }>();
+    .first<LinhaPromocao & { parceiro: string; parceiro_activo: number }>();
   if (!l) recusar(404, 'nao_existe');
-  return c.json(promocaoDoBackoffice(l, l.parceiro, diaEmLisboa()));
+  return c.json(promocaoDoBackoffice(l, l.parceiro, l.parceiro_activo === 1, diaEmLisboa()));
 });
 
 function conferirDatas(p: { inicio?: string | null; fim?: string | null }) {
@@ -323,6 +355,7 @@ rotasDoConteudo.delete('/promocoes/:id', async (c) => {
     .first<{ destaque: string; titulo: string; nome: string }>();
   if (!antes) recusar(404, 'nao_existe');
   await db.batch([
+    db.prepare("DELETE FROM contagens WHERE tipo = 'promocao' AND ref = ?").bind(id),
     db.prepare('DELETE FROM promocoes WHERE id = ?').bind(id),
     registar(c, 'promocao.apagada', `${antes.nome}: ${antes.destaque} ${antes.titulo}`),
   ]);
@@ -400,8 +433,7 @@ rotasDoConteudo.post('/categorias/ordem', async (c) => {
 
 const CHAVES = ['instagram', 'tiktok', 'whatsapp', 'site', 'aviso', 'aviso_ate'] as const;
 
-rotasDoConteudo.get('/barbearia', async (c) => {
-  const db = c.env.DB;
+async function lerBarbearia(db: D1Database) {
   const [lojas, defs] = await db.batch([
     db.prepare('SELECT * FROM lojas ORDER BY ordem, id'),
     db.prepare('SELECT chave, valor FROM definicoes'),
@@ -409,7 +441,7 @@ rotasDoConteudo.get('/barbearia', async (c) => {
   const d = new Map(
     (defs!.results as { chave: string; valor: string }[]).map((x) => [x.chave, x.valor]),
   );
-  return c.json({
+  return {
     lojas: (lojas!.results as LinhaLoja[]).map(loja),
     instagram: d.get('instagram') ?? '',
     tiktok: d.get('tiktok') ?? '',
@@ -417,8 +449,10 @@ rotasDoConteudo.get('/barbearia', async (c) => {
     site: d.get('site') ?? '',
     aviso: d.get('aviso') ?? '',
     avisoAte: d.get('aviso_ate') || null,
-  });
-});
+  };
+}
+
+rotasDoConteudo.get('/barbearia', async (c) => c.json(await lerBarbearia(c.env.DB)));
 
 /** Grava tudo de uma vez: as lojas que não vierem na lista apagam-se. */
 rotasDoConteudo.put('/barbearia', async (c) => {
@@ -431,7 +465,11 @@ rotasDoConteudo.put('/barbearia', async (c) => {
   if ([...ficam].some((id) => !existentes.includes(id))) recusar(400, 'referencia');
   const instrucoes: D1PreparedStatement[] = [];
   for (const id of existentes)
-    if (!ficam.has(id)) instrucoes.push(db.prepare('DELETE FROM lojas WHERE id = ?').bind(id));
+    if (!ficam.has(id))
+      instrucoes.push(
+        db.prepare("DELETE FROM contagens WHERE tipo = 'marcar' AND ref = ?").bind(id),
+        db.prepare('DELETE FROM lojas WHERE id = ?').bind(id),
+      );
   b.lojas.forEach((l, i) => {
     instrucoes.push(
       l.id
@@ -465,7 +503,8 @@ rotasDoConteudo.put('/barbearia', async (c) => {
     );
   instrucoes.push(registar(c, 'barbearia.alterada'));
   await db.batch(instrucoes);
-  return c.body(null, 204);
+  // Devolve o que ficou gravado (as lojas novas já com o id): o formulário fica com isto.
+  return c.json(await lerBarbearia(db));
 });
 
 // ——— imagens ———

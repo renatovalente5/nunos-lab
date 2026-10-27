@@ -1,5 +1,5 @@
 import { BYTES_DA_IMAGEM } from '@nunos-lab/dominio';
-import { pedir } from './api';
+import { ErroDaApi, pedir } from './api';
 
 /**
  * Reduz a imagem no próprio browser antes de a mandar: a fotografia de um
@@ -28,7 +28,10 @@ function paraBlob(tela: HTMLCanvasElement, tipo: string, qualidade: number): Pro
 }
 
 export async function carregarImagem(ficheiro: File, modo: 'logotipo' | 'capa'): Promise<string> {
-  const imagem = await abrir(ficheiro);
+  // Um HEIC num PC, por exemplo: o browser não o abre, e a culpa não é do servidor.
+  const imagem = await abrir(ficheiro).catch(() => {
+    throw new ErroDaApi('imagem_por_abrir');
+  });
   const lado = modo === 'logotipo' ? 512 : 1600;
   const escala = Math.min(1, lado / Math.max(imagem.width, imagem.height));
   const largura = Math.max(1, Math.round(imagem.width * escala));

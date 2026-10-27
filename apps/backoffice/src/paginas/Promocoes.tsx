@@ -53,12 +53,16 @@ export function ConteudoDaPromocao({
           {comParceiro ? `${p.parceiro} · ` : ''}
           {periodoEmTexto(p, hoje)}
         </div>
-        {(p.emDestaque || p.estado === 'agendada' || p.estado === 'terminada') && (
+        {(p.emDestaque ||
+          p.estado === 'agendada' ||
+          p.estado === 'terminada' ||
+          (p.activa && p.parceiroPausado)) && (
           <div className="etiquetas">
             {p.emDestaque && <Etiqueta semPonto>Em destaque</Etiqueta>}
             {(p.estado === 'agendada' || p.estado === 'terminada') && (
               <EtiquetaDoEstado estado={p.estado} />
             )}
+            {p.activa && p.parceiroPausado && <Etiqueta>Parceiro pausado</Etiqueta>}
           </div>
         )}
       </div>

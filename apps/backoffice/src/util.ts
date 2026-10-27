@@ -63,12 +63,27 @@ export function ir(caminho: string) {
   location.hash = `#/${caminho}`;
 }
 
-/** Avisa antes de fechar a página com alterações por gravar. */
+/**
+ * Avisa antes de sair com alterações por gravar: ao fechar a página, e ao ir
+ * para outra página do backoffice (o menu, «‹ Parceiros»).
+ */
 export function useAvisoAoSair(sujo: boolean) {
   useEffect(() => {
     if (!sujo) return;
     const aviso = (e: BeforeUnloadEvent) => e.preventDefault();
+    const clique = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      const ligacao = (e.target as Element | null)?.closest?.('a[href^="#/"]');
+      if (ligacao && !window.confirm('Há alterações por guardar. Sair sem guardar?')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
     window.addEventListener('beforeunload', aviso);
-    return () => window.removeEventListener('beforeunload', aviso);
+    document.addEventListener('click', clique, true);
+    return () => {
+      window.removeEventListener('beforeunload', aviso);
+      document.removeEventListener('click', clique, true);
+    };
   }, [sujo]);
 }

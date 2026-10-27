@@ -19,6 +19,21 @@ type Formulario = Omit<DefinicoesDaBarbearia, 'lojas' | 'avisoAte'> & {
   avisoAte: string;
 };
 
+function formularioDe(d: DefinicoesDaBarbearia): Formulario {
+  return {
+    ...d,
+    avisoAte: d.avisoAte ?? '',
+    lojas: d.lojas.map((l) => ({
+      id: l.id,
+      chave: String(l.id),
+      nome: l.nome,
+      morada: l.morada,
+      telefone: l.telefone,
+      marcar: l.marcar,
+    })),
+  };
+}
+
 export function Barbearia() {
   const { data } = useQuery({
     queryKey: ['barbearia'],
@@ -32,18 +47,7 @@ export function Barbearia() {
 
   useEffect(() => {
     if (data && !original) {
-      const inicial: Formulario = {
-        ...data,
-        avisoAte: data.avisoAte ?? '',
-        lojas: data.lojas.map((l) => ({
-          id: l.id,
-          chave: String(l.id),
-          nome: l.nome,
-          morada: l.morada,
-          telefone: l.telefone,
-          marcar: l.marcar,
-        })),
-      };
+      const inicial = formularioDe(data);
       setOriginal(inicial);
       setF(inicial);
     }
@@ -61,8 +65,9 @@ export function Barbearia() {
       avisar('Cada loja precisa de um nome.', true);
       return;
     }
+    const enviado = f;
     try {
-      await pedir('/api/bo/barbearia', {
+      const guardado = await pedir<DefinicoesDaBarbearia>('/api/bo/barbearia', {
         metodo: 'PUT',
         corpo: {
           ...f,
@@ -76,10 +81,12 @@ export function Barbearia() {
           })),
         },
       });
-      // Primeiro os dados novos, e só depois o formulário volta a lê-los: ao
-      // contrário, lia os antigos e o que se acabou de gravar desaparecia.
+      // O formulário fica com o que a API diz que gravou (as lojas novas já com o
+      // id), menos o que se escreveu enquanto gravava: isso fica por guardar.
+      const novo = formularioDe(guardado);
+      setOriginal(novo);
+      setF((agora) => (agora === enviado ? novo : agora));
       await refrescar();
-      setOriginal(null);
       avisar('Guardado');
       setErros([]);
     } catch (e) {
@@ -133,51 +140,61 @@ export function Barbearia() {
           chave={(l) => l.chave}
           nome={(l) => l.nome || 'Loja nova'}
           aoReordenar={(lojas) => setF({ ...f, lojas })}
-          desenhar={(l, pega) => (
-            <div className="cartao recheado formulario">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {pega}
-                <strong style={{ flex: 1, minWidth: 0 }}>{l.nome || 'Loja nova'}</strong>
-                <button
-                  type="button"
-                  className="botao perigo pequeno"
-                  onClick={() => setF({ ...f, lojas: f.lojas.filter((x) => x.chave !== l.chave) })}
-                >
-                  Tirar
-                </button>
-              </div>
-              <div className="duas-colunas">
+          desenhar={(l, pega) => {
+            const i = f.lojas.findIndex((x) => x.chave === l.chave);
+            const errado = (campo: string) => erros.includes(`lojas.${i}.${campo}`);
+            return (
+              <div className="cartao recheado formulario">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {pega}
+                  <strong style={{ flex: 1, minWidth: 0 }}>{l.nome || 'Loja nova'}</strong>
+                  <button
+                    type="button"
+                    className="botao perigo pequeno"
+                    onClick={() =>
+                      setF({ ...f, lojas: f.lojas.filter((x) => x.chave !== l.chave) })
+                    }
+                  >
+                    Tirar
+                  </button>
+                </div>
+                <div className="duas-colunas">
+                  <Campo
+                    rotulo="Nome"
+                    valor={l.nome}
+                    mudar={(v) => mudarLoja(l.chave, 'nome', v)}
+                    max={LIMITES.loja}
+                    erro={errado('nome')}
+                    obrigatorio
+                  />
+                  <Campo
+                    rotulo="Telefone"
+                    tipo="tel"
+                    valor={l.telefone}
+                    mudar={(v) => mudarLoja(l.chave, 'telefone', v)}
+                    max={LIMITES.telefone}
+                    erro={errado('telefone')}
+                  />
+                </div>
                 <Campo
-                  rotulo="Nome"
-                  valor={l.nome}
-                  mudar={(v) => mudarLoja(l.chave, 'nome', v)}
-                  max={LIMITES.loja}
-                  obrigatorio
+                  rotulo="Morada"
+                  valor={l.morada}
+                  mudar={(v) => mudarLoja(l.chave, 'morada', v)}
+                  max={LIMITES.morada}
+                  erro={errado('morada')}
                 />
                 <Campo
-                  rotulo="Telefone"
-                  tipo="tel"
-                  valor={l.telefone}
-                  mudar={(v) => mudarLoja(l.chave, 'telefone', v)}
-                  max={LIMITES.telefone}
+                  rotulo="Ligação de marcação"
+                  tipo="url"
+                  valor={l.marcar}
+                  mudar={(v) => mudarLoja(l.chave, 'marcar', v)}
+                  max={500}
+                  erro={errado('marcar')}
+                  ajuda="A página da Fresha desta loja. O botão «Marcar» abre-a."
                 />
               </div>
-              <Campo
-                rotulo="Morada"
-                valor={l.morada}
-                mudar={(v) => mudarLoja(l.chave, 'morada', v)}
-                max={LIMITES.morada}
-              />
-              <Campo
-                rotulo="Ligação de marcação"
-                tipo="url"
-                valor={l.marcar}
-                mudar={(v) => mudarLoja(l.chave, 'marcar', v)}
-                max={500}
-                ajuda="A página da Fresha desta loja. O botão «Marcar» abre-a."
-              />
-            </div>
-          )}
+            );
+          }}
         />
         <div>
           <button
