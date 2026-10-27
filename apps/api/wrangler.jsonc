@@ -14,15 +14,15 @@
       "database_name": "nunos-lab",
       "database_id": "03a1f41b-7ea3-42fc-a995-4ce5223af8eb",
       "migrations_dir": "../../base/migracoes",
-      "migrations_table": "d1_migrations"
-    }
+      "migrations_table": "d1_migrations",
+    },
   ],
   // Travões por IP: entrar no backoffice (10 por minuto) e as contagens da
   // app (60 por minuto). O namespace_id é único na conta (o Carimbo usa os 1000
   // e os 2000, o Armazém o 1101).
   "ratelimits": [
     { "name": "TRAVAO", "namespace_id": "7101", "simple": { "limit": 10, "period": 60 } },
-    { "name": "CONTAR", "namespace_id": "7102", "simple": { "limit": 60, "period": 60 } }
+    { "name": "CONTAR", "namespace_id": "7102", "simple": { "limit": 60, "period": 60 } },
   ],
   // A limpeza da madrugada: ligações e sessões caducadas, imagens sem dono.
   "triggers": { "crons": ["23 3 * * *"] },
@@ -32,6 +32,6 @@
     "ORIGENS": "https://renatovalente5.github.io",
     // O cliente do «Entrar com o Google» (projecto «Nuno's Lab» no Google Cloud
     // do Renato, criado a 22 out 2026). É público: identifica a app, não abre nada.
-    "GOOGLE_CLIENTE": "695283550331-vert2ikpluksqb954jl0j3ed0ukphha4.apps.googleusercontent.com"
-  }
+    "GOOGLE_CLIENTE": "695283550331-vert2ikpluksqb954jl0j3ed0ukphha4.apps.googleusercontent.com",
+  },
 }

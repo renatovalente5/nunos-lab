@@ -1,4 +1,10 @@
-import { LIMITES, normalizarEmail, type PessoaComAcesso } from '@nunos-lab/dominio';
+import {
+  LIMITES,
+  dataCurta,
+  diaEmLisboa,
+  normalizarEmail,
+  type PessoaComAcesso,
+} from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ErroDaApi, guardarSessao, mensagemDe, pedir, refrescar } from '../api';
@@ -201,11 +207,7 @@ export function Acessos() {
                       <div className="meio">
                         <div className="titulo-linha">Ligação por usar</div>
                         <div className="detalhe">
-                          Vale até{' '}
-                          {new Date(l.expiraEm * 1000).toLocaleDateString('pt-PT', {
-                            day: 'numeric',
-                            month: 'short',
-                          })}
+                          Vale até {dataCurta(diaEmLisboa(l.expiraEm * 1000), diaEmLisboa())}
                         </div>
                       </div>
                       <button
@@ -256,7 +258,7 @@ export function Acessos() {
               valor={nova.nome}
               mudar={(nome) => setNova({ ...nova, nome })}
               max={LIMITES.pessoa}
-              placeholder="Nuno"
+              placeholder="ex.: Nuno"
               autoFocus
             />
             <Campo

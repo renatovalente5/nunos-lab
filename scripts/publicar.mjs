@@ -13,6 +13,8 @@
  *   _site/404.html      a mesma app: o GitHub Pages serve-a a qualquer morada
  *                       que não exista (/nunos-lab/parceiro/3), e o Expo Router
  *                       desenha a página certa
+ *   _site/barbearia/    a mesma app outra vez (e _site/privacidade/), para
+ *                       estas moradas responderem 200 e não 404
  *   _site/.nojekyll     sem isto o GitHub esconde a pasta «_expo» (o Jekyll
  *                       ignora tudo o que começa por «_»)
  */
@@ -59,6 +61,13 @@ if (!html.includes(`src="${BASE}/_expo/static/js/web/`))
   throw new Error('Os scripts do Expo não levam a base');
 writeFileSync(join(site, 'index.html'), html);
 writeFileSync(join(site, '404.html'), html);
+// As moradas fixas respondem 200 (o 404.html abre a app, mas com «404», e as
+// pré-visualizações do WhatsApp e do Facebook desistem). Um parceiro partilha-se
+// como /?parceiro=N, que é o index.
+for (const rota of ['barbearia', 'privacidade']) {
+  mkdirSync(join(site, rota), { recursive: true });
+  writeFileSync(join(site, rota, 'index.html'), html);
+}
 writeFileSync(join(site, '.nojekyll'), '');
 
 // O backoffice: os ficheiros têm de pedir /nunos-lab/backoffice/…

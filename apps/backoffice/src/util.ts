@@ -1,3 +1,4 @@
+import { dataCurta, diaEmLisboa } from '@nunos-lab/dominio';
 import { useEffect, useState } from 'react';
 
 /** «agora», «há 5 min», «há 3 h», «ontem», «há 4 dias», «12 out». */
@@ -8,9 +9,8 @@ export function haQuanto(segundos: number, agora = Date.now() / 1000): string {
   if (d < 86_400) return `há ${Math.floor(d / 3600)} h`;
   if (d < 2 * 86_400) return 'ontem';
   if (d < 7 * 86_400) return `há ${Math.floor(d / 86_400)} dias`;
-  return new Date(segundos * 1000)
-    .toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })
-    .replace('.', '');
+  // O Chrome escreve «12/10» com o mês curto em pt-PT: a data vem do domínio, como na app.
+  return dataCurta(diaEmLisboa(segundos * 1000), diaEmLisboa(agora * 1000));
 }
 
 export function plural(n: number, um: string, varios: string): string {

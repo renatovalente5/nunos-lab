@@ -56,7 +56,11 @@ export function useDados() {
   return useQuery({
     queryKey: ['app'],
     queryFn: buscar,
-    placeholderData: lerGuardados,
+    // A lista guardada entra como dados a sério (e não como «placeholder», que
+    // desaparece quando o pedido falha): sem rede, a app fica com ela. Conta
+    // como velha, por isso a app pede logo a nova.
+    initialData: lerGuardados,
+    initialDataUpdatedAt: 0,
     select: soDeHoje,
     staleTime: 20_000,
     refetchInterval: 5 * 60_000,
@@ -98,6 +102,19 @@ export function abrir(url: string) {
     return;
   }
   Linking.openURL(url).catch(() => {});
+}
+
+/**
+ * A ligação para partilhar um parceiro: /?parceiro=N, que é o index da app e o
+ * GitHub Pages serve com 200. A /parceiro/N só existe dentro da app: o GitHub
+ * Pages responde 404, e as pré-visualizações do WhatsApp desistem.
+ */
+export function ligacaoParaPartilhar(id: number): string {
+  const url = new URL(window.location.href);
+  url.pathname = url.pathname.replace(/parceiro\/[^/]*\/?$/, '');
+  url.search = `?parceiro=${id}`;
+  url.hash = '';
+  return url.toString();
 }
 
 /** O título do separador do browser (no telemóvel não há separador). */

@@ -242,7 +242,7 @@ export function Promocoes() {
                     role="switch"
                     className="interruptor"
                     aria-checked={p.activa}
-                    aria-label={`${p.titulo}: ligada`}
+                    aria-label={p.titulo}
                     onClick={() => alternar(p, 'activa')}
                   />
                 </div>
@@ -439,7 +439,7 @@ export function EditorDePromocao({
               max={LIMITES.destaque}
               obrigatorio
               erro={erros.includes('destaque')}
-              placeholder="−10%"
+              placeholder="ex.: −10%"
             />
             <div className="sugestoes" aria-label="Sugestões">
               {SUGESTOES_DE_DESTAQUE.map((s) => (
@@ -456,7 +456,7 @@ export function EditorDePromocao({
             max={LIMITES.titulo}
             obrigatorio
             erro={erros.includes('titulo')}
-            placeholder="Na refeição"
+            placeholder="ex.: Na refeição"
           />
           <AreaDeTexto
             rotulo="Condições"

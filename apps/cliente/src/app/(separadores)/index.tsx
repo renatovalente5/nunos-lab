@@ -1,5 +1,5 @@
 import type { ParceiroPublico, PromocaoPublica } from '@nunos-lab/dominio';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { CartaoDestaque, iconeDe, LinhaDoParceiro } from '../../componentes/cartoes';
@@ -18,6 +18,13 @@ export default function Vantagens() {
   const { width } = useWindowDimensions();
   const largura = Math.min(300, Math.round(Math.min(width, LARGURA_MAXIMA) * 0.76));
   useEffect(() => definirTitulo("Nuno's Lab · Vantagens"), []);
+  // Uma ligação partilhada (/?parceiro=N) abre o parceiro; o «Voltar» de lá vem
+  // para aqui, já sem o parâmetro.
+  const { parceiro } = useLocalSearchParams<{ parceiro?: string }>();
+  useEffect(() => {
+    if (parceiro && /^\d+$/.test(parceiro))
+      router.replace({ pathname: '/parceiro/[id]', params: { id: parceiro } });
+  }, [parceiro]);
 
   const destaques = useMemo(
     () =>
@@ -56,7 +63,7 @@ export default function Vantagens() {
         />
       </View>
 
-      {data?.aviso && (
+      {!!data?.aviso && (
         <View
           style={{
             marginHorizontal: MARGEM,

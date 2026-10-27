@@ -6,9 +6,40 @@
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const API = process.env.API ?? 'http://localhost:8870';
 const APP = 'http://localhost:8872';
+
+// A prova parte sempre da base local acabada de pôr. Os exemplos contam as
+// datas a partir do dia em que entram (date('now', '+4 days')): numa base
+// semeada há uma semana já há promoções acabadas. Só a base LOCAL.
+const pastaDaApi = join(dirname(fileURLToPath(import.meta.url)), '..', 'apps', 'api');
+const naBaseLocal = (...args) =>
+  execFileSync('npx', ['wrangler', 'd1', 'execute', 'nunos-lab', '--local', ...args], {
+    cwd: pastaDaApi,
+    stdio: ['ignore', 'ignore', 'inherit'],
+  });
+naBaseLocal(
+  '--command',
+  [
+    'promocoes',
+    'parceiros',
+    'lojas',
+    'categorias',
+    'imagens',
+    'definicoes',
+    'contagens',
+    'acessos',
+    'sessoes',
+    'registo',
+    'admins',
+  ]
+    .map((t) => `DELETE FROM ${t};`)
+    .join(' '),
+);
+naBaseLocal('--file', '../../base/exemplos.sql');
 let passos = 0;
 async function passo(nome, f) {
   try {

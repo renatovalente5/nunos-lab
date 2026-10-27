@@ -88,7 +88,7 @@ export default function Barbearia() {
         </>
       )}
 
-      {b && (b.whatsapp || b.instagram || b.tiktok) && (
+      {b && (!!b.whatsapp || !!b.instagram || !!b.tiktok) && (
         <>
           <Rotulo>Mais</Rotulo>
           <Grupo>
@@ -164,7 +164,7 @@ function Linha({
         <T v="forte" style={{ marginLeft: 18, flex: 1 }}>
           {nome}
         </T>
-        {detalhe && (
+        {!!detalhe && (
           <T v="legenda" style={{ color: cor.texto2, marginRight: 8 }}>
             {detalhe}
           </T>

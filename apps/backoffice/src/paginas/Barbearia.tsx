@@ -76,8 +76,10 @@ export function Barbearia() {
           })),
         },
       });
-      setOriginal(null);
+      // Primeiro os dados novos, e só depois o formulário volta a lê-los: ao
+      // contrário, lia os antigos e o que se acabou de gravar desaparecia.
       await refrescar();
+      setOriginal(null);
       avisar('Guardado');
       setErros([]);
     } catch (e) {
@@ -107,7 +109,7 @@ export function Barbearia() {
           mudar={(aviso) => setF({ ...f, aviso })}
           max={LIMITES.aviso}
           erro={erros.includes('aviso')}
-          placeholder="Novos parceiros esta semana"
+          placeholder="ex.: Novos parceiros esta semana"
           ajuda="Vazio: sem aviso."
         />
         <div className="duas-colunas">
@@ -205,7 +207,7 @@ export function Barbearia() {
             mudar={(instagram) => setF({ ...f, instagram })}
             max={200}
             erro={erros.includes('instagram')}
-            placeholder="@nunoslab"
+            placeholder="@conta"
           />
           <Campo
             rotulo="TikTok"

@@ -151,6 +151,9 @@ export function Parceiro({ id }: { id: string }) {
         await pedir(`/api/bo/parceiros/${id}`, { metodo: 'PATCH', corpo: f });
         setOriginal(f);
         await refrescar();
+        // O formulário volta a ler o que ficou gravado: o servidor arruma os
+        // contactos («instagram.com/conta/» fica «conta», o site ganha https://).
+        setOriginal(null);
         avisar('Guardado');
       }
     } catch (e) {
@@ -250,7 +253,7 @@ export function Parceiro({ id }: { id: string }) {
                 valor={f.localidade}
                 mudar={mudar('localidade')}
                 max={LIMITES.localidade}
-                placeholder="Oliveira de Azeméis"
+                placeholder="ex.: Oliveira de Azeméis"
               />
             </div>
             <AreaDeTexto
@@ -320,7 +323,7 @@ export function Parceiro({ id }: { id: string }) {
               valor={f.horario}
               mudar={mudar('horario')}
               max={LIMITES.horario}
-              placeholder="Seg a sáb · 9:00–19:00"
+              placeholder="ex.: Seg a sáb · 9:00–19:00"
             />
           </div>
 
@@ -376,7 +379,7 @@ export function Parceiro({ id }: { id: string }) {
                           className="interruptor"
                           style={{ margin: '0 18px 0 4px' }}
                           aria-checked={p.activa}
-                          aria-label={`${p.destaque} ${p.titulo}: ligada`}
+                          aria-label={`${p.destaque} ${p.titulo}`}
                           onClick={() => ligarPromocao(p)}
                         />
                       </>

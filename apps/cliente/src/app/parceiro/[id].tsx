@@ -15,7 +15,7 @@ import { Icone } from '../../componentes/icone';
 import { Logotipo } from '../../componentes/logotipo';
 import { Botao, BotaoRedondo, Ecra, EtiquetaExemplo, Grupo, Rotulo } from '../../componentes/pecas';
 import { T } from '../../componentes/texto';
-import { abrir, contar, definirTitulo, useDados } from '../../dados';
+import { abrir, contar, definirTitulo, ligacaoParaPartilhar, useDados } from '../../dados';
 import { cor, MARGEM } from '../../tema';
 
 function voltar() {
@@ -150,7 +150,9 @@ export default function PaginaDoParceiro() {
                 icone="partilhar"
                 rotulo="Partilhar"
                 onPress={() =>
-                  navigator.share({ title: p.nome, url: window.location.href }).catch(() => {})
+                  navigator
+                    .share({ title: p.nome, url: ligacaoParaPartilhar(p.id) })
+                    .catch(() => {})
                 }
               />
             )}
@@ -200,7 +202,7 @@ export default function PaginaDoParceiro() {
         />
       ))}
 
-      {(p.horario || p.morada) && (
+      {(!!p.horario || !!p.morada) && (
         <Grupo style={{ marginTop: 18 }}>
           {!!p.horario && (
             <View style={{ flexDirection: 'row', gap: 14, padding: 16, alignItems: 'flex-start' }}>

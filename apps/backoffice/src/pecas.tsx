@@ -227,9 +227,12 @@ export function AreaDeTexto({
         <span className="ajuda">
           {erro ? <span className="mensagem-erro">Revê este campo.</span> : ajuda}
         </span>
-        <span className="conta">
-          {valor.length}/{max}
-        </span>
+        {/* A conta só aparece perto do limite: antes disso é ruído. */}
+        {valor.length >= max * 0.8 && (
+          <span className="conta">
+            {valor.length}/{max}
+          </span>
+        )}
       </div>
     </div>
   );
