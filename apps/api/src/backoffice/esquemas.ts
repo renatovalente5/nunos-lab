@@ -33,6 +33,8 @@ const dia = z
 export const Parceiro = z.object({
   nome: obrigatorio(LIMITES.nome),
   categoriaId: z.number().int().positive().nullable(),
+  /** A casa do Nuno's Lab de que o parceiro é; vazio: todas. */
+  lojaId: z.number().int().positive().nullable(),
   localidade: texto(LIMITES.localidade),
   morada: texto(LIMITES.morada),
   telefone: normalizado(LIMITES.telefone, normalizarTelefone),
@@ -53,6 +55,7 @@ export const Parceiro = z.object({
 export const COLUNAS_DO_PARCEIRO = {
   nome: 'nome',
   categoriaId: 'categoria_id',
+  lojaId: 'loja_id',
   localidade: 'localidade',
   morada: 'morada',
   telefone: 'telefone',

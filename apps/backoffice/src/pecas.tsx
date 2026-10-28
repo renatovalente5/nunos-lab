@@ -3,9 +3,9 @@ import {
   DESENHOS_DAS_CATEGORIAS,
   ICONES_DAS_CATEGORIAS,
   NOMES_DOS_DESENHOS,
+  corParaBranco,
   misturar,
   semPartir,
-  tintaSobre,
   validadeEmTexto,
   type IconeDaCategoria,
 } from '@nunos-lab/dominio';
@@ -245,6 +245,7 @@ export function Seletor<T extends string | number>({
   opcoes,
   vazio,
   erro,
+  ajuda,
 }: {
   rotulo: string;
   valor: T | null;
@@ -252,6 +253,7 @@ export function Seletor<T extends string | number>({
   opcoes: { valor: T; nome: string }[];
   vazio?: string;
   erro?: boolean;
+  ajuda?: ReactNode;
 }) {
   const id = useId();
   return (
@@ -273,6 +275,7 @@ export function Seletor<T extends string | number>({
           </option>
         ))}
       </select>
+      {ajuda && <div className="ajuda">{ajuda}</div>}
     </div>
   );
 }
@@ -546,8 +549,8 @@ export function Logotipo({
       style={{
         width: tamanho,
         height: tamanho,
-        background: cor,
-        color: tintaSobre(cor),
+        background: corParaBranco(cor),
+        color: '#fff',
         fontSize: Math.round(tamanho * 0.36),
       }}
       aria-hidden="true"
@@ -620,9 +623,13 @@ export function CampoDeImagem({
   );
 }
 
-/** Desenho de fundo de uma capa sem fotografia: a cor do parceiro a escurecer. */
+/**
+ * Desenho de fundo de uma capa sem fotografia: a cor do parceiro a escurecer,
+ * como na app (uma cor clara desce até o texto branco se ler).
+ */
 export function fundoDaCapa(cor: string) {
-  return `linear-gradient(135deg, ${cor}, ${misturar(cor, '#000000', 0.42)})`;
+  const base = corParaBranco(cor);
+  return `linear-gradient(135deg, ${base}, ${misturar(base, '#000000', 0.45)})`;
 }
 
 /** A promoção como fica no cartão grande da app (para ver antes de gravar). */

@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Image, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { CartaoDestaque, iconeDe, LinhaDoParceiro } from '../../componentes/cartoes';
 import { Esqueleto, SemLigacao } from '../../componentes/estados';
+import { Folha, OpcaoDaFolha } from '../../componentes/folha';
 import { Icone } from '../../componentes/icone';
 import { Ecra, Grupo, Rotulo, Separador } from '../../componentes/pecas';
 import { T } from '../../componentes/texto';
-import { definirTitulo, useDados } from '../../dados';
+import { definirTitulo, guardarCasa, lerCasa, useDados } from '../../dados';
 import { CONTINUO, cor, LARGURA_MAXIMA, MARGEM, raio } from '../../tema';
 
 const palavra = require('../../../assets/marca/palavra.png');
@@ -15,6 +16,9 @@ const palavra = require('../../../assets/marca/palavra.png');
 export default function Vantagens() {
   const { data, isPending, isError, refetch } = useDados();
   const [categoria, setCategoria] = useState<number | null>(null);
+  // A casa do cliente (Nogueira do Cravo, Feira, Aveiro): fica guardada no aparelho.
+  const [casa, setCasa] = useState<number | null>(lerCasa);
+  const [aEscolherCasa, setAEscolherCasa] = useState(false);
   const { width } = useWindowDimensions();
   const largura = Math.min(300, Math.round(Math.min(width, LARGURA_MAXIMA) * 0.76));
   useEffect(() => definirTitulo("Nuno's Lab · Vantagens"), []);
@@ -26,18 +30,32 @@ export default function Vantagens() {
       router.replace({ pathname: '/parceiro/[id]', params: { id: parceiro } });
   }, [parceiro]);
 
+  const lojas = data?.barbearia.lojas ?? [];
+  // Uma casa que já não existe deixa de estar escolhida. Um parceiro sem casa é de todas.
+  const casaEscolhida = lojas.some((l) => l.id === casa) ? casa : null;
+  const daCasa = (p: ParceiroPublico) =>
+    casaEscolhida === null || p.lojaId === null || p.lojaId === casaEscolhida;
   const destaques = useMemo(
     () =>
-      (data?.parceiros ?? []).flatMap((p) =>
-        p.promocoes.filter((pr) => pr.emDestaque).map((pr) => ({ parceiro: p, promocao: pr })),
-      ),
-    [data],
+      (data?.parceiros ?? [])
+        .filter(daCasa)
+        .flatMap((p) =>
+          p.promocoes.filter((pr) => pr.emDestaque).map((pr) => ({ parceiro: p, promocao: pr })),
+        ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, casaEscolhida],
   );
   // Uma categoria que deixou de ter parceiros (dados novos) deixa de estar escolhida.
   const escolhida = data?.categorias.some((k) => k.id === categoria) ? categoria : null;
   const lista = (data?.parceiros ?? []).filter(
-    (p) => escolhida === null || p.categoriaId === escolhida,
+    (p) => daCasa(p) && (escolhida === null || p.categoriaId === escolhida),
   );
+  const escolherCasa = (id: number | null) => {
+    setCasa(id);
+    guardarCasa(id);
+    setAEscolherCasa(false);
+  };
+  const nomeDaCasa = lojas.find((l) => l.id === casaEscolhida)?.nome ?? 'Todas as casas';
   const abrir = (p: ParceiroPublico, pr?: PromocaoPublica) =>
     router.push({
       pathname: '/parceiro/[id]',
@@ -115,6 +133,35 @@ export default function Vantagens() {
       {data && (
         <>
           <Rotulo>Parceiros</Rotulo>
+          {lojas.length > 1 && (
+            <View style={{ paddingHorizontal: MARGEM, marginBottom: 12, flexDirection: 'row' }}>
+              <Pressable
+                onPress={() => setAEscolherCasa(true)}
+                role="button"
+                aria-label={`A tua casa: ${nomeDaCasa}. Mudar.`}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  height: 36,
+                  paddingLeft: 12,
+                  paddingRight: 10,
+                  borderRadius: raio.pilula,
+                  borderWidth: 1,
+                  borderColor: cor.linha,
+                  backgroundColor: pressed ? cor.superficie : 'transparent',
+                })}
+              >
+                <Icone nome="mapa" tamanho={16} cor={cor.texto2} espessura={2} />
+                <T v="legenda" style={{ color: cor.texto }}>
+                  {nomeDaCasa}
+                </T>
+                <View style={{ transform: [{ rotate: '90deg' }] }}>
+                  <Icone nome="seguinte" tamanho={14} cor={cor.texto3} espessura={2.2} />
+                </View>
+              </Pressable>
+            </View>
+          )}
           {data.categorias.length > 1 && (
             <ScrollView
               horizontal
@@ -155,6 +202,24 @@ export default function Vantagens() {
               })}
             </ScrollView>
           )}
+          <Folha aberta={aEscolherCasa} fechar={() => setAEscolherCasa(false)} titulo="A tua casa">
+            <View role="radiogroup" aria-label="A tua casa">
+              <OpcaoDaFolha
+                nome="Todas as casas"
+                escolhida={casaEscolhida === null}
+                onPress={() => escolherCasa(null)}
+              />
+              {lojas.map((l) => (
+                <OpcaoDaFolha
+                  key={l.id}
+                  nome={l.nome}
+                  escolhida={casaEscolhida === l.id}
+                  onPress={() => escolherCasa(l.id)}
+                  separador
+                />
+              ))}
+            </View>
+          </Folha>
           {lista.length > 0 ? (
             <Grupo>
               {lista.map((p, i) => (

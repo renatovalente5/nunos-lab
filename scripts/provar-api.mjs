@@ -84,6 +84,7 @@ await passo('a app recebe os parceiros com promoções na app', async () => {
   assert.ok(dados.parceiros.length >= 8, `parceiros: ${dados.parceiros.length}`);
   const otica = dados.parceiros.find((p) => p.nome === 'Ótica Lume');
   assert.equal(otica.promocoes.length, 1, 'a agendada não aparece');
+  assert.equal(otica.lojaId, 3, 'a app recebe a casa de cada parceiro');
   const gelataria = dados.parceiros.find((p) => p.nome === 'Gelataria Neve Doce');
   assert.equal(gelataria.promocoes.length, 1, 'a pausada não aparece');
   assert.ok(dados.parceiros.every((p) => p.exemplo));
@@ -208,6 +209,7 @@ await passo('criar um parceiro, com contactos arrumados', async () => {
     body: json({
       nome: 'Parceiro de Prova',
       categoriaId: 1,
+      lojaId: 3,
       localidade: 'Aveiro',
       morada: 'Rua da Prova, 1',
       telefone: ' 912  345 678',
@@ -228,7 +230,14 @@ await passo('criar um parceiro, com contactos arrumados', async () => {
   assert.equal(g.parceiro.instagram, 'prova.pt');
   assert.equal(g.parceiro.site, 'https://prova.pt/');
   assert.equal(g.parceiro.cor, '#2456B8');
+  assert.equal(g.parceiro.lojaId, 3, 'a casa do parceiro');
   assert.equal(g.parceiro.promocoesNaApp, 0);
+  const semCasa = await pedir(`/api/bo/parceiros/${parceiro}`, {
+    method: 'PATCH',
+    token,
+    body: json({ lojaId: 999 }),
+  });
+  assert.equal(semCasa.status, 400, 'uma casa que não existe é recusada');
 });
 
 await passo('sem promoções, o parceiro não aparece na app', async () => {

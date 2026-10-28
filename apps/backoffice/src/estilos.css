@@ -222,11 +222,11 @@ img {
   color: var(--tinta);
 }
 h2.seccao {
-  margin: 30px 0 12px;
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--tinta-3);
+  margin: 32px 0 12px;
+  font-size: 19px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--tinta);
   font-weight: 800;
 }
 
@@ -841,11 +841,9 @@ dialog.folha::backdrop {
   color: #f4f1ec;
 }
 .previsao .rotulo-previsao {
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #7c776f;
-  font-weight: 800;
+  font-size: 12.5px;
+  color: #a9a49c;
+  font-weight: 700;
   margin: 0 2px 12px;
 }
 .previsao .capa-previsao {

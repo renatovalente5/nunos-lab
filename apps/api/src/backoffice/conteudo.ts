@@ -84,14 +84,15 @@ rotasDoConteudo.post('/parceiros', async (c) => {
     const [novo] = await db.batch([
       db
         .prepare(
-          `INSERT INTO parceiros (nome, categoria_id, localidade, morada, telefone, instagram, site, horario, descricao,
+          `INSERT INTO parceiros (nome, categoria_id, loja_id, localidade, morada, telefone, instagram, site, horario, descricao,
              cor, logotipo_id, capa_id, activo, ordem)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM parceiros))
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM parceiros))
            RETURNING id`,
         )
         .bind(
           p.nome,
           p.categoriaId,
+          p.lojaId,
           p.localidade,
           p.morada,
           p.telefone,

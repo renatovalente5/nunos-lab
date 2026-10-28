@@ -2,6 +2,7 @@ import {
   LIMITES,
   diaEmLisboa,
   type CategoriaComContagem,
+  type DefinicoesDaBarbearia,
   type Parceiro as ParceiroDoContrato,
   type ParceiroComPromocoes,
   type Promocao,
@@ -37,6 +38,7 @@ const APP = (import.meta.env.VITE_APP as string).replace(/\/$/, '');
 type Formulario = {
   nome: string;
   categoriaId: number | null;
+  lojaId: number | null;
   localidade: string;
   morada: string;
   telefone: string;
@@ -53,6 +55,7 @@ type Formulario = {
 const VAZIO: Formulario = {
   nome: '',
   categoriaId: null,
+  lojaId: null,
   localidade: '',
   morada: '',
   telefone: '',
@@ -70,6 +73,7 @@ function doParceiro(p: ParceiroDoContrato): Formulario {
   return {
     nome: p.nome,
     categoriaId: p.categoriaId,
+    lojaId: p.lojaId,
     localidade: p.localidade,
     morada: p.morada,
     telefone: p.telefone,
@@ -94,6 +98,10 @@ export function Parceiro({ id }: { id: string }) {
   const categorias = useQuery({
     queryKey: ['categorias'],
     queryFn: () => pedir<CategoriaComContagem[]>('/api/bo/categorias'),
+  });
+  const barbearia = useQuery({
+    queryKey: ['barbearia'],
+    queryFn: () => pedir<DefinicoesDaBarbearia>('/api/bo/barbearia'),
   });
   const [original, setOriginal] = useState<Formulario | null>(novo ? VAZIO : null);
   const [f, setF] = useState<Formulario | null>(novo ? VAZIO : null);
@@ -261,6 +269,18 @@ export function Parceiro({ id }: { id: string }) {
                 placeholder="ex.: Oliveira de Azeméis"
               />
             </div>
+            {(barbearia.data?.lojas.length ?? 0) > 1 && (
+              <div className="duas-colunas">
+                <Seletor<number>
+                  rotulo="Casa"
+                  valor={f.lojaId}
+                  mudar={mudar('lojaId')}
+                  vazio="Todas as casas"
+                  opcoes={(barbearia.data?.lojas ?? []).map((l) => ({ valor: l.id, nome: l.nome }))}
+                  ajuda="A app filtra os parceiros pela casa do cliente."
+                />
+              </div>
+            )}
             <AreaDeTexto
               rotulo="Uma frase sobre o parceiro"
               valor={f.descricao}

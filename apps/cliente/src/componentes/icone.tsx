@@ -48,6 +48,8 @@ const DESENHOS = {
     'M18.8 6a8.5 8.5 0 0 1 0 12',
   ],
   escudo: ['M12 21s7-3.2 7-9.5V5.5L12 3 5 5.5v6c0 6.3 7 9.5 7 9.5z'],
+  certo: ['M5 12.5l4.5 4.5L19 7'],
+  fechar: ['M6 6l12 12', 'M18 6L6 18'],
   ...DESENHOS_DAS_CATEGORIAS,
 } satisfies Record<string, readonly string[]> & Record<IconeDaCategoria, readonly string[]>;
 

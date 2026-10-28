@@ -66,3 +66,8 @@ INSERT INTO promocoes (parceiro_id, destaque, titulo, detalhe, inicio, fim, em_d
   (7, '−30%', 'Em lentes progressivas', 'Com o exame de visão incluído.', date('now', '+20 days'), date('now', '+80 days'), 0, 1, 2),
   (8, '−10%', 'Em todos os gelados', 'No copo, no cone ou para levar.', NULL, NULL, 0, 1, 1),
   (8, '2×1', 'Ao domingo', 'Na segunda bola.', NULL, NULL, 0, 0, 2);
+
+-- A casa de cada parceiro de exemplo, pela zona.
+UPDATE parceiros SET loja_id = 1 WHERE exemplo = 1 AND localidade IN ('Nogueira do Cravo', 'Oliveira de Azeméis');
+UPDATE parceiros SET loja_id = 2 WHERE exemplo = 1 AND localidade = 'Santa Maria da Feira';
+UPDATE parceiros SET loja_id = 3 WHERE exemplo = 1 AND localidade = 'Aveiro';

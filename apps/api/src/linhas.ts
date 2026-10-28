@@ -13,6 +13,7 @@ export type LinhaParceiro = {
   id: number;
   nome: string;
   categoria_id: number | null;
+  loja_id: number | null;
   localidade: string;
   morada: string;
   telefone: string;
@@ -88,6 +89,7 @@ export function parceiroBase(l: LinhaParceiro) {
     id: l.id,
     nome: l.nome,
     categoriaId: l.categoria_id,
+    lojaId: l.loja_id,
     localidade: l.localidade,
     morada: l.morada,
     telefone: l.telefone,

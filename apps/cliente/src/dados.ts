@@ -132,3 +132,24 @@ export function ligacaoParaPartilhar(id: number): string {
 export function definirTitulo(texto: string) {
   if (Platform.OS === 'web' && typeof document !== 'undefined') document.title = texto;
 }
+
+const CHAVE_DA_CASA = 'nunoslab:casa';
+
+/** A casa do Nuno's Lab que o cliente escolheu (null: todas), guardada no aparelho. */
+export function lerCasa(): number | null {
+  try {
+    const v = globalThis.localStorage?.getItem(CHAVE_DA_CASA);
+    return v && /^\d+$/.test(v) ? Number(v) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function guardarCasa(id: number | null) {
+  try {
+    if (id === null) globalThis.localStorage?.removeItem(CHAVE_DA_CASA);
+    else globalThis.localStorage?.setItem(CHAVE_DA_CASA, String(id));
+  } catch {
+    // Sem armazenamento: a escolha dura até fechar a página.
+  }
+}

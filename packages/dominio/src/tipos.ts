@@ -39,6 +39,8 @@ export type ParceiroPublico = ContactosDoParceiro & {
   id: number;
   nome: string;
   categoriaId: number | null;
+  /** A casa do Nuno's Lab de que o parceiro é; null: aparece para todas. */
+  lojaId: number | null;
   cor: string;
   /** Identificadores de imagem: a app junta-lhes a morada da API. */
   logotipo: string | null;
@@ -86,6 +88,7 @@ export type Parceiro = ContactosDoParceiro & {
   id: number;
   nome: string;
   categoriaId: number | null;
+  lojaId: number | null;
   cor: string;
   logotipo: string | null;
   capa: string | null;
