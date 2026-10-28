@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Nuno's Lab Balcão",
+    "name": "Nuno's Lab Balcao",
     "slug": "nunos-lab-balcao",
     "owner": "renatovalente5",
     "scheme": "nunoslab-balcao",
@@ -24,7 +24,8 @@
       },
       "infoPlist": {
         "CFBundleDevelopmentRegion": "pt-PT",
-        "CFBundleName": "Balcão NL"
+        "CFBundleName": "Balcão NL",
+        "CFBundleDisplayName": "Nuno's Lab Balcão"
       }
     },
     "android": {
@@ -84,6 +85,12 @@
         "@react-native-google-signin/google-signin",
         {
           "iosUrlScheme": "com.googleusercontent.apps.695283550331-1hvqg288aj8dcvmjmu9njnte9cu0ji9d"
+        }
+      ],
+      [
+        "./plugins/nome-android",
+        {
+          "nome": "Nuno's Lab Balcão"
         }
       ]
     ],
