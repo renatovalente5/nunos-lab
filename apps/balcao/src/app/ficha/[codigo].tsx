@@ -332,9 +332,9 @@ export default function Ficha() {
             <Carimbos
               carimbos={ficha.cartao.carimbos}
               objectivo={ficha.cartao.objectivo}
-              tamanho={30}
+              tamanho={28}
               porLinha={10}
-              folga={7}
+              folga={6}
             />
           </View>
           <View
