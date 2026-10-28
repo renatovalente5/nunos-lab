@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Leitor } from '../componentes/leitor';
+import { useEu } from '../sessao';
 import { Botao, Campo, Icone, LARGURA_MAXIMA, MARGEM, T, cor } from '@nunos-lab/ui';
 
 /** A câmara a ecrã inteiro; por baixo, o código escrito à mão. */
@@ -12,6 +13,7 @@ export default function Ler() {
   const [texto, setTexto] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [activo, setActivo] = useState(true);
+  const { data: eu } = useEu();
   const abrir = (lido: string) => {
     const codigo = codigoLido(lido);
     if (!codigo) {
@@ -19,7 +21,7 @@ export default function Ler() {
       return;
     }
     setActivo(false);
-    router.replace(`/ficha/${codigo}`);
+    router.replace(eu?.pessoa.papel === 'parceiro' ? `/vale/${codigo}` : `/ficha/${codigo}`);
   };
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>

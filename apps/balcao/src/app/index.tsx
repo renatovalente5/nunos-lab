@@ -13,6 +13,7 @@ import {
   useEu,
   useFila,
   useHoje,
+  useHojeParceiro,
   useTemSessao,
 } from '../sessao';
 import {
@@ -70,7 +71,169 @@ export default function Inicio() {
   }, []);
   if (!temSessao || entrada.estado === 'a-entrar')
     return <Entrar estado={entrada.estado} mensagem={entrada.mensagem} />;
+  return <Dia />;
+}
+
+/** A barbearia carimba; o parceiro valida. */
+function Dia() {
+  const { data: eu } = useEu();
+  if (eu?.pessoa.papel === 'parceiro') return <HojeParceiro />;
   return <Hoje />;
+}
+
+function HojeParceiro() {
+  const { data: eu } = useEu();
+  const { data: hoje, refetch } = useHojeParceiro(!!eu);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const anular = async (id: number) => {
+    setAviso(null);
+    try {
+      await pedir('/anular-vale', { metodo: 'POST', corpo: { valeId: id } });
+      await refetch();
+    } catch (e) {
+      setAviso(mensagemDe(e));
+    }
+  };
+  return (
+    <Ecra comBarra={false}>
+      <View
+        style={{
+          paddingHorizontal: MARGEM,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <T
+            v="legenda"
+            style={{ color: cor.texto3, letterSpacing: 1.2, textTransform: 'uppercase' }}
+          >
+            Parceiro Nuno's Lab
+          </T>
+          <T v="titulo" numberOfLines={1}>
+            {eu?.parceiro?.nome ?? 'Balcão'}
+          </T>
+        </View>
+        <Link href="/conta" asChild>
+          <Pressable
+            role="link"
+            aria-label="Conta"
+            style={({ pressed }) => ({
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: pressed ? cor.linha : cor.superficieAlta,
+              alignItems: 'center',
+              justifyContent: 'center',
+            })}
+          >
+            <T v="forte" style={{ fontSize: 15 }}>
+              {(eu?.pessoa.nome ?? '·').trim().charAt(0).toUpperCase()}
+            </T>
+          </Pressable>
+        </Link>
+      </View>
+
+      <View style={{ paddingHorizontal: MARGEM, marginTop: 22, flexDirection: 'row', gap: 10 }}>
+        <Numero valor={hoje?.validacoes ?? 0} nome="Validações hoje" />
+      </View>
+      <View style={{ paddingHorizontal: MARGEM, marginTop: 18 }}>
+        <Pressable
+          onPress={() => router.push('/ler')}
+          role="button"
+          aria-label="Ler o cartão"
+          style={({ pressed }) => ({
+            height: 72,
+            borderRadius: raio.grupo,
+            backgroundColor: pressed ? cor.claroPremido : cor.claro,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12,
+            transform: [{ scale: pressed ? 0.99 : 1 }],
+            ...CONTINUO,
+          })}
+        >
+          <Icone nome="camara" tamanho={26} cor={cor.sobreClaro} espessura={2.4} />
+          <T v="subtitulo" style={{ color: cor.sobreClaro }}>
+            Ler o cartão
+          </T>
+        </Pressable>
+      </View>
+      {aviso && (
+        <T
+          v="legenda"
+          role="alert"
+          style={{ color: '#E07A72', textAlign: 'center', marginTop: 16 }}
+        >
+          {aviso}
+        </T>
+      )}
+      {hoje && hoje.ultimos.length > 0 && (
+        <>
+          <Rotulo>Hoje</Rotulo>
+          <Grupo>
+            {hoje.ultimos.map((u, i) => {
+              const podeAnular =
+                u.pessoa === eu?.pessoa.nome && Date.now() / 1000 - u.quando < 600 && !u.anulado;
+              return (
+                <View key={u.id}>
+                  {i > 0 && <Separador />}
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                      opacity: u.anulado ? 0.5 : 1,
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <T
+                        v="forte"
+                        numberOfLines={1}
+                        style={u.anulado ? { textDecorationLine: 'line-through' } : null}
+                      >
+                        {u.destaque} · {u.titulo}
+                      </T>
+                      <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
+                        {[hora(u.quando), u.cliente || 'cliente', u.pessoa]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </T>
+                    </View>
+                    {podeAnular && (
+                      <Pressable
+                        onPress={() => anular(u.id)}
+                        role="button"
+                        aria-label="Anular"
+                        hitSlop={8}
+                        style={({ pressed }) => ({
+                          paddingHorizontal: 10,
+                          paddingVertical: 6,
+                          borderRadius: 999,
+                          backgroundColor: pressed ? cor.linha : cor.superficieAlta,
+                        })}
+                      >
+                        <T v="legenda">Anular</T>
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </Grupo>
+        </>
+      )}
+      {hoje && hoje.ultimos.length === 0 && (
+        <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 40 }}>
+          {dataCurta(hoje.dia, diaEmLisboa())} · ainda sem validações
+        </T>
+      )}
+    </Ecra>
+  );
 }
 
 function Entrar({ estado, mensagem }: { estado: string; mensagem?: string }) {

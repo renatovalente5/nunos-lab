@@ -7,9 +7,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   EuDaBalcao,
   FichaDoBalcao,
+  FichaDoParceiro,
   HojeDaBalcao,
+  HojeDoParceiro,
   ResultadoDoCarimbo,
   ResumoDaBalcao,
+  Vale,
 } from '@nunos-lab/dominio';
 import { useEffect, useSyncExternalStore } from 'react';
 
@@ -95,6 +98,11 @@ const MENSAGENS: Record<string, string> = {
   cartao_desconhecido: 'Este código não é de nenhum cartão.',
   outra_casa: 'Este cartão não se carimba nesta casa com a tua conta.',
   so_barbearia: 'A tua conta não carimba.',
+  so_parceiro: 'A tua conta não valida vantagens.',
+  ja_usou: 'Já usou hoje.',
+  limite_do_cliente: 'Este cliente chegou ao limite.',
+  limite_total: 'Esta vantagem esgotou.',
+  cliente_inactivo: 'Sem corte no último ano: não vale.',
   so_dono: 'Só o dono vê isto.',
   ja_anulado: 'Já estava anulado.',
   tarde_para_anular: 'Já passaram 10 minutos: só o Nuno anula.',
@@ -212,6 +220,32 @@ export const useFicha = (codigo: string) =>
     staleTime: 0,
     retry: (n, e) => !(e instanceof ErroDaBalcao && e.codigo === 'cartao_desconhecido') && n < 1,
   });
+
+// ——— o parceiro ———
+
+export function useHojeParceiro(activo = true) {
+  return useQuery({
+    queryKey: ['balcao', 'hoje-parceiro'],
+    queryFn: () => pedir<HojeDoParceiro>('/hoje-parceiro'),
+    enabled: activo,
+    networkMode: 'always',
+    staleTime: 10_000,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+}
+
+export const useFichaParceiro = (codigo: string) =>
+  useQuery({
+    queryKey: ['balcao', 'ficha-parceiro', codigo],
+    queryFn: () => pedir<FichaDoParceiro>(`/ficha-parceiro/${encodeURIComponent(codigo)}`),
+    networkMode: 'always',
+    staleTime: 0,
+    retry: (n, e) => !(e instanceof ErroDaBalcao && e.codigo === 'cartao_desconhecido') && n < 1,
+  });
+
+export const validar = (corpo: { codigo: string; promocaoId: number; chave: string }) =>
+  pedir<{ vale: Vale; ficha: FichaDoParceiro }>('/validar', { metodo: 'POST', corpo });
 
 export function chaveNova(): string {
   const b = crypto.getRandomValues(new Uint8Array(12));

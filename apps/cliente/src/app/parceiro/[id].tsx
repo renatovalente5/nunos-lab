@@ -1,4 +1,5 @@
 import {
+  diaEmLisboa,
   ligacaoDoInstagram,
   ligacaoDoMapa,
   ligacaoDoTelefone,
@@ -11,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Capa } from '../../componentes/capa';
 import { CartaoDaPromocao, categoriaELocal, iconeDe } from '../../componentes/cartoes';
 import { Logotipo } from '../../componentes/logotipo';
+import { useEu, useTemSessao } from '../../conta';
 import { abrir, contar, definirTitulo, ligacaoParaPartilhar, useDados } from '../../dados';
 import {
   Botao,
@@ -66,6 +68,8 @@ function BotaoSobreACapa({
 export default function PaginaDoParceiro() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isError, isFetching, dataUpdatedAt, refetch } = useDados();
+  const temSessao = useTemSessao();
+  const { data: eu } = useEu(true);
   const margens = useSafeAreaInsets();
   const parceiro = data?.parceiros.find((p) => String(p.id) === id);
   // A lista guardada no aparelho pode ser de antes deste parceiro (uma ligação
@@ -212,6 +216,12 @@ export default function PaginaDoParceiro() {
           promocao={pr}
           hoje={data.hoje}
           aoAbrir={() => contar('promocao', pr.id)}
+          temCartao={temSessao}
+          usadaHoje={
+            eu?.vales.find(
+              (v) => v.promocaoId === pr.id && diaEmLisboa(v.quando * 1000) === data.hoje,
+            )?.quando ?? null
+          }
         />
       ))}
 

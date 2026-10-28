@@ -184,6 +184,44 @@ export default function Cartao() {
             </>
           )}
 
+          {eu.vales.length > 0 && (
+            <>
+              <Rotulo>Nos parceiros</Rotulo>
+              <Grupo>
+                {eu.vales.slice(0, 5).map((v, i) => (
+                  <View key={v.id}>
+                    {i > 0 && <Separador />}
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingHorizontal: 16,
+                        paddingVertical: 14,
+                        gap: 12,
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <T v="forte" numberOfLines={1}>
+                          {v.parceiro}
+                        </T>
+                        <T
+                          v="legenda"
+                          style={{ color: cor.texto2, marginTop: 2 }}
+                          numberOfLines={1}
+                        >
+                          {v.destaque} · {v.titulo}
+                        </T>
+                      </View>
+                      <T v="legenda" style={{ color: cor.texto2 }}>
+                        {dataCurta(diaEmLisboa(v.quando * 1000), diaEmLisboa())}
+                      </T>
+                    </View>
+                  </View>
+                ))}
+              </Grupo>
+            </>
+          )}
+
           {isError && !eu && (
             <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 20 }}>
               Sem ligação.

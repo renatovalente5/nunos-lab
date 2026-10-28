@@ -1,5 +1,6 @@
 import {
   degrauDoDesconto,
+  limiteEmTexto,
   semPartir,
   validadeEmTexto,
   type Categoria,
@@ -196,18 +197,34 @@ export function LinhaDoParceiro({
   );
 }
 
-/** Uma vantagem na página do parceiro. As condições longas abrem com um toque. */
+function horaDe(unix: number): string {
+  const d = new Date(unix * 1000);
+  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/**
+ * Uma vantagem na página do parceiro. As condições longas abrem com um toque.
+ * Com validação, diz que o cartão se mostra ao balcão — e, depois de validada
+ * hoje, a que horas foi.
+ */
 export function CartaoDaPromocao({
   promocao,
   hoje,
   aoAbrir,
+  temCartao = false,
+  usadaHoje = null,
 }: {
   promocao: PromocaoPublica;
   hoje: string;
   aoAbrir?: () => void;
+  /** Há conta com cartão neste aparelho. */
+  temCartao?: boolean;
+  /** O instante em que o parceiro a validou hoje, se validou. */
+  usadaHoje?: number | null;
 }) {
   const [aberta, setAberta] = useState(false);
   const validade = validadeEmTexto(promocao, hoje);
+  const limite = promocao.validar ? limiteEmTexto(promocao) : null;
   const longo = promocao.detalhe.length > 90;
   const conteudo = (
     <>
@@ -224,17 +241,21 @@ export function CartaoDaPromocao({
         <T style={letraDoDesconto(promocao.destaque, ESCALA_DO_BILHETE, cor.texto)}>
           {semPartir(promocao.destaque)}
         </T>
-        {validade && (
-          <View
-            style={{
-              backgroundColor: cor.superficieAlta,
-              borderRadius: raio.pilula,
-              paddingHorizontal: 10,
-              paddingVertical: 5,
-              marginTop: 4,
-            }}
-          >
-            <T v="legenda">{validade}</T>
+        {(validade || limite) && (
+          <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+            {[validade, limite].filter(Boolean).map((texto) => (
+              <View
+                key={texto}
+                style={{
+                  backgroundColor: cor.superficieAlta,
+                  borderRadius: raio.pilula,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                }}
+              >
+                <T v="legenda">{texto}</T>
+              </View>
+            ))}
           </View>
         )}
       </View>
@@ -258,6 +279,33 @@ export function CartaoDaPromocao({
           <View style={{ transform: [{ rotate: aberta ? '-90deg' : '90deg' }] }}>
             <Icone nome="seguinte" tamanho={14} cor={cor.texto3} />
           </View>
+        </View>
+      )}
+      {promocao.validar && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            marginTop: 12,
+            paddingTop: 12,
+            borderTopWidth: 1,
+            borderTopColor: cor.linha,
+          }}
+        >
+          <Icone
+            nome={usadaHoje ? 'certo' : 'cartao'}
+            tamanho={16}
+            cor={usadaHoje ? cor.texto : cor.texto2}
+            espessura={2.2}
+          />
+          <T v="legenda" style={{ color: usadaHoje ? cor.texto : cor.texto2 }}>
+            {usadaHoje
+              ? `Usada hoje às ${horaDe(usadaHoje)}`
+              : temCartao
+                ? 'Mostra o cartão ao balcão'
+                : 'Com o cartão Nuno’s Lab'}
+          </T>
         </View>
       )}
     </>
