@@ -6,8 +6,11 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 import {
+  DIAS_DE_CLIENTE_ACTIVO,
   LIMITES_DO_PROGRAMA,
   MINUTOS_PARA_ANULAR,
+  inicioDoPeriodo,
+  motivoDaVantagem,
   codigoValido,
   diaEmLisboa,
   normalizarCodigo,
@@ -16,7 +19,11 @@ import {
   type ClienteProcurado,
   type EuDaBalcao,
   type FichaDoBalcao,
+  type FichaDoParceiro,
   type HojeDaBalcao,
+  type HojeDoParceiro,
+  type Vale,
+  type VantagemDoParceiro,
   type Loja,
   type ResultadoDoCarimbo,
   type ResumoDaBalcao,
@@ -34,7 +41,8 @@ import {
   novoCartao,
   type LinhaCartao,
 } from '../programa.ts';
-import { agora, corpo, recusar, traduzirErroDaBase } from '../util.ts';
+import { DIA, agora, corpo, recusar, traduzirErroDaBase } from '../util.ts';
+import type { LinhaPromocao } from '../linhas.ts';
 
 export const rotasDaBalcao = new Hono<Ambiente>();
 
@@ -614,6 +622,198 @@ rotasDaBalcao.get('/resumo', async (c) => {
     ),
     porLoja: porLoja!.results as ResumoDaBalcao['porLoja'],
     porPessoa: porPessoa!.results as ResumoDaBalcao['porPessoa'],
+  };
+  return c.json(r);
+});
+
+// ——— o parceiro: validar as vantagens ———
+
+function exigirParceiro(c: C): number {
+  const p = c.get('pessoa');
+  if (p.papel !== 'parceiro' || !p.parceiroId) recusar(403, 'so_parceiro');
+  return p.parceiroId;
+}
+
+async function clienteActivo(db: D1Database, clienteId: number): Promise<boolean> {
+  const r = await db
+    .prepare(
+      'SELECT 1 FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL AND criado_em > unixepoch() - ? LIMIT 1',
+    )
+    .bind(clienteId, DIAS_DE_CLIENTE_ACTIVO * DIA)
+    .first();
+  return !!r;
+}
+
+/** As promoções deste parceiro que se validam e que valem hoje. */
+function consultaDasVantagens(db: D1Database, parceiroId: number, hoje: string) {
+  return db
+    .prepare(
+      `SELECT p.* FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
+       WHERE p.parceiro_id = ?1 AND pa.activo = 1 AND p.activa = 1 AND p.validar = 1
+         AND (p.inicio IS NULL OR p.inicio <= ?2) AND (p.fim IS NULL OR p.fim >= ?2)
+       ORDER BY p.ordem, p.id`,
+    )
+    .bind(parceiroId, hoje);
+}
+
+async function fichaDoParceiro(
+  c: C,
+  parceiroId: number,
+  cliente: LinhaCliente,
+): Promise<FichaDoParceiro> {
+  const db = c.env.DB;
+  const hoje = diaEmLisboa();
+  const promos = (await consultaDasVantagens(db, parceiroId, hoje).all<LinhaPromocao>()).results;
+  const activo = await clienteActivo(db, cliente.id);
+  const contagens = promos.length
+    ? await db.batch(
+        promos.flatMap((p) => [
+          db
+            .prepare(
+              'SELECT count(*) AS n FROM vales WHERE promocao_id = ? AND cliente_id = ? AND anulado_em IS NULL AND dia >= ?',
+            )
+            .bind(p.id, cliente.id, inicioDoPeriodo(p.periodo_do_limite, hoje)),
+          db
+            .prepare('SELECT count(*) AS n FROM vales WHERE promocao_id = ? AND anulado_em IS NULL')
+            .bind(p.id),
+        ]),
+      )
+    : [];
+  const vantagens: VantagemDoParceiro[] = promos.map((p, i) => {
+    const usadas = (contagens[i * 2]!.results[0] as { n: number }).n;
+    const total = (contagens[i * 2 + 1]!.results[0] as { n: number }).n;
+    return {
+      id: p.id,
+      destaque: p.destaque,
+      titulo: p.titulo,
+      detalhe: p.detalhe,
+      limitePorCliente: p.limite_por_cliente,
+      periodoDoLimite: p.periodo_do_limite,
+      usadas,
+      motivo: motivoDaVantagem(
+        {
+          limitePorCliente: p.limite_por_cliente,
+          periodoDoLimite: p.periodo_do_limite,
+          limiteTotal: p.limite_total,
+          soClientesActivos: p.so_clientes_activos === 1,
+        },
+        { usadasNoPeriodo: usadas, usadasTotal: total, activo },
+      ),
+    };
+  });
+  return {
+    cliente: {
+      id: cliente.id,
+      codigo: cliente.codigo,
+      nome: cliente.nome.trim().split(/\s+/)[0] ?? '',
+      activo,
+    },
+    vantagens,
+  };
+}
+
+rotasDaBalcao.get('/ficha-parceiro/:codigo', async (c) => {
+  const parceiroId = exigirParceiro(c);
+  const cliente = await clientePorCodigo(c, c.req.param('codigo'));
+  return c.json(await fichaDoParceiro(c, parceiroId, cliente));
+});
+
+const VALE = `SELECT v.id, v.criado_em AS quando, v.promocao_id AS promocaoId, p.destaque, p.titulo,
+    k.nome AS cliente, k.codigo, e.nome AS pessoa, v.anulado_em
+  FROM vales v JOIN promocoes p ON p.id = v.promocao_id JOIN clientes k ON k.id = v.cliente_id
+  LEFT JOIN equipa e ON e.id = v.pessoa_id`;
+type LinhaVale = Omit<Vale, 'anulado'> & { anulado_em: number | null };
+const valePublico = (v: LinhaVale): Vale => ({
+  id: v.id,
+  quando: v.quando,
+  promocaoId: v.promocaoId,
+  destaque: v.destaque,
+  titulo: v.titulo,
+  cliente: v.cliente.trim().split(/\s+/)[0] ?? '',
+  codigo: v.codigo,
+  pessoa: v.pessoa,
+  anulado: v.anulado_em !== null,
+});
+
+/** Validar uma vantagem: idempotente pela chave; recusa com o motivo quando não pode. */
+rotasDaBalcao.post('/validar', async (c) => {
+  const parceiroId = exigirParceiro(c);
+  const { codigo, promocaoId, chave } = await corpo(
+    c,
+    z.object({
+      codigo: z.string().min(1).max(20),
+      promocaoId: z.number().int().positive(),
+      chave: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
+    }),
+  );
+  const db = c.env.DB;
+  const pessoa = c.get('pessoa');
+  const cliente = await clientePorCodigo(c, codigo);
+  const repetido = await db.prepare(`${VALE} WHERE v.chave = ?`).bind(chave).first<LinhaVale>();
+  if (repetido)
+    return c.json({
+      vale: valePublico(repetido),
+      ficha: await fichaDoParceiro(c, parceiroId, cliente),
+    });
+  const ficha = await fichaDoParceiro(c, parceiroId, cliente);
+  const vantagem = ficha.vantagens.find((v) => v.id === promocaoId);
+  if (!vantagem) recusar(400, 'referencia');
+  if (vantagem.motivo !== 'ok') recusar(409, vantagem.motivo);
+  let novo: { id: number } | null = null;
+  try {
+    novo = await db
+      .prepare(
+        'INSERT INTO vales (promocao_id, parceiro_id, cliente_id, pessoa_id, chave, dia) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
+      )
+      .bind(promocaoId, parceiroId, cliente.id, pessoa.id, chave, diaEmLisboa())
+      .first<{ id: number }>();
+  } catch (e) {
+    const outra = await db.prepare(`${VALE} WHERE v.chave = ?`).bind(chave).first<LinhaVale>();
+    if (outra) return c.json({ vale: valePublico(outra), ficha });
+    traduzirErroDaBase(e);
+  }
+  const vale = await db.prepare(`${VALE} WHERE v.id = ?`).bind(novo!.id).first<LinhaVale>();
+  return c.json({ vale: valePublico(vale!), ficha: await fichaDoParceiro(c, parceiroId, cliente) });
+});
+
+/** Anular uma validação: quem a fez, nos 10 minutos seguintes. */
+rotasDaBalcao.post('/anular-vale', async (c) => {
+  exigirParceiro(c);
+  const { valeId } = await corpo(c, z.object({ valeId: z.number().int().positive() }));
+  const pessoa = c.get('pessoa');
+  const v = await c.env.DB.prepare(
+    'SELECT pessoa_id, criado_em, anulado_em FROM vales WHERE id = ? AND parceiro_id = ?',
+  )
+    .bind(valeId, pessoa.parceiroId)
+    .first<{ pessoa_id: number | null; criado_em: number; anulado_em: number | null }>();
+  if (!v) recusar(404, 'nao_existe');
+  if (v.anulado_em) recusar(409, 'ja_anulado');
+  if (v.pessoa_id !== pessoa.id) recusar(403, 'de_outra_pessoa');
+  if (v.criado_em < agora() - MINUTOS_PARA_ANULAR * 60) recusar(409, 'tarde_para_anular');
+  await c.env.DB.prepare('UPDATE vales SET anulado_em = unixepoch(), anulado_por = ? WHERE id = ?')
+    .bind(pessoa.id, valeId)
+    .run();
+  return c.body(null, 204);
+});
+
+rotasDaBalcao.get('/hoje-parceiro', async (c) => {
+  const parceiroId = exigirParceiro(c);
+  const db = c.env.DB;
+  const hoje = diaEmLisboa();
+  const [n, ultimos] = await db.batch([
+    db
+      .prepare(
+        'SELECT count(*) AS n FROM vales WHERE parceiro_id = ? AND dia = ? AND anulado_em IS NULL',
+      )
+      .bind(parceiroId, hoje),
+    db
+      .prepare(`${VALE} WHERE v.parceiro_id = ? AND v.dia = ? ORDER BY v.criado_em DESC LIMIT 30`)
+      .bind(parceiroId, hoje),
+  ]);
+  const r: HojeDoParceiro = {
+    dia: hoje,
+    validacoes: (n!.results[0] as { n: number }).n,
+    ultimos: (ultimos!.results as LinhaVale[]).map(valePublico),
   };
   return c.json(r);
 });

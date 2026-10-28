@@ -65,7 +65,12 @@ rotasDoConteudo.get('/parceiros/:id', async (c) => {
   const hoje = diaEmLisboa();
   const [par, proms] = await db.batch([
     db.prepare(`${SELECT_PARCEIROS} WHERE p.id = ?2`).bind(hoje, id),
-    db.prepare('SELECT * FROM promocoes WHERE parceiro_id = ? ORDER BY ordem, id').bind(id),
+    db
+      .prepare(
+        `SELECT p.*, (SELECT count(*) FROM vales v WHERE v.promocao_id = p.id AND v.anulado_em IS NULL) AS validacoes
+         FROM promocoes p WHERE p.parceiro_id = ? ORDER BY p.ordem, p.id`,
+      )
+      .bind(id),
   ]);
   const linha = par!.results[0] as LinhaComContagens | undefined;
   if (!linha) recusar(404, 'nao_existe');
@@ -221,13 +226,15 @@ rotasDoConteudo.post('/exemplos/apagar', async (c) => {
  * como pausada, e `parceiroPausado` diz porquê.
  */
 function promocaoDoBackoffice(
-  l: LinhaPromocao,
+  l: LinhaPromocao & { validacoes?: number },
   parceiro: string,
   parceiroActivo: boolean,
   hoje: string,
 ): PromocaoDoContrato {
   return {
     ...promocaoPublica(l),
+    limiteTotal: l.validar === 1 ? l.limite_total : null,
+    validacoes: l.validacoes ?? 0,
     parceiroId: l.parceiro_id,
     parceiro,
     parceiroPausado: !parceiroActivo,
@@ -244,8 +251,9 @@ function promocaoDoBackoffice(
 
 rotasDoConteudo.get('/promocoes', async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT p.*, pa.nome AS parceiro, pa.activo AS parceiro_activo FROM promocoes p
-     JOIN parceiros pa ON pa.id = p.parceiro_id
+    `SELECT p.*, pa.nome AS parceiro, pa.activo AS parceiro_activo,
+       (SELECT count(*) FROM vales v WHERE v.promocao_id = p.id AND v.anulado_em IS NULL) AS validacoes
+     FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
      ORDER BY pa.ordem, pa.nome, p.ordem, p.id`,
   ).all<LinhaPromocao & { parceiro: string; parceiro_activo: number }>();
   const hoje = diaEmLisboa();
@@ -257,7 +265,9 @@ rotasDoConteudo.get('/promocoes', async (c) => {
 rotasDoConteudo.get('/promocoes/:id', async (c) => {
   const id = idDaMorada(c);
   const l = await c.env.DB.prepare(
-    'SELECT p.*, pa.nome AS parceiro, pa.activo AS parceiro_activo FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id WHERE p.id = ?',
+    `SELECT p.*, pa.nome AS parceiro, pa.activo AS parceiro_activo,
+       (SELECT count(*) FROM vales v WHERE v.promocao_id = p.id AND v.anulado_em IS NULL) AS validacoes
+     FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id WHERE p.id = ?`,
   )
     .bind(id)
     .first<LinhaPromocao & { parceiro: string; parceiro_activo: number }>();
@@ -281,8 +291,9 @@ rotasDoConteudo.post('/promocoes', async (c) => {
   const [nova] = await db.batch([
     db
       .prepare(
-        `INSERT INTO promocoes (parceiro_id, destaque, titulo, detalhe, inicio, fim, em_destaque, activa, ordem)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM promocoes WHERE parceiro_id = ?))
+        `INSERT INTO promocoes (parceiro_id, destaque, titulo, detalhe, inicio, fim, em_destaque, activa,
+           validar, limite_por_cliente, periodo_do_limite, limite_total, so_clientes_activos, ordem)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM promocoes WHERE parceiro_id = ?))
          RETURNING id`,
       )
       .bind(
@@ -294,6 +305,11 @@ rotasDoConteudo.post('/promocoes', async (c) => {
         p.fim,
         p.emDestaque ? 1 : 0,
         p.activa ? 1 : 0,
+        p.validar ? 1 : 0,
+        p.limitePorCliente ?? null,
+        p.periodoDoLimite ?? 'dia',
+        p.limiteTotal ?? null,
+        (p.soClientesActivos ?? true) ? 1 : 0,
         p.parceiroId,
       ),
     registar(c, 'promocao.criada', `${parceiro.nome}: ${p.destaque} ${p.titulo}`),

@@ -144,7 +144,52 @@ rotasDasMetricas.get('/metricas', async (c) => {
     db.prepare(
       `SELECT cliente_id, substr(dia, 1, 7) AS mes FROM carimbos WHERE anulado_em IS NULL GROUP BY cliente_id, mes`,
     ),
-    // 17 contas
+    // 17 validações no período · 18 no anterior · 19 clientes únicos · 20 clientes com parcerias (sempre)
+    db
+      .prepare(
+        `SELECT count(*) AS n FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.dia BETWEEN ? AND ? AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?' : ''}`,
+      )
+      .bind(de, ate, ...l),
+    db
+      .prepare(
+        `SELECT count(*) AS n FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.dia BETWEEN ? AND ? AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?' : ''}`,
+      )
+      .bind(antesDe, antesAte, ...l),
+    db
+      .prepare(
+        `SELECT count(DISTINCT v.cliente_id) AS n FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.dia BETWEEN ? AND ? AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?' : ''}`,
+      )
+      .bind(de, ate, ...l),
+    db.prepare(
+      'SELECT count(DISTINCT v.cliente_id) AS n FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.anulado_em IS NULL AND k.apagado_em IS NULL',
+    ),
+    // 21 por parceiro · 22 por promoção · 23 pela casa do cliente
+    db
+      .prepare(
+        `SELECT pa.id, pa.nome,
+           (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.parceiro_id = pa.id AND v.dia BETWEEN ?1 AND ?2 AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?5' : ''}) AS n,
+           (SELECT count(DISTINCT v.cliente_id) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.parceiro_id = pa.id AND v.dia BETWEEN ?1 AND ?2 AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?5' : ''}) AS clientes,
+           (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.parceiro_id = pa.id AND v.dia BETWEEN ?3 AND ?4 AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?5' : ''}) AS anterior
+         FROM parceiros pa WHERE pa.activo = 1 ORDER BY n DESC, pa.ordem, pa.nome`,
+      )
+      .bind(de, ate, antesDe, antesAte, ...l),
+    db
+      .prepare(
+        `SELECT p.id, pa.nome AS parceiro, p.destaque, p.titulo, p.limite_total AS limiteTotal,
+           (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.promocao_id = p.id AND v.dia BETWEEN ?1 AND ?2 AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?3' : ''}) AS n,
+           (SELECT count(*) FROM vales v WHERE v.promocao_id = p.id AND v.anulado_em IS NULL) AS total
+         FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id WHERE p.validar = 1
+         ORDER BY n DESC, total DESC, pa.nome LIMIT 40`,
+      )
+      .bind(de, ate, ...l),
+    db
+      .prepare(
+        `SELECT lj.id, lj.nome,
+           (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE k.loja_id = lj.id AND v.dia BETWEEN ? AND ? AND v.anulado_em IS NULL) AS n
+         FROM lojas lj ORDER BY lj.ordem, lj.id`,
+      )
+      .bind(de, ate),
+    // 24 contas
     db.prepare(
       `SELECT count(*) AS total,
          sum(EXISTS (SELECT 1 FROM identidades i WHERE i.cliente_id = k.id AND i.tipo = 'apple')) AS apple,
@@ -243,7 +288,7 @@ rotasDasMetricas.get('/metricas', async (c) => {
     receita: number | null;
     sem_preco: number | null;
   };
-  const contas = r[17]!.results[0] as {
+  const contas = r[24]!.results[0] as {
     total: number;
     apple: number | null;
     google: number | null;
@@ -310,6 +355,18 @@ rotasDasMetricas.get('/metricas', async (c) => {
       google: contas.google ?? 0,
       email: contas.email ?? 0,
       soBalcao: contas.so_balcao ?? 0,
+    },
+    parcerias: {
+      validacoes: n(17),
+      validacoesAnterior: n(18),
+      clientesUnicos: n(19),
+      clientesComParcerias: n(20),
+      porParceiro: r[21]!.results as Metricas['parcerias']['porParceiro'],
+      porPromocao: r[22]!.results as Metricas['parcerias']['porPromocao'],
+      semValidacoes: (r[21]!.results as Metricas['parcerias']['porParceiro'])
+        .filter((x) => x.n === 0)
+        .map((x) => ({ id: x.id, nome: x.nome })),
+      porCasa: r[23]!.results as Metricas['parcerias']['porCasa'],
     },
   };
   return c.json(m);

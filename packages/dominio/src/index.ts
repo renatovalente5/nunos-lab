@@ -11,4 +11,5 @@ export * from './desenhos.ts';
 export * from './texto.ts';
 export * from './cartao.ts';
 export * from './fidelidade.ts';
+export * from './vales.ts';
 export * from './tipos.ts';

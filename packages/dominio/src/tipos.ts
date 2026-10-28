@@ -1,5 +1,6 @@
 import type { IconeDaCategoria } from './limites.ts';
 import type { EstadoDaPromocao } from './promocoes.ts';
+import type { PeriodoDoLimite } from './vales.ts';
 
 /** O contrato da API: o que a app e o backoffice recebem. A API acrescenta, nunca renomeia. */
 
@@ -23,6 +24,13 @@ export type PromocaoPublica = {
   inicio: string | null;
   fim: string | null;
   emDestaque: boolean;
+  /** O parceiro valida ao ler o cartão (senão basta mostrar a app). */
+  validar: boolean;
+  /** Quantas vezes cada cliente pode usar (null: sem limite), no período. */
+  limitePorCliente: number | null;
+  periodoDoLimite: PeriodoDoLimite;
+  /** Só para quem cortou o cabelo no último ano. */
+  soClientesActivos: boolean;
 };
 
 export type ContactosDoParceiro = {
@@ -106,6 +114,9 @@ export type Parceiro = ContactosDoParceiro & {
 export type Promocao = PromocaoPublica & {
   parceiroId: number;
   parceiro: string;
+  /** Para toda a gente (null: sem limite), e quantas já foram usadas. */
+  limiteTotal: number | null;
+  validacoes: number;
   /** O parceiro está desligado: a promoção, mesmo ligada, não está na app. */
   parceiroPausado: boolean;
   activa: boolean;
@@ -228,6 +239,20 @@ export type ClienteEu = {
   /** Entrou há menos de 15 minutos: pode juntar e tirar formas, e apagar a conta. */
   provaRecente: boolean;
   programa: { objectivo: number; recompensa: string };
+  /** Corte no último ano: as vantagens dos parceiros valem. */
+  activo: boolean;
+  /** As vantagens validadas nos parceiros, da mais recente para a mais antiga. */
+  vales: ValeDoCliente[];
+};
+
+export type ValeDoCliente = {
+  id: number;
+  quando: number;
+  parceiroId: number;
+  parceiro: string;
+  promocaoId: number;
+  destaque: string;
+  titulo: string;
 };
 
 // ——— fidelidade: a Balcão ———
@@ -351,6 +376,46 @@ export type ClienteProcurado = {
   ultimo: number | null;
 };
 
+// ——— os vales (a Balcão do parceiro) ———
+
+export type VantagemDoParceiro = {
+  id: number;
+  destaque: string;
+  titulo: string;
+  detalhe: string;
+  limitePorCliente: number | null;
+  periodoDoLimite: PeriodoDoLimite;
+  /** Pode usar agora; senão, o motivo. */
+  motivo: 'ok' | 'ja_usou' | 'limite_do_cliente' | 'limite_total' | 'cliente_inactivo';
+  /** Quantas vezes este cliente a usou no período do limite. */
+  usadas: number;
+};
+
+export type FichaDoParceiro = {
+  cliente: {
+    id: number;
+    codigo: string;
+    /** Só o nome próprio: o parceiro não precisa de mais. */
+    nome: string;
+    activo: boolean;
+  };
+  vantagens: VantagemDoParceiro[];
+};
+
+export type Vale = {
+  id: number;
+  quando: number;
+  promocaoId: number;
+  destaque: string;
+  titulo: string;
+  cliente: string;
+  codigo: string;
+  pessoa: string | null;
+  anulado: boolean;
+};
+
+export type HojeDoParceiro = { dia: string; validacoes: number; ultimos: Vale[] };
+
 // ——— fidelidade: o backoffice ———
 
 export type PessoaDaEquipaNoBackoffice = PessoaDaEquipa & {
@@ -453,4 +518,24 @@ export type Metricas = {
   /** Por mês do 1.º corte: quantos entraram, e quantos voltaram em cada um dos meses seguintes. */
   coortes: { mes: string; clientes: number; voltaram: number[] }[];
   contas: { total: number; apple: number; google: number; email: number; soBalcao: number };
+  parcerias: {
+    validacoes: number;
+    validacoesAnterior: number;
+    clientesUnicos: number;
+    /** Dos clientes com cartão, quantos já usaram alguma vantagem (sempre). */
+    clientesComParcerias: number;
+    porParceiro: { id: number; nome: string; n: number; clientes: number; anterior: number }[];
+    porPromocao: {
+      id: number;
+      parceiro: string;
+      destaque: string;
+      titulo: string;
+      n: number;
+      total: number;
+      limiteTotal: number | null;
+    }[];
+    semValidacoes: { id: number; nome: string }[];
+    /** Pela casa do cliente. */
+    porCasa: { id: number; nome: string; n: number }[];
+  };
 };

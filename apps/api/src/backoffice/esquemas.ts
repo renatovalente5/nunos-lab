@@ -2,6 +2,8 @@ import { z } from 'zod';
 import {
   ICONES_DAS_CATEGORIAS,
   LIMITES,
+  LIMITES_DOS_VALES,
+  PERIODOS_DO_LIMITE,
   eDiaValido,
   normalizarDestaque,
   normalizarInstagram,
@@ -78,6 +80,25 @@ export const Promocao = z.object({
   fim: dia,
   emDestaque: z.boolean(),
   activa: z.boolean(),
+  // Os vales (0005): opcionais, para quem ainda não os conhece; o POST põe as predefinições,
+  // e o PATCH só mexe no que vier.
+  validar: z.boolean().optional(),
+  limitePorCliente: z
+    .number()
+    .int()
+    .min(LIMITES_DOS_VALES.porCliente.min)
+    .max(LIMITES_DOS_VALES.porCliente.max)
+    .nullable()
+    .optional(),
+  periodoDoLimite: z.enum(PERIODOS_DO_LIMITE).optional(),
+  limiteTotal: z
+    .number()
+    .int()
+    .min(LIMITES_DOS_VALES.total.min)
+    .max(LIMITES_DOS_VALES.total.max)
+    .nullable()
+    .optional(),
+  soClientesActivos: z.boolean().optional(),
 });
 
 export const COLUNAS_DA_PROMOCAO = {
@@ -89,6 +110,11 @@ export const COLUNAS_DA_PROMOCAO = {
   fim: 'fim',
   emDestaque: 'em_destaque',
   activa: 'activa',
+  validar: 'validar',
+  limitePorCliente: 'limite_por_cliente',
+  periodoDoLimite: 'periodo_do_limite',
+  limiteTotal: 'limite_total',
+  soClientesActivos: 'so_clientes_activos',
 } as const satisfies Record<keyof z.output<typeof Promocao>, string>;
 
 export const Categoria = z.object({

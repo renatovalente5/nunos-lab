@@ -35,6 +35,7 @@ naBaseLocal(
     'sessoes',
     'registo',
     'admins',
+    'vales',
     'carimbos',
     'cartoes',
     'servicos',
@@ -835,6 +836,206 @@ await passo(
         })
       ).status,
       400,
+    );
+  },
+);
+
+// ——— os vales dos parceiros ———
+
+let tokenParceiro;
+let promocaoValidavel;
+await passo(
+  'uma promoção com validação; o parceiro entra na Balcão; cada papel só faz o seu',
+  async () => {
+    const r = await pedir('/api/bo/promocoes', {
+      method: 'POST',
+      token,
+      body: json({
+        parceiroId: 1,
+        destaque: '-10 %',
+        titulo: 'Na refeição',
+        detalhe: '',
+        inicio: null,
+        fim: null,
+        emDestaque: false,
+        activa: true,
+        validar: true,
+        limitePorCliente: 1,
+        periodoDoLimite: 'dia',
+        limiteTotal: 2,
+        soClientesActivos: true,
+      }),
+    });
+    assert.equal(r.status, 201);
+    promocaoValidavel = (await r.json()).id;
+    const app = await (await pedir('/api/app')).json();
+    const pr = app.parceiros
+      .find((x) => x.id === 1)
+      .promocoes.find((x) => x.id === promocaoValidavel);
+    assert.equal(pr.validar, true);
+    assert.equal(pr.limitePorCliente, 1);
+    assert.equal(pr.periodoDoLimite, 'dia');
+    assert.equal(pr.soClientesActivos, true);
+    assert.equal('limiteTotal' in pr, false, 'o limite total não vai para a app');
+    const equipa = await pedir('/api/bo/equipa', {
+      method: 'POST',
+      token,
+      body: json({
+        nome: 'Prova Parceiro',
+        email: null,
+        papel: 'parceiro',
+        lojaId: null,
+        parceiroId: 1,
+      }),
+    });
+    assert.equal(equipa.status, 201);
+    const pessoa = (await equipa.json()).find((p) => p.nome === 'Prova Parceiro');
+    const { codigo } = await (
+      await pedir(`/api/bo/equipa/${pessoa.id}/acesso`, { method: 'POST', token })
+    ).json();
+    tokenParceiro = (
+      await (
+        await pedir('/api/balcao/entrar', { method: 'POST', body: json({ acesso: codigo }) })
+      ).json()
+    ).sessao;
+    const eu = await (await pedir('/api/balcao/eu', { token: tokenParceiro })).json();
+    assert.equal(eu.pessoa.papel, 'parceiro');
+    assert.equal(eu.parceiro.nome, 'Tasca Velha do Cravo');
+    const carimbo = await pedir('/api/balcao/carimbar', {
+      method: 'POST',
+      token: tokenParceiro,
+      body: json({ codigo: codigoDoCliente, chave: 'vale-prova-xx', lojaId: 1 }),
+    });
+    assert.equal(carimbo.status, 403, 'o parceiro não carimba');
+    assert.equal(
+      (await pedir(`/api/balcao/ficha-parceiro/${codigoDoCliente}`, { token: tokenBalcao })).status,
+      403,
+      'o barbeiro não valida',
+    );
+  },
+);
+
+await passo('o parceiro lê o cartão, valida uma vez por dia, anula e volta a validar', async () => {
+  const ficha = await (
+    await pedir(`/api/balcao/ficha-parceiro/${codigoDoCliente}`, { token: tokenParceiro })
+  ).json();
+  assert.equal(ficha.cliente.nome, 'Prova', 'só o nome próprio');
+  assert.equal(ficha.cliente.activo, true);
+  const v = ficha.vantagens.find((x) => x.id === promocaoValidavel);
+  assert.equal(v.motivo, 'ok');
+  assert.equal(v.usadas, 0);
+  const validar = (chave) =>
+    pedir('/api/balcao/validar', {
+      method: 'POST',
+      token: tokenParceiro,
+      body: json({ codigo: codigoDoCliente, promocaoId: promocaoValidavel, chave }),
+    });
+  const r1 = await validar('vale-prova-01');
+  assert.equal(r1.status, 200);
+  const j1 = await r1.json();
+  assert.equal(j1.vale.destaque, '−10%');
+  assert.equal(j1.ficha.vantagens.find((x) => x.id === promocaoValidavel).motivo, 'ja_usou');
+  const outraVez = await (await validar('vale-prova-01')).json();
+  assert.equal(outraVez.vale.id, j1.vale.id, 'a mesma chave devolve o mesmo vale');
+  const segundo = await validar('vale-prova-02');
+  assert.equal(segundo.status, 409);
+  assert.equal((await segundo.json()).erro, 'ja_usou');
+  assert.equal(
+    (
+      await pedir('/api/balcao/anular-vale', {
+        method: 'POST',
+        token: tokenParceiro,
+        body: json({ valeId: j1.vale.id }),
+      })
+    ).status,
+    204,
+  );
+  assert.equal(
+    (
+      await pedir('/api/balcao/anular-vale', {
+        method: 'POST',
+        token: tokenParceiro,
+        body: json({ valeId: j1.vale.id }),
+      })
+    ).status,
+    409,
+  );
+  const r3 = await validar('vale-prova-03');
+  assert.equal(r3.status, 200);
+  const hoje = await (await pedir('/api/balcao/hoje-parceiro', { token: tokenParceiro })).json();
+  assert.equal(hoje.validacoes, 1);
+  assert.equal(hoje.ultimos.length, 2);
+  assert.ok(hoje.ultimos.some((x) => x.anulado));
+  const eu = await (await pedir('/api/eu', { token: tokenCliente })).json();
+  assert.equal(eu.activo, true);
+  assert.equal(eu.vales.length, 1);
+  assert.equal(eu.vales[0].parceiro, 'Tasca Velha do Cravo');
+});
+
+await passo(
+  'cliente inactivo não usa; o limite total fecha a vantagem; as métricas contam',
+  async () => {
+    const inactivo = await (
+      await pedir('/api/eu/entrar/teste', {
+        method: 'POST',
+        body: json({
+          tipo: 'google',
+          sujeito: 'prova-google-inactivo',
+          email: 'inactivo@gmail.com',
+        }),
+      })
+    ).json();
+    const euInactivo = await (await pedir('/api/eu', { token: inactivo.sessao })).json();
+    assert.equal(euInactivo.activo, false);
+    const ficha = await (
+      await pedir(`/api/balcao/ficha-parceiro/${euInactivo.codigo}`, { token: tokenParceiro })
+    ).json();
+    assert.equal(ficha.cliente.activo, false);
+    assert.equal(
+      ficha.vantagens.find((x) => x.id === promocaoValidavel).motivo,
+      'cliente_inactivo',
+    );
+    const recusa = await pedir('/api/balcao/validar', {
+      method: 'POST',
+      token: tokenParceiro,
+      body: json({
+        codigo: euInactivo.codigo,
+        promocaoId: promocaoValidavel,
+        chave: 'vale-prova-05',
+      }),
+    });
+    assert.equal(recusa.status, 409);
+    assert.equal((await recusa.json()).erro, 'cliente_inactivo');
+    const [a, b] = daBaseLocal('SELECT codigo FROM clientes WHERE id IN (1003, 1015) ORDER BY id');
+    const segunda = await pedir('/api/balcao/validar', {
+      method: 'POST',
+      token: tokenParceiro,
+      body: json({ codigo: a.codigo, promocaoId: promocaoValidavel, chave: 'vale-prova-06' }),
+    });
+    assert.equal(segunda.status, 200, 'um cliente de exemplo activo usa');
+    const terceira = await pedir('/api/balcao/validar', {
+      method: 'POST',
+      token: tokenParceiro,
+      body: json({ codigo: b.codigo, promocaoId: promocaoValidavel, chave: 'vale-prova-07' }),
+    });
+    assert.equal(terceira.status, 409);
+    assert.equal((await terceira.json()).erro, 'limite_total');
+    const m = await (await pedir('/api/bo/metricas', { token })).json();
+    assert.equal(m.parcerias.validacoes, 2);
+    assert.equal(m.parcerias.clientesUnicos, 2);
+    assert.ok(m.parcerias.porParceiro.find((x) => x.id === 1).n === 2);
+    const pp = m.parcerias.porPromocao.find((x) => x.id === promocaoValidavel);
+    assert.equal(pp.total, 2);
+    assert.equal(pp.limiteTotal, 2);
+    assert.ok(m.parcerias.semValidacoes.length >= 1);
+    assert.equal(m.parcerias.porCasa.length, 3);
+    const promo = await (await pedir(`/api/bo/promocoes/${promocaoValidavel}`, { token })).json();
+    assert.equal(promo.validacoes, 2);
+    assert.equal(promo.limiteTotal, 2);
+    assert.equal(promo.validar, true);
+    assert.equal(
+      (await pedir(`/api/bo/promocoes/${promocaoValidavel}`, { method: 'DELETE', token })).status,
+      204,
     );
   },
 );

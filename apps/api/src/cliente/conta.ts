@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import {
   DIAS_A_EXPERIENCIA,
+  DIAS_DE_CLIENTE_ACTIVO,
   LIMITES_DO_PROGRAMA,
   eAniversarioValido,
   type ClienteEu,
@@ -165,6 +166,18 @@ async function lerEu(c: C): Promise<ClienteEu> {
            WHERE cliente_id = ? AND revogada_em IS NULL AND expira_em > unixepoch() ORDER BY vista_em DESC`,
         )
         .bind(id),
+      db
+        .prepare(
+          `SELECT v.id, v.criado_em AS quando, pa.id AS parceiroId, pa.nome AS parceiro, p.id AS promocaoId, p.destaque, p.titulo
+           FROM vales v JOIN promocoes p ON p.id = v.promocao_id JOIN parceiros pa ON pa.id = v.parceiro_id
+           WHERE v.cliente_id = ? AND v.anulado_em IS NULL ORDER BY v.criado_em DESC LIMIT 30`,
+        )
+        .bind(id),
+      db
+        .prepare(
+          'SELECT 1 AS activo FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL AND criado_em > unixepoch() - ? LIMIT 1',
+        )
+        .bind(id, DIAS_DE_CLIENTE_ACTIVO * DIA),
     ]);
   let r = await consultas();
   if (!r[1]!.results[0]) {
@@ -211,6 +224,8 @@ async function lerEu(c: C): Promise<ClienteEu> {
     })),
     provaRecente: criadaEm > agora() - 15 * 60,
     programa: { objectivo: programa.objectivo, recompensa: programa.recompensa },
+    activo: r[8]!.results.length > 0,
+    vales: r[7]!.results as ClienteEu['vales'],
   };
 }
 

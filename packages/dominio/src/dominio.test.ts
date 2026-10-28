@@ -201,3 +201,58 @@ test('aniversário e caixas de correio', () => {
   assert.ok(donaDaCaixa('Alguem@iCloud.com'));
   assert.equal(donaDaCaixa('alguem@empresa.pt'), false);
 });
+
+// ——— os vales ———
+
+import { inicioDoPeriodo, limiteEmTexto, motivoDaVantagem } from './vales.ts';
+
+test('o início do período de um limite', () => {
+  assert.equal(inicioDoPeriodo('dia', '2026-10-28'), '2026-10-28');
+  assert.equal(inicioDoPeriodo('semana', '2026-10-28'), '2026-10-26', 'quarta → segunda');
+  assert.equal(inicioDoPeriodo('semana', '2026-10-26'), '2026-10-26', 'segunda fica');
+  assert.equal(inicioDoPeriodo('semana', '2026-11-01'), '2026-10-26', 'domingo → a segunda antes');
+  assert.equal(inicioDoPeriodo('mes', '2026-10-28'), '2026-10-01');
+  assert.equal(inicioDoPeriodo('sempre', '2026-10-28'), '0000-00-00');
+});
+
+test('o motivo de uma vantagem, por ordem', () => {
+  const regras = {
+    limitePorCliente: 1,
+    periodoDoLimite: 'dia' as const,
+    limiteTotal: 10,
+    soClientesActivos: true,
+  };
+  assert.equal(
+    motivoDaVantagem(regras, { usadasNoPeriodo: 0, usadasTotal: 0, activo: true }),
+    'ok',
+  );
+  assert.equal(
+    motivoDaVantagem(regras, { usadasNoPeriodo: 0, usadasTotal: 0, activo: false }),
+    'cliente_inactivo',
+  );
+  assert.equal(
+    motivoDaVantagem(regras, { usadasNoPeriodo: 0, usadasTotal: 10, activo: true }),
+    'limite_total',
+  );
+  assert.equal(
+    motivoDaVantagem(regras, { usadasNoPeriodo: 1, usadasTotal: 3, activo: true }),
+    'ja_usou',
+  );
+  assert.equal(
+    motivoDaVantagem(
+      { ...regras, limitePorCliente: 2, periodoDoLimite: 'semana' },
+      { usadasNoPeriodo: 2, usadasTotal: 3, activo: true },
+    ),
+    'limite_do_cliente',
+  );
+  assert.equal(
+    motivoDaVantagem(
+      { ...regras, limitePorCliente: null, limiteTotal: null, soClientesActivos: false },
+      { usadasNoPeriodo: 99, usadasTotal: 99, activo: false },
+    ),
+    'ok',
+  );
+  assert.equal(limiteEmTexto({ limitePorCliente: 1, periodoDoLimite: 'dia' }), '1 por dia');
+  assert.equal(limiteEmTexto({ limitePorCliente: 3, periodoDoLimite: 'sempre' }), '3 no total');
+  assert.equal(limiteEmTexto({ limitePorCliente: null, periodoDoLimite: 'dia' }), null);
+});

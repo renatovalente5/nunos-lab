@@ -3,6 +3,7 @@ import type {
   IconeDaCategoria,
   Loja,
   Parceiro,
+  PeriodoDoLimite,
   PromocaoPublica,
 } from '@nunos-lab/dominio';
 import { eIconeDaCategoria } from '@nunos-lab/dominio';
@@ -41,6 +42,11 @@ export type LinhaPromocao = {
   fim: string | null;
   em_destaque: number;
   activa: number;
+  validar: number;
+  limite_por_cliente: number | null;
+  periodo_do_limite: PeriodoDoLimite;
+  limite_total: number | null;
+  so_clientes_activos: number;
   ordem: number;
   criada_em: number;
   alterada_em: number;
@@ -81,6 +87,10 @@ export function promocaoPublica(l: LinhaPromocao): PromocaoPublica {
     inicio: l.inicio,
     fim: l.fim,
     emDestaque: l.em_destaque === 1,
+    validar: l.validar === 1,
+    limitePorCliente: l.validar === 1 ? l.limite_por_cliente : null,
+    periodoDoLimite: l.periodo_do_limite,
+    soClientesActivos: l.validar === 1 && l.so_clientes_activos === 1,
   };
 }
 
