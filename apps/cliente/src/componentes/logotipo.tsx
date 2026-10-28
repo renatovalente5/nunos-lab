@@ -1,8 +1,8 @@
 import type { ParceiroPublico } from '@nunos-lab/dominio';
-import { corParaBranco } from '@nunos-lab/dominio';
+import { tintaSobre } from '@nunos-lab/dominio';
 import { Image, Text, View } from 'react-native';
 import { urlDaImagem } from '../dados';
-import { letra } from '../tema';
+import { cor, letra } from '../tema';
 
 const PEQUENAS = /^(do|da|dos|das|de|e|o|a|os|as)$/i;
 
@@ -13,21 +13,19 @@ export function iniciaisDe(nome: string): string {
 }
 
 /**
- * O logótipo do parceiro num círculo branco; sem logótipo, as iniciais. Na lista,
- * o círculo é da cor dele com as iniciais a branco; sobre a capa (`sobreCor`), é
- * branco com as iniciais na cor dele. A cor vem escurecida se for clara, para as
- * iniciais passarem 4,5:1 nos dois casos. Está sempre ao lado do nome, por isso
- * o leitor de ecrã salta-o.
+ * O logótipo do parceiro num círculo branco; sem logótipo, as iniciais na cor
+ * dele. Está sempre ao lado do nome, por isso o leitor de ecrã salta-o.
  */
 export function Logotipo({
   parceiro,
   tamanho = 48,
-  sobreCor = false,
+  anel = false,
 }: {
   parceiro: Pick<ParceiroPublico, 'nome' | 'cor' | 'logotipo'>;
   tamanho?: number;
-  sobreCor?: boolean;
+  anel?: boolean;
 }) {
+  const borda = anel ? Math.max(3, Math.round(tamanho / 20)) : 0;
   const base = {
     width: tamanho,
     height: tamanho,
@@ -35,6 +33,8 @@ export function Logotipo({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    borderWidth: borda,
+    borderColor: cor.fundo,
   } as const;
   if (parceiro.logotipo)
     return (
@@ -46,12 +46,11 @@ export function Logotipo({
         />
       </View>
     );
-  const dele = corParaBranco(parceiro.cor);
   return (
-    <View style={[base, { backgroundColor: sobreCor ? '#FFFFFF' : dele }]} aria-hidden>
+    <View style={[base, { backgroundColor: parceiro.cor }]} aria-hidden>
       <Text
         style={{
-          color: sobreCor ? dele : '#FFFFFF',
+          color: tintaSobre(parceiro.cor),
           fontFamily: letra.extra,
           fontSize: Math.round(tamanho * 0.36),
           letterSpacing: -0.4,

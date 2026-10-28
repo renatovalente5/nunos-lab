@@ -2,13 +2,13 @@ import type { ParceiroPublico, PromocaoPublica } from '@nunos-lab/dominio';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
-import { CartaoDestaque, LinhaDoParceiro } from '../../componentes/cartoes';
+import { CartaoDestaque, iconeDe, LinhaDoParceiro } from '../../componentes/cartoes';
 import { Esqueleto, SemLigacao } from '../../componentes/estados';
 import { Icone } from '../../componentes/icone';
 import { Ecra, Grupo, Rotulo, Separador } from '../../componentes/pecas';
 import { T } from '../../componentes/texto';
 import { definirTitulo, useDados } from '../../dados';
-import { cor, LARGURA_MAXIMA, letra, MARGEM, raio } from '../../tema';
+import { cor, LARGURA_MAXIMA, MARGEM, raio } from '../../tema';
 
 const palavra = require('../../../assets/marca/palavra.png');
 
@@ -46,11 +46,17 @@ export default function Vantagens() {
 
   return (
     <Ecra>
-      <View style={{ paddingHorizontal: MARGEM }}>
-        {/* A 240 px o «— LEAVE THE MARK» do logótipo ainda se lê; mais pequeno, é uma mancha. */}
+      <View
+        style={{
+          paddingHorizontal: MARGEM,
+          flexDirection: 'row',
+          alignItems: 'center',
+          minHeight: 44,
+        }}
+      >
         <Image
           source={palavra}
-          style={{ width: 240, height: Math.round((240 * 227) / 1200) }}
+          style={{ width: 168, height: Math.round((168 * 227) / 1200) }}
           resizeMode="contain"
           accessibilityLabel="Nuno's Lab"
           role="img"
@@ -61,19 +67,19 @@ export default function Vantagens() {
         <View
           style={{
             marginHorizontal: MARGEM,
-            marginTop: 20,
+            marginTop: 18,
             flexDirection: 'row',
             alignItems: 'center',
             gap: 12,
             backgroundColor: cor.superficie,
-            borderRadius: raio.botao,
+            borderRadius: raio.grupo,
             paddingHorizontal: 16,
             paddingVertical: 14,
           }}
           role="status"
         >
-          <Icone nome="aviso" tamanho={22} espessura={2} />
-          <T v="forte" style={{ flex: 1, fontFamily: letra.extra, fontSize: 15, lineHeight: 20 }}>
+          <Icone nome="aviso" tamanho={20} />
+          <T v="forte" style={{ flex: 1, fontSize: 15 }}>
             {data.aviso}
           </T>
         </View>
@@ -89,8 +95,8 @@ export default function Vantagens() {
             horizontal
             showsHorizontalScrollIndicator={false}
             decelerationRate="fast"
-            snapToInterval={largura + 12}
-            contentContainerStyle={{ paddingHorizontal: MARGEM, gap: 12 }}
+            snapToInterval={largura + 14}
+            contentContainerStyle={{ paddingHorizontal: MARGEM, gap: 14 }}
             style={
               Platform.OS === 'web'
                 ? ({ scrollSnapType: 'x mandatory', scrollPaddingLeft: MARGEM } as object)
@@ -102,6 +108,7 @@ export default function Vantagens() {
                 key={promocao.id}
                 parceiro={parceiro}
                 promocao={promocao}
+                icone={iconeDe(parceiro, data.categorias)}
                 hoje={data.hoje}
                 largura={largura}
                 onPress={() => abrir(parceiro, promocao)}
@@ -118,9 +125,8 @@ export default function Vantagens() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: MARGEM, gap: 4, marginBottom: 10 }}
+              contentContainerStyle={{ paddingHorizontal: MARGEM, gap: 8, marginBottom: 14 }}
               role="radiogroup"
-              aria-label="Categorias"
             >
               {[{ id: null as number | null, nome: 'Tudo' }, ...data.categorias].map((k) => {
                 const activa = escolhida === k.id;
@@ -131,18 +137,22 @@ export default function Vantagens() {
                     role="radio"
                     aria-checked={activa}
                     style={({ pressed }) => ({
-                      paddingHorizontal: 14,
-                      height: 44,
+                      paddingHorizontal: 16,
+                      height: 38,
                       justifyContent: 'center',
-                      borderRadius: raio.botao,
-                      backgroundColor: activa
-                        ? cor.claro
-                        : pressed
-                          ? cor.superficie
-                          : 'transparent',
+                      borderRadius: raio.pilula,
+                      backgroundColor: activa ? cor.claro : cor.superficie,
+                      opacity: pressed ? 0.8 : 1,
                     })}
                   >
-                    <T v="rotulo" style={{ color: activa ? cor.sobreClaro : cor.texto }}>
+                    <T
+                      v="forte"
+                      style={{
+                        fontSize: 14,
+                        lineHeight: 18,
+                        color: activa ? cor.sobreClaro : cor.texto,
+                      }}
+                    >
                       {k.nome}
                     </T>
                   </Pressable>
@@ -151,10 +161,10 @@ export default function Vantagens() {
             </ScrollView>
           )}
           {lista.length > 0 ? (
-            <Grupo style={{ borderTopWidth: 0 }}>
+            <Grupo>
               {lista.map((p, i) => (
                 <View key={p.id}>
-                  {i > 0 && <Separador />}
+                  {i > 0 && <Separador recuo={80} />}
                   <LinhaDoParceiro
                     parceiro={p}
                     categorias={data.categorias}

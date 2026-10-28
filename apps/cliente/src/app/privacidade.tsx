@@ -23,20 +23,19 @@ export default function Privacidade() {
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/barbearia'))}
           role="button"
           aria-label="Voltar"
-          style={({ pressed }) => ({
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            borderWidth: 1.5,
-            borderColor: cor.contorno,
-            backgroundColor: pressed ? cor.superficie : 'transparent',
+          hitSlop={8}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: cor.superficieAlta,
             alignItems: 'center',
             justifyContent: 'center',
-          })}
+          }}
         >
           <Icone nome="voltar" tamanho={21} espessura={2.2} />
         </Pressable>
-        <T v="seccao" style={{ marginTop: 24, marginBottom: 8 }} role="heading" aria-level={1}>
+        <T v="titulo" style={{ marginTop: 22, marginBottom: 8 }} role="heading" aria-level={1}>
           Privacidade
         </T>
         {PARAGRAFOS.map((p) => (

@@ -36,18 +36,3 @@ export function misturar(a: string, b: string, t: number): string {
   const m = (x: number, y: number) => Math.round(x + (y - x) * t);
   return `#${[m(r1, r2), m(g1, g2), m(b1, b2)].map((v) => v.toString(16).padStart(2, '0')).join('')}`.toUpperCase();
 }
-
-/**
- * A cor de um parceiro pronta para levar texto branco por cima (capa, cartão em
- * destaque, iniciais): escurece aos poucos até o branco passar `minimo` (WCAG
- * AA, 4,5:1). As cores da lista já passam e ficam iguais; uma «outra cor» clara
- * escolhida no backoffice (um amarelo dá 1,6:1) desce até se ler.
- */
-export function corParaBranco(cor: string, minimo = 4.5): string {
-  if (!eCor(cor)) return '#26303D';
-  for (let t = 0; t <= 1; t += 0.04) {
-    const escura = misturar(cor, '#000000', t);
-    if (contraste(escura, '#FFFFFF') >= minimo) return escura;
-  }
-  return '#000000';
-}

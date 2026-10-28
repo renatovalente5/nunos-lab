@@ -56,7 +56,7 @@ export type NomeDoIcone = keyof typeof DESENHOS;
 export function Icone({
   nome,
   tamanho = 22,
-  cor = '#FFFFFF',
+  cor = '#F4F1EC',
   espessura = 1.8,
   opacidade = 1,
 }: {
