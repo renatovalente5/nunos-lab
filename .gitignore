@@ -19,3 +19,4 @@ apps/balcao/.expo/
 apps/balcao/dist/
 apps/balcao/ios/
 apps/balcao/android/
+.env.*.local

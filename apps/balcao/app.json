@@ -25,7 +25,7 @@
       "infoPlist": {
         "CFBundleDevelopmentRegion": "pt-PT",
         "CFBundleName": "Balcão NL",
-        "CFBundleDisplayName": "Nuno's Lab Balcão"
+        "CFBundleDisplayName": "Balcão NL"
       }
     },
     "android": {
@@ -90,7 +90,7 @@
       [
         "./plugins/nome-android",
         {
-          "nome": "Nuno's Lab Balcão"
+          "nome": "Balcão NL"
         }
       ]
     ],
