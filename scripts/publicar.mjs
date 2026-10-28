@@ -133,4 +133,6 @@ correr(
 );
 correr('git', ['push', '-f', remoto, 'gh-pages'], site);
 rmSync(join(site, '.git'), { recursive: true, force: true });
-console.log(`\nPublicado: ${ORIGEM}${BASE}/, ${ORIGEM}${BASE}/balcao/ e ${ORIGEM}${BASE}/backoffice/`);
+console.log(
+  `\nPublicado: ${ORIGEM}${BASE}/, ${ORIGEM}${BASE}/balcao/ e ${ORIGEM}${BASE}/backoffice/`,
+);

@@ -37,6 +37,6 @@
     "GOOGLE_CLIENTE": "695283550331-vert2ikpluksqb954jl0j3ed0ukphha4.apps.googleusercontent.com",
     // «Entrar com a Apple»: o Services ID (web) e o bundle id (app nativa),
     // separados por vírgulas. Vazio: o botão da Apple não aparece.
-    "APPLE_CLIENTES": "",
+    "APPLE_CLIENTES": "pt.nunoslab.web,pt.nunoslab.app",
   },
 }
