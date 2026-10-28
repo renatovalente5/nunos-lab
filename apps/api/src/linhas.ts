@@ -47,6 +47,10 @@ export type LinhaPromocao = {
   periodo_do_limite: PeriodoDoLimite;
   limite_total: number | null;
   so_clientes_activos: number;
+  surpresa: number;
+  surpresa_dias: number;
+  surpresa_peso: number;
+  surpresa_restantes: number | null;
   ordem: number;
   criada_em: number;
   alterada_em: number;
@@ -91,6 +95,7 @@ export function promocaoPublica(l: LinhaPromocao): PromocaoPublica {
     limitePorCliente: l.validar === 1 ? l.limite_por_cliente : null,
     periodoDoLimite: l.periodo_do_limite,
     soClientesActivos: l.validar === 1 && l.so_clientes_activos === 1,
+    surpresa: l.surpresa === 1,
   };
 }
 

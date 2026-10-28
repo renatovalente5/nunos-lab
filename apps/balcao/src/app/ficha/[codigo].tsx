@@ -40,6 +40,14 @@ function haQuanto(unix: number): string {
  * para carimbar ou entregar a recompensa. Depois do carimbo, o ecrã confirma e
  * fecha sozinho.
  */
+type Feito = {
+  carimbos: number;
+  objectivo: number;
+  completo: boolean;
+  recompensa: string | null;
+  cupao?: { parceiro: string; destaque: string; titulo: string; validoAte: string } | null;
+};
+
 export default function Ficha() {
   const { codigo } = useLocalSearchParams<{ codigo: string }>();
   const margens = useSafeAreaInsets();
@@ -51,12 +59,7 @@ export default function Ficha() {
   const [estado, setEstado] = useState<'pronto' | 'a-enviar' | 'feito' | 'na-fila' | 'erro'>(
     'pronto',
   );
-  const [feito, setFeito] = useState<{
-    carimbos: number;
-    objectivo: number;
-    completo: boolean;
-    recompensa: string | null;
-  } | null>(null);
+  const [feito, setFeito] = useState<Feito | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<{ quando: number; pessoa: string | null } | null>(null);
   const escala = useRef(new Animated.Value(0.6)).current;
@@ -99,10 +102,12 @@ export default function Ficha() {
           objectivo: r.resultado.cartao.objectivo,
           completo: r.resultado.completo,
           recompensa: r.resultado.recompensa,
+          cupao: r.resultado.cupao,
         });
       }
       Animated.spring(escala, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
-      if (!('resultado' in r && r.resultado.completo)) concluir();
+      // Com um prémio ou um cupão fica até «Concluir»: o barbeiro tem de o dizer ao cliente.
+      if (!('resultado' in r && (r.resultado.completo || r.resultado.cupao))) concluir();
     } catch (e) {
       if (e instanceof ErroDaBalcao && e.codigo === 'limite_do_dia') {
         setAviso(
@@ -249,7 +254,34 @@ export default function Ficha() {
               Sem rede: guardado, envia-se depois.
             </T>
           )}
-          {feito.completo && (
+          {feito.cupao && (
+            <View
+              style={{
+                marginTop: 24,
+                paddingHorizontal: 18,
+                paddingVertical: 14,
+                borderRadius: raio.grupo,
+                backgroundColor: cor.superficie,
+                alignItems: 'center',
+                gap: 4,
+                ...CONTINUO,
+              }}
+            >
+              <T
+                v="legenda"
+                style={{ color: cor.texto2, letterSpacing: 1.2, textTransform: 'uppercase' }}
+              >
+                Saiu um cupão
+              </T>
+              <T v="subtitulo" style={{ textAlign: 'center' }}>
+                {feito.cupao.destaque} · {feito.cupao.titulo}
+              </T>
+              <T v="legenda" style={{ color: cor.texto2 }}>
+                {feito.cupao.parceiro} · até {dataCurta(feito.cupao.validoAte, diaEmLisboa())}
+              </T>
+            </View>
+          )}
+          {(feito.completo || feito.cupao) && (
             <View style={{ marginTop: 28 }}>
               <Botao nome="Concluir" onPress={sair} />
             </View>
@@ -340,6 +372,26 @@ export default function Ficha() {
             </T>
           </View>
 
+          {ficha.prenda && (
+            <View
+              style={{
+                marginHorizontal: MARGEM,
+                marginTop: 14,
+                backgroundColor: cor.claro,
+                borderRadius: 16,
+                padding: 12,
+                flexDirection: 'row',
+                gap: 10,
+                alignItems: 'center',
+                ...CONTINUO,
+              }}
+            >
+              <Icone nome="bolo" tamanho={18} cor={cor.sobreClaro} espessura={2.2} />
+              <T v="forte" style={{ flex: 1, color: cor.sobreClaro }}>
+                Prenda de anos: {ficha.prenda}
+              </T>
+            </View>
+          )}
           {(ficha.hoje.carimbos > 0 || aviso) && (
             <View
               style={{

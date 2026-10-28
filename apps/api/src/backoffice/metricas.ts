@@ -189,7 +189,14 @@ rotasDasMetricas.get('/metricas', async (c) => {
          FROM lojas lj ORDER BY lj.ordem, lj.id`,
       )
       .bind(de, ate),
-    // 24 contas
+    // 24 cupões saídos e usados no período
+    db
+      .prepare(
+        `SELECT sum(k.emitido_em >= ?1 AND k.emitido_em < ?2) AS saidos, sum(k.usado_em >= ?1 AND k.usado_em < ?2) AS usados
+         FROM cupoes k JOIN clientes c ON c.id = k.cliente_id ${lojaId ? 'WHERE c.loja_id = ?3' : ''}`,
+      )
+      .bind(inicioDoDia(de), inicioDoDia(somarDias(ate, 1)), ...l),
+    // 25 contas
     db.prepare(
       `SELECT count(*) AS total,
          sum(EXISTS (SELECT 1 FROM identidades i WHERE i.cliente_id = k.id AND i.tipo = 'apple')) AS apple,
@@ -288,7 +295,7 @@ rotasDasMetricas.get('/metricas', async (c) => {
     receita: number | null;
     sem_preco: number | null;
   };
-  const contas = r[24]!.results[0] as {
+  const contas = r[25]!.results[0] as {
     total: number;
     apple: number | null;
     google: number | null;
@@ -367,6 +374,8 @@ rotasDasMetricas.get('/metricas', async (c) => {
         .filter((x) => x.n === 0)
         .map((x) => ({ id: x.id, nome: x.nome })),
       porCasa: r[23]!.results as Metricas['parcerias']['porCasa'],
+      cupoesSaidos: Number((r[24]!.results[0] as { saidos: number | null }).saidos ?? 0),
+      cupoesUsados: Number((r[24]!.results[0] as { usados: number | null }).usados ?? 0),
     },
   };
   return c.json(m);

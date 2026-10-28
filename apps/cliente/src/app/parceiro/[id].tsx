@@ -1,4 +1,5 @@
 import {
+  dataCurta,
   diaEmLisboa,
   ligacaoDoInstagram,
   ligacaoDoMapa,
@@ -17,18 +18,19 @@ import { abrir, contar, definirTitulo, ligacaoParaPartilhar, useDados } from '..
 import {
   Botao,
   BotaoRedondo,
+  CONTINUO,
+  cor,
   Ecra,
   Esqueleto,
   EtiquetaExemplo,
   Grupo,
   Icone,
   MARGEM,
+  raio,
   Rotulo,
   SemLigacao,
   Separador,
   T,
-  cor,
-  raio,
 } from '@nunos-lab/ui';
 
 function voltar() {
@@ -209,6 +211,38 @@ export default function PaginaDoParceiro() {
         </View>
       )}
 
+      {eu?.cupoes
+        .filter((k) => k.parceiroId === p.id && !k.usadoEm)
+        .map((k) => (
+          <View
+            key={k.id}
+            style={{
+              marginHorizontal: MARGEM,
+              marginTop: 24,
+              padding: 18,
+              borderRadius: raio.grupo,
+              backgroundColor: cor.claro,
+              ...CONTINUO,
+            }}
+          >
+            <T
+              v="legenda"
+              style={{
+                color: 'rgba(10,10,10,0.6)',
+                letterSpacing: 1.2,
+                textTransform: 'uppercase',
+              }}
+            >
+              O teu cupão
+            </T>
+            <T v="subtitulo" style={{ color: cor.sobreClaro, marginTop: 4 }}>
+              {semPartir(k.destaque)} · {semPartir(k.titulo)}
+            </T>
+            <T v="legenda" style={{ color: 'rgba(10,10,10,0.6)', marginTop: 6 }}>
+              Até {dataCurta(k.validoAte, diaEmLisboa())} · mostra o cartão ao balcão
+            </T>
+          </View>
+        ))}
       <Rotulo>{p.promocoes.length === 1 ? 'A tua vantagem' : 'As tuas vantagens'}</Rotulo>
       {p.promocoes.map((pr) => (
         <CartaoDaPromocao

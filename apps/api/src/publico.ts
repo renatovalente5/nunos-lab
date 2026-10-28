@@ -37,7 +37,7 @@ rotasPublicas.get('/app', async (c) => {
     db
       .prepare(
         `SELECT p.* FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
-         WHERE pa.activo = 1 AND p.activa = 1
+         WHERE pa.activo = 1 AND p.activa = 1 AND p.surpresa = 0
            AND (p.inicio IS NULL OR p.inicio <= ?1) AND (p.fim IS NULL OR p.fim >= ?1)
          ORDER BY p.ordem, p.id`,
       )

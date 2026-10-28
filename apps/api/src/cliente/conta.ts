@@ -8,6 +8,7 @@ import {
   DIAS_A_EXPERIENCIA,
   DIAS_DE_CLIENTE_ACTIVO,
   LIMITES_DO_PROGRAMA,
+  diaEmLisboa,
   eAniversarioValido,
   type ClienteEu,
   type FormaDeEntrar,
@@ -179,6 +180,15 @@ async function lerEu(c: C): Promise<ClienteEu> {
           'SELECT 1 AS activo FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL AND criado_em > unixepoch() - ? LIMIT 1',
         )
         .bind(id, DIAS_DE_CLIENTE_ACTIVO * DIA),
+      db
+        .prepare(
+          `SELECT k.id, pa.id AS parceiroId, pa.nome AS parceiro, p.id AS promocaoId, p.destaque, p.titulo, p.detalhe,
+             k.emitido_em AS emitidoEm, k.valido_ate AS validoAte, k.usado_em AS usadoEm
+           FROM cupoes k JOIN promocoes p ON p.id = k.promocao_id JOIN parceiros pa ON pa.id = k.parceiro_id
+           WHERE k.cliente_id = ? AND ((k.usado_em IS NULL AND k.valido_ate >= ?) OR k.usado_em > unixepoch() - 30 * 86400)
+           ORDER BY k.usado_em IS NOT NULL, k.valido_ate, k.emitido_em DESC LIMIT 30`,
+        )
+        .bind(id, diaEmLisboa()),
     ]);
   let r = await consultas();
   if (!r[1]!.results[0]) {
@@ -228,6 +238,11 @@ async function lerEu(c: C): Promise<ClienteEu> {
     activo: r[8]!.results.length > 0,
     vales: r[7]!.results as ClienteEu['vales'],
     wallet: { apple: appleLigada(c.env), google: googleLigada(c.env) },
+    cupoes: r[9]!.results as ClienteEu['cupoes'],
+    prenda:
+      cliente.aniversario && diaEmLisboa().slice(5) === cliente.aniversario && programa.aniversario
+        ? programa.aniversario
+        : null,
   };
 }
 

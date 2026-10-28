@@ -1,4 +1,11 @@
-import { codigoCurto, limiteEmTexto, semPartir, type VantagemDoParceiro } from '@nunos-lab/dominio';
+import {
+  codigoCurto,
+  dataCurta,
+  diaEmLisboa,
+  limiteEmTexto,
+  semPartir,
+  type VantagemDoParceiro,
+} from '@nunos-lab/dominio';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Animated, Pressable, View } from 'react-native';
@@ -33,7 +40,8 @@ export default function ValeDoParceiro() {
     if (!ficha || estado === 'a-enviar') return;
     setEstado('a-enviar');
     setErro(null);
-    if (!chaves.current.has(v.id)) chaves.current.set(v.id, chaveNova());
+    const chaveDe = v.cupaoId ?? v.id;
+    if (!chaves.current.has(chaveDe)) chaves.current.set(chaveDe, chaveNova());
     try {
       const r = await validar({
         codigo: ficha.cliente.codigo,
@@ -196,10 +204,12 @@ export default function ValeDoParceiro() {
               )}
               {ficha.vantagens.map((v) => {
                 const pode = v.motivo === 'ok';
-                const limite = limiteEmTexto(v);
+                const limite = v.cupaoId
+                  ? `Cupão · até ${dataCurta(v.validoAte!, diaEmLisboa())}`
+                  : limiteEmTexto(v);
                 return (
                   <View
-                    key={v.id}
+                    key={v.cupaoId ? `c${v.cupaoId}` : v.id}
                     style={{
                       backgroundColor: cor.superficie,
                       borderRadius: raio.grupo,

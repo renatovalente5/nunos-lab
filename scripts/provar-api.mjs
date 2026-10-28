@@ -35,6 +35,7 @@ naBaseLocal(
     'sessoes',
     'registo',
     'admins',
+    'cupoes',
     'registos_apple',
     'passes',
     'bilhetes',
@@ -1187,6 +1188,106 @@ await passo(
   },
 );
 
+await passo(
+  'o saco das surpresas: ao carimbar sai um cupão; o parceiro valida-o uma vez; anular devolve-o',
+  async () => {
+    const r = await pedir('/api/bo/promocoes', {
+      method: 'POST',
+      token,
+      body: json({
+        parceiroId: 1,
+        destaque: 'Grátis',
+        titulo: 'Sobremesa surpresa',
+        detalhe: '',
+        inicio: null,
+        fim: null,
+        emDestaque: false,
+        activa: true,
+        surpresa: true,
+        surpresaDias: 30,
+        surpresaPeso: 5,
+        surpresaRestantes: 1,
+      }),
+    });
+    assert.equal(r.status, 201);
+    const surpresa = (await r.json()).id;
+    const app = await (await pedir('/api/app')).json();
+    assert.ok(
+      !app.parceiros.find((x) => x.id === 1).promocoes.some((p) => p.id === surpresa),
+      'as do saco não se listam como permanentes',
+    );
+    const c1 = await pedir('/api/balcao/carimbar', {
+      method: 'POST',
+      token: tokenBalcao,
+      body: json({ codigo: codigoDoCliente, chave: 'prova-cupao-01', lojaId: 3, confirmar: true }),
+    });
+    assert.equal(c1.status, 200);
+    const j1 = await c1.json();
+    assert.equal(j1.cupao?.titulo, 'Sobremesa surpresa', 'saiu o cupão');
+    assert.equal(j1.cupao.parceiro, 'Tasca Velha do Cravo');
+    const eu = await (await pedir('/api/eu', { token: tokenCliente })).json();
+    assert.equal(eu.cupoes.length, 1);
+    assert.equal(eu.cupoes[0].usadoEm, null);
+    const ficha = await (
+      await pedir(`/api/balcao/ficha-parceiro/${codigoDoCliente}`, { token: tokenParceiro })
+    ).json();
+    const v = ficha.vantagens.find((x) => x.cupaoId);
+    assert.ok(v, 'o parceiro vê o cupão');
+    assert.equal(v.titulo, 'Sobremesa surpresa');
+    const validar = (chave) =>
+      pedir('/api/balcao/validar', {
+        method: 'POST',
+        token: tokenParceiro,
+        body: json({ codigo: codigoDoCliente, promocaoId: v.id, chave, cupaoId: v.cupaoId }),
+      });
+    const r1 = await validar('vale-cupao-01');
+    assert.equal(r1.status, 200);
+    assert.equal((await r1.json()).vale.titulo, 'Sobremesa surpresa');
+    const outraVez = await validar('vale-cupao-02');
+    assert.equal(outraVez.status, 409);
+    assert.equal((await outraVez.json()).erro, 'cupao_usado');
+    const usado = await (await pedir('/api/eu', { token: tokenCliente })).json();
+    assert.ok(usado.cupoes[0].usadoEm, 'o cliente vê o cupão como usado');
+    const c2 = await (
+      await pedir('/api/balcao/carimbar', {
+        method: 'POST',
+        token: tokenBalcao,
+        body: json({
+          codigo: codigoDoCliente,
+          chave: 'prova-cupao-02',
+          lojaId: 3,
+          confirmar: true,
+        }),
+      })
+    ).json();
+    assert.equal(c2.cupao, null, 'o saco esgotou: sem cupão');
+    const hoje = await (await pedir('/api/balcao/hoje-parceiro', { token: tokenParceiro })).json();
+    const vale = hoje.ultimos.find((x) => x.titulo === 'Sobremesa surpresa' && !x.anulado);
+    assert.equal(
+      (
+        await pedir('/api/balcao/anular-vale', {
+          method: 'POST',
+          token: tokenParceiro,
+          body: json({ valeId: vale.id }),
+        })
+      ).status,
+      204,
+    );
+    const devolvido = await (await pedir('/api/eu', { token: tokenCliente })).json();
+    assert.equal(devolvido.cupoes[0].usadoEm, null, 'anular o vale devolve o cupão');
+    const m = await (await pedir('/api/bo/metricas', { token })).json();
+    assert.ok(m.parcerias.cupoesSaidos >= 1);
+    const promo = await (await pedir(`/api/bo/promocoes/${surpresa}`, { token })).json();
+    assert.equal(promo.cupoes, 1);
+    assert.equal(promo.surpresaRestantes, 0);
+    assert.equal(promo.surpresa, true);
+    assert.equal(
+      (await pedir(`/api/bo/promocoes/${surpresa}`, { method: 'DELETE', token })).status,
+      204,
+    );
+  },
+);
+
 let tokenOutro;
 await passo(
   'a mesma caixa por outra porta cai na mesma conta; outra caixa é outra conta; não se rouba uma forma',
@@ -1281,14 +1382,14 @@ await passo('o backoffice vê os clientes, a ficha, o CSV e as métricas', async
   const lista = await (await pedir('/api/bo/clientes', { token })).json();
   assert.ok(lista.length >= 62, `clientes: ${lista.length}`);
   const prova = lista.find((k) => k.codigo === codigoDoCliente);
-  assert.equal(prova.cortes, 11, '10 + o carimbo da Wallet');
+  assert.equal(prova.cortes, 13, '10 + o da Wallet + 2 do saco');
   assert.equal(prova.formas.length, 2);
   const novos = await (await pedir('/api/bo/clientes?estado=novos', { token })).json();
   assert.ok(novos.some((k) => k.id === prova.id));
   const ficha = await (await pedir(`/api/bo/clientes/${prova.id}`, { token })).json();
   assert.equal(ficha.cartoes.length, 2);
   assert.equal(ficha.cartoes[1].usadoPor, 'Prova Barbeiro');
-  assert.equal(ficha.historico.length, 12);
+  assert.equal(ficha.historico.length, 14);
   assert.ok(ficha.historico.some((x) => x.anuladoEm));
   const csv = await pedir('/api/bo/clientes.csv', { token });
   assert.equal(csv.status, 200);
@@ -1303,7 +1404,7 @@ await passo('o backoffice vê os clientes, a ficha, o CSV e as métricas', async
   assert.equal(m.totais.recompensasUsadas >= 1, true);
   assert.ok(
     m.porPessoa.some(
-      (p) => p.nome === 'Prova Barbeiro' && p.n === 11 && p.anulados === 1 && p.recompensas === 1,
+      (p) => p.nome === 'Prova Barbeiro' && p.n === 13 && p.anulados === 1 && p.recompensas === 1,
     ),
   );
   assert.ok(m.clientes.total >= 62);

@@ -103,6 +103,7 @@ const MENSAGENS: Record<string, string> = {
   limite_do_cliente: 'Este cliente chegou ao limite.',
   limite_total: 'Esta vantagem esgotou.',
   cliente_inactivo: 'Sem corte no último ano: não vale.',
+  cupao_usado: 'Esse cupão já foi usado ou caducou.',
   so_dono: 'Só o dono vê isto.',
   ja_anulado: 'Já estava anulado.',
   tarde_para_anular: 'Já passaram 10 minutos: só o Nuno anula.',
@@ -244,8 +245,12 @@ export const useFichaParceiro = (codigo: string) =>
     retry: (n, e) => !(e instanceof ErroDaBalcao && e.codigo === 'cartao_desconhecido') && n < 1,
   });
 
-export const validar = (corpo: { codigo: string; promocaoId: number; chave: string }) =>
-  pedir<{ vale: Vale; ficha: FichaDoParceiro }>('/validar', { metodo: 'POST', corpo });
+export const validar = (corpo: {
+  codigo: string;
+  promocaoId: number;
+  chave: string;
+  cupaoId?: number;
+}) => pedir<{ vale: Vale; ficha: FichaDoParceiro }>('/validar', { metodo: 'POST', corpo });
 
 export function chaveNova(): string {
   const b = crypto.getRandomValues(new Uint8Array(12));

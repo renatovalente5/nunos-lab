@@ -16,6 +16,7 @@ import {
   normalizarCodigo,
   normalizarEmail,
   somarDias,
+  type Programa,
   type ClienteProcurado,
   type EuDaBalcao,
   type FichaDoBalcao,
@@ -106,14 +107,17 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
       .bind(cliente.id, hoje),
   ]);
   const hojeLinhas = deHoje!.results as { quando: number; pessoa: string | null }[];
+  const fazAnos = !!cliente.aniversario && hoje.slice(5) === cliente.aniversario;
+  const programaDeHoje = await lerPrograma(db);
   return {
+    prenda: fazAnos && programaDeHoje.aniversario ? programaDeHoje.aniversario : null,
     cliente: {
       id: cliente.id,
       codigo: cliente.codigo,
       nome: cliente.nome,
       criadoEm: cliente.criado_em,
       cortes: (cortes!.results[0] as { n: number }).n,
-      aniversario: !!cliente.aniversario && hoje.slice(5) === cliente.aniversario,
+      aniversario: fazAnos,
     },
     cartao: cartaoPublico(cartao),
     recompensas: recompensas!.results as FichaDoBalcao['recompensas'],
@@ -182,6 +186,65 @@ async function lojaDe(c: C, lojaId: number): Promise<number> {
   return lojaId;
 }
 
+/**
+ * O cupão surpresa: ao carimbar, sai uma das promoções do saco (activas, do
+ * parceiro activo, com restantes), sorteada pelo peso, que o cliente ainda
+ * não tenha por usar. Vale até «surpresa_dias» dias.
+ */
+async function sortearCupao(db: D1Database, clienteId: number, carimboId: number, hoje: string) {
+  const saco = (
+    await db
+      .prepare(
+        `SELECT p.id, p.parceiro_id, p.destaque, p.titulo, p.surpresa_dias, p.surpresa_peso, p.surpresa_restantes, pa.nome AS parceiro
+         FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
+         WHERE p.surpresa = 1 AND p.activa = 1 AND pa.activo = 1
+           AND (p.inicio IS NULL OR p.inicio <= ?1) AND (p.fim IS NULL OR p.fim >= ?1)
+           AND (p.surpresa_restantes IS NULL OR p.surpresa_restantes > 0)
+           AND NOT EXISTS (SELECT 1 FROM cupoes k WHERE k.promocao_id = p.id AND k.cliente_id = ?2 AND k.usado_em IS NULL AND k.valido_ate >= ?1)`,
+      )
+      .bind(hoje, clienteId)
+      .all<{
+        id: number;
+        parceiro_id: number;
+        destaque: string;
+        titulo: string;
+        surpresa_dias: number;
+        surpresa_peso: number;
+        surpresa_restantes: number | null;
+        parceiro: string;
+      }>()
+  ).results;
+  if (!saco.length) return null;
+  let sorte = Math.random() * saco.reduce((s, p) => s + p.surpresa_peso, 0);
+  let escolhida = saco[saco.length - 1]!;
+  for (const p of saco) {
+    sorte -= p.surpresa_peso;
+    if (sorte < 0) {
+      escolhida = p;
+      break;
+    }
+  }
+  const validoAte = somarDias(hoje, escolhida.surpresa_dias);
+  await db.batch([
+    db
+      .prepare(
+        'INSERT INTO cupoes (promocao_id, parceiro_id, cliente_id, carimbo_id, valido_ate) VALUES (?, ?, ?, ?, ?)',
+      )
+      .bind(escolhida.id, escolhida.parceiro_id, clienteId, carimboId, validoAte),
+    db
+      .prepare(
+        'UPDATE promocoes SET surpresa_restantes = surpresa_restantes - 1 WHERE id = ? AND surpresa_restantes IS NOT NULL',
+      )
+      .bind(escolhida.id),
+  ]);
+  return {
+    parceiro: escolhida.parceiro,
+    destaque: escolhida.destaque,
+    titulo: escolhida.titulo,
+    validoAte,
+  };
+}
+
 /** O resultado de um carimbo já feito (a mesma chave a chegar outra vez). */
 async function resultadoDe(c: C, carimboId: number): Promise<ResultadoDoCarimbo> {
   const db = c.env.DB;
@@ -202,12 +265,20 @@ async function resultadoDe(c: C, carimboId: number): Promise<ResultadoDoCarimbo>
     .bind(x.cartao_id)
     .first<LinhaCartao>();
   const completo = !!x.completo_em && x.completo_em >= x.criado_em;
+  const cupao = await db
+    .prepare(
+      `SELECT pa.nome AS parceiro, p.destaque, p.titulo, k.valido_ate AS validoAte FROM cupoes k
+       JOIN promocoes p ON p.id = k.promocao_id JOIN parceiros pa ON pa.id = k.parceiro_id WHERE k.carimbo_id = ?`,
+    )
+    .bind(x.id)
+    .first<{ parceiro: string; destaque: string; titulo: string; validoAte: string }>();
   return {
     carimboId: x.id,
     cartao: cartaoPublico(cartao!),
     completo,
     recompensa: completo ? cartao!.recompensa : null,
     anulavelAte: x.criado_em + MINUTOS_PARA_ANULAR * 60,
+    cupao: cupao ?? null,
   };
 }
 
@@ -294,6 +365,7 @@ async function carimbar(
   }
   const novo = r[0]!.results[0] as { id: number; criado_em: number };
   tocarPasse(c, cliente.id);
+  const cupao = await sortearCupao(db, cliente.id, novo.id, hoje);
   return {
     carimboId: novo.id,
     cartao: {
@@ -303,6 +375,7 @@ async function carimbar(
     completo: completa,
     recompensa: completa ? cartao.recompensa : null,
     anulavelAte: novo.criado_em + MINUTOS_PARA_ANULAR * 60,
+    cupao,
   };
 }
 
@@ -354,6 +427,14 @@ rotasDaBalcao.post('/anular', async (c) => {
     db
       .prepare('UPDATE carimbos SET anulado_em = unixepoch(), anulado_por = ? WHERE id = ?')
       .bind(pessoa.id, x.id),
+    // O cupão que saiu com este carimbo, se ainda não foi usado, volta ao saco.
+    db
+      .prepare(
+        `UPDATE promocoes SET surpresa_restantes = surpresa_restantes + 1
+         WHERE surpresa_restantes IS NOT NULL AND id IN (SELECT promocao_id FROM cupoes WHERE carimbo_id = ? AND usado_em IS NULL)`,
+      )
+      .bind(x.id),
+    db.prepare('DELETE FROM cupoes WHERE carimbo_id = ? AND usado_em IS NULL').bind(x.id),
   ];
   if (x.completo_em && x.carimbos - 1 < x.objectivo) {
     if (x.usado_em) recusar(409, 'recompensa_usada');
@@ -705,6 +786,34 @@ async function fichaDoParceiro(
       ),
     };
   });
+  const cupoes = (
+    await db
+      .prepare(
+        `SELECT k.id AS cupaoId, k.valido_ate AS validoAte, p.id, p.destaque, p.titulo, p.detalhe FROM cupoes k
+         JOIN promocoes p ON p.id = k.promocao_id
+         WHERE k.cliente_id = ? AND k.parceiro_id = ? AND k.usado_em IS NULL AND k.valido_ate >= ? ORDER BY k.valido_ate`,
+      )
+      .bind(cliente.id, parceiroId, hoje)
+      .all<{
+        cupaoId: number;
+        validoAte: string;
+        id: number;
+        destaque: string;
+        titulo: string;
+        detalhe: string;
+      }>()
+  ).results.map((k): VantagemDoParceiro => ({
+    id: k.id,
+    destaque: k.destaque,
+    titulo: k.titulo,
+    detalhe: k.detalhe,
+    limitePorCliente: 1,
+    periodoDoLimite: 'sempre',
+    motivo: 'ok',
+    usadas: 0,
+    cupaoId: k.cupaoId,
+    validoAte: k.validoAte,
+  }));
   return {
     cliente: {
       id: cliente.id,
@@ -712,7 +821,7 @@ async function fichaDoParceiro(
       nome: cliente.nome.trim().split(/\s+/)[0] ?? '',
       activo,
     },
-    vantagens,
+    vantagens: [...cupoes, ...vantagens],
   };
 }
 
@@ -742,12 +851,13 @@ const valePublico = (v: LinhaVale): Vale => ({
 /** Validar uma vantagem: idempotente pela chave; recusa com o motivo quando não pode. */
 rotasDaBalcao.post('/validar', async (c) => {
   const parceiroId = exigirParceiro(c);
-  const { codigo, promocaoId, chave } = await corpo(
+  const { codigo, promocaoId, chave, cupaoId } = await corpo(
     c,
     z.object({
       codigo: z.string().min(1).max(20),
       promocaoId: z.number().int().positive(),
       chave: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
+      cupaoId: z.number().int().positive().optional(),
     }),
   );
   const db = c.env.DB;
@@ -760,17 +870,27 @@ rotasDaBalcao.post('/validar', async (c) => {
       ficha: await fichaDoParceiro(c, parceiroId, cliente),
     });
   const ficha = await fichaDoParceiro(c, parceiroId, cliente);
-  const vantagem = ficha.vantagens.find((v) => v.id === promocaoId);
-  if (!vantagem) recusar(400, 'referencia');
+  // Com cupaoId é o cupão (uma vez); sem ele, a vantagem permanente.
+  const vantagem = ficha.vantagens.find((v) =>
+    cupaoId ? v.cupaoId === cupaoId : v.id === promocaoId && !v.cupaoId,
+  );
+  if (!vantagem) recusar(cupaoId ? 409 : 400, cupaoId ? 'cupao_usado' : 'referencia');
   if (vantagem.motivo !== 'ok') recusar(409, vantagem.motivo);
   let novo: { id: number } | null = null;
   try {
     novo = await db
       .prepare(
-        'INSERT INTO vales (promocao_id, parceiro_id, cliente_id, pessoa_id, chave, dia) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
+        'INSERT INTO vales (promocao_id, parceiro_id, cliente_id, pessoa_id, chave, dia, cupao_id) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id',
       )
-      .bind(promocaoId, parceiroId, cliente.id, pessoa.id, chave, diaEmLisboa())
+      .bind(promocaoId, parceiroId, cliente.id, pessoa.id, chave, diaEmLisboa(), cupaoId ?? null)
       .first<{ id: number }>();
+    if (cupaoId)
+      await db
+        .prepare(
+          'UPDATE cupoes SET usado_em = unixepoch(), vale_id = ? WHERE id = ? AND usado_em IS NULL',
+        )
+        .bind(novo!.id, cupaoId)
+        .run();
   } catch (e) {
     const outra = await db.prepare(`${VALE} WHERE v.chave = ?`).bind(chave).first<LinhaVale>();
     if (outra) return c.json({ vale: valePublico(outra), ficha });
@@ -794,9 +914,14 @@ rotasDaBalcao.post('/anular-vale', async (c) => {
   if (v.anulado_em) recusar(409, 'ja_anulado');
   if (v.pessoa_id !== pessoa.id) recusar(403, 'de_outra_pessoa');
   if (v.criado_em < agora() - MINUTOS_PARA_ANULAR * 60) recusar(409, 'tarde_para_anular');
-  await c.env.DB.prepare('UPDATE vales SET anulado_em = unixepoch(), anulado_por = ? WHERE id = ?')
-    .bind(pessoa.id, valeId)
-    .run();
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      'UPDATE vales SET anulado_em = unixepoch(), anulado_por = ? WHERE id = ?',
+    ).bind(pessoa.id, valeId),
+    c.env.DB.prepare('UPDATE cupoes SET usado_em = NULL, vale_id = NULL WHERE vale_id = ?').bind(
+      valeId,
+    ),
+  ]);
   return c.body(null, 204);
 });
 

@@ -67,7 +67,7 @@ rotasDoConteudo.get('/parceiros/:id', async (c) => {
     db.prepare(`${SELECT_PARCEIROS} WHERE p.id = ?2`).bind(hoje, id),
     db
       .prepare(
-        `SELECT p.*, (SELECT count(*) FROM vales v WHERE v.promocao_id = p.id AND v.anulado_em IS NULL) AS validacoes
+        `SELECT p.*, (SELECT count(*) FROM vales v WHERE v.promocao_id = p.id AND v.anulado_em IS NULL) AS validacoes, (SELECT count(*) FROM cupoes k WHERE k.promocao_id = p.id) AS cupoes
          FROM promocoes p WHERE p.parceiro_id = ? ORDER BY p.ordem, p.id`,
       )
       .bind(id),
@@ -226,7 +226,7 @@ rotasDoConteudo.post('/exemplos/apagar', async (c) => {
  * como pausada, e `parceiroPausado` diz porquê.
  */
 function promocaoDoBackoffice(
-  l: LinhaPromocao & { validacoes?: number },
+  l: LinhaPromocao & { validacoes?: number; cupoes?: number },
   parceiro: string,
   parceiroActivo: boolean,
   hoje: string,
@@ -235,6 +235,10 @@ function promocaoDoBackoffice(
     ...promocaoPublica(l),
     limiteTotal: l.validar === 1 ? l.limite_total : null,
     validacoes: l.validacoes ?? 0,
+    surpresaDias: l.surpresa_dias,
+    surpresaPeso: l.surpresa_peso,
+    surpresaRestantes: l.surpresa_restantes,
+    cupoes: l.cupoes ?? 0,
     parceiroId: l.parceiro_id,
     parceiro,
     parceiroPausado: !parceiroActivo,
@@ -252,7 +256,7 @@ function promocaoDoBackoffice(
 rotasDoConteudo.get('/promocoes', async (c) => {
   const { results } = await c.env.DB.prepare(
     `SELECT p.*, pa.nome AS parceiro, pa.activo AS parceiro_activo,
-       (SELECT count(*) FROM vales v WHERE v.promocao_id = p.id AND v.anulado_em IS NULL) AS validacoes
+       (SELECT count(*) FROM vales v WHERE v.promocao_id = p.id AND v.anulado_em IS NULL) AS validacoes, (SELECT count(*) FROM cupoes k WHERE k.promocao_id = p.id) AS cupoes
      FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
      ORDER BY pa.ordem, pa.nome, p.ordem, p.id`,
   ).all<LinhaPromocao & { parceiro: string; parceiro_activo: number }>();
@@ -266,7 +270,7 @@ rotasDoConteudo.get('/promocoes/:id', async (c) => {
   const id = idDaMorada(c);
   const l = await c.env.DB.prepare(
     `SELECT p.*, pa.nome AS parceiro, pa.activo AS parceiro_activo,
-       (SELECT count(*) FROM vales v WHERE v.promocao_id = p.id AND v.anulado_em IS NULL) AS validacoes
+       (SELECT count(*) FROM vales v WHERE v.promocao_id = p.id AND v.anulado_em IS NULL) AS validacoes, (SELECT count(*) FROM cupoes k WHERE k.promocao_id = p.id) AS cupoes
      FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id WHERE p.id = ?`,
   )
     .bind(id)
@@ -292,8 +296,9 @@ rotasDoConteudo.post('/promocoes', async (c) => {
     db
       .prepare(
         `INSERT INTO promocoes (parceiro_id, destaque, titulo, detalhe, inicio, fim, em_destaque, activa,
-           validar, limite_por_cliente, periodo_do_limite, limite_total, so_clientes_activos, ordem)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM promocoes WHERE parceiro_id = ?))
+           validar, limite_por_cliente, periodo_do_limite, limite_total, so_clientes_activos,
+           surpresa, surpresa_dias, surpresa_peso, surpresa_restantes, ordem)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM promocoes WHERE parceiro_id = ?))
          RETURNING id`,
       )
       .bind(
@@ -310,6 +315,10 @@ rotasDoConteudo.post('/promocoes', async (c) => {
         p.periodoDoLimite ?? 'dia',
         p.limiteTotal ?? null,
         (p.soClientesActivos ?? true) ? 1 : 0,
+        p.surpresa ? 1 : 0,
+        p.surpresaDias ?? 30,
+        p.surpresaPeso ?? 1,
+        p.surpresaRestantes ?? null,
         p.parceiroId,
       ),
     registar(c, 'promocao.criada', `${parceiro.nome}: ${p.destaque} ${p.titulo}`),

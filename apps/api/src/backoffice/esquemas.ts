@@ -99,6 +99,11 @@ export const Promocao = z.object({
     .nullable()
     .optional(),
   soClientesActivos: z.boolean().optional(),
+  // O saco das surpresas (0007).
+  surpresa: z.boolean().optional(),
+  surpresaDias: z.number().int().min(1).max(365).optional(),
+  surpresaPeso: z.number().int().min(1).max(100).optional(),
+  surpresaRestantes: z.number().int().min(0).max(100_000).nullable().optional(),
 });
 
 export const COLUNAS_DA_PROMOCAO = {
@@ -115,6 +120,10 @@ export const COLUNAS_DA_PROMOCAO = {
   periodoDoLimite: 'periodo_do_limite',
   limiteTotal: 'limite_total',
   soClientesActivos: 'so_clientes_activos',
+  surpresa: 'surpresa',
+  surpresaDias: 'surpresa_dias',
+  surpresaPeso: 'surpresa_peso',
+  surpresaRestantes: 'surpresa_restantes',
 } as const satisfies Record<keyof z.output<typeof Promocao>, string>;
 
 export const Categoria = z.object({

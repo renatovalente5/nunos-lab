@@ -31,6 +31,8 @@ export type PromocaoPublica = {
   periodoDoLimite: PeriodoDoLimite;
   /** Só para quem cortou o cabelo no último ano. */
   soClientesActivos: boolean;
+  /** Está no saco das surpresas: sai sorteada ao carimbar, como cupão com validade. */
+  surpresa: boolean;
 };
 
 export type ContactosDoParceiro = {
@@ -117,6 +119,11 @@ export type Promocao = PromocaoPublica & {
   /** Para toda a gente (null: sem limite), e quantas já foram usadas. */
   limiteTotal: number | null;
   validacoes: number;
+  /** O saco: dias de validade do cupão, o peso no sorteio, quantos restam (null: sem limite), quantos saíram. */
+  surpresaDias: number;
+  surpresaPeso: number;
+  surpresaRestantes: number | null;
+  cupoes: number;
   /** O parceiro está desligado: a promoção, mesmo ligada, não está na app. */
   parceiroPausado: boolean;
   activa: boolean;
@@ -245,6 +252,24 @@ export type ClienteEu = {
   vales: ValeDoCliente[];
   /** Que carteiras estão ligadas no servidor (os botões da app). */
   wallet: { apple: boolean; google: boolean };
+  /** Os cupões surpresa por usar (válidos) e os usados há pouco. */
+  cupoes: CupaoDoCliente[];
+  /** Faz anos hoje: a prenda do programa, se houver. */
+  prenda: string | null;
+};
+
+export type CupaoDoCliente = {
+  id: number;
+  parceiroId: number;
+  parceiro: string;
+  promocaoId: number;
+  destaque: string;
+  titulo: string;
+  detalhe: string;
+  emitidoEm: number;
+  /** O último dia em que vale («AAAA-MM-DD»). */
+  validoAte: string;
+  usadoEm: number | null;
 };
 
 export type ValeDoCliente = {
@@ -313,6 +338,8 @@ export type FichaDoBalcao = {
   recompensas: RecompensaPorUsar[];
   ultima: VisitaDoCliente | null;
   hoje: { carimbos: number; ultimo: { quando: number; pessoa: string | null } | null };
+  /** A prenda de anos do programa, quando faz anos. */
+  prenda: string | null;
 };
 
 export type ResultadoDoCarimbo = {
@@ -322,6 +349,8 @@ export type ResultadoDoCarimbo = {
   completo: boolean;
   recompensa: string | null;
   anulavelAte: number;
+  /** O cupão surpresa que saiu com este carimbo (para o barbeiro dizer ao cliente). */
+  cupao: { parceiro: string; destaque: string; titulo: string; validoAte: string } | null;
 };
 
 export type UltimoCarimbo = {
@@ -391,6 +420,9 @@ export type VantagemDoParceiro = {
   motivo: 'ok' | 'ja_usou' | 'limite_do_cliente' | 'limite_total' | 'cliente_inactivo';
   /** Quantas vezes este cliente a usou no período do limite. */
   usadas: number;
+  /** Um cupão surpresa deste cliente (vale uma vez, até ao dia). */
+  cupaoId?: number;
+  validoAte?: string;
 };
 
 export type FichaDoParceiro = {
@@ -539,5 +571,8 @@ export type Metricas = {
     semValidacoes: { id: number; nome: string }[];
     /** Pela casa do cliente. */
     porCasa: { id: number; nome: string; n: number }[];
+    /** Os cupões surpresa: quantos saíram e quantos foram usados, no período. */
+    cupoesSaidos: number;
+    cupoesUsados: number;
   };
 };

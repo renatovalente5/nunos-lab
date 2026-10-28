@@ -152,7 +152,70 @@ export default function Cartao() {
             </View>
           </Pressable>
 
+          {eu.prenda && (
+            <View
+              style={{
+                marginHorizontal: MARGEM,
+                marginTop: 14,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                padding: 16,
+                borderRadius: raio.grupo,
+                backgroundColor: cor.superficie,
+                ...CONTINUO,
+              }}
+            >
+              <Icone nome="bolo" tamanho={24} espessura={2} />
+              <View style={{ flex: 1 }}>
+                <T v="forte">Parabéns!</T>
+                <T v="legenda" style={{ color: cor.texto2 }}>
+                  {eu.prenda}
+                </T>
+              </View>
+            </View>
+          )}
+
           <Carteiras apple={eu.wallet.apple} google={eu.wallet.google} />
+
+          {eu.cupoes.length > 0 && (
+            <>
+              <Rotulo>Os teus cupões</Rotulo>
+              <Grupo>
+                {eu.cupoes.map((k, i) => (
+                  <View key={k.id}>
+                    {i > 0 && <Separador />}
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingHorizontal: 16,
+                        paddingVertical: 14,
+                        gap: 12,
+                        opacity: k.usadoEm ? 0.5 : 1,
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <T v="forte" numberOfLines={1}>
+                          {k.destaque} · {k.titulo}
+                        </T>
+                        <T
+                          v="legenda"
+                          style={{ color: cor.texto2, marginTop: 2 }}
+                          numberOfLines={1}
+                        >
+                          {k.parceiro}
+                        </T>
+                      </View>
+                      <T v="legenda" style={{ color: cor.texto2 }}>
+                        {k.usadoEm ? 'Usado' : `até ${dataCurta(k.validoAte, diaEmLisboa())}`}
+                      </T>
+                    </View>
+                  </View>
+                ))}
+              </Grupo>
+            </>
+          )}
 
           {eu.visitas.length > 0 && (
             <>
