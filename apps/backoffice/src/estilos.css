@@ -247,6 +247,9 @@ h2.seccao {
 .grelha.duas {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+.grelha.tres {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 .grelha.quatro {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -256,7 +259,8 @@ h2.seccao {
   }
 }
 @media (max-width: 720px) {
-  .grelha.duas {
+  .grelha.duas,
+  .grelha.tres {
     grid-template-columns: 1fr;
   }
 }
@@ -688,6 +692,13 @@ dialog.folha::backdrop {
   bottom: 0;
   background: var(--superficie);
 }
+/* Uma nota ao lado dos botões («12 validações»), como «Alterações por guardar» no gravar. */
+.folha .pe-folha .estado {
+  align-self: center;
+  color: var(--tinta-3);
+  font-size: 13.5px;
+  font-weight: 600;
+}
 @media (max-width: 640px) {
   dialog.folha {
     width: 100vw;
@@ -905,6 +916,13 @@ dialog.folha::backdrop {
   font-size: 13px;
   font-weight: 600;
   opacity: 0.82;
+  margin-top: 6px;
+}
+/* «Mostra o cartão ao balcão · 1 por dia»: uma linha discreta, como a app a há-de mostrar. */
+.previsao .vale {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.72;
   margin-top: 6px;
 }
 .previsao .cartao-promocao {

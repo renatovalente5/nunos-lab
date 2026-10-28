@@ -86,6 +86,8 @@ export function Metricas() {
   const totalDoMapa = m ? m.mapaDeCalor.flat().reduce((s, n) => s + n, 0) : 0;
   const maiorDoMapa = m ? Math.max(1, ...m.mapaDeCalor.flat()) : 1;
   const coortesComGente = m ? m.coortes.some((k) => k.clientes > 0) : false;
+  // Só os parceiros com validações agora ou no período anterior; os outros vão na lista «sem validações».
+  const porParceiro = m ? m.parcerias.porParceiro.filter((p) => p.n > 0 || p.anterior > 0) : [];
 
   return (
     <>
@@ -300,6 +302,118 @@ export function Metricas() {
                   detalhe: s.receita !== null ? euros(s.receita) : undefined,
                 }))}
               />
+            ) : (
+              <Vazio titulo="Sem dados" />
+            )}
+          </div>
+
+          <h2 className="seccao">Parcerias</h2>
+          <div className="grelha tres">
+            <Numero
+              rotulo="Validações"
+              valor={m.parcerias.validacoes}
+              nota={
+                <Variacao
+                  actual={m.parcerias.validacoes}
+                  anterior={m.parcerias.validacoesAnterior}
+                />
+              }
+            />
+            <Numero rotulo="Clientes únicos" valor={m.parcerias.clientesUnicos} nota="no período" />
+            <Numero
+              rotulo="Com parcerias"
+              valor={
+                m.clientes.total > 0
+                  ? percentagem(m.parcerias.clientesComParcerias / m.clientes.total)
+                  : '—'
+              }
+              nota={`${m.parcerias.clientesComParcerias.toLocaleString('pt-PT')} de ${m.clientes.total.toLocaleString('pt-PT')} clientes, desde sempre`}
+            />
+          </div>
+          <div className="grelha duas" style={{ marginTop: 14, alignItems: 'start' }}>
+            <div className="cartao">
+              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>Por parceiro</div>
+              {porParceiro.length ? (
+                <Barras
+                  linhas={porParceiro.map((p) => ({
+                    chave: p.id,
+                    nome: p.nome,
+                    n: p.n,
+                    detalhe: (
+                      <>
+                        {plural(p.clientes, 'cliente', 'clientes')} ·{' '}
+                        <Variacao actual={p.n} anterior={p.anterior} curta />
+                      </>
+                    ),
+                  }))}
+                />
+              ) : (
+                <Vazio titulo="Sem dados" />
+              )}
+              {m.parcerias.semValidacoes.length > 0 && (
+                <p
+                  className="detalhe"
+                  style={{
+                    margin: 0,
+                    padding: '4px 20px 18px',
+                    color: 'var(--tinta-3)',
+                    fontSize: 13.5,
+                  }}
+                >
+                  Sem validações: {m.parcerias.semValidacoes.map((p) => p.nome).join(', ')}.
+                </p>
+              )}
+            </div>
+            <div className="cartao">
+              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>Pela casa do cliente</div>
+              {m.parcerias.porCasa.some((c) => c.n > 0) ? (
+                <Barras
+                  linhas={m.parcerias.porCasa.map((c) => ({ chave: c.id, nome: c.nome, n: c.n }))}
+                />
+              ) : (
+                <Vazio titulo="Sem dados" />
+              )}
+            </div>
+          </div>
+          <div className="cartao" style={{ marginTop: 14 }}>
+            <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>Por vantagem</div>
+            {m.parcerias.porPromocao.length ? (
+              <div className="rola">
+                <table className="quadro">
+                  <thead>
+                    <tr>
+                      <th scope="col">Parceiro</th>
+                      <th scope="col">Vantagem</th>
+                      <th scope="col" className="num">
+                        No período
+                      </th>
+                      <th scope="col" className="num">
+                        Total
+                      </th>
+                      <th scope="col" className="num">
+                        Limite
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {m.parcerias.porPromocao.map((p) => (
+                      <tr key={p.id}>
+                        <td className="forte">{p.parceiro}</td>
+                        <td>
+                          <span className="forte">{p.destaque}</span> {p.titulo}
+                        </td>
+                        <td className="num forte">{p.n.toLocaleString('pt-PT')}</td>
+                        <td className="num">{p.total.toLocaleString('pt-PT')}</td>
+                        <td className="num">
+                          {p.limiteTotal === null
+                            ? '—'
+                            : `${p.total.toLocaleString('pt-PT')} de ${p.limiteTotal.toLocaleString('pt-PT')}`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <Vazio titulo="Sem dados" />
             )}

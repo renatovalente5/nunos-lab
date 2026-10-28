@@ -693,6 +693,8 @@ export function PrevisaoDaPromocao({
   inicio,
   fim,
   hoje,
+  validar = false,
+  limite = null,
 }: {
   parceiro: { nome: string; cor: string; logotipo: string | null; capa: string | null } | null;
   destaque: string;
@@ -702,6 +704,9 @@ export function PrevisaoDaPromocao({
   fim: string | null;
   hoje: string;
   icone?: IconeDaCategoria;
+  /** O parceiro valida ao ler o cartão: a app pede para o mostrar, com o limite («1 por dia»). */
+  validar?: boolean;
+  limite?: string | null;
 }) {
   const validade = validadeEmTexto({ inicio, fim }, hoje);
   const cor = parceiro?.cor ?? '#5C544C';
@@ -719,6 +724,13 @@ export function PrevisaoDaPromocao({
         <div className="fundo-capa">
           <div className="grande">{semPartir(destaque || '−10%')}</div>
           <div className="titulo-previsao">{semPartir(titulo || 'Título da vantagem')}</div>
+          {validar && (
+            <div className="vale">
+              {semPartir(
+                limite ? `Mostra o cartão ao balcão · ${limite}` : 'Mostra o cartão ao balcão',
+              )}
+            </div>
+          )}
           {validade && <div className="validade">{validade}</div>}
         </div>
       </div>
