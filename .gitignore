@@ -15,3 +15,7 @@ _site/
 
 # As notas internas do projecto ficam só no Mac: o repositório é público (GitHub Pages grátis).
 docs/
+apps/balcao/.expo/
+apps/balcao/dist/
+apps/balcao/ios/
+apps/balcao/android/
