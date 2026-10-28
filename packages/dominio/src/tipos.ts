@@ -79,6 +79,8 @@ export const TIPOS_DE_CONTAGEM = [
   'instagram',
   'site',
   'marcar',
+  'cartao',
+  'entrar',
 ] as const;
 export type TipoDeContagem = (typeof TIPOS_DE_CONTAGEM)[number];
 
@@ -167,4 +169,288 @@ export type DefinicoesDaBarbearia = {
   site: string;
   aviso: string;
   avisoAte: string | null;
+};
+
+// ——— fidelidade: o cliente (a app) ———
+
+export type TipoDeEntrada = 'apple' | 'google' | 'email';
+
+export type FormaDeEntrar = {
+  id: number;
+  tipo: TipoDeEntrada;
+  /** O email que essa forma trouxe (null: a Apple escondeu-o). */
+  email: string | null;
+  criadaEm: number;
+  /** Juntada há menos de 7 dias: ainda não pode ficar sozinha na conta. */
+  aExperiencia: boolean;
+};
+
+export type SessaoDoCliente = {
+  id: number;
+  aparelho: string;
+  criadaEm: number;
+  vistaEm: number;
+  actual: boolean;
+};
+
+export type VisitaDoCliente = {
+  id: number;
+  quando: number;
+  loja: string | null;
+  pessoa: string | null;
+  servico: string | null;
+};
+
+export type CartaoDoCliente = {
+  id: number;
+  numero: number;
+  objectivo: number;
+  recompensa: string;
+  carimbos: number;
+};
+
+export type RecompensaPorUsar = { cartaoId: number; recompensa: string; ganhaEm: number };
+
+/** O que a app recebe de /api/eu: a pessoa, o cartão, as visitas, a conta. */
+export type ClienteEu = {
+  id: number;
+  codigo: string;
+  nome: string;
+  aniversario: string | null;
+  lojaId: number | null;
+  criadoEm: number;
+  cortes: number;
+  cartao: CartaoDoCliente;
+  recompensas: RecompensaPorUsar[];
+  visitas: VisitaDoCliente[];
+  formas: FormaDeEntrar[];
+  sessoes: SessaoDoCliente[];
+  /** Entrou há menos de 15 minutos: pode juntar e tirar formas, e apagar a conta. */
+  provaRecente: boolean;
+  programa: { objectivo: number; recompensa: string };
+};
+
+// ——— fidelidade: a Balcão ———
+
+export type PapelDaEquipa = 'dono' | 'barbeiro' | 'parceiro';
+
+export type PessoaDaEquipa = {
+  id: number;
+  nome: string;
+  /** Entra com o Google ou a Apple deste email (null: só por ligação de acesso). */
+  email: string | null;
+  papel: PapelDaEquipa;
+  /** A casa (barbeiro); null: todas. */
+  lojaId: number | null;
+  /** O estabelecimento (papel parceiro). */
+  parceiroId: number | null;
+  activo: boolean;
+  criadoEm: number;
+};
+
+/** Um serviço que a Balcão pergunta ao carimbar; o preço em cêntimos, para a receita estimada. */
+export type Servico = {
+  id: number;
+  nome: string;
+  preco: number | null;
+  ordem: number;
+  activo: boolean;
+};
+
+export type EuDaBalcao = {
+  pessoa: PessoaDaEquipa;
+  sessao: number;
+  lojas: Loja[];
+  servicos: Servico[];
+  programa: {
+    objectivo: number;
+    recompensa: string;
+    porDia: number;
+    servicos: boolean;
+    aniversario: string;
+  };
+  parceiro: { id: number; nome: string } | null;
+};
+
+export type FichaDoBalcao = {
+  cliente: {
+    id: number;
+    codigo: string;
+    nome: string;
+    criadoEm: number;
+    cortes: number;
+    /** Faz anos hoje (se o cliente tiver dado a data). */
+    aniversario: boolean;
+  };
+  cartao: CartaoDoCliente;
+  recompensas: RecompensaPorUsar[];
+  ultima: VisitaDoCliente | null;
+  hoje: { carimbos: number; ultimo: { quando: number; pessoa: string | null } | null };
+};
+
+export type ResultadoDoCarimbo = {
+  carimboId: number;
+  cartao: CartaoDoCliente;
+  /** Este carimbo completou o cartão: a recompensa fica por usar. */
+  completo: boolean;
+  recompensa: string | null;
+  anulavelAte: number;
+};
+
+export type UltimoCarimbo = {
+  id: number;
+  quando: number;
+  cliente: string;
+  clienteId: number;
+  codigo: string;
+  pessoa: string | null;
+  loja: string | null;
+  servico: string | null;
+  carimbos: number;
+  objectivo: number;
+  anulado: boolean;
+  repetido: boolean;
+  recompensa: boolean;
+};
+
+export type HojeDaBalcao = {
+  dia: string;
+  carimbos: number;
+  novos: number;
+  recompensas: number;
+  ultimos: UltimoCarimbo[];
+};
+
+export type ResumoDaBalcao = {
+  periodo: 'hoje' | 'semana' | 'mes';
+  de: string;
+  ate: string;
+  carimbos: number;
+  anterior: number;
+  novos: number;
+  recompensas: number;
+  emRisco: number;
+  porLoja: { id: number; nome: string; n: number }[];
+  porPessoa: {
+    id: number;
+    nome: string;
+    loja: string | null;
+    n: number;
+    primeiro: number | null;
+    ultimo: number | null;
+  }[];
+};
+
+export type ClienteProcurado = {
+  id: number;
+  codigo: string;
+  nome: string;
+  email: string | null;
+  carimbos: number;
+  objectivo: number;
+  ultimo: number | null;
+};
+
+// ——— fidelidade: o backoffice ———
+
+export type PessoaDaEquipaNoBackoffice = PessoaDaEquipa & {
+  loja: string | null;
+  parceiro: string | null;
+  sessoes: SessaoDoBackoffice[];
+  ligacoes: { id: number; criadoEm: number; expiraEm: number }[];
+};
+
+export type ClienteDoBackoffice = {
+  id: number;
+  codigo: string;
+  nome: string;
+  email: string | null;
+  aniversario: string | null;
+  lojaId: number | null;
+  criadoEm: number;
+  cortes: number;
+  ultimo: number | null;
+  carimbos: number;
+  objectivo: number;
+  recompensasPorUsar: number;
+  exemplo: boolean;
+  apagado: boolean;
+  formas: TipoDeEntrada[];
+};
+
+export type FichaDoCliente = ClienteDoBackoffice & {
+  cartoes: {
+    id: number;
+    numero: number;
+    objectivo: number;
+    recompensa: string;
+    carimbos: number;
+    iniciadoEm: number;
+    completoEm: number | null;
+    usadoEm: number | null;
+    usadoLoja: string | null;
+    usadoPor: string | null;
+  }[];
+  historico: (VisitaDoCliente & {
+    cartaoNumero: number;
+    anuladoEm: number | null;
+    anuladoPor: string | null;
+    repetido: boolean;
+    semLeitura: boolean;
+  })[];
+};
+
+export type Metricas = {
+  de: string;
+  ate: string;
+  dias: number;
+  lojaId: number | null;
+  totais: {
+    carimbos: number;
+    carimbosAnterior: number;
+    clientesNovos: number;
+    clientesNovosAnterior: number;
+    clientesActivos: number;
+    recompensasGanhas: number;
+    recompensasUsadas: number;
+    recompensasPorUsar: number;
+    anulados: number;
+    repetidos: number;
+    semLeitura: number;
+    /** Em cêntimos, pelos preços dos serviços; null quando os serviços não têm preço. */
+    receita: number | null;
+  };
+  porDia: { dia: string; n: number }[];
+  porLoja: { id: number; nome: string; n: number; clientes: number; anterior: number }[];
+  porPessoa: {
+    id: number;
+    nome: string;
+    loja: string | null;
+    n: number;
+    anulados: number;
+    repetidos: number;
+    semLeitura: number;
+    recompensas: number;
+  }[];
+  /** [dia da semana 0–6][hora 0–23], em Lisboa. */
+  mapaDeCalor: number[][];
+  servicos: { id: number | null; nome: string; n: number; receita: number | null }[];
+  clientes: {
+    total: number;
+    activos30: number;
+    activos90: number;
+    activos365: number;
+    /** Dias médios entre visitas de quem tem duas ou mais. */
+    frequencia: number | null;
+    /** Dos clientes novos há 60–120 dias, a fracção que voltou nos 60 dias seguintes. */
+    retorno: number | null;
+    emRisco: number;
+    perdidos: number;
+    variasCasas: number;
+    distribuicao: { faixa: string; n: number }[];
+    top: { id: number; nome: string; cortes: number; ultimo: number }[];
+  };
+  /** Por mês do 1.º corte: quantos entraram, e quantos voltaram em cada um dos meses seguintes. */
+  coortes: { mes: string; clientes: number; voltaram: number[] }[];
+  contas: { total: number; apple: number; google: number; email: number; soBalcao: number };
 };

@@ -2,9 +2,16 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import type { Ambiente } from './ambiente.ts';
+import { rotasDaBalcao } from './balcao/rotas.ts';
+import { exigirPessoa, rotasDeEntradaDaBalcao } from './balcao/sessao.ts';
+import { rotasDosClientes } from './backoffice/clientes.ts';
 import { rotasDoConteudo } from './backoffice/conteudo.ts';
+import { rotasDaFidelidade } from './backoffice/fidelidade.ts';
+import { rotasDasMetricas } from './backoffice/metricas.ts';
 import { rotasDosNumeros } from './backoffice/numeros.ts';
 import { exigirSessao, rotasDaSessao, rotasDosAcessos } from './backoffice/sessao.ts';
+import { rotasDaConta, rotasDeEntradaDoCliente } from './cliente/conta.ts';
+import { exigirCliente } from './cliente/sessao.ts';
 import { limpar } from './limpeza.ts';
 import { rotasPublicas } from './publico.ts';
 
@@ -25,7 +32,7 @@ app.use('/api/*', async (c, next) => {
 app.use('/api/*', async (c, next) => {
   await next();
   c.header('X-Content-Type-Options', 'nosniff');
-  if (c.req.path.startsWith('/api/bo/')) c.header('Cache-Control', 'no-store');
+  if (/^\/api\/(bo|eu|balcao)(\/|$)/.test(c.req.path)) c.header('Cache-Control', 'no-store');
 });
 
 app.route('/api', rotasPublicas);
@@ -34,6 +41,18 @@ app.use('/api/bo/*', exigirSessao);
 app.route('/api/bo', rotasDosAcessos);
 app.route('/api/bo', rotasDoConteudo);
 app.route('/api/bo', rotasDosNumeros);
+app.route('/api/bo', rotasDaFidelidade);
+app.route('/api/bo', rotasDosClientes);
+app.route('/api/bo', rotasDasMetricas);
+
+// A conta do cliente (a app) e a Balcão (a equipa): entrar fica aberto; o resto com sessão.
+app.route('/api/eu', rotasDeEntradaDoCliente);
+app.use('/api/eu', exigirCliente);
+app.use('/api/eu/*', exigirCliente);
+app.route('/api/eu', rotasDaConta);
+app.route('/api/balcao', rotasDeEntradaDaBalcao);
+app.use('/api/balcao/*', exigirPessoa);
+app.route('/api/balcao', rotasDaBalcao);
 
 app.get('/', (c) => c.text("Nuno's Lab · API"));
 app.notFound((c) => c.json({ erro: 'nao_existe' }, 404));

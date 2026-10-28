@@ -10,6 +10,17 @@ export async function limpar(env: Env): Promise<void> {
     db.prepare(
       'DELETE FROM sessoes WHERE expira_em < unixepoch() - 30 * 86400 OR (revogada_em IS NOT NULL AND revogada_em < unixepoch() - 30 * 86400)',
     ),
+    // O mesmo para a equipa e os clientes; os códigos de email caducados com mais de um dia.
+    db.prepare(
+      'DELETE FROM acessos_da_equipa WHERE expira_em < unixepoch() - 30 * 86400 OR (usado_em IS NOT NULL AND usado_em < unixepoch() - 30 * 86400)',
+    ),
+    db.prepare(
+      'DELETE FROM sessoes_da_equipa WHERE expira_em < unixepoch() - 30 * 86400 OR (revogada_em IS NOT NULL AND revogada_em < unixepoch() - 30 * 86400)',
+    ),
+    db.prepare(
+      'DELETE FROM sessoes_de_cliente WHERE expira_em < unixepoch() - 30 * 86400 OR (revogada_em IS NOT NULL AND revogada_em < unixepoch() - 30 * 86400)',
+    ),
+    db.prepare('DELETE FROM codigos_de_entrada WHERE expira_em < unixepoch() - 86400'),
     // Imagens que ninguém usa (carregadas e depois trocadas), com mais de um dia.
     db.prepare(
       `DELETE FROM imagens WHERE criada_em < unixepoch() - 86400

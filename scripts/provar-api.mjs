@@ -35,11 +35,22 @@ naBaseLocal(
     'sessoes',
     'registo',
     'admins',
+    'carimbos',
+    'cartoes',
+    'servicos',
+    'sessoes_da_equipa',
+    'acessos_da_equipa',
+    'equipa',
+    'sessoes_de_cliente',
+    'codigos_de_entrada',
+    'identidades',
+    'clientes',
   ]
     .map((t) => `DELETE FROM ${t};`)
     .join(' '),
 );
 naBaseLocal('--file', '../../base/exemplos.sql');
+naBaseLocal('--file', '../../base/exemplos-fidelidade.sql');
 /** Uma consulta à base local, com as linhas que vierem. */
 const daBaseLocal = (sql) =>
   JSON.parse(
@@ -461,6 +472,536 @@ await passo('pessoas: dar acesso com o email, sem repetir, e mudar o email', asy
   assert.equal(depois.find((p) => p.id === id).email, null);
   assert.equal((await pedir(`/api/bo/pessoas/${id}`, { method: 'DELETE', token })).status, 204);
 });
+
+// ——— a fidelidade ———
+
+await passo('o programa lê-se e grava-se', async () => {
+  const antes = await (await pedir('/api/bo/programa', { token })).json();
+  assert.equal(antes.objectivo, 10);
+  const r = await pedir('/api/bo/programa', {
+    method: 'PUT',
+    token,
+    body: json({
+      objectivo: 8,
+      recompensa: 'Corte grátis',
+      porDia: 2,
+      servicos: true,
+      aniversario: '',
+    }),
+  });
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).objectivo, 8);
+  const mau = await pedir('/api/bo/programa', {
+    method: 'PUT',
+    token,
+    body: json({ objectivo: 0, recompensa: '', porDia: 1, servicos: true, aniversario: '' }),
+  });
+  assert.equal(mau.status, 400);
+  await pedir('/api/bo/programa', {
+    method: 'PUT',
+    token,
+    body: json({
+      objectivo: 10,
+      recompensa: 'Corte grátis',
+      porDia: 1,
+      servicos: true,
+      aniversario: '',
+    }),
+  });
+});
+
+await passo('serviços: criar, mudar o preço, apagar', async () => {
+  const r = await pedir('/api/bo/servicos', {
+    method: 'POST',
+    token,
+    body: json({ nome: 'Prova', preco: 500 }),
+  });
+  assert.equal(r.status, 201);
+  const criado = (await r.json()).find((s) => s.nome === 'Prova');
+  assert.ok(criado);
+  const mudado = await (
+    await pedir(`/api/bo/servicos/${criado.id}`, {
+      method: 'PATCH',
+      token,
+      body: json({ preco: 700 }),
+    })
+  ).json();
+  assert.equal(mudado.find((s) => s.id === criado.id).preco, 700);
+  const depois = await (
+    await pedir(`/api/bo/servicos/${criado.id}`, { method: 'DELETE', token })
+  ).json();
+  assert.ok(!depois.some((s) => s.id === criado.id), 'sem carimbos, apaga-se mesmo');
+});
+
+let tokenBalcao;
+let barbeiroId;
+await passo('equipa: um barbeiro, uma ligação de acesso, e a Balcão abre', async () => {
+  const r = await pedir('/api/bo/equipa', {
+    method: 'POST',
+    token,
+    body: json({
+      nome: 'Prova Barbeiro',
+      email: null,
+      papel: 'barbeiro',
+      lojaId: 3,
+      parceiroId: null,
+    }),
+  });
+  assert.equal(r.status, 201);
+  barbeiroId = (await r.json()).find((p) => p.nome === 'Prova Barbeiro').id;
+  const { codigo } = await (
+    await pedir(`/api/bo/equipa/${barbeiroId}/acesso`, { method: 'POST', token })
+  ).json();
+  const entrada = await pedir('/api/balcao/entrar', {
+    method: 'POST',
+    body: json({ acesso: codigo }),
+  });
+  assert.equal(entrada.status, 200);
+  tokenBalcao = (await entrada.json()).sessao;
+  assert.equal(
+    (await pedir('/api/balcao/entrar', { method: 'POST', body: json({ acesso: codigo }) })).status,
+    401,
+  );
+  const eu = await (await pedir('/api/balcao/eu', { token: tokenBalcao })).json();
+  assert.equal(eu.pessoa.papel, 'barbeiro');
+  assert.equal(eu.pessoa.lojaId, 3);
+  assert.equal(eu.lojas.length, 3);
+  assert.equal(eu.programa.objectivo, 10);
+  assert.ok(eu.servicos.length >= 3);
+  assert.equal((await pedir('/api/balcao/eu')).status, 401);
+});
+
+let codigoDoCliente;
+await passo('um cliente novo ao balcão, com o 1.º carimbo', async () => {
+  const r = await pedir('/api/balcao/clientes', {
+    method: 'POST',
+    token: tokenBalcao,
+    body: json({
+      nome: 'Cliente Prova',
+      email: 'cliente.prova@gmail.com',
+      carimbo: { chave: 'prova-c-01', lojaId: 3, servicoId: 1 },
+    }),
+  });
+  assert.equal(r.status, 200);
+  const { ficha, carimbo } = await r.json();
+  assert.equal(ficha.cartao.carimbos, 1);
+  assert.equal(carimbo.cartao.carimbos, 1);
+  assert.equal(ficha.cliente.cortes, 1);
+  codigoDoCliente = ficha.cliente.codigo;
+  assert.match(codigoDoCliente, /^[0-9A-HJKMNP-TV-Z]{8}$/);
+  const repetido = await pedir('/api/balcao/clientes', {
+    method: 'POST',
+    token: tokenBalcao,
+    body: json({ nome: 'Outro', email: 'cliente.prova@gmail.com' }),
+  });
+  assert.equal(repetido.status, 409);
+});
+
+await passo('a ficha pelo código (escrito à mão também), e um código que não existe', async () => {
+  const r = await pedir(`/api/balcao/ficha/${codigoDoCliente}`, { token: tokenBalcao });
+  assert.equal(r.status, 200);
+  const ficha = await r.json();
+  assert.equal(ficha.cliente.nome, 'Cliente Prova');
+  assert.equal(ficha.hoje.carimbos, 1);
+  const escrito = codigoDoCliente.toLowerCase().replace(/0/g, 'o');
+  assert.equal(
+    (await pedir(`/api/balcao/ficha/${encodeURIComponent(escrito)}`, { token: tokenBalcao }))
+      .status,
+    200,
+  );
+  assert.equal((await pedir('/api/balcao/ficha/ABCDEFGH', { token: tokenBalcao })).status, 404);
+});
+
+let ultimoCarimbo;
+await passo(
+  'o limite do dia avisa; confirmar carimba na mesma; a mesma chave conta uma vez; anula-se',
+  async () => {
+    const pedido = (corpo) =>
+      pedir('/api/balcao/carimbar', { method: 'POST', token: tokenBalcao, body: json(corpo) });
+    const aviso = await pedido({ codigo: codigoDoCliente, chave: 'prova-c-02', lojaId: 3 });
+    assert.equal(aviso.status, 409);
+    const j = await aviso.json();
+    assert.equal(j.erro, 'limite_do_dia');
+    assert.ok(j.ultimo.quando);
+    const r = await pedido({
+      codigo: codigoDoCliente,
+      chave: 'prova-c-02',
+      lojaId: 3,
+      confirmar: true,
+    });
+    assert.equal(r.status, 200);
+    const feito = await r.json();
+    assert.equal(feito.cartao.carimbos, 2);
+    const outraVez = await (
+      await pedido({ codigo: codigoDoCliente, chave: 'prova-c-02', lojaId: 3, confirmar: true })
+    ).json();
+    assert.equal(outraVez.carimboId, feito.carimboId, 'a mesma chave devolve o mesmo carimbo');
+    assert.equal(outraVez.cartao.carimbos, 2);
+    const anular = await pedir('/api/balcao/anular', {
+      method: 'POST',
+      token: tokenBalcao,
+      body: json({ carimboId: feito.carimboId }),
+    });
+    assert.equal(anular.status, 204);
+    const ficha = await (
+      await pedir(`/api/balcao/ficha/${codigoDoCliente}`, { token: tokenBalcao })
+    ).json();
+    assert.equal(ficha.cartao.carimbos, 1);
+    assert.equal(
+      (
+        await pedir('/api/balcao/anular', {
+          method: 'POST',
+          token: tokenBalcao,
+          body: json({ carimboId: feito.carimboId }),
+        })
+      ).status,
+      409,
+    );
+    const outraCasa = await pedido({
+      codigo: codigoDoCliente,
+      chave: 'prova-c-xx',
+      lojaId: 1,
+      confirmar: true,
+    });
+    assert.equal(outraCasa.status, 403, 'um barbeiro de Aveiro não carimba em Nogueira');
+  },
+);
+
+await passo(
+  'completar o cartão dá a recompensa, que se usa uma vez; o carimbo que a deu já não se anula',
+  async () => {
+    let ultimo;
+    for (let i = 3; i <= 11; i++) {
+      const r = await pedir('/api/balcao/carimbar', {
+        method: 'POST',
+        token: tokenBalcao,
+        body: json({
+          codigo: codigoDoCliente,
+          chave: `prova-c-${String(i).padStart(2, '0')}`,
+          lojaId: 3,
+          servicoId: 3,
+          confirmar: true,
+        }),
+      });
+      assert.equal(r.status, 200, `carimbo ${i}`);
+      ultimo = await r.json();
+      assert.equal(ultimo.completo, i === 11, `completo no ${i}`);
+    }
+    assert.equal(ultimo.recompensa, 'Corte grátis');
+    ultimoCarimbo = ultimo.carimboId;
+    const ficha = await (
+      await pedir(`/api/balcao/ficha/${codigoDoCliente}`, { token: tokenBalcao })
+    ).json();
+    assert.equal(ficha.cartao.numero, 2, 'abre o cartão seguinte');
+    assert.equal(ficha.cartao.carimbos, 0);
+    assert.equal(ficha.recompensas.length, 1);
+    assert.equal(ficha.cliente.cortes, 10);
+    const usar = await pedir('/api/balcao/usar-recompensa', {
+      method: 'POST',
+      token: tokenBalcao,
+      body: json({ codigo: codigoDoCliente, cartaoId: ficha.recompensas[0].cartaoId, lojaId: 3 }),
+    });
+    assert.equal(usar.status, 200);
+    assert.equal((await usar.json()).recompensas.length, 0);
+    const outraVez = await pedir('/api/balcao/usar-recompensa', {
+      method: 'POST',
+      token: tokenBalcao,
+      body: json({ codigo: codigoDoCliente, cartaoId: ficha.recompensas[0].cartaoId, lojaId: 3 }),
+    });
+    assert.equal(outraVez.status, 409);
+    const anular = await pedir('/api/balcao/anular', {
+      method: 'POST',
+      token: tokenBalcao,
+      body: json({ carimboId: ultimoCarimbo }),
+    });
+    assert.equal(anular.status, 409);
+    assert.equal((await anular.json()).erro, 'recompensa_usada');
+  },
+);
+
+await passo('o dia da casa, e procurar um cliente', async () => {
+  const hoje = await (await pedir('/api/balcao/hoje', { token: tokenBalcao })).json();
+  assert.ok(hoje.carimbos >= 10, `hoje: ${hoje.carimbos}`);
+  assert.equal(hoje.novos, 1);
+  assert.equal(hoje.recompensas, 1);
+  assert.ok(hoje.ultimos.length >= 10);
+  assert.ok(
+    hoje.ultimos.some((u) => u.anulado),
+    'o anulado aparece marcado',
+  );
+  assert.ok(
+    hoje.ultimos.some((u) => u.recompensa),
+    'o que completou o cartão aparece marcado',
+  );
+  const lista = await (await pedir('/api/balcao/clientes?q=prova', { token: tokenBalcao })).json();
+  assert.equal(lista.length, 1);
+  assert.equal(lista[0].carimbos, 0);
+  assert.equal(lista[0].objectivo, 10);
+  assert.equal(
+    (await (await pedir('/api/balcao/clientes?q=p', { token: tokenBalcao })).json()).length,
+    0,
+  );
+});
+
+let tokenDono;
+await passo('o resumo é só do dono', async () => {
+  assert.equal((await pedir('/api/balcao/resumo', { token: tokenBalcao })).status, 403);
+  const r = await pedir('/api/bo/equipa', {
+    method: 'POST',
+    token,
+    body: json({
+      nome: 'Prova Dono',
+      email: 'dono.prova@gmail.com',
+      papel: 'dono',
+      lojaId: null,
+      parceiroId: null,
+    }),
+  });
+  const dono = (await r.json()).find((p) => p.nome === 'Prova Dono');
+  const { codigo } = await (
+    await pedir(`/api/bo/equipa/${dono.id}/acesso`, { method: 'POST', token })
+  ).json();
+  tokenDono = (
+    await (
+      await pedir('/api/balcao/entrar', { method: 'POST', body: json({ acesso: codigo }) })
+    ).json()
+  ).sessao;
+  const resumo = await (await pedir('/api/balcao/resumo?periodo=mes', { token: tokenDono })).json();
+  assert.ok(resumo.carimbos > 10, `carimbos no mês: ${resumo.carimbos}`);
+  assert.equal(resumo.porLoja.length, 3);
+  assert.ok(resumo.porPessoa.some((p) => p.nome === 'Prova Barbeiro' && p.n === 10));
+  assert.equal(typeof resumo.emRisco, 'number');
+  const casa = await (
+    await pedir('/api/balcao/resumo?periodo=hoje&lojaId=1', { token: tokenDono })
+  ).json();
+  assert.ok(casa.carimbos < resumo.carimbos);
+});
+
+let tokenCliente;
+let euAntes;
+await passo('o cliente entra com a Google e fica com o cartão aberto ao balcão', async () => {
+  const r = await pedir('/api/eu/entrar/teste', {
+    method: 'POST',
+    body: json({
+      tipo: 'google',
+      sujeito: 'prova-google-1',
+      email: 'cliente.prova@gmail.com',
+      nome: 'Prova',
+    }),
+  });
+  assert.equal(r.status, 200);
+  tokenCliente = (await r.json()).sessao;
+  euAntes = await (await pedir('/api/eu', { token: tokenCliente })).json();
+  assert.equal(euAntes.nome, 'Cliente Prova', 'o nome escrito ao balcão fica');
+  assert.equal(euAntes.codigo, codigoDoCliente);
+  assert.equal(euAntes.cortes, 10);
+  assert.equal(euAntes.cartao.numero, 2);
+  assert.deepEqual(euAntes.formas.map((f) => f.tipo).sort(), ['email', 'google']);
+  assert.equal(euAntes.provaRecente, true);
+  assert.equal(euAntes.visitas.length, 10);
+  assert.equal(euAntes.programa.objectivo, 10);
+  assert.equal((await pedir('/api/eu')).status, 401);
+});
+
+await passo(
+  'o perfil: nome, aniversário e casa; um aniversário que não existe é recusado',
+  async () => {
+    const r = await pedir('/api/eu/perfil', {
+      method: 'PATCH',
+      token: tokenCliente,
+      body: json({ aniversario: '02-29', lojaId: 3, nome: 'Prova C.' }),
+    });
+    assert.equal(r.status, 200);
+    const eu = await r.json();
+    assert.equal(eu.aniversario, '02-29');
+    assert.equal(eu.lojaId, 3);
+    assert.equal(eu.nome, 'Prova C.');
+    assert.equal(
+      (
+        await pedir('/api/eu/perfil', {
+          method: 'PATCH',
+          token: tokenCliente,
+          body: json({ aniversario: '13-01' }),
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await pedir('/api/eu/perfil', {
+          method: 'PATCH',
+          token: tokenCliente,
+          body: json({ lojaId: 999 }),
+        })
+      ).status,
+      400,
+    );
+  },
+);
+
+let tokenOutro;
+await passo(
+  'a mesma caixa por outra porta cai na mesma conta; outra caixa é outra conta; não se rouba uma forma',
+  async () => {
+    const apple = await (
+      await pedir('/api/eu/entrar/teste', {
+        method: 'POST',
+        body: json({ tipo: 'apple', sujeito: 'prova-apple-1', email: 'cliente.prova@gmail.com' }),
+      })
+    ).json();
+    const mesma = await (await pedir('/api/eu', { token: apple.sessao })).json();
+    assert.equal(mesma.id, euAntes.id);
+    assert.equal(mesma.formas.length, 3);
+    const outra = await (
+      await pedir('/api/eu/entrar/teste', {
+        method: 'POST',
+        body: json({ tipo: 'apple', sujeito: 'prova-apple-2', email: 'outra@empresa.pt' }),
+      })
+    ).json();
+    tokenOutro = outra.sessao;
+    const outro = await (await pedir('/api/eu', { token: tokenOutro })).json();
+    assert.notEqual(outro.id, euAntes.id);
+    assert.equal(outro.cartao.carimbos, 0);
+    const roubo = await pedir('/api/eu/formas/teste', {
+      method: 'POST',
+      token: tokenOutro,
+      body: json({ tipo: 'google', sujeito: 'prova-google-1', email: 'cliente.prova@gmail.com' }),
+    });
+    assert.equal(roubo.status, 409);
+    assert.equal((await roubo.json()).erro, 'noutra_conta');
+    // E a Google de uma caixa de empresa (sem prova de dona) não se junta sozinha à Apple dessa caixa.
+    const empresa = await (
+      await pedir('/api/eu/entrar/teste', {
+        method: 'POST',
+        body: json({ tipo: 'google', sujeito: 'prova-google-2', email: 'outra@empresa.pt' }),
+      })
+    ).json();
+    const terceira = await (await pedir('/api/eu', { token: empresa.sessao })).json();
+    assert.notEqual(terceira.id, outro.id, 'sem prova de dona da caixa, não se junta');
+  },
+);
+
+await passo('tirar uma forma: nunca a última, nem a que abriu esta sessão', async () => {
+  const eu = await (await pedir('/api/eu', { token: tokenCliente })).json();
+  const email = eu.formas.find((f) => f.tipo === 'email');
+  const google = eu.formas.find((f) => f.tipo === 'google');
+  assert.equal(
+    (await pedir(`/api/eu/formas/${google.id}`, { method: 'DELETE', token: tokenCliente })).status,
+    409,
+  );
+  const r = await pedir(`/api/eu/formas/${email.id}`, { method: 'DELETE', token: tokenCliente });
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).formas.length, 2);
+  const unica = await (await pedir('/api/eu', { token: tokenOutro })).json();
+  const ultima = await pedir(`/api/eu/formas/${unica.formas[0].id}`, {
+    method: 'DELETE',
+    token: tokenOutro,
+  });
+  assert.equal(ultima.status, 409);
+  assert.equal((await ultima.json()).erro, 'ultima_forma');
+});
+
+await passo('«perdi o telemóvel» troca o código e termina as outras sessões', async () => {
+  const segunda = (
+    await (
+      await pedir('/api/eu/entrar/teste', {
+        method: 'POST',
+        body: json({ tipo: 'google', sujeito: 'prova-google-1', email: 'cliente.prova@gmail.com' }),
+      })
+    ).json()
+  ).sessao;
+  assert.equal((await pedir('/api/eu', { token: segunda })).status, 200);
+  const r = await pedir('/api/eu/perdi-o-telemovel', { method: 'POST', token: tokenCliente });
+  assert.equal(r.status, 200);
+  const eu = await r.json();
+  assert.notEqual(eu.codigo, codigoDoCliente);
+  assert.equal(eu.sessoes.length, 1);
+  assert.equal((await pedir('/api/eu', { token: segunda })).status, 401);
+  assert.equal(
+    (await pedir(`/api/balcao/ficha/${codigoDoCliente}`, { token: tokenBalcao })).status,
+    404,
+    'o código antigo morreu',
+  );
+  codigoDoCliente = eu.codigo;
+  assert.equal(
+    (await pedir(`/api/balcao/ficha/${codigoDoCliente}`, { token: tokenBalcao })).status,
+    200,
+  );
+});
+
+await passo('o backoffice vê os clientes, a ficha, o CSV e as métricas', async () => {
+  const lista = await (await pedir('/api/bo/clientes', { token })).json();
+  assert.ok(lista.length >= 62, `clientes: ${lista.length}`);
+  const prova = lista.find((k) => k.codigo === codigoDoCliente);
+  assert.equal(prova.cortes, 10);
+  assert.equal(prova.formas.length, 2);
+  const novos = await (await pedir('/api/bo/clientes?estado=novos', { token })).json();
+  assert.ok(novos.some((k) => k.id === prova.id));
+  const ficha = await (await pedir(`/api/bo/clientes/${prova.id}`, { token })).json();
+  assert.equal(ficha.cartoes.length, 2);
+  assert.equal(ficha.cartoes[1].usadoPor, 'Prova Barbeiro');
+  assert.equal(ficha.historico.length, 11);
+  assert.ok(ficha.historico.some((x) => x.anuladoEm));
+  const csv = await pedir('/api/bo/clientes.csv', { token });
+  assert.equal(csv.status, 200);
+  assert.match(csv.headers.get('content-type'), /text\/csv/);
+  assert.ok((await csv.text()).includes('Prova C.'));
+  const m = await (await pedir('/api/bo/metricas?lojaId=3', { token })).json();
+  assert.equal(m.porDia.length, 30);
+  assert.equal(m.mapaDeCalor.length, 7);
+  assert.equal(m.mapaDeCalor[0].length, 24);
+  assert.equal(m.coortes.length, 12);
+  assert.ok(m.totais.carimbos >= 10);
+  assert.equal(m.totais.recompensasUsadas >= 1, true);
+  assert.ok(
+    m.porPessoa.some(
+      (p) => p.nome === 'Prova Barbeiro' && p.n === 10 && p.anulados === 1 && p.recompensas === 1,
+    ),
+  );
+  assert.ok(m.clientes.total >= 62);
+  assert.ok(m.clientes.distribuicao.length === 4);
+  assert.ok(m.servicos.length >= 1);
+  assert.equal(typeof m.contas.google, 'number');
+  const tudo = await (
+    await pedir('/api/bo/metricas?de=2020-01-01&ate=2020-01-31', { token })
+  ).json();
+  assert.equal(tudo.totais.carimbos, 0);
+  assert.equal(tudo.porDia.length, 31);
+});
+
+await passo('apagar a conta deixa os carimbos sem dono, e a pessoa fora das listas', async () => {
+  assert.equal((await pedir('/api/eu', { method: 'DELETE', token: tokenCliente })).status, 204);
+  assert.equal((await pedir('/api/eu', { token: tokenCliente })).status, 401);
+  assert.equal(
+    (await pedir(`/api/balcao/ficha/${codigoDoCliente}`, { token: tokenBalcao })).status,
+    404,
+  );
+  const lista = await (await pedir('/api/bo/clientes', { token })).json();
+  assert.ok(!lista.some((k) => k.codigo === codigoDoCliente));
+  const m = await (await pedir('/api/bo/metricas?lojaId=3', { token })).json();
+  assert.ok(m.totais.carimbos >= 10, 'os carimbos continuam a contar');
+  const apagado = await pedir('/api/eu/entrar/teste', {
+    method: 'POST',
+    body: json({ tipo: 'google', sujeito: 'prova-google-1', email: 'cliente.prova@gmail.com' }),
+  });
+  const renascido = await (await pedir('/api/eu', { token: (await apagado.json()).sessao })).json();
+  assert.equal(renascido.cortes, 0, 'entrar outra vez é uma conta nova, vazia');
+});
+
+await passo(
+  'tirar alguém da equipa termina a sessão dele; apagar os exemplos limpa tudo',
+  async () => {
+    assert.equal(
+      (await pedir(`/api/bo/equipa/${barbeiroId}`, { method: 'DELETE', token })).status,
+      200,
+    );
+    assert.equal((await pedir('/api/balcao/eu', { token: tokenBalcao })).status, 401);
+    const r = await (await pedir('/api/bo/clientes/exemplos', { method: 'DELETE', token })).json();
+    assert.equal(r.apagados, 60);
+    const equipa = await (await pedir('/api/bo/equipa', { token })).json();
+    assert.ok(!equipa.some((p) => p.nome.endsWith('(exemplo)')));
+  },
+);
 
 await passo('sair termina a sessão', async () => {
   assert.equal((await pedir('/api/bo/sair', { method: 'POST', token })).status, 204);

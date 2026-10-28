@@ -145,3 +145,59 @@ test('o desconto encolhe por degraus até às 12 letras do campo', () => {
   assert.equal(degrauDoDesconto('Uma semana'), 3);
   assert.equal(degrauDoDesconto('−50% 2.º par'), 3);
 });
+
+// ——— o cartão de carimbos ———
+
+import {
+  codigoCurto,
+  codigoDoQr,
+  codigoLido,
+  codigoValido,
+  gerarCodigo,
+  normalizarCodigo,
+  textoDoQr,
+} from './cartao.ts';
+import { donaDaCaixa, eAniversarioValido, estadoDoCartao, fraseDoCartao } from './fidelidade.ts';
+
+test('o código do cartão: 8 letras, a última de controlo, e os erros de leitura corrigem-se', () => {
+  const codigo = gerarCodigo(Uint8Array.from([7, 200, 3, 255, 31, 32, 64]));
+  assert.equal(codigo.length, 8);
+  assert.ok(codigoValido(codigo));
+  // Uma letra trocada já não bate.
+  const trocada = (codigo[0] === 'A' ? 'B' : 'A') + codigo.slice(1);
+  assert.equal(codigoValido(trocada), false);
+  // O que se escreve à mão: minúsculas, espaços, O por 0, I e L por 1.
+  const escrito = codigoCurto(codigo).toLowerCase().replace(/0/g, 'o').replace(/1/g, 'l');
+  assert.equal(normalizarCodigo(escrito), codigo);
+  assert.equal(codigoLido(escrito), codigo);
+  // O QR leva o prefixo; outro QR qualquer não serve.
+  assert.equal(codigoDoQr(textoDoQr(codigo)), codigo);
+  assert.equal(codigoDoQr('https://exemplo.pt/x'), null);
+  assert.equal(codigoLido('NL1.' + codigo), codigo);
+  assert.equal(codigoLido('NL1.ABCDEFGH'), null);
+  assert.equal(codigoCurto(codigo), `${codigo.slice(0, 4)} ${codigo.slice(4)}`);
+  // Bytes diferentes dão códigos diferentes, e 256 é múltiplo de 32.
+  assert.notEqual(codigo, gerarCodigo(Uint8Array.from([8, 200, 3, 255, 31, 32, 64])));
+});
+
+test('o estado do cartão e a frase', () => {
+  assert.deepEqual(estadoDoCartao(7, 10), { faltam: 3, completo: false });
+  assert.deepEqual(estadoDoCartao(10, 10), { faltam: 0, completo: true });
+  assert.deepEqual(estadoDoCartao(12, 10), { faltam: 0, completo: true });
+  const programa = { objectivo: 10, recompensa: 'Corte grátis' };
+  assert.equal(fraseDoCartao(7, programa), 'Faltam 3 para corte grátis');
+  assert.equal(fraseDoCartao(9, programa), 'Falta 1 para corte grátis');
+  assert.equal(fraseDoCartao(10, programa), 'Cartão completo');
+  assert.equal(fraseDoCartao(3, { objectivo: 5, recompensa: '' }), 'Faltam 2');
+});
+
+test('aniversário e caixas de correio', () => {
+  assert.ok(eAniversarioValido('02-29'));
+  assert.ok(eAniversarioValido('12-31'));
+  assert.equal(eAniversarioValido('02-30'), false);
+  assert.equal(eAniversarioValido('13-01'), false);
+  assert.equal(eAniversarioValido('2000-01-01'), false);
+  assert.ok(donaDaCaixa('alguem@gmail.com'));
+  assert.ok(donaDaCaixa('Alguem@iCloud.com'));
+  assert.equal(donaDaCaixa('alguem@empresa.pt'), false);
+});

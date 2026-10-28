@@ -17,12 +17,14 @@
       "migrations_table": "d1_migrations",
     },
   ],
-  // Travões por IP: entrar no backoffice (10 por minuto) e as contagens da
+  // Travões por IP: entrar no backoffice, na app e na Balcão (30 por minuto) e as contagens da
   // app (60 por minuto). O namespace_id é único na conta (o Carimbo usa os 1000
   // e os 2000, o Armazém o 1101).
   "ratelimits": [
-    { "name": "TRAVAO", "namespace_id": "7101", "simple": { "limit": 10, "period": 60 } },
+    { "name": "TRAVAO", "namespace_id": "7101", "simple": { "limit": 30, "period": 60 } },
     { "name": "CONTAR", "namespace_id": "7102", "simple": { "limit": 60, "period": 60 } },
+    // Carimbos por sessão da Balcão (uma fila sem rede a despejar cabe aqui).
+    { "name": "CARIMBAR", "namespace_id": "7103", "simple": { "limit": 60, "period": 60 } },
   ],
   // A limpeza da madrugada: ligações e sessões caducadas, imagens sem dono.
   "triggers": { "crons": ["23 3 * * *"] },
@@ -33,5 +35,8 @@
     // O cliente do «Entrar com o Google» (projecto «Nuno's Lab» no Google Cloud
     // do Renato, criado a 22 out 2026). É público: identifica a app, não abre nada.
     "GOOGLE_CLIENTE": "695283550331-vert2ikpluksqb954jl0j3ed0ukphha4.apps.googleusercontent.com",
+    // «Entrar com a Apple»: o Services ID (web) e o bundle id (app nativa),
+    // separados por vírgulas. Vazio: o botão da Apple não aparece.
+    "APPLE_CLIENTES": "",
   },
 }
