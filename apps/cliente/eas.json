@@ -10,15 +10,21 @@
     "simulador": {
       "extends": "base",
       "channel": "simulador",
-      "ios": { "simulator": true },
-      "android": { "buildType": "apk" },
+      "ios": {
+        "simulator": true
+      },
+      "android": {
+        "buildType": "apk"
+      },
       "distribution": "internal"
     },
     "interna": {
       "extends": "base",
       "channel": "interna",
       "distribution": "internal",
-      "android": { "buildType": "apk" }
+      "android": {
+        "buildType": "apk"
+      }
     },
     "producao": {
       "extends": "base",
@@ -28,8 +34,14 @@
   },
   "submit": {
     "producao": {
-      "ios": { "appleTeamId": "6M2QCLR98V" },
-      "android": { "track": "internal", "releaseStatus": "completed" }
+      "ios": {
+        "ascAppId": "6828175245",
+        "appleTeamId": "6M2QCLR98V"
+      },
+      "android": {
+        "track": "internal",
+        "releaseStatus": "completed"
+      }
     }
   }
 }
