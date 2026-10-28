@@ -135,7 +135,7 @@ export default function Resumo() {
           <View style={{ paddingHorizontal: MARGEM, marginTop: 18, flexDirection: 'row', gap: 10 }}>
             {[
               [r.novos, 'Novos'],
-              [r.recompensas, 'Recompensas'],
+              [r.recompensas, 'Prémios'],
               [r.emRisco, 'Em risco'],
             ].map(([v, n]) => (
               <View
@@ -149,7 +149,11 @@ export default function Resumo() {
                 }}
               >
                 <T v="subtitulo">{v}</T>
-                <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
+                <T
+                  v="legenda"
+                  style={{ color: cor.texto2, marginTop: 2, fontSize: 12, letterSpacing: -0.2 }}
+                  numberOfLines={1}
+                >
                   {n}
                 </T>
               </View>

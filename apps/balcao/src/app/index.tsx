@@ -215,9 +215,9 @@ function Hoje() {
       </View>
 
       <View style={{ paddingHorizontal: MARGEM, marginTop: 22, flexDirection: 'row', gap: 10 }}>
-        <Numero valor={hoje?.carimbos ?? 0} nome="Carimbos hoje" />
+        <Numero valor={hoje?.carimbos ?? 0} nome="Carimbos" />
         <Numero valor={hoje?.novos ?? 0} nome="Novos" />
-        <Numero valor={hoje?.recompensas ?? 0} nome="Recompensas" />
+        <Numero valor={hoje?.recompensas ?? 0} nome="Prémios" />
       </View>
 
       <View style={{ paddingHorizontal: MARGEM, marginTop: 18, gap: 10 }}>
@@ -369,7 +369,11 @@ function Numero({ valor, nome }: { valor: number; nome: string }) {
       }}
     >
       <T v="titulo">{valor}</T>
-      <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }} numberOfLines={1}>
+      <T
+        v="legenda"
+        style={{ color: cor.texto2, marginTop: 2, fontSize: 12, letterSpacing: -0.2 }}
+        numberOfLines={1}
+      >
         {nome}
       </T>
     </View>

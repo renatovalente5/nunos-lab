@@ -1,10 +1,10 @@
 import { normalizarEmail, type FichaDoBalcao, type ResultadoDoCarimbo } from '@nunos-lab/dominio';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, Switch, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { chaveNova, mensagemDe, pedir, useCasa, useEu } from '../sessao';
-import { Botao, Campo, Ecra, Icone, MARGEM, T, cor } from '@nunos-lab/ui';
+import { Botao, Campo, Ecra, Icone, Interruptor, MARGEM, T, cor } from '@nunos-lab/ui';
 
 /** Um cliente novo ao balcão: o nome, o email para entrar na app depois, e o 1.º carimbo. */
 export default function Novo() {
@@ -140,12 +140,7 @@ export default function Novo() {
             }}
           >
             <T v="forte">Carimbar já</T>
-            <Switch
-              value={carimbarJa}
-              onValueChange={setCarimbarJa}
-              trackColor={{ true: cor.claro, false: cor.linha }}
-              thumbColor={carimbarJa ? cor.sobreClaro : cor.texto2}
-            />
+            <Interruptor ligado={carimbarJa} mudar={setCarimbarJa} rotulo="Carimbar já" />
           </View>
           <View style={{ marginTop: 8 }}>
             <Botao nome={aEnviar ? 'A guardar…' : 'Guardar'} onPress={criar} />

@@ -9,6 +9,7 @@
  * A API publica-se à parte: «npm run publicar -w @nunos-lab/api».
  *
  *   _site/              a app do cliente (Expo, exportada para a web)
+ *   _site/balcao/       a Balcão (Expo, a mesma coisa, com baseUrl /nunos-lab/balcao)
  *   _site/backoffice/   o backoffice (Vite)
  *   _site/404.html      a mesma app: o GitHub Pages serve-a a qualquer morada
  *                       que não exista (/nunos-lab/parceiro/3), e o Expo Router
@@ -39,12 +40,21 @@ correr(
     NODE_ENV: 'production',
   },
 );
+correr(
+  'npx',
+  ['expo', 'export', '-p', 'web', '--output-dir', 'dist', '--clear'],
+  join(raiz, 'apps/balcao'),
+  {
+    NODE_ENV: 'production',
+  },
+);
 correr('npx', ['vite', 'build'], join(raiz, 'apps/backoffice'));
 
 // 2. Juntar.
 rmSync(site, { recursive: true, force: true });
 mkdirSync(site, { recursive: true });
 cpSync(join(raiz, 'apps/cliente/dist'), site, { recursive: true });
+cpSync(join(raiz, 'apps/balcao/dist'), join(site, 'balcao'), { recursive: true });
 cpSync(join(raiz, 'apps/backoffice/dist'), join(site, 'backoffice'), { recursive: true });
 
 // 3. O index da app: as moradas do <head> que escrevi à raiz passam a levar a
@@ -69,6 +79,21 @@ for (const rota of ['barbearia', 'cartao', 'conta', 'privacidade']) {
   writeFileSync(join(site, rota, 'index.html'), html);
 }
 writeFileSync(join(site, '.nojekyll'), '');
+
+// A Balcão: o mesmo arranjo, com a base dela; as rotas dela também respondem 200.
+const BALCAO = `${BASE}/balcao`;
+let balcao = readFileSync(join(site, 'balcao/index.html'), 'utf8');
+for (const f of ['manifest.webmanifest', 'apple-touch-icon.png', 'icone-192.png'])
+  balcao = balcao.replaceAll(`href="/${f}"`, `href="${BALCAO}/${f}"`);
+if (!balcao.includes(`src="${BALCAO}/_expo/static/js/web/`))
+  throw new Error('Os scripts da Balcão não levam a base');
+writeFileSync(join(site, 'balcao/index.html'), balcao);
+for (const rota of ['ler', 'novo', 'clientes', 'resumo', 'conta']) {
+  mkdirSync(join(site, 'balcao', rota), { recursive: true });
+  writeFileSync(join(site, 'balcao', rota, 'index.html'), balcao);
+}
+// A ficha (/balcao/ficha/CODIGO) abre pelo 404.html da raiz, que é a app do
+// cliente: a Balcão abre-a por «router.push», sem recarregar, por isso chega.
 
 // O backoffice: os ficheiros têm de pedir /nunos-lab/backoffice/…
 const bo = readFileSync(join(site, 'backoffice/index.html'), 'utf8');
@@ -108,4 +133,4 @@ correr(
 );
 correr('git', ['push', '-f', remoto, 'gh-pages'], site);
 rmSync(join(site, '.git'), { recursive: true, force: true });
-console.log(`\nPublicado: ${ORIGEM}${BASE}/ e ${ORIGEM}${BASE}/backoffice/`);
+console.log(`\nPublicado: ${ORIGEM}${BASE}/, ${ORIGEM}${BASE}/balcao/ e ${ORIGEM}${BASE}/backoffice/`);

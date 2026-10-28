@@ -13,3 +13,4 @@ export * from './qr';
 export * from './carimbos';
 export * from './campo';
 export * from './entrar';
+export * from './interruptor';
