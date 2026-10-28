@@ -14,6 +14,7 @@ import type {
   ResumoDaBalcao,
   Vale,
 } from '@nunos-lab/dominio';
+import { getRandomBytes } from 'expo-crypto';
 import { useEffect, useSyncExternalStore } from 'react';
 import { guardar as guardarNoArmazem, lerSincrono } from '@nunos-lab/ui';
 
@@ -246,7 +247,7 @@ export const validar = (corpo: {
 }) => pedir<{ vale: Vale; ficha: FichaDoParceiro }>('/validar', { metodo: 'POST', corpo });
 
 export function chaveNova(): string {
-  const b = crypto.getRandomValues(new Uint8Array(12));
+  const b = getRandomBytes(12);
   return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
 }
 
