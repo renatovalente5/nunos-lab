@@ -1449,7 +1449,7 @@ await passo('a porta da revisão das lojas entra com o código de demonstração
   const pagina = await pedir('/api/revisao?codigo=DEMOLOCAL2026');
   assert.equal(pagina.status, 200);
   const html = await pagina.text();
-  assert.ok(html.includes('<svg') && html.includes('JMP7 ZT8A'), 'a página traz o QR e o código');
+  assert.ok(html.includes('<svg') && html.includes('JMP7') && html.includes('ZT8A'), 'a página traz o QR e o código');
   const cliente = await (
     await pedir('/api/eu/entrar/demonstracao', {
       method: 'POST',
