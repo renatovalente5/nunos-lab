@@ -2,7 +2,7 @@ import type { TabTriggerSlotProps } from 'expo-router/ui';
 import type { ComponentRef, ReactNode, Ref } from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { cor, letra } from '../tema';
+import { ALTURA_DA_BARRA, cor, letra } from '../tema';
 import { Icone, type NomeDoIcone } from './icone';
 import { T } from './texto';
 
@@ -37,12 +37,13 @@ export function BarraDeBaixo({
         style={{
           flexDirection: 'row',
           gap: 4,
-          padding: 5,
+          padding: 6,
+          height: ALTURA_DA_BARRA,
           borderRadius: 999,
-          backgroundColor: 'rgba(28,28,28,0.94)',
+          backgroundColor: cor.vidro,
           borderWidth: 1,
-          borderColor: '#2E2E2E',
-          boxShadow: '0 10px 28px rgba(0,0,0,0.55)',
+          borderColor: 'rgba(255,255,255,0.08)',
+          boxShadow: '0 12px 32px rgba(0,0,0,0.55)',
         }}
       >
         {children}
@@ -74,8 +75,8 @@ export function BotaoDoSeparador({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
-        height: 48,
-        paddingHorizontal: 18,
+        height: ALTURA_DA_BARRA - 12,
+        paddingHorizontal: 20,
         borderRadius: 999,
         backgroundColor: isFocused ? cor.claro : 'transparent',
         opacity: pressed ? 0.8 : 1,

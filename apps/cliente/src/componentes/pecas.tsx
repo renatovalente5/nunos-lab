@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { cor, LARGURA_MAXIMA, MARGEM, raio } from '../tema';
+import { ALTURA_DA_BARRA, CONTINUO, cor, LARGURA_MAXIMA, MARGEM, raio } from '../tema';
 import { Icone, type NomeDoIcone } from './icone';
 import { T } from './texto';
 
@@ -20,8 +20,8 @@ export function Ecra({
     <View style={{ flex: 1, backgroundColor: cor.fundo }}>
       <ScrollView
         contentContainerStyle={{
-          paddingTop: semTopo ? 0 : margens.top + 14,
-          paddingBottom: margens.bottom + (comBarra ? 116 : 40),
+          paddingTop: semTopo ? 0 : margens.top + 16,
+          paddingBottom: margens.bottom + (comBarra ? ALTURA_DA_BARRA + 48 : 40),
           alignItems: 'center',
         }}
         showsVerticalScrollIndicator={false}
@@ -32,18 +32,18 @@ export function Ecra({
   );
 }
 
-/** O rótulo de uma secção, em maiúsculas pequenas, como o «LEAVE THE MARK» da marca. */
+/** O título de uma secção, a cheio, como no iOS. */
 export function Rotulo({ children, style }: { children: ReactNode; style?: ViewStyle }) {
   return (
-    <View style={[{ paddingHorizontal: MARGEM, marginTop: 30, marginBottom: 12 }, style]}>
-      <T v="rotulo" style={{ color: cor.texto3 }} role="heading" aria-level={2}>
+    <View style={[{ paddingHorizontal: MARGEM, marginTop: 32, marginBottom: 14 }, style]}>
+      <T v="seccao" role="heading" aria-level={2}>
         {children}
       </T>
     </View>
   );
 }
 
-/** Um grupo de linhas sobre a superfície, com cantos redondos. */
+/** Um grupo de linhas sobre a superfície, com cantos redondos (a lista agrupada do iOS). */
 export function Grupo({ children, style }: { children: ReactNode; style?: ViewStyle }) {
   return (
     <View
@@ -53,6 +53,7 @@ export function Grupo({ children, style }: { children: ReactNode; style?: ViewSt
           backgroundColor: cor.superficie,
           borderRadius: raio.grupo,
           overflow: 'hidden',
+          ...CONTINUO,
         },
         style,
       ]}
@@ -66,29 +67,41 @@ export function Separador({ recuo = 16 }: { recuo?: number }) {
   return <View style={{ height: 1, backgroundColor: cor.linha, marginLeft: recuo }} />;
 }
 
-/** A etiqueta dos parceiros inventados para a demonstração. */
-export function EtiquetaExemplo({ sobreFoto = false }: { sobreFoto?: boolean }) {
+function Pilula({ children, fundo, tinta }: { children: ReactNode; fundo: string; tinta: string }) {
   return (
     <View
       style={{
-        paddingHorizontal: 7,
-        paddingVertical: 3,
-        borderRadius: 6,
-        backgroundColor: sobreFoto ? 'rgba(0,0,0,0.38)' : cor.superficieAlta,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: raio.pilula,
+        backgroundColor: fundo,
       }}
     >
-      <T
-        v="rotulo"
-        style={{
-          fontSize: 9.5,
-          lineHeight: 12,
-          letterSpacing: 1,
-          color: sobreFoto ? '#FFFFFF' : cor.texto2,
-        }}
-      >
-        Exemplo
+      <T v="rotulo" style={{ fontSize: 10, lineHeight: 12, letterSpacing: 1, color: tinta }}>
+        {children}
       </T>
     </View>
+  );
+}
+
+/** A etiqueta dos parceiros inventados para a demonstração. */
+export function EtiquetaExemplo({ sobreFoto = false }: { sobreFoto?: boolean }) {
+  return (
+    <Pilula
+      fundo={sobreFoto ? 'rgba(0,0,0,0.42)' : cor.superficieAlta}
+      tinta={sobreFoto ? '#FFFFFF' : cor.texto2}
+    >
+      Exemplo
+    </Pilula>
+  );
+}
+
+/** «Novo»: um parceiro que entrou há pouco. */
+export function EtiquetaNovo() {
+  return (
+    <Pilula fundo={cor.claro} tinta={cor.sobreClaro}>
+      Novo
+    </Pilula>
   );
 }
 
@@ -109,39 +122,46 @@ export function BotaoRedondo({
       onPress={onPress}
       role="link"
       aria-label={rotulo ?? nome}
-      style={({ pressed }) => ({ alignItems: 'center', width: 72, opacity: pressed ? 0.7 : 1 })}
+      style={({ pressed }) => ({
+        alignItems: 'center',
+        width: 76,
+        transform: [{ scale: pressed ? 0.96 : 1 }],
+        opacity: pressed ? 0.8 : 1,
+      })}
     >
       <View
         style={{
-          width: 54,
-          height: 54,
-          borderRadius: 27,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
           backgroundColor: cor.superficieAlta,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <Icone nome={icone} tamanho={22} />
+        <Icone nome={icone} tamanho={22} espessura={2} />
       </View>
-      <T v="legenda" style={{ marginTop: 7, color: cor.texto2 }} numberOfLines={1}>
+      <T v="legenda" style={{ marginTop: 8, color: cor.texto2 }} numberOfLines={1}>
         {nome}
       </T>
     </Pressable>
   );
 }
 
-/** O botão principal: o papel claro da marca com a tinta preta. */
+/** O botão principal: o papel claro com a tinta preta. O secundário é da superfície. */
 export function Botao({
   nome,
   onPress,
   icone,
   secundario = false,
+  largo = false,
   rotulo,
 }: {
   nome: string;
   onPress: () => void;
   icone?: NomeDoIcone;
   secundario?: boolean;
+  largo?: boolean;
   rotulo?: string;
 }) {
   const tinta = secundario ? cor.texto : cor.sobreClaro;
@@ -155,14 +175,21 @@ export function Botao({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        minHeight: 46,
-        paddingHorizontal: 18,
+        height: 48,
+        paddingHorizontal: 20,
         borderRadius: raio.pilula,
-        backgroundColor: secundario ? cor.superficieAlta : cor.claro,
-        opacity: pressed ? 0.8 : 1,
+        backgroundColor: secundario
+          ? pressed
+            ? cor.superficie
+            : cor.superficieAlta
+          : pressed
+            ? cor.claroPremido
+            : cor.claro,
+        transform: [{ scale: pressed ? 0.98 : 1 }],
+        ...(largo ? { flexGrow: 1, flexBasis: 0 } : null),
       })}
     >
-      {icone && <Icone nome={icone} tamanho={18} cor={tinta} espessura={2} />}
+      {icone && <Icone nome={icone} tamanho={19} cor={tinta} espessura={2} />}
       <T v="forte" style={{ color: tinta, fontSize: 15 }}>
         {nome}
       </T>

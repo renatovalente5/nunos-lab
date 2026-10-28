@@ -9,10 +9,10 @@ import { useEffect } from 'react';
 import { Image, Pressable, View } from 'react-native';
 import { Esqueleto, SemLigacao } from '../../componentes/estados';
 import { Icone } from '../../componentes/icone';
-import { Botao, Ecra, Grupo, Rotulo } from '../../componentes/pecas';
+import { Botao, Ecra, Grupo, Rotulo, Separador } from '../../componentes/pecas';
 import { T } from '../../componentes/texto';
 import { abrir, contar, definirTitulo, useDados } from '../../dados';
-import { cor, MARGEM, raio } from '../../tema';
+import { CONTINUO, cor, MARGEM, raio } from '../../tema';
 
 const palavra = require('../../../assets/marca/palavra.png');
 const lema = require('../../../assets/marca/lema.png');
@@ -24,7 +24,7 @@ export default function Barbearia() {
 
   return (
     <Ecra>
-      <View style={{ paddingHorizontal: MARGEM, paddingTop: 18, gap: 16 }}>
+      <View style={{ paddingHorizontal: MARGEM, paddingTop: 10, gap: 16 }}>
         <Image
           source={palavra}
           style={{ width: 260, height: Math.round((260 * 227) / 1200) }}
@@ -34,7 +34,7 @@ export default function Barbearia() {
         />
         <Image
           source={lema}
-          style={{ width: 230, height: Math.round((230 * 46) / 900), opacity: 0.55 }}
+          style={{ width: 230, height: Math.round((230 * 46) / 900), opacity: 0.6 }}
           resizeMode="contain"
           accessibilityLabel="Cut, ink, coffee, style"
           role="img"
@@ -57,6 +57,7 @@ export default function Barbearia() {
                   borderRadius: raio.grupo,
                   padding: 18,
                   gap: 4,
+                  ...CONTINUO,
                 }}
               >
                 <T v="subtitulo">{l.nome}</T>
@@ -65,7 +66,7 @@ export default function Barbearia() {
                     {semPartir(l.morada)}
                   </T>
                 )}
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
                   {!!l.marcar && (
                     <Botao
                       nome="Marcar"
@@ -145,7 +146,7 @@ export default function Barbearia() {
       )}
 
       <View style={{ alignItems: 'center', marginTop: 34 }}>
-        <Link href="/privacidade" style={{ padding: 10 }}>
+        <Link href="/privacidade" style={{ padding: 12 }}>
           <T v="legenda" style={{ color: cor.texto3 }}>
             Privacidade
           </T>
@@ -170,7 +171,7 @@ function Linha({
 }) {
   return (
     <View>
-      {separador && <View style={{ height: 1, backgroundColor: cor.linha, marginLeft: 56 }} />}
+      {separador && <Separador recuo={56} />}
       <Pressable
         onPress={onPress}
         role="link"
@@ -179,7 +180,7 @@ function Linha({
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: 16,
-          minHeight: 56,
+          minHeight: 58,
           backgroundColor: pressed ? cor.superficieAlta : 'transparent',
         })}
       >

@@ -1,40 +1,54 @@
 import type { IconeDaCategoria, ParceiroPublico } from '@nunos-lab/dominio';
-import { misturar } from '@nunos-lab/dominio';
+import { corParaBranco, misturar } from '@nunos-lab/dominio';
 import { useId, type ReactNode } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { urlDaImagem } from '../dados';
+import { CONTINUO } from '../tema';
 import { Icone } from './icone';
 
 /**
- * A capa de um parceiro: a fotografia dele, ou, sem fotografia, a cor dele com
- * o desenho da categoria em grande. Por cima, um véu escuro em cima e em baixo
- * para o texto branco se ler sobre qualquer fotografia.
+ * A capa de um parceiro: a fotografia dele, ou, sem fotografia, a cor dele em
+ * gradiente com o desenho da categoria em grande. Por cima, um véu escuro em
+ * cima e em baixo, para o texto branco se ler sobre qualquer fotografia. A cor
+ * vem escurecida se for clara, para o branco passar 4,5:1.
  */
 export function Capa({
   parceiro,
   icone,
   altura,
   raio = 0,
+  raioBaixo,
   veu = true,
+  borda = false,
   children,
 }: {
   parceiro: Pick<ParceiroPublico, 'cor' | 'capa'>;
   icone: IconeDaCategoria;
   altura: number;
   raio?: number;
+  /** Só os cantos de baixo redondos (a capa da página do parceiro). */
+  raioBaixo?: number;
   veu?: boolean;
+  /** Um fio claro à volta, para o cartão se destacar do preto. */
+  borda?: boolean;
   children?: ReactNode;
 }) {
   const id = `v${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
-  const escura = misturar(parceiro.cor, '#000000', 0.42);
+  const base = corParaBranco(parceiro.cor);
+  const escura = misturar(base, '#000000', 0.45);
   return (
     <View
       style={{
         height: altura,
-        borderRadius: raio,
+        borderTopLeftRadius: raio,
+        borderTopRightRadius: raio,
+        borderBottomLeftRadius: raioBaixo ?? raio,
+        borderBottomRightRadius: raioBaixo ?? raio,
         overflow: 'hidden',
-        backgroundColor: parceiro.cor,
+        backgroundColor: base,
+        ...CONTINUO,
+        ...(borda ? { borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' } : null),
       }}
     >
       {parceiro.capa ? (
@@ -55,7 +69,7 @@ export function Capa({
           >
             <Defs>
               <LinearGradient id={`${id}f`} x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0" stopColor={parceiro.cor} />
+                <Stop offset="0" stopColor={base} />
                 <Stop offset="1" stopColor={escura} />
               </LinearGradient>
             </Defs>
@@ -91,10 +105,10 @@ export function Capa({
         >
           <Defs>
             <LinearGradient id={`${id}v`} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#000000" stopOpacity={0.42} />
+              <Stop offset="0" stopColor="#000000" stopOpacity={0.45} />
               <Stop offset="0.3" stopColor="#000000" stopOpacity={0} />
-              <Stop offset="0.5" stopColor="#000000" stopOpacity={0.04} />
-              <Stop offset="1" stopColor="#000000" stopOpacity={0.84} />
+              <Stop offset="0.5" stopColor="#000000" stopOpacity={0.05} />
+              <Stop offset="1" stopColor="#000000" stopOpacity={0.86} />
             </LinearGradient>
           </Defs>
           <Rect x="0" y="0" width="1" height="1" fill={`url(#${id}v)`} />

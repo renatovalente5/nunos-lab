@@ -8,7 +8,7 @@ import { Icone } from '../../componentes/icone';
 import { Ecra, Grupo, Rotulo, Separador } from '../../componentes/pecas';
 import { T } from '../../componentes/texto';
 import { definirTitulo, useDados } from '../../dados';
-import { cor, LARGURA_MAXIMA, MARGEM, raio } from '../../tema';
+import { CONTINUO, cor, LARGURA_MAXIMA, MARGEM, raio } from '../../tema';
 
 const palavra = require('../../../assets/marca/palavra.png');
 
@@ -46,17 +46,10 @@ export default function Vantagens() {
 
   return (
     <Ecra>
-      <View
-        style={{
-          paddingHorizontal: MARGEM,
-          flexDirection: 'row',
-          alignItems: 'center',
-          minHeight: 44,
-        }}
-      >
+      <View style={{ paddingHorizontal: MARGEM, minHeight: 44, justifyContent: 'center' }}>
         <Image
           source={palavra}
-          style={{ width: 168, height: Math.round((168 * 227) / 1200) }}
+          style={{ width: 200, height: Math.round((200 * 227) / 1200) }}
           resizeMode="contain"
           accessibilityLabel="Nuno's Lab"
           role="img"
@@ -75,10 +68,11 @@ export default function Vantagens() {
             borderRadius: raio.grupo,
             paddingHorizontal: 16,
             paddingVertical: 14,
+            ...CONTINUO,
           }}
           role="status"
         >
-          <Icone nome="aviso" tamanho={20} />
+          <Icone nome="aviso" tamanho={20} espessura={2} />
           <T v="forte" style={{ flex: 1, fontSize: 15 }}>
             {data.aviso}
           </T>
@@ -90,7 +84,7 @@ export default function Vantagens() {
 
       {data && destaques.length > 0 && (
         <>
-          <Rotulo>Em destaque</Rotulo>
+          <Rotulo style={{ marginTop: 28 }}>Em destaque</Rotulo>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -127,6 +121,7 @@ export default function Vantagens() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: MARGEM, gap: 8, marginBottom: 14 }}
               role="radiogroup"
+              aria-label="Categorias"
             >
               {[{ id: null as number | null, nome: 'Tudo' }, ...data.categorias].map((k) => {
                 const activa = escolhida === k.id;
@@ -138,7 +133,7 @@ export default function Vantagens() {
                     aria-checked={activa}
                     style={({ pressed }) => ({
                       paddingHorizontal: 16,
-                      height: 38,
+                      height: 40,
                       justifyContent: 'center',
                       borderRadius: raio.pilula,
                       backgroundColor: activa ? cor.claro : cor.superficie,

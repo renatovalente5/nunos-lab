@@ -1,4 +1,5 @@
 import {
+  degrauDoDesconto,
   semPartir,
   validadeEmTexto,
   type Categoria,
@@ -7,11 +8,12 @@ import {
   type PromocaoPublica,
 } from '@nunos-lab/dominio';
 import { useState } from 'react';
-import { Platform, Pressable, View } from 'react-native';
-import { cor, raio } from '../tema';
+import { Platform, Pressable, View, type TextStyle } from 'react-native';
+import { CONTINUO, cor, letra, MARGEM, raio } from '../tema';
 import { Capa } from './capa';
+import { Icone } from './icone';
 import { Logotipo } from './logotipo';
-import { EtiquetaExemplo } from './pecas';
+import { EtiquetaExemplo, EtiquetaNovo } from './pecas';
 import { T } from './texto';
 
 export function iconeDe(parceiro: ParceiroPublico, categorias: Categoria[]): IconeDaCategoria {
@@ -21,6 +23,24 @@ export function iconeDe(parceiro: ParceiroPublico, categorias: Categoria[]): Ico
 export function categoriaELocal(parceiro: ParceiroPublico, categorias: Categoria[]): string {
   const nome = categorias.find((k) => k.id === parceiro.categoriaId)?.nome;
   return [nome, parceiro.localidade].filter(Boolean).join(' · ');
+}
+
+/**
+ * O tamanho do desconto em cada sítio, por degraus de letras (até às 12 do
+ * campo): o React Native Web não encolhe o texto sozinho.
+ */
+const ESCALA_DO_DESTAQUE = [46, 38, 30, 24] as const;
+const ESCALA_DO_BILHETE = [36, 30, 26, 22] as const;
+
+function letraDoDesconto(destaque: string, escala: readonly number[], tinta: string): TextStyle {
+  const tamanho = escala[degrauDoDesconto(destaque)]!;
+  return {
+    color: tinta,
+    fontFamily: letra.extra,
+    fontSize: tamanho,
+    lineHeight: Math.round(tamanho * 1.08),
+    letterSpacing: -tamanho * 0.035,
+  };
 }
 
 /** Um cartão grande do carrossel «Em destaque»: a vantagem em grande, sobre a capa. */
@@ -50,34 +70,43 @@ export function CartaoDestaque({
         Platform.OS === 'web' ? ({ scrollSnapAlign: 'start' } as object) : null,
       ]}
     >
-      <Capa parceiro={parceiro} icone={icone} altura={Math.round(largura * 1.2)} raio={raio.cartao}>
+      <Capa
+        parceiro={parceiro}
+        icone={icone}
+        altura={Math.round(largura * 1.2)}
+        raio={raio.cartao}
+        borda
+      >
         <View
           style={{
             position: 'absolute',
-            top: 14,
-            left: 14,
-            right: 14,
+            top: 16,
+            left: 16,
+            right: 16,
             flexDirection: 'row',
             alignItems: 'center',
             gap: 10,
           }}
         >
-          <Logotipo parceiro={parceiro} tamanho={34} />
-          <T v="forte" style={{ color: '#FFFFFF', flexShrink: 1, fontSize: 15 }} numberOfLines={2}>
+          <Logotipo parceiro={parceiro} tamanho={36} />
+          <T v="forte" style={{ color: '#FFFFFF', flexShrink: 1 }} numberOfLines={2}>
             {parceiro.nome}
           </T>
         </View>
         <View style={{ position: 'absolute', left: 18, right: 18, bottom: 18 }}>
-          <T v="destaque" style={{ color: '#FFFFFF' }} numberOfLines={1} adjustsFontSizeToFit>
+          <T
+            style={letraDoDesconto(promocao.destaque, ESCALA_DO_DESTAQUE, '#FFFFFF')}
+            numberOfLines={1}
+          >
             {semPartir(promocao.destaque)}
           </T>
-          <T v="tituloCartao" style={{ color: '#FFFFFF' }} numberOfLines={2}>
+          <T v="tituloCartao" style={{ color: '#FFFFFF', marginTop: 2 }} numberOfLines={2}>
             {semPartir(promocao.titulo)}
           </T>
           {(validade || parceiro.exemplo) && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 }}>
               {validade && (
-                <T v="legenda" style={{ color: 'rgba(255,255,255,0.82)' }}>
+                <T v="legenda" style={{ color: 'rgba(255,255,255,0.85)' }}>
                   {validade}
                 </T>
               )}
@@ -115,6 +144,7 @@ export function LinhaDoParceiro({
         gap: 14,
         paddingHorizontal: 16,
         paddingVertical: 14,
+        minHeight: 74,
         backgroundColor: pressed ? cor.superficieAlta : 'transparent',
       })}
     >
@@ -133,23 +163,7 @@ export function LinhaDoParceiro({
             marginTop: 3,
           }}
         >
-          {parceiro.novo && (
-            <View
-              style={{
-                backgroundColor: cor.claro,
-                borderRadius: 6,
-                paddingHorizontal: 6,
-                paddingVertical: 2,
-              }}
-            >
-              <T
-                v="rotulo"
-                style={{ fontSize: 9.5, lineHeight: 12, letterSpacing: 1, color: cor.sobreClaro }}
-              >
-                Novo
-              </T>
-            </View>
-          )}
+          {parceiro.novo && <EtiquetaNovo />}
           <T v="legenda" style={{ color: cor.texto2 }}>
             {onde}
           </T>
@@ -163,9 +177,10 @@ export function LinhaDoParceiro({
             borderRadius: raio.pilula,
             paddingHorizontal: 11,
             paddingVertical: 6,
+            maxWidth: 128,
           }}
         >
-          <T v="forte" style={{ fontSize: 14, lineHeight: 18 }}>
+          <T v="forte" style={{ fontSize: 14, lineHeight: 18 }} numberOfLines={1}>
             {semPartir(primeira.destaque)}
           </T>
         </View>
@@ -192,15 +207,14 @@ export function CartaoDaPromocao({
       <View
         style={{
           flexDirection: 'row',
+          flexWrap: 'wrap',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
-          gap: 12,
+          columnGap: 12,
+          rowGap: 6,
         }}
       >
-        <T
-          v="destaque"
-          style={{ fontSize: 36, lineHeight: 40, letterSpacing: -1.1, flexShrink: 1 }}
-        >
+        <T style={letraDoDesconto(promocao.destaque, ESCALA_DO_BILHETE, cor.texto)}>
           {semPartir(promocao.destaque)}
         </T>
         {validade && (
@@ -213,9 +227,7 @@ export function CartaoDaPromocao({
               marginTop: 4,
             }}
           >
-            <T v="legenda" style={{ color: cor.texto }}>
-              {validade}
-            </T>
+            <T v="legenda">{validade}</T>
           </View>
         )}
       </View>
@@ -231,14 +243,25 @@ export function CartaoDaPromocao({
           {semPartir(promocao.detalhe)}
         </T>
       )}
+      {longo && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
+          <T v="legenda" style={{ color: cor.texto3 }}>
+            {aberta ? 'Menos' : 'Ver tudo'}
+          </T>
+          <View style={{ transform: [{ rotate: aberta ? '-90deg' : '90deg' }] }}>
+            <Icone nome="seguinte" tamanho={14} cor={cor.texto3} />
+          </View>
+        </View>
+      )}
     </>
   );
   const estilo = {
     backgroundColor: cor.superficie,
     borderRadius: raio.grupo,
     padding: 18,
-    marginHorizontal: 20,
+    marginHorizontal: MARGEM,
     marginBottom: 12,
+    ...CONTINUO,
   };
   if (!longo) return <View style={estilo}>{conteudo}</View>;
   return (

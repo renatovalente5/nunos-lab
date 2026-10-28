@@ -1,5 +1,5 @@
 import type { ParceiroPublico } from '@nunos-lab/dominio';
-import { tintaSobre } from '@nunos-lab/dominio';
+import { corParaBranco } from '@nunos-lab/dominio';
 import { Image, Text, View } from 'react-native';
 import { urlDaImagem } from '../dados';
 import { cor, letra } from '../tema';
@@ -13,8 +13,9 @@ export function iniciaisDe(nome: string): string {
 }
 
 /**
- * O logótipo do parceiro num círculo branco; sem logótipo, as iniciais na cor
- * dele. Está sempre ao lado do nome, por isso o leitor de ecrã salta-o.
+ * O logótipo do parceiro num círculo branco; sem logótipo, as iniciais a branco
+ * sobre a cor dele (escurecida se for clara). Está sempre ao lado do nome, por
+ * isso o leitor de ecrã salta-o.
  */
 export function Logotipo({
   parceiro,
@@ -47,10 +48,10 @@ export function Logotipo({
       </View>
     );
   return (
-    <View style={[base, { backgroundColor: parceiro.cor }]} aria-hidden>
+    <View style={[base, { backgroundColor: corParaBranco(parceiro.cor) }]} aria-hidden>
       <Text
         style={{
-          color: tintaSobre(parceiro.cor),
+          color: '#FFFFFF',
           fontFamily: letra.extra,
           fontSize: Math.round(tamanho * 0.36),
           letterSpacing: -0.4,
