@@ -1,13 +1,34 @@
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
-import { T, cor } from '@nunos-lab/ui';
+import { Botao, T, cor } from '@nunos-lab/ui';
 
-/** Na app nativa a câmara chega com a expo-camera; até lá, o código escreve-se. */
-export function Leitor(_: { aoLer: (texto: string) => void; activo: boolean }) {
+/** A câmara no telemóvel: a expo-camera lê o QR sozinha. */
+export function Leitor({ aoLer, activo }: { aoLer: (texto: string) => void; activo: boolean }) {
+  const [permissao, pedir] = useCameraPermissions();
+  const ultimo = useRef<string>('');
+  useEffect(() => {
+    if (permissao && !permissao.granted && permissao.canAskAgain) pedir().catch(() => {});
+  }, [permissao, pedir]);
+  if (!permissao?.granted)
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32 }}>
+        <T v="legenda" style={{ color: cor.texto2, textAlign: 'center' }}>
+          A Balcão precisa da câmara para ler o cartão.
+        </T>
+        {permissao?.canAskAgain && <Botao nome="Permitir a câmara" onPress={() => pedir()} />}
+      </View>
+    );
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <T v="legenda" style={{ color: cor.texto2 }}>
-        A câmara chega na app nativa.
-      </T>
-    </View>
+    <CameraView
+      style={{ flex: 1 }}
+      facing="back"
+      barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+      onBarcodeScanned={(r) => {
+        if (!activo || r.data === ultimo.current) return;
+        ultimo.current = r.data;
+        aoLer(r.data);
+      }}
+    />
   );
 }

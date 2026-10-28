@@ -14,3 +14,5 @@ export * from './carimbos';
 export * from './campo';
 export * from './entrar';
 export * from './interruptor';
+export * from './armazem';
+export * from './vibrar';

@@ -264,7 +264,11 @@ function Entrar({ estado, mensagem }: { estado: string; mensagem?: string }) {
             {APPLE_CLIENTE ? (
               <BotaoDaApple
                 clienteId={APPLE_CLIENTE}
-                redirectURI={`${location.origin}${(process.env.EXPO_BASE_URL ?? '').replace(/\/$/, '')}/`}
+                redirectURI={
+                  Platform.OS === 'web'
+                    ? `${location.origin}${(process.env.EXPO_BASE_URL ?? '').replace(/\/$/, '')}/`
+                    : ''
+                }
                 aoEntrar={(d) => correr(() => pedir('/entrar/apple', { metodo: 'POST', corpo: d }))}
               />
             ) : null}
@@ -277,7 +281,9 @@ function Entrar({ estado, mensagem }: { estado: string; mensagem?: string }) {
               />
             ) : null}
             <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 10 }}>
-              Entra com a conta que o Nuno registou,{'\n'}ou abre a ligação que te mandaram.
+              {Platform.OS === 'web'
+                ? 'Entra com a conta que o Nuno registou,\nou abre a ligação que te mandaram.'
+                : 'Entra com a conta que o Nuno registou.'}
             </T>
           </>
         )}

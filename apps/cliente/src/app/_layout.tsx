@@ -8,11 +8,11 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { contar } from '../dados';
-import { cor } from '@nunos-lab/ui';
+import { CHAVES_DO_ARMAZEM, CHAVES_SECRETAS, contar } from '../dados';
+import { carregarArmazem, cor } from '@nunos-lab/ui';
 
 const cliente = new QueryClient();
 
@@ -23,8 +23,14 @@ export default function Raiz() {
     Manrope_700Bold,
     Manrope_800ExtraBold,
   });
+  // No telemóvel, o que está guardado (a sessão, a lista) lê-se antes do primeiro ecrã.
+  const [armazemPronto, setArmazemPronto] = useState(Platform.OS === 'web');
+  useEffect(() => {
+    carregarArmazem(CHAVES_DO_ARMAZEM, CHAVES_SECRETAS).finally(() => setArmazemPronto(true));
+  }, []);
   useEffect(() => contar('abrir'), []);
-  if (!prontas && !erro) return <View style={{ flex: 1, backgroundColor: cor.fundo }} />;
+  if ((!prontas && !erro) || !armazemPronto)
+    return <View style={{ flex: 1, backgroundColor: cor.fundo }} />;
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={cliente}>

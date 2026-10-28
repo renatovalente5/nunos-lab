@@ -2,15 +2,30 @@
   "expo": {
     "name": "Nuno's Lab Balcão",
     "slug": "nunos-lab-balcao",
+    "owner": "renatovalente5",
     "scheme": "nunoslab-balcao",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/48dd1aac-1c42-4cc7-9a05-d05c19c07e5c"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0A0A0A",
     "ios": {
       "bundleIdentifier": "pt.nunoslab.balcao",
-      "supportsTablet": true
+      "supportsTablet": false,
+      "usesAppleSignIn": true,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "CFBundleDevelopmentRegion": "pt-PT",
+        "CFBundleName": "Balcão NL"
+      }
     },
     "android": {
       "package": "pt.nunoslab.balcao",
@@ -18,7 +33,13 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0A0A0A"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.CAMERA"],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -43,10 +64,41 @@
         }
       ],
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
+      "expo-apple-authentication",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "A Balcão usa a câmara para ler o cartão do cliente.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.695283550331-1hvqg288aj8dcvmjmu9njnte9cu0ji9d"
+        }
+      ]
     ],
     "experiments": {
       "baseUrl": "/nunos-lab/balcao"
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "48dd1aac-1c42-4cc7-9a05-d05c19c07e5c"
+      }
     }
   }
 }

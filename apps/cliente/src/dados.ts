@@ -1,7 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { diaEmLisboa, type DadosDaApp, type TipoDeContagem } from '@nunos-lab/dominio';
 import { Linking, Platform } from 'react-native';
+import { guardar as guardarNoArmazem, lerSincrono } from '@nunos-lab/ui';
 
+/** A morada da app na web (o telemóvel partilha ligações para aqui). */
+export const SITIO = process.env.EXPO_PUBLIC_SITIO ?? 'https://renatovalente5.github.io/nunos-lab';
 export const API = (
   process.env.EXPO_PUBLIC_API ?? 'https://nunos-lab.renato-lima-valente-dcb.workers.dev'
 ).replace(/\/$/, '');
@@ -11,7 +14,7 @@ const CHAVE = 'nunoslab:dados:1';
 /** A última resposta fica no aparelho: a app abre logo, mesmo sem rede. */
 function lerGuardados(): DadosDaApp | undefined {
   try {
-    const texto = globalThis.localStorage?.getItem(CHAVE);
+    const texto = lerSincrono(CHAVE);
     return texto ? (JSON.parse(texto) as DadosDaApp) : undefined;
   } catch {
     return undefined;
@@ -19,11 +22,7 @@ function lerGuardados(): DadosDaApp | undefined {
 }
 
 function guardar(d: DadosDaApp) {
-  try {
-    globalThis.localStorage?.setItem(CHAVE, JSON.stringify(d));
-  } catch {
-    // Sem espaço ou em modo privado: a app funciona na mesma, só não abre sem rede.
-  }
+  guardarNoArmazem(CHAVE, JSON.stringify(d));
 }
 
 async function buscar(): Promise<DadosDaApp> {
@@ -121,6 +120,7 @@ export function abrir(url: string) {
  * Pages responde 404, e as pré-visualizações do WhatsApp desistem.
  */
 export function ligacaoParaPartilhar(id: number): string {
+  if (Platform.OS !== 'web') return `${SITIO}/?parceiro=${id}`;
   const url = new URL(window.location.href);
   url.pathname = url.pathname.replace(/parceiro\/[^/]*\/?$/, '');
   url.search = `?parceiro=${id}`;
@@ -137,19 +137,14 @@ const CHAVE_DA_CASA = 'nunoslab:casa';
 
 /** A casa do Nuno's Lab que o cliente escolheu (null: todas), guardada no aparelho. */
 export function lerCasa(): number | null {
-  try {
-    const v = globalThis.localStorage?.getItem(CHAVE_DA_CASA);
-    return v && /^\d+$/.test(v) ? Number(v) : null;
-  } catch {
-    return null;
-  }
+  const v = lerSincrono(CHAVE_DA_CASA);
+  return v && /^\d+$/.test(v) ? Number(v) : null;
 }
 
 export function guardarCasa(id: number | null) {
-  try {
-    if (id === null) globalThis.localStorage?.removeItem(CHAVE_DA_CASA);
-    else globalThis.localStorage?.setItem(CHAVE_DA_CASA, String(id));
-  } catch {
-    // Sem armazenamento: a escolha dura até fechar a página.
-  }
+  guardarNoArmazem(CHAVE_DA_CASA, id === null ? null : String(id));
 }
+
+/** As chaves que a app guarda no aparelho (o telemóvel carrega-as ao arrancar). */
+export const CHAVES_DO_ARMAZEM = [CHAVE, CHAVE_DA_CASA, 'nunoslab:eu:1'];
+export const CHAVES_SECRETAS = ['nunoslab:sessao'];

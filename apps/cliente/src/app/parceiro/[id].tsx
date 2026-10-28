@@ -8,7 +8,7 @@ import {
 } from '@nunos-lab/dominio';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { Platform, Pressable, View, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Capa } from '../../componentes/capa';
 import { CartaoDaPromocao, categoriaELocal, iconeDe } from '../../componentes/cartoes';
@@ -113,9 +113,18 @@ export default function PaginaDoParceiro() {
   const p = parceiro;
   const icone = iconeDe(p, data.categorias);
   const partilhavel =
-    Platform.OS === 'web' &&
-    typeof navigator !== 'undefined' &&
-    typeof navigator.share === 'function';
+    Platform.OS !== 'web' ||
+    (typeof navigator !== 'undefined' && typeof navigator.share === 'function');
+  const partilhar = () => {
+    const url = ligacaoParaPartilhar(p.id);
+    const r =
+      Platform.OS === 'web'
+        ? navigator.share({ title: p.nome, url })
+        : Share.share(
+            Platform.OS === 'ios' ? { title: p.nome, url } : { title: p.nome, message: url },
+          );
+    r.catch(() => {});
+  };
   const accoes = [
     p.morada && {
       icone: 'mapa' as const,
@@ -165,15 +174,7 @@ export default function PaginaDoParceiro() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             {p.exemplo && <EtiquetaExemplo sobreFoto />}
             {partilhavel && (
-              <BotaoSobreACapa
-                icone="partilhar"
-                rotulo="Partilhar"
-                onPress={() =>
-                  navigator
-                    .share({ title: p.nome, url: ligacaoParaPartilhar(p.id) })
-                    .catch(() => {})
-                }
-              />
+              <BotaoSobreACapa icone="partilhar" rotulo="Partilhar" onPress={partilhar} />
             )}
           </View>
         </View>

@@ -15,6 +15,7 @@ import type {
   Vale,
 } from '@nunos-lab/dominio';
 import { useEffect, useSyncExternalStore } from 'react';
+import { guardar as guardarNoArmazem, lerSincrono } from '@nunos-lab/ui';
 
 export const API = (
   process.env.EXPO_PUBLIC_API ?? 'https://nunos-lab.renato-lima-valente-dcb.workers.dev'
@@ -31,21 +32,12 @@ const ouvintes = new Set<() => void>();
 const avisar = () => {
   for (const o of ouvintes) o();
 };
-const ler = (chave: string) => {
-  try {
-    return globalThis.localStorage?.getItem(chave) ?? null;
-  } catch {
-    return null;
-  }
-};
-const escrever = (chave: string, valor: string | null) => {
-  try {
-    if (valor === null) globalThis.localStorage?.removeItem(chave);
-    else globalThis.localStorage?.setItem(chave, valor);
-  } catch {
-    // Sem armazenamento.
-  }
-};
+const ler = (chave: string) => lerSincrono(chave);
+const escrever = (chave: string, valor: string | null) => guardarNoArmazem(chave, valor);
+
+/** As chaves que a Balcão guarda no aparelho (o telemóvel carrega-as ao arrancar). */
+export const CHAVES_DO_ARMAZEM = [CHAVE_DO_EU, CHAVE_DA_CASA, CHAVE_DA_FILA];
+export const CHAVES_SECRETAS = [CHAVE_DA_SESSAO];
 
 export const sessao = () => ler(CHAVE_DA_SESSAO);
 export function guardarSessao(t: string | null) {

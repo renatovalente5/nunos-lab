@@ -6,6 +6,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ClienteEu } from '@nunos-lab/dominio';
 import { useSyncExternalStore } from 'react';
+import { Linking, Platform } from 'react-native';
+import { guardar as guardarNoArmazem, lerSincrono } from '@nunos-lab/ui';
 import { API } from './dados';
 
 const CHAVE_DA_SESSAO = 'nunoslab:sessao';
@@ -20,23 +22,12 @@ function avisar() {
 }
 
 export function sessao(): string | null {
-  try {
-    return globalThis.localStorage?.getItem(CHAVE_DA_SESSAO) ?? null;
-  } catch {
-    return null;
-  }
+  return lerSincrono(CHAVE_DA_SESSAO);
 }
 
 export function guardarSessao(testemunho: string | null) {
-  try {
-    if (testemunho) globalThis.localStorage?.setItem(CHAVE_DA_SESSAO, testemunho);
-    else {
-      globalThis.localStorage?.removeItem(CHAVE_DA_SESSAO);
-      globalThis.localStorage?.removeItem(CHAVE_DO_EU);
-    }
-  } catch {
-    // Sem armazenamento: a sessão dura até fechar a página.
-  }
+  guardarNoArmazem(CHAVE_DA_SESSAO, testemunho);
+  if (!testemunho) guardarNoArmazem(CHAVE_DO_EU, null);
   avisar();
 }
 
@@ -110,7 +101,7 @@ async function pedir<T = void>(
 
 function lerEuGuardado(): ClienteEu | undefined {
   try {
-    const texto = globalThis.localStorage?.getItem(CHAVE_DO_EU);
+    const texto = lerSincrono(CHAVE_DO_EU);
     return texto ? (JSON.parse(texto) as ClienteEu) : undefined;
   } catch {
     return undefined;
@@ -119,11 +110,7 @@ function lerEuGuardado(): ClienteEu | undefined {
 
 async function buscarEu(): Promise<ClienteEu> {
   const eu = await pedir<ClienteEu>('');
-  try {
-    globalThis.localStorage?.setItem(CHAVE_DO_EU, JSON.stringify(eu));
-  } catch {
-    // Sem espaço: abre-se com rede na mesma.
-  }
+  guardarNoArmazem(CHAVE_DO_EU, JSON.stringify(eu));
   return eu;
 }
 
@@ -153,11 +140,7 @@ export function useConta() {
   };
   const actualizar = (eu: ClienteEu) => {
     consultas.setQueryData(['eu'], eu);
-    try {
-      globalThis.localStorage?.setItem(CHAVE_DO_EU, JSON.stringify(eu));
-    } catch {
-      // Sem espaço.
-    }
+    guardarNoArmazem(CHAVE_DO_EU, JSON.stringify(eu));
   };
   return {
     entrarComGoogle: (credencial: string) =>
@@ -197,6 +180,8 @@ export function useConta() {
 
 /** Onde a app está a correr, para mostrar a carteira certa (iPhone: Apple; Android: Google; resto: as duas). */
 export function carteirasDaqui(): { apple: boolean; google: boolean } {
+  if (Platform.OS === 'ios') return { apple: true, google: false };
+  if (Platform.OS === 'android') return { apple: false, google: true };
   if (typeof navigator === 'undefined') return { apple: true, google: true };
   const ua = navigator.userAgent;
   if (/iPhone|iPad|iPod|Macintosh/.test(ua)) return { apple: true, google: false };
@@ -207,7 +192,8 @@ export function carteirasDaqui(): { apple: boolean; google: boolean } {
 /** Pede ao servidor a ligação para pôr o cartão na carteira, e abre-a. */
 export async function abrirNaCarteira(qual: 'apple' | 'google'): Promise<void> {
   const r = await pedir<{ url: string }>(`/wallet/${qual}`, { metodo: 'POST' });
-  if (typeof window !== 'undefined') window.location.href = r.url;
+  if (Platform.OS === 'web') window.location.href = r.url;
+  else await Linking.openURL(r.url);
 }
 
 /** A morada a que a Apple devolve a entrada: a raiz desta app, nesta origem. */

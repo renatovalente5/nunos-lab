@@ -24,6 +24,7 @@ import {
   T,
   cor,
   raio,
+  vibrar,
 } from '@nunos-lab/ui';
 
 function haQuanto(unix: number): string {
@@ -97,6 +98,7 @@ export default function Ficha() {
         });
       } else {
         setEstado('feito');
+        vibrar(r.resultado.completo || r.resultado.cupao ? 'festa' : 'feito');
         setFeito({
           carimbos: r.resultado.cartao.carimbos,
           objectivo: r.resultado.cartao.objectivo,
