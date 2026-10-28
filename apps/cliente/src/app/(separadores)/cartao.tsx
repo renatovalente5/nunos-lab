@@ -31,6 +31,7 @@ import {
   T,
   cor,
   raio,
+  EntradaDeDemonstracao,
 } from '@nunos-lab/ui';
 
 function iniciais(nome: string): string {
@@ -378,7 +379,7 @@ function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
 
 /** Sem conta: um toque na Apple ou no Google e o cartão nasce. */
 function Entrar() {
-  const { entrarComGoogle, entrarComApple } = useConta();
+  const { entrarComGoogle, entrarComApple, entrarComDemonstracao } = useConta();
   const [erro, setErro] = useState<string | null>(null);
   const [aEntrar, setAEntrar] = useState(false);
   const correr = async (f: () => Promise<void>) => {
@@ -410,6 +411,15 @@ function Entrar() {
           aoEntrar={(c) => correr(() => entrarComGoogle(c))}
         />
       ) : null}
+      <EntradaDeDemonstracao
+        aoEnviar={async (codigo) => {
+          try {
+            await entrarComDemonstracao(codigo);
+          } catch (e) {
+            throw new Error(mensagemDe(e));
+          }
+        }}
+      />
       {aEntrar && (
         <T v="legenda" style={{ color: cor.texto2 }}>
           A entrar…

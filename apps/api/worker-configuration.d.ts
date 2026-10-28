@@ -19,6 +19,9 @@ interface __BaseEnv_Env {
   APPLE_CADEIA: string;
   APNS_CHAVE: string;
   WALLET_SEGREDO: string;
+  REVISAO_CODIGO?: string;
+  REVISAO_CLIENTE?: string;
+  REVISAO_PESSOA?: string;
   GOOGLE_WALLET_CONTA: string;
 }
 declare namespace Cloudflare {

@@ -230,16 +230,25 @@ rotasDosClientes.get('/clientes.csv', async (c) => {
   });
 });
 
-/** Apaga os clientes de exemplo, com os cartões e os carimbos deles. */
+/**
+ * Apaga os clientes de exemplo, com os cartões e os carimbos deles, e a equipa
+ * de exemplo. Ficam o cliente e a pessoa da porta da revisão das lojas
+ * (REVISAO_CLIENTE, REVISAO_PESSOA): a Apple e a Google entram por eles.
+ */
 rotasDosClientes.delete('/clientes/exemplos', async (c) => {
   const db = c.env.DB;
+  const guardarCliente = c.env.REVISAO_CLIENTE ?? '';
+  const guardarPessoa = Number(c.env.REVISAO_PESSOA ?? 0);
   // O «changes» do D1 conta as linhas em cascata (cartões, carimbos): conta-se antes.
   const n = await db
-    .prepare('SELECT count(*) AS n FROM clientes WHERE exemplo = 1')
+    .prepare('SELECT count(*) AS n FROM clientes WHERE exemplo = 1 AND codigo IS NOT ?')
+    .bind(guardarCliente)
     .first<{ n: number }>();
   await db.batch([
-    db.prepare('DELETE FROM clientes WHERE exemplo = 1'),
-    db.prepare("DELETE FROM equipa WHERE email IS NULL AND nome LIKE '% (exemplo)'"),
+    db.prepare('DELETE FROM clientes WHERE exemplo = 1 AND codigo IS NOT ?').bind(guardarCliente),
+    db
+      .prepare("DELETE FROM equipa WHERE email IS NULL AND nome LIKE '% (exemplo)' AND id IS NOT ?")
+      .bind(guardarPessoa),
     registar(c, 'clientes.exemplos_apagados'),
   ]);
   return c.json({ apagados: n?.n ?? 0 });

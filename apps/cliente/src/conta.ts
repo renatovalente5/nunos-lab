@@ -49,6 +49,7 @@ const MENSAGENS: Record<string, string> = {
   apple_invalido: 'A Apple não confirmou a entrada. Tenta outra vez.',
   apple_desligado: 'Entrar com a Apple ainda não está disponível.',
   muitas_tentativas: 'Demasiadas tentativas. Espera um minuto.',
+  codigo_invalido: 'Código errado.',
   prova_recente: 'Para mudar isto, entra outra vez.',
   noutra_conta: 'Essa conta já está ligada a outro cartão.',
   forma_actual: 'É a forma com que entraste agora. Entra por outra e volta aqui.',
@@ -149,6 +150,10 @@ export function useConta() {
       ),
     entrarComApple: (dados: { token: string; nonce: string; nome: string | null }) =>
       pedir<{ sessao: string }>('/entrar/apple', { metodo: 'POST', corpo: dados }).then(entrou),
+    entrarComDemonstracao: (codigo: string) =>
+      pedir<{ sessao: string }>('/entrar/demonstracao', { metodo: 'POST', corpo: { codigo } }).then(
+        entrou,
+      ),
     perfil: (p: { nome?: string; aniversario?: string | null; lojaId?: number | null }) =>
       pedir<ClienteEu>('/perfil', { metodo: 'PATCH', corpo: p }).then(actualizar),
     juntarGoogle: (credencial: string) =>

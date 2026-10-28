@@ -1437,6 +1437,37 @@ await passo('apagar a conta deixa os carimbos sem dono, e a pessoa fora das list
   assert.equal(renascido.cortes, 0, 'entrar outra vez é uma conta nova, vazia');
 });
 
+await passo('a porta da revisão das lojas entra com o código de demonstração', async () => {
+  // Sem código, ou com o código errado, não existe nada.
+  assert.equal((await pedir('/api/revisao')).status, 404);
+  const errado = await pedir('/api/eu/entrar/demonstracao', {
+    method: 'POST',
+    body: json({ codigo: 'nao-e-este' }),
+  });
+  assert.equal(errado.status, 401);
+  // O .dev.vars tem REVISAO_CODIGO=DEMOLOCAL2026, REVISAO_CLIENTE=JMP7ZT8A e REVISAO_PESSOA=905.
+  const pagina = await pedir('/api/revisao?codigo=DEMOLOCAL2026');
+  assert.equal(pagina.status, 200);
+  const html = await pagina.text();
+  assert.ok(html.includes('<svg') && html.includes('JMP7 ZT8A'), 'a página traz o QR e o código');
+  const cliente = await (
+    await pedir('/api/eu/entrar/demonstracao', {
+      method: 'POST',
+      body: json({ codigo: 'DEMOLOCAL2026' }),
+    })
+  ).json();
+  const eu = await (await pedir('/api/eu', { token: cliente.sessao })).json();
+  assert.equal(eu.codigo, 'JMP7ZT8A');
+  const balcao = await (
+    await pedir('/api/balcao/entrar/demonstracao', {
+      method: 'POST',
+      body: json({ codigo: 'DEMOLOCAL2026' }),
+    })
+  ).json();
+  const pessoa = await (await pedir('/api/balcao/eu', { token: balcao.sessao })).json();
+  assert.equal(pessoa.pessoa.id, 905);
+});
+
 await passo(
   'tirar alguém da equipa termina a sessão dele; apagar os exemplos limpa tudo',
   async () => {
@@ -1446,9 +1477,14 @@ await passo(
     );
     assert.equal((await pedir('/api/balcao/eu', { token: tokenBalcao })).status, 401);
     const r = await (await pedir('/api/bo/clientes/exemplos', { method: 'DELETE', token })).json();
-    assert.equal(r.apagados, 60);
+    // Ficam o cliente (JMP7ZT8A) e a pessoa (905) da porta da revisão das lojas.
+    assert.equal(r.apagados, 59);
     const equipa = await (await pedir('/api/bo/equipa', { token })).json();
-    assert.ok(!equipa.some((p) => p.nome.endsWith('(exemplo)')));
+    assert.deepEqual(
+      equipa.filter((p) => p.nome.endsWith('(exemplo)')).map((p) => p.id),
+      [905],
+    );
+    assert.equal((await pedir('/api/revisao?codigo=DEMOLOCAL2026')).status, 200);
   },
 );
 

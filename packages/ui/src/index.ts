@@ -16,3 +16,4 @@ export * from './entrar';
 export * from './interruptor';
 export * from './armazem';
 export * from './vibrar';
+export * from './demonstracao';

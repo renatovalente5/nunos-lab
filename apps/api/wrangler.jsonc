@@ -46,7 +46,12 @@
     "ORIGEM_DA_API": "https://nunos-lab.renato-lima-valente-dcb.workers.dev",
     // A Google Wallet: o emissor (a conta de serviço é segredo).
     "GOOGLE_WALLET_EMISSOR": "3388000000023200429",
+    // A porta da revisão das lojas: o cliente de exemplo (código do cartão) e a
+    // pessoa da equipa de exemplo em que o código de demonstração entra. O
+    // código em si é segredo (REVISAO_CODIGO, em ~/Chaves/nunos-lab/).
+    "REVISAO_CLIENTE": "JMP7ZT8A",
+    "REVISAO_PESSOA": "905",
   },
   // Os segredos (wrangler secret put): APPLE_CERTIFICADO, APPLE_CHAVE, APPLE_CADEIA,
-  // APNS_CHAVE, WALLET_SEGREDO, GOOGLE_WALLET_CONTA, GOOGLE_WALLET_EMISSOR.
+  // APNS_CHAVE, WALLET_SEGREDO, GOOGLE_WALLET_CONTA, REVISAO_CODIGO.
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CONTINUO, cor, LARGURA_MAXIMA, MARGEM, raio } from './tema';
 import { Icone } from './icone';
@@ -20,71 +20,77 @@ export function Folha({
   const margens = useSafeAreaInsets();
   return (
     <Modal visible={aberta} transparent animationType="slide" onRequestClose={fechar}>
-      <Pressable
-        onPress={fechar}
-        aria-label="Fechar"
-        style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          justifyContent: 'flex-end',
-          alignItems: 'center',
-        }}
+      {/* Com o teclado aberto (o campo do código), a folha sobe com ele. */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
       >
         <Pressable
-          onPress={() => {}}
-          role="dialog"
-          aria-modal
-          aria-label={titulo}
+          onPress={fechar}
+          aria-label="Fechar"
           style={{
-            width: '100%',
-            maxWidth: LARGURA_MAXIMA,
-            backgroundColor: cor.superficie,
-            borderTopLeftRadius: raio.cartao,
-            borderTopRightRadius: raio.cartao,
-            paddingBottom: margens.bottom + 16,
-            ...CONTINUO,
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
           }}
         >
-          <View
+          <Pressable
+            onPress={() => {}}
+            role="dialog"
+            aria-modal
+            aria-label={titulo}
             style={{
-              alignSelf: 'center',
-              width: 36,
-              height: 5,
-              borderRadius: 3,
-              backgroundColor: cor.linha,
-              marginTop: 8,
-            }}
-          />
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingHorizontal: MARGEM,
-              paddingTop: 14,
-              paddingBottom: 8,
+              width: '100%',
+              maxWidth: LARGURA_MAXIMA,
+              backgroundColor: cor.superficie,
+              borderTopLeftRadius: raio.cartao,
+              borderTopRightRadius: raio.cartao,
+              paddingBottom: margens.bottom + 16,
+              ...CONTINUO,
             }}
           >
-            <T v="seccao">{titulo}</T>
-            <Pressable
-              onPress={fechar}
-              role="button"
-              aria-label="Fechar"
-              style={({ pressed }) => ({
+            <View
+              style={{
+                alignSelf: 'center',
                 width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: pressed ? cor.linha : cor.superficieAlta,
+                height: 5,
+                borderRadius: 3,
+                backgroundColor: cor.linha,
+                marginTop: 8,
+              }}
+            />
+            <View
+              style={{
+                flexDirection: 'row',
                 alignItems: 'center',
-                justifyContent: 'center',
-              })}
+                justifyContent: 'space-between',
+                paddingHorizontal: MARGEM,
+                paddingTop: 14,
+                paddingBottom: 8,
+              }}
             >
-              <Icone nome="fechar" tamanho={18} espessura={2.2} />
-            </Pressable>
-          </View>
-          {children}
+              <T v="seccao">{titulo}</T>
+              <Pressable
+                onPress={fechar}
+                role="button"
+                aria-label="Fechar"
+                style={({ pressed }) => ({
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: pressed ? cor.linha : cor.superficieAlta,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                })}
+              >
+                <Icone nome="fechar" tamanho={18} espessura={2.2} />
+              </Pressable>
+            </View>
+            {children}
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

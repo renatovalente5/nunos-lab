@@ -30,6 +30,7 @@ import {
   T,
   cor,
   raio,
+  EntradaDeDemonstracao,
 } from '@nunos-lab/ui';
 
 const palavra = require('../../assets/marca/palavra.png');
@@ -280,6 +281,22 @@ function Entrar({ estado, mensagem }: { estado: string; mensagem?: string }) {
                 }
               />
             ) : null}
+            <EntradaDeDemonstracao
+              aoEnviar={async (codigo) => {
+                try {
+                  guardarSessao(
+                    (
+                      await pedir<{ sessao: string }>('/entrar/demonstracao', {
+                        metodo: 'POST',
+                        corpo: { codigo },
+                      })
+                    ).sessao,
+                  );
+                } catch (e) {
+                  throw new Error(mensagemDe(e));
+                }
+              }}
+            />
             <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 10 }}>
               {Platform.OS === 'web'
                 ? 'Entra com a conta que o Nuno registou,\nou abre a ligação que te mandaram.'

@@ -87,6 +87,7 @@ const MENSAGENS: Record<string, string> = {
   apple_desligado: 'Entrar com a Apple ainda não está disponível.',
   sem_acesso: 'Esta conta não está na equipa. Pede ao Nuno para a juntar.',
   muitas_tentativas: 'Demasiadas tentativas. Espera um minuto.',
+  codigo_invalido: 'Código errado.',
   cartao_desconhecido: 'Este código não é de nenhum cartão.',
   outra_casa: 'Este cartão não se carimba nesta casa com a tua conta.',
   so_barbearia: 'A tua conta não carimba.',
