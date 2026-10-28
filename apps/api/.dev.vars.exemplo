@@ -1,2 +1,4 @@
 # Copiar para .dev.vars (não vai para o git): as origens do localhost.
 ORIGENS=http://localhost:8871,http://localhost:8872,http://localhost:8873
+# A morada desta API em local: vai dentro de cada passe da Wallet.
+ORIGEM_DA_API=http://localhost:8870

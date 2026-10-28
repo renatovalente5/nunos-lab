@@ -28,6 +28,7 @@ import {
 import { DIA, agora, corpo, idDaMorada, recusar } from '../util.ts';
 import { entrarComIdentidade, juntarIdentidade, type IdentidadeProvada } from './identidade.ts';
 import { abrirSessaoDoCliente, provaRecente } from './sessao.ts';
+import { appleLigada, googleLigada, tocarPasse } from '../wallet/servico.ts';
 
 const Google = z.object({ credencial: z.string().min(20).max(4096) });
 const Apple = z.object({
@@ -226,6 +227,7 @@ async function lerEu(c: C): Promise<ClienteEu> {
     programa: { objectivo: programa.objectivo, recompensa: programa.recompensa },
     activo: r[8]!.results.length > 0,
     vales: r[7]!.results as ClienteEu['vales'],
+    wallet: { apple: appleLigada(c.env), google: googleLigada(c.env) },
   };
 }
 
@@ -259,6 +261,7 @@ rotasDaConta.patch('/perfil', async (c) => {
     .prepare(`UPDATE clientes SET ${partes.join(', ')} WHERE id = ?`)
     .bind(...valores, id)
     .run();
+  if (p.nome !== undefined) tocarPasse(c, id);
   return c.json(await lerEu(c));
 });
 
@@ -371,6 +374,7 @@ rotasDaConta.post('/perdi-o-telemovel', async (c) => {
       .prepare('UPDATE clientes SET codigo = ?, codigo_versao = codigo_versao + 1 WHERE id = ?')
       .bind(codigo, id),
   ]);
+  tocarPasse(c, id);
   return c.json(await lerEu(c));
 });
 

@@ -243,6 +243,8 @@ export type ClienteEu = {
   activo: boolean;
   /** As vantagens validadas nos parceiros, da mais recente para a mais antiga. */
   vales: ValeDoCliente[];
+  /** Que carteiras estão ligadas no servidor (os botões da app). */
+  wallet: { apple: boolean; google: boolean };
 };
 
 export type ValeDoCliente = {

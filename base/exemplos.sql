@@ -16,13 +16,13 @@ INSERT INTO categorias (id, nome, icone, ordem) VALUES
   (5, 'Saúde', 'saude', 5),
   (6, 'Beleza', 'beleza', 6);
 
-INSERT INTO lojas (id, nome, morada, telefone, marcar, ordem) VALUES
+INSERT INTO lojas (id, nome, morada, telefone, marcar, ordem, lat, lng) VALUES
   (1, 'Nogueira do Cravo', 'Avenida dos Descobrimentos, 912, 3700-766 Nogueira do Cravo', '',
-   'https://www.fresha.com/pt/a/nunos-lab-nogueira-do-cravo-nogueira-do-cravo-avenida-dos-descobrimentos-n912-3700-766-j20blx7u/all-offer?multi=true&menu=true', 1),
+   'https://www.fresha.com/pt/a/nunos-lab-nogueira-do-cravo-nogueira-do-cravo-avenida-dos-descobrimentos-n912-3700-766-j20blx7u/all-offer?multi=true&menu=true', 1, 40.8840641, -8.4517073),
   (2, 'Santa Maria da Feira', 'Avenida 25 de Abril, Santa Maria da Feira', '',
-   'https://www.fresha.com/pt/a/nunos-lab-santa-maria-da-feira-santa-maria-da-feira-avenida-25-de-abril-eeyb97nf/all-offer?multi=true&menu=true', 2),
+   'https://www.fresha.com/pt/a/nunos-lab-santa-maria-da-feira-santa-maria-da-feira-avenida-25-de-abril-eeyb97nf/all-offer?multi=true&menu=true', 2, 41.0484371, -8.4890838),
   (3, 'Aveiro', 'Rua de Viseu, 128, Aveiro', '',
-   'https://www.fresha.com/pt/a/nunos-lab-aveiro-aveiro-rua-de-viseu-128-nxl4odg8/all-offer?multi=true&menu=true', 3);
+   'https://www.fresha.com/pt/a/nunos-lab-aveiro-aveiro-rua-de-viseu-128-nxl4odg8/all-offer?multi=true&menu=true', 3, 40.6457766, -8.6408181);
 
 INSERT INTO definicoes (chave, valor) VALUES
   ('instagram', 'nunoslab'),

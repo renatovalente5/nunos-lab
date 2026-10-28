@@ -42,6 +42,7 @@ import {
   type LinhaCartao,
 } from '../programa.ts';
 import { DIA, agora, corpo, recusar, traduzirErroDaBase } from '../util.ts';
+import { tocarPasse } from '../wallet/servico.ts';
 import type { LinhaPromocao } from '../linhas.ts';
 
 export const rotasDaBalcao = new Hono<Ambiente>();
@@ -292,6 +293,7 @@ async function carimbar(
     traduzirErroDaBase(e);
   }
   const novo = r[0]!.results[0] as { id: number; criado_em: number };
+  tocarPasse(c, cliente.id);
   return {
     carimboId: novo.id,
     cartao: {
@@ -369,6 +371,7 @@ rotasDaBalcao.post('/anular', async (c) => {
     if (seguinte) instrucoes.push(db.prepare('DELETE FROM cartoes WHERE id = ?').bind(seguinte.id));
   }
   await db.batch(instrucoes);
+  tocarPasse(c, x.cliente_id);
   return c.body(null, 204);
 });
 
@@ -391,6 +394,7 @@ rotasDaBalcao.post('/usar-recompensa', async (c) => {
     .bind(loja, c.get('pessoa').id, cartaoId, cliente.id)
     .first();
   if (!usado) recusar(409, 'recompensa_usada');
+  tocarPasse(c, cliente.id);
   return c.json(await ficha(c, cliente));
 });
 

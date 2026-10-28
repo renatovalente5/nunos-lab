@@ -195,6 +195,21 @@ export function useConta() {
   };
 }
 
+/** Onde a app está a correr, para mostrar a carteira certa (iPhone: Apple; Android: Google; resto: as duas). */
+export function carteirasDaqui(): { apple: boolean; google: boolean } {
+  if (typeof navigator === 'undefined') return { apple: true, google: true };
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod|Macintosh/.test(ua)) return { apple: true, google: false };
+  if (/Android/.test(ua)) return { apple: false, google: true };
+  return { apple: true, google: true };
+}
+
+/** Pede ao servidor a ligação para pôr o cartão na carteira, e abre-a. */
+export async function abrirNaCarteira(qual: 'apple' | 'google'): Promise<void> {
+  const r = await pedir<{ url: string }>(`/wallet/${qual}`, { metodo: 'POST' });
+  if (typeof window !== 'undefined') window.location.href = r.url;
+}
+
 /** A morada a que a Apple devolve a entrada: a raiz desta app, nesta origem. */
 export function moradaDeRetornoDaApple(): string {
   if (typeof window === 'undefined') return '';

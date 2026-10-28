@@ -7,6 +7,8 @@ import { CartaoDoCliente } from '../../componentes/cartao';
 import {
   APPLE_CLIENTE,
   GOOGLE_CLIENTE,
+  abrirNaCarteira,
+  carteirasDaqui,
   mensagemDe,
   moradaDeRetornoDaApple,
   useConta,
@@ -150,6 +152,8 @@ export default function Cartao() {
             </View>
           </Pressable>
 
+          <Carteiras apple={eu.wallet.apple} google={eu.wallet.google} />
+
           {eu.visitas.length > 0 && (
             <>
               <Rotulo>Últimas visitas</Rotulo>
@@ -244,6 +248,68 @@ export default function Cartao() {
         </Pressable>
       )}
     </Ecra>
+  );
+}
+
+/** «Adicionar à Apple Wallet» / «Adicionar à Google Wallet»: o passe actualiza-se a cada carimbo. */
+function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
+  const daqui = carteirasDaqui();
+  const [aAbrir, setAAbrir] = useState<'apple' | 'google' | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const mostrarApple = apple && daqui.apple;
+  const mostrarGoogle = google && daqui.google;
+  if (!mostrarApple && !mostrarGoogle) return null;
+  const abrir = async (qual: 'apple' | 'google') => {
+    setAAbrir(qual);
+    setErro(null);
+    try {
+      await abrirNaCarteira(qual);
+    } catch (e) {
+      setErro(mensagemDe(e));
+    } finally {
+      setTimeout(() => setAAbrir(null), 1500);
+    }
+  };
+  const Botao = ({ qual, nome }: { qual: 'apple' | 'google'; nome: string }) => (
+    <Pressable
+      onPress={() => abrir(qual)}
+      role="button"
+      aria-label={nome}
+      aria-disabled={aAbrir !== null}
+      style={({ pressed }) => ({
+        height: 50,
+        borderRadius: 999,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 9,
+        backgroundColor: qual === 'apple' ? '#000000' : '#FFFFFF',
+        borderWidth: 1,
+        borderColor: qual === 'apple' ? '#3A3A3A' : '#E0DED8',
+        opacity: pressed || aAbrir ? 0.8 : 1,
+      })}
+    >
+      <Icone
+        nome="cartao"
+        tamanho={18}
+        cor={qual === 'apple' ? '#FFFFFF' : '#0A0A0A'}
+        espessura={2.2}
+      />
+      <T v="forte" style={{ color: qual === 'apple' ? '#FFFFFF' : '#0A0A0A', fontSize: 15 }}>
+        {aAbrir === qual ? 'A preparar…' : nome}
+      </T>
+    </Pressable>
+  );
+  return (
+    <View style={{ paddingHorizontal: MARGEM, marginTop: 14, gap: 10 }}>
+      {mostrarApple && <Botao qual="apple" nome="Adicionar à Apple Wallet" />}
+      {mostrarGoogle && <Botao qual="google" nome="Adicionar à Google Wallet" />}
+      {erro && (
+        <T v="legenda" role="alert" style={{ color: '#E07A72', textAlign: 'center' }}>
+          {erro}
+        </T>
+      )}
+    </View>
   );
 }
 

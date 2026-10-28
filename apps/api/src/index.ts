@@ -14,6 +14,7 @@ import { rotasDaConta, rotasDeEntradaDoCliente } from './cliente/conta.ts';
 import { exigirCliente } from './cliente/sessao.ts';
 import { limpar } from './limpeza.ts';
 import { rotasPublicas } from './publico.ts';
+import { rotasDaWallet, rotasDaWalletDoCliente } from './wallet/rotas.ts';
 
 const app = new Hono<Ambiente>();
 
@@ -50,6 +51,9 @@ app.route('/api/eu', rotasDeEntradaDoCliente);
 app.use('/api/eu', exigirCliente);
 app.use('/api/eu/*', exigirCliente);
 app.route('/api/eu', rotasDaConta);
+app.route('/api/eu', rotasDaWalletDoCliente);
+// A Wallet: o serviço web da Apple e a ligação temporária do passe (sem CORS: é o iPhone a falar).
+app.route('/api/wallet', rotasDaWallet);
 app.route('/api/balcao', rotasDeEntradaDaBalcao);
 app.use('/api/balcao/*', exigirPessoa);
 app.route('/api/balcao', rotasDaBalcao);

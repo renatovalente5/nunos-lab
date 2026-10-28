@@ -38,5 +38,15 @@
     // «Entrar com a Apple»: o Services ID (web) e o bundle id (app nativa),
     // separados por vírgulas. Vazio: o botão da Apple não aparece.
     "APPLE_CLIENTES": "pt.nunoslab.web,pt.nunoslab.app",
+    // A Wallet da Apple: o Pass Type ID, a equipa, a chave da APNs (o id; a
+    // chave é segredo) e a morada desta API, que fica dentro de cada passe.
+    "APPLE_PASS_TIPO": "pass.pt.nunoslab.cartao",
+    "APPLE_EQUIPA": "6M2QCLR98V",
+    "APNS_KID": "S639DA6BXD",
+    "ORIGEM_DA_API": "https://nunos-lab.renato-lima-valente-dcb.workers.dev",
+    // A Google Wallet: o emissor (a conta de serviço é segredo).
+    "GOOGLE_WALLET_EMISSOR": "3388000000023200429",
   },
+  // Os segredos (wrangler secret put): APPLE_CERTIFICADO, APPLE_CHAVE, APPLE_CADEIA,
+  // APNS_CHAVE, WALLET_SEGREDO, GOOGLE_WALLET_CONTA, GOOGLE_WALLET_EMISSOR.
 }

@@ -35,6 +35,9 @@ naBaseLocal(
     'sessoes',
     'registo',
     'admins',
+    'registos_apple',
+    'passes',
+    'bilhetes',
     'vales',
     'carimbos',
     'cartoes',
@@ -840,6 +843,150 @@ await passo(
   },
 );
 
+// ——— a Wallet ———
+
+/** Lê um ficheiro de um ZIP só armazenado (o .pkpass): o cabeçalho local, o nome, os bytes. */
+function doZip(bytes, nome) {
+  const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let pos = 0;
+  while (pos + 30 <= bytes.length && v.getUint32(pos, true) === 0x04034b50) {
+    const tamanho = v.getUint32(pos + 18, true);
+    const nomeLen = v.getUint16(pos + 26, true);
+    const extraLen = v.getUint16(pos + 28, true);
+    const nomeDoFicheiro = new TextDecoder().decode(bytes.subarray(pos + 30, pos + 30 + nomeLen));
+    const inicio = pos + 30 + nomeLen + extraLen;
+    if (nomeDoFicheiro === nome) return bytes.subarray(inicio, inicio + tamanho);
+    pos = inicio + tamanho;
+  }
+  return null;
+}
+
+let passe;
+await passo(
+  'o cliente pede o passe da Apple: uma ligação temporária que dá o .pkpass assinado',
+  async () => {
+    const r = await pedir('/api/eu/wallet/apple', { method: 'POST', token: tokenCliente });
+    assert.equal(r.status, 200, 'a Wallet da Apple está ligada no local (.dev.vars)');
+    const { url } = await r.json();
+    assert.ok(url.includes('/api/wallet/apple/passe?'));
+    const pk = await fetch(url);
+    assert.equal(pk.status, 200);
+    assert.equal(pk.headers.get('content-type'), 'application/vnd.apple.pkpass');
+    assert.ok(pk.headers.get('last-modified'));
+    const bytes = new Uint8Array(await pk.arrayBuffer());
+    const json = doZip(bytes, 'pass.json');
+    assert.ok(json, 'tem pass.json');
+    passe = JSON.parse(new TextDecoder().decode(json));
+    assert.equal(passe.passTypeIdentifier, 'pass.pt.nunoslab.cartao');
+    assert.equal(passe.barcode.message, `NL1.${codigoDoCliente}`);
+    assert.equal(passe.storeCard.headerFields[0].value, '0 de 10');
+    assert.ok(doZip(bytes, 'signature').length > 1000, 'tem assinatura');
+    assert.ok(doZip(bytes, 'icon.png') && doZip(bytes, 'logo@2x.png'), 'tem as imagens');
+    assert.equal(passe.locations.length, 3);
+    // A ligação assinada com outra assinatura não serve; caducada também não.
+    assert.equal((await fetch(url.replace(/s=[0-9a-f]+/, 's=' + '0'.repeat(32)))).status, 403);
+    assert.equal((await fetch(url.replace(/a=\d+/, 'a=1'))).status, 410);
+  },
+);
+
+await passo(
+  'o serviço web da Apple: registar o aparelho, saber o que mudou, o passe com 304, sair',
+  async () => {
+    const tipo = passe.passTypeIdentifier;
+    const serie = passe.serialNumber;
+    const auth = { Authorization: `ApplePass ${passe.authenticationToken}` };
+    const base = `/api/wallet/apple/v1/devices/aparelho-de-prova-1/registrations/${tipo}`;
+    assert.equal(
+      (
+        await pedir(`${base}/${serie}`, {
+          method: 'POST',
+          headers: { Authorization: 'ApplePass errado' },
+          body: json({ pushToken: 'ab'.repeat(32) }),
+        })
+      ).status,
+      401,
+    );
+    assert.equal(
+      (
+        await pedir(`${base}/${serie}`, {
+          method: 'POST',
+          headers: auth,
+          body: json({ pushToken: 'ab'.repeat(32) }),
+        })
+      ).status,
+      201,
+    );
+    assert.equal(
+      (
+        await pedir(`${base}/${serie}`, {
+          method: 'POST',
+          headers: auth,
+          body: json({ pushToken: 'ab'.repeat(32) }),
+        })
+      ).status,
+      200,
+      'o mesmo registo outra vez dá 200',
+    );
+    const lista = await pedir(`${base}?passesUpdatedSince=0`);
+    assert.equal(lista.status, 200);
+    const l = await lista.json();
+    assert.deepEqual(l.serialNumbers, [serie]);
+    assert.equal(typeof l.lastUpdated, 'string');
+    assert.equal(
+      (await pedir(`${base}?passesUpdatedSince=${l.lastUpdated}`)).status,
+      204,
+      'nada mudou desde a etiqueta',
+    );
+    const pk = await pedir(`/api/wallet/apple/v1/passes/${tipo}/${serie}`, { headers: auth });
+    assert.equal(pk.status, 200);
+    const data = pk.headers.get('last-modified');
+    assert.equal(
+      (
+        await pedir(`/api/wallet/apple/v1/passes/${tipo}/${serie}`, {
+          headers: { ...auth, 'If-Modified-Since': data },
+        })
+      ).status,
+      304,
+    );
+    // Um carimbo toca o passe: a etiqueta sobe e o passe volta a vir.
+    await new Promise((r) => setTimeout(r, 1100));
+    const c = await pedir('/api/balcao/carimbar', {
+      method: 'POST',
+      token: tokenBalcao,
+      body: json({ codigo: codigoDoCliente, chave: 'prova-wallet-01', lojaId: 3, confirmar: true }),
+    });
+    assert.equal(c.status, 200);
+    await new Promise((r) => setTimeout(r, 600));
+    const depois = await (await pedir(`${base}?passesUpdatedSince=${l.lastUpdated}`)).json();
+    assert.deepEqual(depois.serialNumbers, [serie], 'o passe mudou com o carimbo');
+    const novo = await pedir(`/api/wallet/apple/v1/passes/${tipo}/${serie}`, {
+      headers: { ...auth, 'If-Modified-Since': data },
+    });
+    assert.equal(novo.status, 200);
+    const pj = JSON.parse(
+      new TextDecoder().decode(doZip(new Uint8Array(await novo.arrayBuffer()), 'pass.json')),
+    );
+    assert.equal(pj.storeCard.headerFields[0].value, '1 de 10');
+    assert.equal(
+      (await pedir(`${base}/${serie}`, { method: 'DELETE', headers: auth })).status,
+      200,
+    );
+    assert.equal(
+      (await pedir(`${base}?passesUpdatedSince=0`)).status,
+      204,
+      'sem registos, nada a dizer',
+    );
+    assert.equal(
+      (await pedir('/api/wallet/apple/v1/log', { method: 'POST', body: json({ logs: ['prova'] }) }))
+        .status,
+      200,
+    );
+    const eu = await (await pedir('/api/eu', { token: tokenCliente })).json();
+    assert.equal(eu.wallet.apple, true);
+    assert.equal(eu.wallet.google, true);
+  },
+);
+
 // ——— os vales dos parceiros ———
 
 let tokenParceiro;
@@ -1134,14 +1281,14 @@ await passo('o backoffice vê os clientes, a ficha, o CSV e as métricas', async
   const lista = await (await pedir('/api/bo/clientes', { token })).json();
   assert.ok(lista.length >= 62, `clientes: ${lista.length}`);
   const prova = lista.find((k) => k.codigo === codigoDoCliente);
-  assert.equal(prova.cortes, 10);
+  assert.equal(prova.cortes, 11, '10 + o carimbo da Wallet');
   assert.equal(prova.formas.length, 2);
   const novos = await (await pedir('/api/bo/clientes?estado=novos', { token })).json();
   assert.ok(novos.some((k) => k.id === prova.id));
   const ficha = await (await pedir(`/api/bo/clientes/${prova.id}`, { token })).json();
   assert.equal(ficha.cartoes.length, 2);
   assert.equal(ficha.cartoes[1].usadoPor, 'Prova Barbeiro');
-  assert.equal(ficha.historico.length, 11);
+  assert.equal(ficha.historico.length, 12);
   assert.ok(ficha.historico.some((x) => x.anuladoEm));
   const csv = await pedir('/api/bo/clientes.csv', { token });
   assert.equal(csv.status, 200);
@@ -1156,7 +1303,7 @@ await passo('o backoffice vê os clientes, a ficha, o CSV e as métricas', async
   assert.equal(m.totais.recompensasUsadas >= 1, true);
   assert.ok(
     m.porPessoa.some(
-      (p) => p.nome === 'Prova Barbeiro' && p.n === 10 && p.anulados === 1 && p.recompensas === 1,
+      (p) => p.nome === 'Prova Barbeiro' && p.n === 11 && p.anulados === 1 && p.recompensas === 1,
     ),
   );
   assert.ok(m.clientes.total >= 62);
