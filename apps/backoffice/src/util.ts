@@ -1,4 +1,4 @@
-import { dataCurta, diaEmLisboa } from '@nunos-lab/dominio';
+import { MESES, dataCurta, diaEmLisboa } from '@nunos-lab/dominio';
 import { useEffect, useState } from 'react';
 
 /** «agora», «há 5 min», «há 3 h», «ontem», «há 4 dias», «12 out». */
@@ -42,7 +42,29 @@ export const ACCOES: Record<string, string> = {
   'categoria.apagada': 'apagou a categoria',
   'barbearia.alterada': 'alterou a barbearia',
   'exemplos.apagados': 'apagou os parceiros de exemplo',
+  'programa.alterado': 'alterou o programa de fidelidade:',
+  'servico.criado': 'criou o serviço',
+  'equipa.criada': 'juntou à equipa',
+  'equipa.removida': 'tirou da equipa',
+  'equipa.ligacao': 'criou uma ligação da Balcão para',
+  'clientes.exemplos_apagados': 'apagou os clientes de exemplo',
 };
+
+/** Cêntimos em euros, como se lê: «15,00 €». */
+export function euros(centimos: number): string {
+  return (centimos / 100).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+}
+
+/** Uma fracção em percentagem inteira: 0,623 → «62 %». */
+export function percentagem(fraccao: number): string {
+  return `${Math.round(fraccao * 100)} %`;
+}
+
+/** «AAAA-MM» → «out 2026». */
+export function mesPorExtenso(mes: string): string {
+  const [ano, m] = mes.split('-');
+  return `${MESES[Number(m) - 1] ?? m} ${ano}`;
+}
 
 /** O endereço da página: «#/parceiros/3» → ['parceiros', '3']. */
 export function useRota(): string[] {

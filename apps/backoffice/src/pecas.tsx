@@ -40,6 +40,25 @@ const DESENHOS = {
   ],
   acessos: ['M15 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0z', 'M3 21a8 8 0 0 1 16 0'],
   registo: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 7v5l3.2 2'],
+  metricas: ['M4 4v16h16', 'M8 15l4-5 3 3 5-6'],
+  clientes: [
+    'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z',
+    'M2.5 20a6.5 6.5 0 0 1 13 0',
+    'M16 4.3a3.5 3.5 0 0 1 0 6.7',
+    'M17.5 13.6a6.5 6.5 0 0 1 4 6.4',
+  ],
+  equipa: [
+    'M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z',
+    'M12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+    'M8 17.5a4 4 0 0 1 8 0',
+  ],
+  fidelidade: [
+    'M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+    'M7.5 12h.01',
+    'M12 12h.01',
+    'M16.5 12h.01',
+  ],
+  descarregar: ['M12 4v11', 'M7.5 10.5L12 15l4.5-4.5', 'M5 19h14'],
   mais: ['M12 5v14', 'M5 12h14'],
   voltar: ['M15 5l-7 7 7 7'],
   fechar: ['M6 6l12 12', 'M18 6L6 18'],
@@ -147,6 +166,9 @@ export function Campo({
   placeholder,
   modoDeTeclado,
   autoFocus,
+  minimo,
+  maximo,
+  passo,
 }: {
   rotulo: string;
   valor: string;
@@ -154,11 +176,15 @@ export function Campo({
   max?: number;
   ajuda?: ReactNode;
   erro?: boolean;
-  tipo?: 'text' | 'date' | 'url' | 'tel';
+  tipo?: 'text' | 'date' | 'url' | 'tel' | 'number';
   obrigatorio?: boolean;
   placeholder?: string;
-  modoDeTeclado?: 'text' | 'tel' | 'url';
+  modoDeTeclado?: 'text' | 'tel' | 'url' | 'numeric' | 'decimal';
   autoFocus?: boolean;
+  /** Só para `tipo="number"`. */
+  minimo?: number;
+  maximo?: number;
+  passo?: number;
 }) {
   const id = useId();
   return (
@@ -177,6 +203,9 @@ export function Campo({
         placeholder={placeholder}
         inputMode={modoDeTeclado}
         autoFocus={autoFocus}
+        min={minimo}
+        max={maximo}
+        step={passo}
         aria-invalid={erro || undefined}
         aria-describedby={ajuda || erro ? `${id}-a` : undefined}
         onChange={(e) => mudar(e.target.value)}
@@ -485,6 +514,29 @@ export function Etiqueta({
     <span className={`etiqueta${tom ? ` ${tom}` : ''}${semPonto ? ' sem-ponto' : ''}`}>
       {children}
     </span>
+  );
+}
+
+/** Um número grande num cartão (o Resumo, as Métricas). */
+export function Numero({
+  rotulo,
+  valor,
+  nota,
+  pequeno,
+}: {
+  rotulo: string;
+  valor: number | string;
+  nota?: ReactNode;
+  pequeno?: boolean;
+}) {
+  return (
+    <div className={`cartao numero${pequeno ? ' pequeno' : ''}`}>
+      <div className="rotulo">{rotulo}</div>
+      <div className="valor">
+        {typeof valor === 'number' ? valor.toLocaleString('pt-PT') : valor}
+      </div>
+      {nota && <div className="nota">{nota}</div>}
+    </div>
   );
 }
 

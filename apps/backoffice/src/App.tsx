@@ -6,6 +6,11 @@ import { BotaoDoGoogle, CLIENTE_GOOGLE, emailDoToken } from './google';
 import { Acessos } from './paginas/Acessos';
 import { Barbearia } from './paginas/Barbearia';
 import { Categorias } from './paginas/Categorias';
+import { Cliente } from './paginas/Cliente';
+import { Clientes } from './paginas/Clientes';
+import { Equipa } from './paginas/Equipa';
+import { Fidelidade } from './paginas/Fidelidade';
+import { Metricas } from './paginas/Metricas';
 import { Parceiro } from './paginas/Parceiro';
 import { Parceiros } from './paginas/Parceiros';
 import { Promocoes } from './paginas/Promocoes';
@@ -18,6 +23,10 @@ const PALAVRA = `${import.meta.env.BASE_URL}palavra.png`;
 
 const SECCOES: { caminho: string; nome: string; icone: NomeDoIcone }[] = [
   { caminho: '', nome: 'Resumo', icone: 'resumo' },
+  { caminho: 'metricas', nome: 'Métricas', icone: 'metricas' },
+  { caminho: 'clientes', nome: 'Clientes', icone: 'clientes' },
+  { caminho: 'equipa', nome: 'Equipa', icone: 'equipa' },
+  { caminho: 'fidelidade', nome: 'Fidelidade', icone: 'fidelidade' },
   { caminho: 'parceiros', nome: 'Parceiros', icone: 'parceiros' },
   { caminho: 'promocoes', nome: 'Promoções', icone: 'promocoes' },
   { caminho: 'categorias', nome: 'Categorias', icone: 'categorias' },
@@ -137,7 +146,12 @@ function Casca() {
   if (eu.error instanceof ErroDaApi && eu.error.codigo === 'sessao') return null;
 
   let pagina;
-  if (actual === 'parceiros' && rota[1]) pagina = <Parceiro key={rota[1]} id={rota[1]} />;
+  if (actual === 'metricas') pagina = <Metricas />;
+  else if (actual === 'clientes' && rota[1]) pagina = <Cliente key={rota[1]} id={rota[1]} />;
+  else if (actual === 'clientes') pagina = <Clientes />;
+  else if (actual === 'equipa') pagina = <Equipa />;
+  else if (actual === 'fidelidade') pagina = <Fidelidade />;
+  else if (actual === 'parceiros' && rota[1]) pagina = <Parceiro key={rota[1]} id={rota[1]} />;
   else if (actual === 'parceiros') pagina = <Parceiros />;
   else if (actual === 'promocoes') pagina = <Promocoes />;
   else if (actual === 'categorias') pagina = <Categorias />;

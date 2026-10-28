@@ -217,17 +217,20 @@ rotasDasMetricas.get('/metricas', async (c) => {
     lista.push(m.mes);
     mesesPorCliente.set(m.cliente_id, lista);
   }
-  const mesDe = (dia: string, n: number) => somarDias(dia.slice(0, 7) + '-01', n * 31).slice(0, 7);
+  // Um mês é «AAAA-MM»; somar meses faz-se no calendário, não em dias.
+  const mesMais = (mes: string, n: number) => {
+    const [a, m] = mes.split('-').map(Number) as [number, number];
+    return new Date(Date.UTC(a, m - 1 + n, 1)).toISOString().slice(0, 7);
+  };
+  const esteMes = hoje.slice(0, 7);
   const coortes: Metricas['coortes'] = [];
   for (let i = 11; i >= 0; i--) {
-    let mes = hoje.slice(0, 7);
-    for (let k = 0; k < i; k++) mes = mesDe(mes + '-01', -1);
+    const mes = mesMais(esteMes, -i);
     const entraram = [...mesesPorCliente.values()].filter((ms) => [...ms].sort()[0] === mes);
     const voltaram: number[] = [];
     for (let k = 1; k <= 6; k++) {
-      let seguinte = mes;
-      for (let j = 0; j < k; j++) seguinte = mesDe(seguinte + '-01', 1);
-      if (seguinte > hoje.slice(0, 7)) break;
+      const seguinte = mesMais(mes, k);
+      if (seguinte > esteMes) break;
       voltaram.push(entraram.filter((ms) => ms.includes(seguinte)).length);
     }
     coortes.push({ mes, clientes: entraram.length, voltaram });

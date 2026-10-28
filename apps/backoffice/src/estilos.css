@@ -1261,3 +1261,289 @@ select.entrada {
     display: none;
   }
 }
+
+/* ——— métricas: a variação a cor, os números pequenos, as barras, o mapa de calor ——— */
+.numero .nota .sobe {
+  color: var(--bom);
+  font-weight: 700;
+}
+.numero .nota .desce {
+  color: var(--mau);
+  font-weight: 700;
+}
+.numero.pequeno .valor {
+  font-size: 24px;
+}
+.numeros-pequenos {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.numeros-pequenos .valor {
+  font-size: 24px;
+}
+.barras {
+  padding: 6px 20px;
+}
+.barras .fila {
+  display: grid;
+  grid-template-columns: minmax(120px, 200px) minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 11px 0;
+}
+.barras .fila + .fila {
+  border-top: 1px solid var(--linha);
+}
+.barras .meio {
+  min-width: 0;
+}
+.barras .detalhe {
+  color: var(--tinta-2);
+  font-size: 13.5px;
+  margin-top: 2px;
+}
+.barras .detalhe .sobe {
+  color: var(--bom);
+  font-weight: 700;
+}
+.barras .detalhe .desce {
+  color: var(--mau);
+  font-weight: 700;
+}
+.barras .pista {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--superficie-2);
+  overflow: hidden;
+}
+.barras .cheio {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--tinta);
+}
+.barras .valor {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 32px;
+}
+@media (max-width: 640px) {
+  .barras {
+    padding: 4px 14px;
+  }
+  .barras .fila {
+    grid-template-columns: minmax(96px, 1fr) minmax(56px, 1fr) auto;
+    gap: 10px;
+  }
+}
+.calor {
+  display: grid;
+  grid-template-columns: 34px repeat(24, minmax(0, 1fr));
+  gap: 3px;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.calor .hora,
+.calor .dia {
+  font-size: 11.5px;
+  color: var(--tinta-3);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.calor .celula {
+  background: var(--tinta);
+  border-radius: 4px;
+  aspect-ratio: 1;
+  max-height: 26px;
+}
+.calor .celula.vazia {
+  background: var(--superficie-2);
+}
+@media (max-width: 640px) {
+  .calor {
+    gap: 2px;
+    grid-template-columns: 28px repeat(24, minmax(0, 1fr));
+  }
+  .calor .celula {
+    border-radius: 2px;
+  }
+}
+
+/* ——— tabelas (a equipa, as coortes, os clientes) ——— */
+.rola {
+  overflow-x: auto;
+}
+/* Numa tabela que rola de lado, as células não partem: lê-se a rolar. */
+.rola .quadro td {
+  white-space: nowrap;
+}
+table.quadro {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.quadro th {
+  text-align: left;
+  font-size: 12.5px;
+  color: var(--tinta-3);
+  font-weight: 700;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--linha);
+  white-space: nowrap;
+}
+.quadro td {
+  padding: 12px 14px;
+  vertical-align: middle;
+}
+.quadro th:first-child,
+.quadro td:first-child {
+  padding-left: 20px;
+}
+.quadro th:last-child,
+.quadro td:last-child {
+  padding-right: 20px;
+}
+.quadro tbody tr + tr td {
+  border-top: 1px solid var(--linha);
+}
+.quadro .num {
+  text-align: right;
+}
+.quadro .forte {
+  font-weight: 700;
+}
+.quadro tbody tr.clicavel {
+  cursor: pointer;
+}
+.quadro tbody tr.clicavel:hover {
+  background: #faf9f7;
+}
+.ligacao-nome {
+  text-decoration: none;
+  font-weight: 700;
+}
+.ligacao-nome:hover {
+  text-decoration: underline;
+}
+.quadro.clientes td.email {
+  color: var(--tinta-2);
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quadro.clientes td.ultimo {
+  white-space: nowrap;
+}
+.formas-lista {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+/* No telemóvel a tabela dos clientes empilha-se: o nome e o cartão, o email, os cortes e o último. */
+@media (max-width: 640px) {
+  .quadro.clientes thead {
+    display: none;
+  }
+  .quadro.clientes,
+  .quadro.clientes tbody {
+    display: block;
+  }
+  .quadro.clientes tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: 8px;
+    row-gap: 2px;
+    align-items: center;
+    padding: 12px 14px;
+  }
+  .quadro.clientes tbody tr + tr {
+    border-top: 1px solid var(--linha);
+  }
+  .quadro.clientes td {
+    display: block;
+    padding: 0;
+    border: 0;
+    max-width: none;
+  }
+  .quadro.clientes td.nome {
+    grid-column: 1 / 3;
+    grid-row: 1;
+  }
+  .quadro.clientes td.cartao {
+    grid-column: 3;
+    grid-row: 1;
+    text-align: right;
+  }
+  .quadro.clientes td.email {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    font-size: 13.5px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .quadro.clientes td.por-usar {
+    grid-column: 3;
+    grid-row: 2;
+    text-align: right;
+  }
+  .quadro.clientes td.cortes,
+  .quadro.clientes td.ultimo {
+    grid-row: 3;
+    font-size: 13.5px;
+    color: var(--tinta-2);
+    text-align: left;
+  }
+  .quadro.clientes td.cortes {
+    grid-column: 1;
+  }
+  .quadro.clientes td.cortes::after {
+    content: ' ' attr(data-sufixo);
+  }
+  .quadro.clientes td.ultimo {
+    grid-column: 2;
+  }
+  .quadro.clientes td.ultimo::before {
+    content: '· ';
+  }
+  .quadro.clientes td.formas {
+    grid-column: 3;
+    grid-row: 3;
+    text-align: right;
+  }
+}
+
+/* ——— a ficha do cliente: o código e os dados em grelha ——— */
+.codigo {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  background: var(--superficie-2);
+  padding: 2px 8px;
+  border-radius: 7px;
+}
+.detalhes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px 20px;
+  margin: 0;
+}
+.detalhes dt {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tinta-2);
+}
+.detalhes dd {
+  margin: 2px 0 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.detalhes .largo {
+  grid-column: span 2;
+}
+@media (max-width: 640px) {
+  .detalhes .largo {
+    grid-column: 1 / -1;
+  }
+}
