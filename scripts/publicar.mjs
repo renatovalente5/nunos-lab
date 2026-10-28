@@ -64,7 +64,7 @@ writeFileSync(join(site, '404.html'), html);
 // As moradas fixas respondem 200 (o 404.html abre a app, mas com «404», e as
 // pré-visualizações do WhatsApp e do Facebook desistem). Um parceiro partilha-se
 // como /?parceiro=N, que é o index.
-for (const rota of ['barbearia', 'privacidade']) {
+for (const rota of ['barbearia', 'cartao', 'conta', 'privacidade']) {
   mkdirSync(join(site, rota), { recursive: true });
   writeFileSync(join(site, rota, 'index.html'), html);
 }

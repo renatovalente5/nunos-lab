@@ -1,0 +1,469 @@
+import { codigoCurto, dataCurta, diaEmLisboa, fraseDoCartao } from '@nunos-lab/dominio';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  carimbar,
+  chaveNova,
+  mensagemDe,
+  pedir,
+  useCasa,
+  useEu,
+  useFicha,
+  ErroDaBalcao,
+} from '../../sessao';
+import {
+  Botao,
+  CONTINUO,
+  Carimbos,
+  Icone,
+  LARGURA_MAXIMA,
+  MARGEM,
+  T,
+  cor,
+  raio,
+} from '@nunos-lab/ui';
+
+function haQuanto(unix: number): string {
+  const dias = Math.floor((Date.now() / 1000 - unix) / 86400);
+  if (dias === 0) return 'hoje';
+  if (dias === 1) return 'ontem';
+  if (dias < 14) return `há ${dias} dias`;
+  if (dias < 60) return `há ${Math.round(dias / 7)} semanas`;
+  return dataCurta(diaEmLisboa(unix * 1000), diaEmLisboa());
+}
+
+/**
+ * A ficha de um cartão lido: o nome, os carimbos, a última visita, e um toque
+ * para carimbar ou entregar a recompensa. Depois do carimbo, o ecrã confirma e
+ * fecha sozinho.
+ */
+export default function Ficha() {
+  const { codigo } = useLocalSearchParams<{ codigo: string }>();
+  const margens = useSafeAreaInsets();
+  const consultas = useQueryClient();
+  const { data: eu } = useEu();
+  const casa = useCasa(eu);
+  const { data: ficha, error, refetch, isPending } = useFicha(codigo ?? '');
+  const [servico, setServico] = useState<number | null>(null);
+  const [estado, setEstado] = useState<'pronto' | 'a-enviar' | 'feito' | 'na-fila' | 'erro'>(
+    'pronto',
+  );
+  const [feito, setFeito] = useState<{
+    carimbos: number;
+    objectivo: number;
+    completo: boolean;
+    recompensa: string | null;
+  } | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<{ quando: number; pessoa: string | null } | null>(null);
+  const escala = useRef(new Animated.Value(0.6)).current;
+  const chave = useRef(chaveNova());
+
+  useEffect(() => {
+    if (eu?.programa.servicos && eu.servicos[0] && servico === null) setServico(eu.servicos[0].id);
+  }, [eu, servico]);
+
+  const sair = () => (router.canGoBack() ? router.back() : router.replace('/'));
+  const concluir = () => {
+    consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
+    setTimeout(sair, 1400);
+  };
+
+  const dar = async (confirmar = false) => {
+    if (!ficha || !casa) return;
+    setEstado('a-enviar');
+    setErro(null);
+    try {
+      const r = await carimbar({
+        codigo: ficha.cliente.codigo,
+        chave: chave.current,
+        lojaId: casa,
+        servicoId: eu?.programa.servicos ? servico : null,
+        confirmar,
+      });
+      if ('naFila' in r) {
+        setEstado('na-fila');
+        setFeito({
+          carimbos: ficha.cartao.carimbos + 1,
+          objectivo: ficha.cartao.objectivo,
+          completo: false,
+          recompensa: null,
+        });
+      } else {
+        setEstado('feito');
+        setFeito({
+          carimbos: r.resultado.cartao.carimbos,
+          objectivo: r.resultado.cartao.objectivo,
+          completo: r.resultado.completo,
+          recompensa: r.resultado.recompensa,
+        });
+      }
+      Animated.spring(escala, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
+      if (!('resultado' in r && r.resultado.completo)) concluir();
+    } catch (e) {
+      if (e instanceof ErroDaBalcao && e.codigo === 'limite_do_dia') {
+        setAviso(
+          (e.dados.ultimo as { quando: number; pessoa: string | null } | undefined) ?? {
+            quando: 0,
+            pessoa: null,
+          },
+        );
+        setEstado('pronto');
+        return;
+      }
+      setEstado('erro');
+      setErro(mensagemDe(e));
+    }
+  };
+
+  const usar = async (cartaoId: number) => {
+    if (!ficha || !casa) return;
+    setEstado('a-enviar');
+    setErro(null);
+    try {
+      await pedir('/usar-recompensa', {
+        metodo: 'POST',
+        corpo: { codigo: ficha.cliente.codigo, cartaoId, lojaId: casa },
+      });
+      setEstado('feito');
+      setFeito({
+        carimbos: ficha.cartao.carimbos,
+        objectivo: ficha.cartao.objectivo,
+        completo: false,
+        recompensa: `${ficha.recompensas[0]?.recompensa ?? 'Recompensa'} entregue`,
+      });
+      Animated.spring(escala, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
+      concluir();
+    } catch (e) {
+      setEstado('erro');
+      setErro(mensagemDe(e));
+    }
+  };
+
+  const hora = (unix: number) => {
+    const d = new Date(unix * 1000);
+    return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: cor.fundo, paddingTop: margens.top }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: MARGEM,
+          paddingTop: 10,
+        }}
+      >
+        <Pressable
+          onPress={sair}
+          role="button"
+          aria-label="Fechar"
+          hitSlop={8}
+          style={({ pressed }) => ({
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: pressed ? cor.linha : cor.superficieAlta,
+            alignItems: 'center',
+            justifyContent: 'center',
+          })}
+        >
+          <Icone nome="fechar" tamanho={20} espessura={2.4} />
+        </Pressable>
+        {ficha && (
+          <T v="legenda" style={{ color: cor.texto3, marginLeft: 14, letterSpacing: 1.5 }}>
+            {codigoCurto(ficha.cliente.codigo)}
+          </T>
+        )}
+      </View>
+
+      {!ficha && isPending && (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <T v="legenda" style={{ color: cor.texto2 }}>
+            A abrir…
+          </T>
+        </View>
+      )}
+      {!ficha && error && (
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 16,
+            paddingHorizontal: 32,
+          }}
+        >
+          <T v="subtitulo" style={{ textAlign: 'center' }}>
+            {mensagemDe(error)}
+          </T>
+          <Botao nome="Tentar outra vez" secundario onPress={() => refetch()} />
+        </View>
+      )}
+
+      {ficha && (estado === 'feito' || estado === 'na-fila') && feito && (
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: MARGEM,
+          }}
+        >
+          <Animated.View
+            style={{
+              width: 120,
+              height: 120,
+              borderRadius: 60,
+              backgroundColor: cor.claro,
+              alignItems: 'center',
+              justifyContent: 'center',
+              transform: [{ scale: escala }],
+            }}
+          >
+            <Icone
+              nome={feito.completo || feito.recompensa ? 'presente' : 'certo'}
+              tamanho={56}
+              cor={cor.sobreClaro}
+              espessura={2.6}
+            />
+          </Animated.View>
+          <T v="titulo" style={{ marginTop: 28, textAlign: 'center' }}>
+            {feito.recompensa && !feito.completo
+              ? feito.recompensa
+              : feito.completo
+                ? 'Cartão completo'
+                : `${feito.carimbos} de ${feito.objectivo}`}
+          </T>
+          {feito.completo && feito.recompensa && (
+            <T v="subtitulo" style={{ color: cor.texto2, marginTop: 8, textAlign: 'center' }}>
+              {feito.recompensa} · na próxima visita
+            </T>
+          )}
+          {estado === 'na-fila' && (
+            <T v="legenda" style={{ color: cor.texto2, marginTop: 10 }}>
+              Sem rede: guardado, envia-se depois.
+            </T>
+          )}
+          {feito.completo && (
+            <View style={{ marginTop: 28 }}>
+              <Botao nome="Concluir" onPress={sair} />
+            </View>
+          )}
+        </View>
+      )}
+
+      {ficha && estado !== 'feito' && estado !== 'na-fila' && (
+        <View
+          style={{
+            flex: 1,
+            justifyContent: 'flex-end',
+            width: '100%',
+            maxWidth: LARGURA_MAXIMA,
+            alignSelf: 'center',
+          }}
+        >
+          <View style={{ paddingHorizontal: MARGEM, paddingTop: 24, gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <T v="titulo" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {ficha.cliente.nome || 'Sem nome'}
+              </T>
+              {ficha.cliente.aniversario && (
+                <View
+                  style={{
+                    backgroundColor: cor.claro,
+                    borderRadius: 999,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    flexDirection: 'row',
+                    gap: 6,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Icone nome="bolo" tamanho={16} cor={cor.sobreClaro} espessura={2.2} />
+                  <T v="legenda" style={{ color: cor.sobreClaro }}>
+                    Faz anos
+                  </T>
+                </View>
+              )}
+            </View>
+            <T v="legenda" style={{ color: cor.texto2 }}>
+              {`Cliente desde ${new Date(ficha.cliente.criadoEm * 1000).getFullYear()} · ${ficha.cliente.cortes} ${ficha.cliente.cortes === 1 ? 'corte' : 'cortes'}`}
+            </T>
+          </View>
+
+          <View style={{ paddingHorizontal: MARGEM, marginTop: 22 }}>
+            <Carimbos
+              carimbos={ficha.cartao.carimbos}
+              objectivo={ficha.cartao.objectivo}
+              tamanho={30}
+              porLinha={10}
+              folga={7}
+            />
+          </View>
+          <View
+            style={{
+              paddingHorizontal: MARGEM,
+              flexDirection: 'row',
+              alignItems: 'baseline',
+              gap: 6,
+              marginTop: 18,
+            }}
+          >
+            <T v="destaque">{ficha.cartao.carimbos}</T>
+            <T v="forte" style={{ color: cor.texto2, fontSize: 18 }}>
+              de {ficha.cartao.objectivo}
+            </T>
+            <T v="legenda" style={{ color: cor.texto2, marginLeft: 8 }}>
+              {fraseDoCartao(ficha.cartao.carimbos, ficha.cartao)}
+            </T>
+          </View>
+
+          <View
+            style={{
+              paddingHorizontal: MARGEM,
+              marginTop: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <Icone nome="relogio" tamanho={16} cor={cor.texto2} espessura={2} />
+            <T v="legenda" style={{ color: cor.texto2 }}>
+              {ficha.ultima
+                ? `Última visita ${haQuanto(ficha.ultima.quando)}${ficha.ultima.loja ? ` · ${ficha.ultima.loja}` : ''}${ficha.ultima.pessoa ? ` · ${ficha.ultima.pessoa}` : ''}`
+                : 'Primeira visita'}
+            </T>
+          </View>
+
+          {(ficha.hoje.carimbos > 0 || aviso) && (
+            <View
+              style={{
+                marginHorizontal: MARGEM,
+                marginTop: 14,
+                backgroundColor: cor.superficieAlta,
+                borderRadius: 16,
+                padding: 12,
+                flexDirection: 'row',
+                gap: 10,
+                alignItems: 'center',
+                ...CONTINUO,
+              }}
+            >
+              <Icone nome="aviso" tamanho={18} cor={cor.texto} espessura={2} />
+              <T v="legenda" style={{ flex: 1 }}>
+                {ficha.hoje.ultimo
+                  ? `Já carimbado hoje às ${hora(ficha.hoje.ultimo.quando)}${ficha.hoje.ultimo.pessoa ? ` por ${ficha.hoje.ultimo.pessoa}` : ''}.`
+                  : 'Já carimbado hoje.'}
+              </T>
+            </View>
+          )}
+
+          <View
+            style={{
+              backgroundColor: cor.superficie,
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              marginTop: 22,
+              paddingHorizontal: MARGEM,
+              paddingTop: 20,
+              paddingBottom: margens.bottom + 20,
+              gap: 12,
+              ...CONTINUO,
+            }}
+          >
+            {eu?.programa.servicos && eu.servicos.length > 0 && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {eu.servicos.map((s) => {
+                  const on = s.id === servico;
+                  return (
+                    <Pressable
+                      key={s.id}
+                      onPress={() => setServico(s.id)}
+                      role="radio"
+                      aria-checked={on}
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingVertical: 9,
+                        borderRadius: 999,
+                        backgroundColor: on ? cor.claro : cor.superficieAlta,
+                      }}
+                    >
+                      <T
+                        v="forte"
+                        style={{ fontSize: 14, color: on ? cor.sobreClaro : cor.texto2 }}
+                      >
+                        {s.nome}
+                      </T>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+            {ficha.recompensas.length > 0 && (
+              <Pressable
+                onPress={() => usar(ficha.recompensas[0]!.cartaoId)}
+                role="button"
+                aria-disabled={estado === 'a-enviar'}
+                style={({ pressed }) => ({
+                  height: 56,
+                  borderRadius: 999,
+                  backgroundColor: pressed ? cor.claroPremido : cor.claro,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  opacity: estado === 'a-enviar' ? 0.6 : 1,
+                })}
+              >
+                <Icone nome="presente" tamanho={22} cor={cor.sobreClaro} espessura={2.2} />
+                <T v="forte" style={{ color: cor.sobreClaro, fontSize: 17 }}>
+                  Entregar: {ficha.recompensas[0]!.recompensa.toLowerCase()}
+                </T>
+              </Pressable>
+            )}
+            <Pressable
+              onPress={() => dar(!!aviso)}
+              role="button"
+              aria-disabled={estado === 'a-enviar'}
+              style={({ pressed }) => ({
+                height: 56,
+                borderRadius: 999,
+                backgroundColor:
+                  ficha.recompensas.length > 0
+                    ? pressed
+                      ? cor.linha
+                      : cor.superficieAlta
+                    : pressed
+                      ? cor.claroPremido
+                      : cor.claro,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: estado === 'a-enviar' ? 0.6 : 1,
+              })}
+            >
+              <T
+                v="forte"
+                style={{
+                  color: ficha.recompensas.length > 0 ? cor.texto : cor.sobreClaro,
+                  fontSize: 17,
+                }}
+              >
+                {aviso ? 'Carimbar na mesma' : estado === 'a-enviar' ? 'A carimbar…' : 'Carimbar'}
+              </T>
+            </Pressable>
+            {erro && (
+              <T v="legenda" role="alert" style={{ color: '#E07A72', textAlign: 'center' }}>
+                {erro}
+              </T>
+            )}
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}

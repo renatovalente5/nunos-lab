@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ALTURA_DA_BARRA, CONTINUO, cor, LARGURA_MAXIMA, MARGEM, raio } from '../tema';
+import { ALTURA_DA_BARRA, CONTINUO, cor, LARGURA_MAXIMA, MARGEM, raio } from './tema';
 import { Icone, type NomeDoIcone } from './icone';
 import { T } from './texto';
 

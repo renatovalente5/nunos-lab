@@ -2,7 +2,7 @@ import type { TabTriggerSlotProps } from 'expo-router/ui';
 import type { ComponentRef, ReactNode, Ref } from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ALTURA_DA_BARRA, cor, letra } from '../tema';
+import { ALTURA_DA_BARRA, cor, letra } from './tema';
 import { Icone, type NomeDoIcone } from './icone';
 import { T } from './texto';
 

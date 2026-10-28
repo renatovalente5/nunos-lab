@@ -1,5 +1,5 @@
 import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui';
-import { BarraDeBaixo, BotaoDoSeparador } from '../../componentes/barra';
+import { BarraDeBaixo, BotaoDoSeparador } from '@nunos-lab/ui';
 
 export default function Separadores() {
   return (
@@ -9,6 +9,9 @@ export default function Separadores() {
         <BarraDeBaixo>
           <TabTrigger name="vantagens" href="/" asChild>
             <BotaoDoSeparador icone="etiqueta" nome="Vantagens" />
+          </TabTrigger>
+          <TabTrigger name="cartao" href="/cartao" asChild>
+            <BotaoDoSeparador icone="cartao" nome="Cartão" />
           </TabTrigger>
           <TabTrigger name="barbearia" href="/barbearia" asChild>
             <BotaoDoSeparador icone="tesoura" nome="Barbearia" />

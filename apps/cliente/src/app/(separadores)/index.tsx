@@ -3,14 +3,24 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { CartaoDestaque, iconeDe, LinhaDoParceiro } from '../../componentes/cartoes';
-import { Esqueleto, SemLigacao } from '../../componentes/estados';
-import { Folha, OpcaoDaFolha } from '../../componentes/folha';
-import { Icone } from '../../componentes/icone';
-import { Ecra, Grupo, Rotulo, Separador } from '../../componentes/pecas';
-import { T } from '../../componentes/texto';
 import { definirTitulo, guardarCasa, lerCasa, useDados } from '../../dados';
-import { CONTINUO, cor, LARGURA_MAXIMA, MARGEM, raio } from '../../tema';
-
+import {
+  CONTINUO,
+  Ecra,
+  Esqueleto,
+  Folha,
+  Grupo,
+  Icone,
+  LARGURA_MAXIMA,
+  MARGEM,
+  OpcaoDaFolha,
+  Rotulo,
+  SemLigacao,
+  Separador,
+  T,
+  cor,
+  raio,
+} from '@nunos-lab/ui';
 const palavra = require('../../../assets/marca/palavra.png');
 
 export default function Vantagens() {

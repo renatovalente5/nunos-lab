@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { cor, MARGEM, raio } from '../tema';
+import { cor, MARGEM, raio } from './tema';
 import { Icone } from './icone';
 import { Botao } from './pecas';
 import { T } from './texto';

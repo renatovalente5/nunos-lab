@@ -9,12 +9,19 @@ import {
 } from '@nunos-lab/dominio';
 import { useState } from 'react';
 import { Platform, Pressable, View, type TextStyle } from 'react-native';
-import { CONTINUO, cor, letra, MARGEM, raio } from '../tema';
 import { Capa } from './capa';
-import { Icone } from './icone';
 import { Logotipo } from './logotipo';
-import { EtiquetaExemplo, EtiquetaNovo } from './pecas';
-import { T } from './texto';
+import {
+  CONTINUO,
+  EtiquetaExemplo,
+  EtiquetaNovo,
+  Icone,
+  MARGEM,
+  T,
+  cor,
+  letra,
+  raio,
+} from '@nunos-lab/ui';
 
 export function iconeDe(parceiro: ParceiroPublico, categorias: Categoria[]): IconeDaCategoria {
   return categorias.find((k) => k.id === parceiro.categoriaId)?.icone ?? 'outro';

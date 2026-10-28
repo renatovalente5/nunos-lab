@@ -4,8 +4,7 @@ import { useId, type ReactNode } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { urlDaImagem } from '../dados';
-import { CONTINUO } from '../tema';
-import { Icone } from './icone';
+import { CONTINUO, Icone } from '@nunos-lab/ui';
 
 /**
  * A capa de um parceiro: a fotografia dele, ou, sem fotografia, a cor dele em

@@ -7,13 +7,22 @@ import {
 import { Link } from 'expo-router';
 import { useEffect } from 'react';
 import { Image, Pressable, View } from 'react-native';
-import { Esqueleto, SemLigacao } from '../../componentes/estados';
-import { Icone } from '../../componentes/icone';
-import { Botao, Ecra, Grupo, Rotulo, Separador } from '../../componentes/pecas';
-import { T } from '../../componentes/texto';
 import { abrir, contar, definirTitulo, useDados } from '../../dados';
-import { CONTINUO, cor, MARGEM, raio } from '../../tema';
-
+import {
+  Botao,
+  CONTINUO,
+  Ecra,
+  Esqueleto,
+  Grupo,
+  Icone,
+  MARGEM,
+  Rotulo,
+  SemLigacao,
+  Separador,
+  T,
+  cor,
+  raio,
+} from '@nunos-lab/ui';
 const palavra = require('../../../assets/marca/palavra.png');
 const lema = require('../../../assets/marca/lema.png');
 

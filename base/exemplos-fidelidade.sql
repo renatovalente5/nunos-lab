@@ -5,7 +5,8 @@ INSERT INTO equipa (id, nome, papel, loja_id) VALUES
   (901, 'Rui (exemplo)', 'barbeiro', 3),
   (902, 'Tiago (exemplo)', 'barbeiro', 3),
   (903, 'Pedro (exemplo)', 'barbeiro', 2),
-  (904, 'Miguel (exemplo)', 'barbeiro', 1);
+  (904, 'Miguel (exemplo)', 'barbeiro', 1),
+  (905, 'Nuno (exemplo)', 'dono', NULL);
 
 INSERT INTO servicos (id, nome, preco, ordem) VALUES
   (1, 'Corte', 1500, 1),

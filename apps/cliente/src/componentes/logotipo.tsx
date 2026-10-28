@@ -2,7 +2,7 @@ import type { ParceiroPublico } from '@nunos-lab/dominio';
 import { corParaBranco } from '@nunos-lab/dominio';
 import { Image, Text, View } from 'react-native';
 import { urlDaImagem } from '../dados';
-import { cor, letra } from '../tema';
+import { cor, letra } from '@nunos-lab/ui';
 
 const PEQUENAS = /^(do|da|dos|das|de|e|o|a|os|as)$/i;
 

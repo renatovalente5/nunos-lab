@@ -116,7 +116,10 @@ const linhas = [
   '-- com os exemplos.sql já postos. Tudo inventado e marcado como exemplo.',
   '',
   'INSERT INTO equipa (id, nome, papel, loja_id) VALUES',
-  EQUIPA.map((e) => `  (${e.id}, ${sql(e.nome)}, 'barbeiro', ${e.loja})`).join(',\n') + ';',
+  [
+    ...EQUIPA.map((e) => `  (${e.id}, ${sql(e.nome)}, 'barbeiro', ${e.loja})`),
+    "  (905, 'Nuno (exemplo)', 'dono', NULL)",
+  ].join(',\n') + ';',
   '',
   'INSERT INTO servicos (id, nome, preco, ordem) VALUES',
   SERVICOS.map((s, i) => `  (${s.id}, ${sql(s.nome)}, ${s.preco}, ${i + 1})`).join(',\n') + ';',

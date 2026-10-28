@@ -1,0 +1,20 @@
+{
+  "name": "Nuno's Lab Balcão",
+  "short_name": "Balcão",
+  "lang": "pt-PT",
+  "start_url": "/nunos-lab/balcao/",
+  "scope": "/nunos-lab/balcao/",
+  "display": "standalone",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "icons": [
+    { "src": "/nunos-lab/balcao/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/nunos-lab/balcao/icone-512.png", "sizes": "512x512", "type": "image/png" },
+    {
+      "src": "/nunos-lab/balcao/icone-mascara-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

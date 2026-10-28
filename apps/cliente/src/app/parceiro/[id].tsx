@@ -10,21 +10,24 @@ import { Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Capa } from '../../componentes/capa';
 import { CartaoDaPromocao, categoriaELocal, iconeDe } from '../../componentes/cartoes';
-import { Esqueleto, SemLigacao } from '../../componentes/estados';
-import { Icone } from '../../componentes/icone';
 import { Logotipo } from '../../componentes/logotipo';
+import { abrir, contar, definirTitulo, ligacaoParaPartilhar, useDados } from '../../dados';
 import {
   Botao,
   BotaoRedondo,
   Ecra,
+  Esqueleto,
   EtiquetaExemplo,
   Grupo,
+  Icone,
+  MARGEM,
   Rotulo,
+  SemLigacao,
   Separador,
-} from '../../componentes/pecas';
-import { T } from '../../componentes/texto';
-import { abrir, contar, definirTitulo, ligacaoParaPartilhar, useDados } from '../../dados';
-import { cor, MARGEM, raio } from '../../tema';
+  T,
+  cor,
+  raio,
+} from '@nunos-lab/ui';
 
 function voltar() {
   if (router.canGoBack()) router.back();

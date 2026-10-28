@@ -1,9 +1,6 @@
 import { router } from 'expo-router';
 import { View } from 'react-native';
-import { Icone } from '../componentes/icone';
-import { Botao, Ecra } from '../componentes/pecas';
-import { T } from '../componentes/texto';
-import { cor } from '../tema';
+import { Botao, Ecra, Icone, T, cor } from '@nunos-lab/ui';
 
 export default function NaoEncontrado() {
   return (

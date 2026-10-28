@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "Nuno's Lab Balcão",
+    "slug": "nunos-lab-balcao",
+    "scheme": "nunoslab-balcao",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0A0A0A",
+    "ios": {
+      "bundleIdentifier": "pt.nunoslab.balcao",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "pt.nunoslab.balcao",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A0A0A"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "Nuno's Lab Balcão",
+      "shortName": "Balcão",
+      "lang": "pt-PT",
+      "themeColor": "#0A0A0A",
+      "backgroundColor": "#0A0A0A",
+      "description": "A Balcão do Nuno's Lab: ler o cartão e carimbar."
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#0A0A0A"
+        }
+      ],
+      "expo-status-bar",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "baseUrl": "/nunos-lab/balcao"
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import { Text, type TextProps, type TextStyle } from 'react-native';
-import { cor, letra } from '../tema';
+import { cor, letra } from './tema';
 
 /** As vozes da letra: títulos e números a cheio, texto corrido leve, etiquetas pequenas. */
 const VARIANTES = {

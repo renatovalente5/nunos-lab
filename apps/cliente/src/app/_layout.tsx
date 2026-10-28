@@ -12,7 +12,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { contar } from '../dados';
-import { cor } from '../tema';
+import { cor } from '@nunos-lab/ui';
 
 const cliente = new QueryClient();
 

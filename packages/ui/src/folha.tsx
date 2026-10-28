@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CONTINUO, cor, LARGURA_MAXIMA, MARGEM, raio } from '../tema';
+import { CONTINUO, cor, LARGURA_MAXIMA, MARGEM, raio } from './tema';
 import { Icone } from './icone';
 import { T } from './texto';
 
