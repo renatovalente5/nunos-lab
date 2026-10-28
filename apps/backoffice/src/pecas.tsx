@@ -3,9 +3,9 @@ import {
   DESENHOS_DAS_CATEGORIAS,
   ICONES_DAS_CATEGORIAS,
   NOMES_DOS_DESENHOS,
-  misturar,
+  corParaBranco,
+  degrauDoDesconto,
   semPartir,
-  tintaSobre,
   validadeEmTexto,
   type IconeDaCategoria,
 } from '@nunos-lab/dominio';
@@ -519,11 +519,14 @@ export function Logotipo({
   cor,
   logotipo,
   tamanho = 44,
+  sobreCor = false,
 }: {
   nome: string;
   cor: string;
   logotipo: string | null;
   tamanho?: number;
+  /** Sobre a capa do parceiro: círculo branco com as iniciais na cor dele (como na app). */
+  sobreCor?: boolean;
 }) {
   if (logotipo)
     return (
@@ -546,8 +549,8 @@ export function Logotipo({
       style={{
         width: tamanho,
         height: tamanho,
-        background: cor,
-        color: tintaSobre(cor),
+        background: sobreCor ? '#fff' : corParaBranco(cor),
+        color: sobreCor ? corParaBranco(cor) : '#fff',
         fontSize: Math.round(tamanho * 0.36),
       }}
       aria-hidden="true"
@@ -620,11 +623,6 @@ export function CampoDeImagem({
   );
 }
 
-/** Desenho de fundo de uma capa sem fotografia: a cor do parceiro a escurecer. */
-export function fundoDaCapa(cor: string) {
-  return `linear-gradient(135deg, ${cor}, ${misturar(cor, '#000000', 0.42)})`;
-}
-
 /** A promoção como fica no cartão grande da app (para ver antes de gravar). */
 export function PrevisaoDaPromocao({
   parceiro,
@@ -646,31 +644,45 @@ export function PrevisaoDaPromocao({
 }) {
   const validade = validadeEmTexto({ inicio, fim }, hoje);
   const cor = parceiro?.cor ?? '#5C544C';
+  const texto = destaque || '−10%';
   return (
     <div className="previsao" aria-label="Como fica na app">
       <div className="rotulo-previsao">Na app</div>
-      <div className="capa-previsao" style={{ background: fundoDaCapa(cor) }}>
+      <div
+        className={`destaque-previsao${parceiro?.capa ? ' com-foto' : ''}`}
+        style={{ background: corParaBranco(cor) }}
+      >
         {parceiro?.capa && <img className="fundo" src={urlDaImagem(parceiro.capa)} alt="" />}
-        <div className="topo-capa">
+        <div className="quem">
           {parceiro && (
-            <Logotipo nome={parceiro.nome} cor={cor} logotipo={parceiro.logotipo} tamanho={30} />
+            <Logotipo
+              nome={parceiro.nome}
+              cor={cor}
+              logotipo={parceiro.logotipo}
+              tamanho={28}
+              sobreCor
+            />
           )}
           <span>{parceiro?.nome ?? 'Parceiro'}</span>
         </div>
-        <div className="fundo-capa">
-          <div className="grande">{semPartir(destaque || '−10%')}</div>
+        <div className="placa">
+          <div
+            className="grande"
+            style={{ fontSize: TAMANHO_NA_PREVISAO[degrauDoDesconto(texto)] }}
+          >
+            {semPartir(texto)}
+          </div>
           <div className="titulo-previsao">{semPartir(titulo || 'Título da vantagem')}</div>
-          {validade && <div className="validade">{validade}</div>}
+          {validade && <span className="prazo">{validade}</span>}
         </div>
       </div>
-      {detalhe && (
-        <div className="cartao-promocao">
-          <div className="condicoes">{semPartir(detalhe)}</div>
-        </div>
-      )}
+      {detalhe && <div className="condicoes">{semPartir(detalhe)}</div>}
     </div>
   );
 }
+
+/** O desconto na pré-visualização, pelos mesmos degraus de letras da app. */
+export const TAMANHO_NA_PREVISAO = [56, 44, 36, 26] as const;
 
 // ——— os desenhos das categorias (os mesmos da app) ———
 

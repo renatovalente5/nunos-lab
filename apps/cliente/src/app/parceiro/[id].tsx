@@ -9,11 +9,19 @@ import { useEffect } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Capa } from '../../componentes/capa';
-import { CartaoDaPromocao, categoriaELocal, iconeDe } from '../../componentes/cartoes';
+import { CartaoDaPromocao, categoriaELocal } from '../../componentes/cartoes';
 import { Esqueleto, SemLigacao } from '../../componentes/estados';
 import { Icone } from '../../componentes/icone';
 import { Logotipo } from '../../componentes/logotipo';
-import { Botao, BotaoRedondo, Ecra, EtiquetaExemplo, Grupo, Rotulo } from '../../componentes/pecas';
+import {
+  Botao,
+  BotaoDeAccao,
+  Ecra,
+  EtiquetaExemplo,
+  Grupo,
+  Rotulo,
+  Separador,
+} from '../../componentes/pecas';
 import { T } from '../../componentes/texto';
 import { abrir, contar, definirTitulo, ligacaoParaPartilhar, useDados } from '../../dados';
 import { cor, MARGEM } from '../../tema';
@@ -37,14 +45,13 @@ function BotaoSobreACapa({
       onPress={onPress}
       role="button"
       aria-label={rotulo}
-      hitSlop={8}
       style={({ pressed }) => ({
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: pressed ? 'rgba(0,0,0,0.65)' : 'rgba(0,0,0,0.45)',
+        backgroundColor: pressed ? 'rgba(10,10,10,0.7)' : cor.veu,
       })}
     >
       <Icone nome={icone} tamanho={21} cor="#FFFFFF" espessura={2.2} />
@@ -94,7 +101,6 @@ export default function PaginaDoParceiro() {
   }
 
   const p = parceiro;
-  const icone = iconeDe(p, data.categorias);
   const partilhavel =
     Platform.OS === 'web' &&
     typeof navigator !== 'undefined' &&
@@ -132,7 +138,8 @@ export default function PaginaDoParceiro() {
 
   return (
     <Ecra comBarra={false} semTopo>
-      <Capa parceiro={p} icone={icone} altura={260 + margens.top}>
+      {/* A capa como uma capa de revista: o nome em grande sobre a cor ou a fotografia. */}
+      <Capa parceiro={p} altura={290 + margens.top} veu="baixo">
         <View
           style={{
             position: 'absolute',
@@ -160,27 +167,35 @@ export default function PaginaDoParceiro() {
             )}
           </View>
         </View>
+        <View style={{ position: 'absolute', left: MARGEM, right: MARGEM, bottom: 22 }}>
+          <Logotipo parceiro={p} tamanho={58} sobreCor />
+          <T v="titulo" style={{ marginTop: 14 }} role="heading" aria-level={1} numberOfLines={2}>
+            {p.nome}
+          </T>
+          <T v="legenda" style={{ marginTop: 6 }}>
+            {categoriaELocal(p, data.categorias)}
+          </T>
+        </View>
       </Capa>
 
-      <View style={{ paddingHorizontal: MARGEM, marginTop: -40 }}>
-        <Logotipo parceiro={p} tamanho={80} anel />
-        <T v="titulo" style={{ marginTop: 12 }} role="heading" aria-level={1}>
-          {p.nome}
+      {!!p.descricao && (
+        <T v="frase" style={{ color: cor.texto2, marginTop: 22, paddingHorizontal: MARGEM }}>
+          {p.descricao}
         </T>
-        <T v="legenda" style={{ color: cor.texto2, marginTop: 4, fontSize: 14 }}>
-          {categoriaELocal(p, data.categorias)}
-        </T>
-        {!!p.descricao && (
-          <T v="corpo" style={{ color: cor.texto2, marginTop: 10 }}>
-            {p.descricao}
-          </T>
-        )}
-      </View>
+      )}
 
       {accoes.length > 0 && (
-        <View style={{ flexDirection: 'row', paddingHorizontal: MARGEM - 8, marginTop: 22 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 10,
+            paddingHorizontal: MARGEM,
+            marginTop: 20,
+          }}
+        >
           {accoes.map((a) => (
-            <BotaoRedondo
+            <BotaoDeAccao
               key={a.tipo}
               icone={a.icone}
               nome={a.nome}
@@ -205,18 +220,23 @@ export default function PaginaDoParceiro() {
       ))}
 
       {(!!p.horario || !!p.morada) && (
-        <Grupo style={{ marginTop: 18 }}>
+        <Grupo style={{ marginTop: 28 }}>
           {!!p.horario && (
-            <View style={{ flexDirection: 'row', gap: 14, padding: 16, alignItems: 'flex-start' }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                gap: 14,
+                paddingVertical: 16,
+                alignItems: 'flex-start',
+              }}
+            >
               <Icone nome="relogio" tamanho={20} cor={cor.texto2} />
-              <T v="corpo" style={{ flex: 1 }}>
+              <T v="corpo" style={{ flex: 1, fontFamily: 'Manrope_600SemiBold' }}>
                 {semPartir(p.horario)}
               </T>
             </View>
           )}
-          {!!p.horario && !!p.morada && (
-            <View style={{ height: 1, backgroundColor: cor.linha, marginLeft: 50 }} />
-          )}
+          {!!p.horario && !!p.morada && <Separador />}
           {!!p.morada && (
             <Pressable
               onPress={() => {
@@ -228,15 +248,16 @@ export default function PaginaDoParceiro() {
               style={({ pressed }) => ({
                 flexDirection: 'row',
                 gap: 14,
-                padding: 16,
+                paddingVertical: 16,
                 alignItems: 'flex-start',
-                backgroundColor: pressed ? cor.superficieAlta : 'transparent',
+                backgroundColor: pressed ? cor.superficie : 'transparent',
               })}
             >
               <Icone nome="mapa" tamanho={20} cor={cor.texto2} />
-              <T v="corpo" style={{ flex: 1 }}>
+              <T v="corpo" style={{ flex: 1, fontFamily: 'Manrope_600SemiBold' }}>
                 {semPartir(p.morada)}
               </T>
+              <Icone nome="seguinte" tamanho={18} cor={cor.texto3} />
             </Pressable>
           )}
         </Grupo>

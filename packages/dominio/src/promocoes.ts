@@ -62,3 +62,13 @@ export function normalizarDestaque(texto: string): string {
     .replace(/(\d)\s*[xX]\s*(\d)/g, '$1×$2')
     .replace(/(\d)\s+%/g, '$1%');
 }
+
+/**
+ * O degrau do tamanho do desconto, pelo número de letras: 0 até 4 («−10%»),
+ * 1 até 6 («−300 €»), 2 até 9, 3 até 12 (o máximo do campo). Cada sítio da app
+ * tem a sua escala; o React Native Web não encolhe o texto sozinho.
+ */
+export function degrauDoDesconto(destaque: string): 0 | 1 | 2 | 3 {
+  const n = Array.from(destaque.trim()).length;
+  return n <= 4 ? 0 : n <= 6 ? 1 : n <= 9 ? 2 : 3;
+}

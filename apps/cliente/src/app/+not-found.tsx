@@ -10,7 +10,7 @@ export default function NaoEncontrado() {
     <Ecra comBarra={false}>
       <View style={{ alignItems: 'center', paddingTop: 120, paddingHorizontal: 32, gap: 16 }}>
         <Icone nome="etiqueta" tamanho={34} cor={cor.texto3} />
-        <T v="subtitulo" style={{ textAlign: 'center' }}>
+        <T v="seccao" style={{ textAlign: 'center' }}>
           Esta página não existe
         </T>
         <Botao nome="Ver as vantagens" onPress={() => router.replace('/')} />

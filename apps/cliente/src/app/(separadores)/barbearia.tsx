@@ -6,35 +6,38 @@ import {
 } from '@nunos-lab/dominio';
 import { Link } from 'expo-router';
 import { useEffect } from 'react';
-import { Image, Pressable, View } from 'react-native';
+import { Image, Pressable, useWindowDimensions, View } from 'react-native';
 import { Esqueleto, SemLigacao } from '../../componentes/estados';
 import { Icone } from '../../componentes/icone';
-import { Botao, Ecra, Grupo, Rotulo } from '../../componentes/pecas';
+import { Botao, Ecra, Grupo, Rotulo, Separador } from '../../componentes/pecas';
 import { T } from '../../componentes/texto';
 import { abrir, contar, definirTitulo, useDados } from '../../dados';
-import { cor, MARGEM, raio } from '../../tema';
+import { cor, LARGURA_MAXIMA, letra, MARGEM } from '../../tema';
 
 const palavra = require('../../../assets/marca/palavra.png');
 const lema = require('../../../assets/marca/lema.png');
 
 export default function Barbearia() {
   const { data, isPending, isError, refetch } = useDados();
+  const { width } = useWindowDimensions();
   useEffect(() => definirTitulo("Nuno's Lab · Barbearia"), []);
   const b = data?.barbearia;
+  // O logótipo à largura do ecrã (até 350 px), tal como está: só a branco.
+  const larguraDaPalavra = Math.min(350, Math.min(width, LARGURA_MAXIMA) - 2 * MARGEM);
 
   return (
     <Ecra>
-      <View style={{ paddingHorizontal: MARGEM, paddingTop: 18, gap: 16 }}>
+      <View style={{ paddingHorizontal: MARGEM, paddingTop: 6 }}>
         <Image
           source={palavra}
-          style={{ width: 260, height: Math.round((260 * 227) / 1200) }}
+          style={{ width: larguraDaPalavra, height: Math.round((larguraDaPalavra * 227) / 1200) }}
           resizeMode="contain"
           accessibilityLabel="Nuno's Lab"
           role="img"
         />
         <Image
           source={lema}
-          style={{ width: 230, height: Math.round((230 * 46) / 900), opacity: 0.55 }}
+          style={{ width: 236, height: Math.round((236 * 46) / 900), marginTop: 18 }}
           resizeMode="contain"
           accessibilityLabel="Cut, ink, coffee, style"
           role="img"
@@ -47,54 +50,49 @@ export default function Barbearia() {
       {b && b.lojas.length > 0 && (
         <>
           <Rotulo>Marcar</Rotulo>
-          <View style={{ gap: 12 }}>
-            {b.lojas.map((l) => (
-              <View
-                key={l.id}
-                style={{
-                  marginHorizontal: MARGEM,
-                  backgroundColor: cor.superficie,
-                  borderRadius: raio.grupo,
-                  padding: 18,
-                  gap: 4,
-                }}
-              >
-                <T v="subtitulo">{l.nome}</T>
-                {!!l.morada && (
-                  <T v="corpo" style={{ color: cor.texto2 }}>
-                    {semPartir(l.morada)}
-                  </T>
-                )}
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-                  {!!l.marcar && (
-                    <Botao
-                      nome="Marcar"
-                      icone="calendario"
-                      rotulo={`Marcar em ${l.nome}`}
-                      onPress={() => {
-                        contar('marcar', l.id);
-                        abrir(l.marcar);
-                      }}
-                    />
-                  )}
+          <View style={{ paddingHorizontal: MARGEM }}>
+            {b.lojas.map((l, i) => (
+              <View key={l.id}>
+                {i > 0 && <Separador />}
+                <View style={{ paddingTop: i > 0 ? 22 : 0, paddingBottom: 22 }}>
+                  <T v="subtitulo">{l.nome}</T>
                   {!!l.morada && (
-                    <Botao
-                      nome="Ir"
-                      icone="mapa"
-                      secundario
-                      rotulo={`Ir a ${l.nome}`}
-                      onPress={() => abrir(ligacaoDoMapa(l.morada, "Nuno's Lab"))}
-                    />
+                    <T v="corpo" style={{ color: cor.texto2, marginTop: 4 }}>
+                      {semPartir(l.morada)}
+                    </T>
                   )}
-                  {!!l.telefone && (
-                    <Botao
-                      nome="Ligar"
-                      icone="ligar"
-                      secundario
-                      rotulo={`Ligar para ${l.nome}`}
-                      onPress={() => abrir(ligacaoDoTelefone(l.telefone))}
-                    />
-                  )}
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                    {!!l.marcar && (
+                      <Botao
+                        nome="Marcar"
+                        icone="calendario"
+                        largo
+                        rotulo={`Marcar em ${l.nome}`}
+                        onPress={() => {
+                          contar('marcar', l.id);
+                          abrir(l.marcar);
+                        }}
+                      />
+                    )}
+                    {!!l.morada && (
+                      <Botao
+                        nome="Ir"
+                        icone="mapa"
+                        secundario
+                        rotulo={`Ir a ${l.nome}`}
+                        onPress={() => abrir(ligacaoDoMapa(l.morada, "Nuno's Lab"))}
+                      />
+                    )}
+                    {!!l.telefone && (
+                      <Botao
+                        nome="Ligar"
+                        icone="ligar"
+                        secundario
+                        rotulo={`Ligar para ${l.nome}`}
+                        onPress={() => abrir(ligacaoDoTelefone(l.telefone))}
+                      />
+                    )}
+                  </View>
                 </View>
               </View>
             ))}
@@ -145,7 +143,7 @@ export default function Barbearia() {
       )}
 
       <View style={{ alignItems: 'center', marginTop: 34 }}>
-        <Link href="/privacidade" style={{ padding: 10 }}>
+        <Link href="/privacidade" style={{ padding: 12 }}>
           <T v="legenda" style={{ color: cor.texto3 }}>
             Privacidade
           </T>
@@ -170,7 +168,7 @@ function Linha({
 }) {
   return (
     <View>
-      {separador && <View style={{ height: 1, backgroundColor: cor.linha, marginLeft: 56 }} />}
+      {separador && <Separador />}
       <Pressable
         onPress={onPress}
         role="link"
@@ -178,17 +176,16 @@ function Linha({
         style={({ pressed }) => ({
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: 16,
-          minHeight: 56,
-          backgroundColor: pressed ? cor.superficieAlta : 'transparent',
+          minHeight: 60,
+          backgroundColor: pressed ? cor.superficie : 'transparent',
         })}
       >
-        <Icone nome={icone} tamanho={22} />
-        <T v="forte" style={{ marginLeft: 18, flex: 1 }}>
+        <Icone nome={icone} tamanho={22} espessura={2} />
+        <T v="forte" style={{ marginLeft: 16, flex: 1, fontFamily: letra.extra }}>
           {nome}
         </T>
         {!!detalhe && (
-          <T v="legenda" style={{ color: cor.texto2, marginRight: 8 }}>
+          <T v="corpo" style={{ color: cor.texto2, marginRight: 10, fontSize: 14 }}>
             {detalhe}
           </T>
         )}

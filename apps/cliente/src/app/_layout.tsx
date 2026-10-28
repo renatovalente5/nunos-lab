@@ -1,4 +1,5 @@
 import {
+  Manrope_300Light,
   Manrope_500Medium,
   Manrope_600SemiBold,
   Manrope_700Bold,
@@ -18,6 +19,7 @@ const cliente = new QueryClient();
 
 export default function Raiz() {
   const [prontas, erro] = useFonts({
+    Manrope_300Light,
     Manrope_500Medium,
     Manrope_600SemiBold,
     Manrope_700Bold,

@@ -1,6 +1,9 @@
 import {
   LIMITES,
+  corParaBranco,
+  degrauDoDesconto,
   diaEmLisboa,
+  semPartir,
   type CategoriaComContagem,
   type Parceiro as ParceiroDoContrato,
   type ParceiroComPromocoes,
@@ -16,11 +19,11 @@ import {
   Cores,
   Esqueleto,
   Etiqueta,
-  fundoDaCapa,
   Icone,
   Interruptor,
   Logotipo,
   Seletor,
+  TAMANHO_NA_PREVISAO,
   urlDaImagem,
   useAccao,
   useAvisar,
@@ -200,7 +203,9 @@ export function Parceiro({ id }: { id: string }) {
       </a>
       <div className="cabecalho">
         <div>
-          <h1>{novo ? 'Novo parceiro' : f.nome || 'Parceiro'}</h1>
+          <h1 className={novo ? undefined : 'nome'}>
+            {novo ? 'Novo parceiro' : f.nome || 'Parceiro'}
+          </h1>
           {!novo && dados.data && (
             <p className="subtitulo">
               {!f.activo ? (
@@ -440,38 +445,40 @@ export function Parceiro({ id }: { id: string }) {
           <div className="previsao" aria-label="Como fica na app">
             <div className="rotulo-previsao">Na app</div>
             <div
-              className="capa-previsao"
-              style={{ aspectRatio: '16 / 10', background: fundoDaCapa(f.cor) }}
+              className={`capa-parceiro${f.capa ? ' com-foto' : ''}`}
+              style={{ background: corParaBranco(f.cor) }}
             >
               {f.capa && <img className="fundo" src={urlDaImagem(f.capa)} alt="" />}
-            </div>
-            <div style={{ marginTop: -30, position: 'relative', paddingLeft: 6 }}>
-              <span
-                style={{
-                  display: 'inline-block',
-                  borderRadius: '50%',
-                  border: '3px solid #0a0a0a',
-                }}
-              >
-                <Logotipo nome={f.nome || '?'} cor={f.cor} logotipo={f.logotipo} tamanho={58} />
-              </span>
-              <div
-                style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginTop: 6 }}
-              >
-                {f.nome || 'Nome do parceiro'}
+              <div className="sobre-capa">
+                <Logotipo
+                  nome={f.nome || '?'}
+                  cor={f.cor}
+                  logotipo={f.logotipo}
+                  tamanho={44}
+                  sobreCor
+                />
+                <div className="nome-previsao">{f.nome || 'Nome do parceiro'}</div>
+                <div className="onde-previsao">
+                  {[categoria?.nome, f.localidade].filter(Boolean).join(' · ')}
+                </div>
               </div>
-              <div style={{ color: '#aba69e', fontSize: 13, fontWeight: 600 }}>
-                {[categoria?.nome, f.localidade].filter(Boolean).join(' · ')}
-              </div>
-              {f.descricao && (
-                <div style={{ color: '#aba69e', fontSize: 14, marginTop: 8 }}>{f.descricao}</div>
-              )}
             </div>
+            {f.descricao && <div className="frase">{f.descricao}</div>}
             {primeira && (
-              <div className="cartao-promocao">
-                <div className="grande">{primeira.destaque}</div>
-                <div className="titulo-previsao">{primeira.titulo}</div>
-              </div>
+              <>
+                <div className="seccao-previsao">
+                  {promocoes.length === 1 ? 'A tua vantagem' : 'As tuas vantagens'}
+                </div>
+                <div className="bilhete">
+                  <div
+                    className="grande"
+                    style={{ fontSize: TAMANHO_NA_PREVISAO[degrauDoDesconto(primeira.destaque)] }}
+                  >
+                    {semPartir(primeira.destaque)}
+                  </div>
+                  <div className="titulo-previsao">{semPartir(primeira.titulo)}</div>
+                </div>
+              </>
             )}
           </div>
         </aside>

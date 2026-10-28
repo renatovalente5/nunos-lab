@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   contraste,
+  corParaBranco,
   dataCurta,
+  degrauDoDesconto,
   diaEmLisboa,
   diasEntre,
   eDiaValido,
@@ -125,4 +127,21 @@ test('um email compara-se sem espaços e em minúsculas', () => {
   assert.equal(normalizarEmail('  NunoDib16@Gmail.com '), 'nunodib16@gmail.com');
   assert.equal(normalizarEmail('sem-arroba'), null);
   assert.equal(normalizarEmail('a@b'), null);
+});
+
+test('a capa de um parceiro leva sempre texto branco que se lê', () => {
+  assert.equal(corParaBranco('#26303D'), '#26303D', 'uma cor escura fica igual');
+  for (const clara of ['#F2C94C', '#FFFFFF', '#9BE7FF', '#B4532A'])
+    assert.ok(contraste(corParaBranco(clara), '#FFFFFF') >= 4.5, clara);
+  assert.equal(corParaBranco('lixo'), '#26303D');
+});
+
+test('o desconto encolhe por degraus até às 12 letras do campo', () => {
+  assert.equal(degrauDoDesconto('−10%'), 0);
+  assert.equal(degrauDoDesconto('2×1'), 0);
+  assert.equal(degrauDoDesconto('−300 €'), 1);
+  assert.equal(degrauDoDesconto('Grátis'), 1);
+  assert.equal(degrauDoDesconto('−1500 €'), 2);
+  assert.equal(degrauDoDesconto('Uma semana'), 3);
+  assert.equal(degrauDoDesconto('−50% 2.º par'), 3);
 });
