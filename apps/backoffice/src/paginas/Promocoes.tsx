@@ -39,7 +39,8 @@ import { parametro, plural } from '../util';
 /**
  * O conteúdo de uma linha de promoção: o texto grande, o título e, por baixo,
  * o período e só as etiquetas que o interruptor não diz (agendada, terminou,
- * valida ao balcão e quantas vezes já validou).
+ * valida ao balcão e quantas vezes já validou, está no saco das surpresas e
+ * quantos cupões saíram).
  */
 export function ConteudoDaPromocao({
   p,
@@ -63,6 +64,8 @@ export function ConteudoDaPromocao({
         {(p.emDestaque ||
           p.validar ||
           p.validacoes > 0 ||
+          p.surpresa ||
+          p.cupoes > 0 ||
           p.estado === 'agendada' ||
           p.estado === 'terminada' ||
           (p.activa && p.parceiroPausado)) && (
@@ -72,6 +75,19 @@ export function ConteudoDaPromocao({
             {p.validacoes > 0 && (
               <Etiqueta semPonto>{plural(p.validacoes, 'validação', 'validações')}</Etiqueta>
             )}
+            {p.surpresa && (
+              <Etiqueta semPonto>Surpresa · {plural(p.surpresaDias, 'dia', 'dias')}</Etiqueta>
+            )}
+            {p.cupoes > 0 && <Etiqueta semPonto>{plural(p.cupoes, 'cupão', 'cupões')}</Etiqueta>}
+            {p.surpresa &&
+              p.surpresaRestantes !== null &&
+              (p.surpresaRestantes === 0 ? (
+                <Etiqueta tom="fraco" semPonto>
+                  Esgotado
+                </Etiqueta>
+              ) : (
+                <Etiqueta semPonto>Faltam {p.surpresaRestantes.toLocaleString('pt-PT')}</Etiqueta>
+              ))}
             {(p.estado === 'agendada' || p.estado === 'terminada') && (
               <EtiquetaDoEstado estado={p.estado} />
             )}
@@ -296,6 +312,11 @@ type FormularioDaPromocao = {
   periodoDoLimite: PeriodoDoLimite;
   limiteTotal: string;
   soClientesActivos: boolean;
+  surpresa: boolean;
+  /** O saco, tal como se escreve nos campos; «quantos podem sair» vazio: sem limite. */
+  surpresaDias: string;
+  surpresaPeso: string;
+  surpresaRestantes: string;
 };
 
 /** Um limite escrito no campo: vazio é «sem limite» (null); fora do intervalo ou partido, NaN. */
@@ -303,6 +324,18 @@ function limiteEscrito(texto: string, { min, max }: { min: number; max: number }
   if (!texto.trim()) return null;
   const n = Number(texto);
   return Number.isInteger(n) && n >= min && n <= max ? n : NaN;
+}
+
+/** O saco das surpresas: o que a API aceita para os dias, o peso e quantos podem sair. */
+const LIMITES_DO_SACO = {
+  dias: { min: 1, max: 365 },
+  peso: { min: 1, max: 100 },
+  restantes: { min: 0, max: 100_000 },
+} as const;
+
+/** Um número que tem de estar escrito: vazio, partido ou fora do intervalo, NaN. */
+function numeroEscrito(texto: string, intervalo: { min: number; max: number }): number {
+  return limiteEscrito(texto, intervalo) ?? NaN;
 }
 
 /**
@@ -340,6 +373,11 @@ export function EditorDePromocao({
           periodoDoLimite: promocao.periodoDoLimite,
           limiteTotal: promocao.limiteTotal === null ? '' : String(promocao.limiteTotal),
           soClientesActivos: promocao.soClientesActivos,
+          surpresa: promocao.surpresa,
+          surpresaDias: String(promocao.surpresaDias),
+          surpresaPeso: String(promocao.surpresaPeso),
+          surpresaRestantes:
+            promocao.surpresaRestantes === null ? '' : String(promocao.surpresaRestantes),
         }
       : {
           parceiroId: parceiroFixo?.id ?? parceiroInicial,
@@ -355,6 +393,10 @@ export function EditorDePromocao({
           periodoDoLimite: 'dia',
           limiteTotal: '',
           soClientesActivos: true,
+          surpresa: false,
+          surpresaDias: '30',
+          surpresaPeso: '1',
+          surpresaRestantes: '',
         },
   );
   const [erros, setErros] = useState<string[]>([]);
@@ -383,8 +425,17 @@ export function EditorDePromocao({
       }));
     }
   };
+  const ligarSurpresa = (ligado: boolean) => {
+    mudar('surpresa')(ligado);
+    setErros((e) =>
+      e.filter((c) => c !== 'surpresaDias' && c !== 'surpresaPeso' && c !== 'surpresaRestantes'),
+    );
+  };
   const limitePorCliente = limiteEscrito(f.limitePorCliente, LIMITES_DOS_VALES.porCliente);
   const limiteTotal = limiteEscrito(f.limiteTotal, LIMITES_DOS_VALES.total);
+  const surpresaDias = numeroEscrito(f.surpresaDias, LIMITES_DO_SACO.dias);
+  const surpresaPeso = numeroEscrito(f.surpresaPeso, LIMITES_DO_SACO.peso);
+  const surpresaRestantes = limiteEscrito(f.surpresaRestantes, LIMITES_DO_SACO.restantes);
   const parceiro = parceiroFixo ?? parceiros?.find((p) => p.id === f.parceiroId) ?? null;
   const fimDoMes = (() => {
     const [a, m] = hoje.split('-').map(Number) as [number, number];
@@ -400,6 +451,9 @@ export function EditorDePromocao({
     if (f.inicio && f.fim && f.inicio > f.fim) faltam.push('fim');
     if (f.validar && Number.isNaN(limitePorCliente)) faltam.push('limitePorCliente');
     if (f.validar && Number.isNaN(limiteTotal)) faltam.push('limiteTotal');
+    if (f.surpresa && Number.isNaN(surpresaDias)) faltam.push('surpresaDias');
+    if (f.surpresa && Number.isNaN(surpresaPeso)) faltam.push('surpresaPeso');
+    if (f.surpresa && Number.isNaN(surpresaRestantes)) faltam.push('surpresaRestantes');
     if (faltam.length) {
       setErros(faltam);
       avisar(
@@ -407,7 +461,11 @@ export function EditorDePromocao({
           ? 'O fim tem de ser no dia do início ou depois.'
           : faltam.includes('limitePorCliente') || faltam.includes('limiteTotal')
             ? 'Os limites: de 1 a 100 por cliente, de 1 a 100 000 no total.'
-            : 'Faltam campos obrigatórios.',
+            : faltam.includes('surpresaDias') ||
+                faltam.includes('surpresaPeso') ||
+                faltam.includes('surpresaRestantes')
+              ? 'O saco: de 1 a 365 dias, peso de 1 a 100, até 100 000 a sair.'
+              : 'Faltam campos obrigatórios.',
         true,
       );
       return;
@@ -419,6 +477,10 @@ export function EditorDePromocao({
       fim: f.fim || null,
       limitePorCliente: f.validar ? limitePorCliente : null,
       limiteTotal: f.validar ? limiteTotal : null,
+      // Com o saco desligado os números ficam como estão na API, e voltam quando se liga.
+      surpresaDias: f.surpresa ? surpresaDias : undefined,
+      surpresaPeso: f.surpresa ? surpresaPeso : undefined,
+      surpresaRestantes: f.surpresa ? surpresaRestantes : undefined,
     };
     try {
       if (promocao && !comoNova)
@@ -635,6 +697,58 @@ export function EditorDePromocao({
               </>
             )}
           </div>
+          <div className="cartao recheado formulario" style={{ boxShadow: 'none' }}>
+            <div className="campo">
+              <span className="rotulo-campo">No saco das surpresas</span>
+              <Interruptor
+                ligado={f.surpresa}
+                mudar={ligarSurpresa}
+                rotulo="Sai como cupão ao carimbar"
+                ajuda="Não aparece na lista; sai sorteada a quem corta o cabelo."
+              />
+            </div>
+            {f.surpresa && (
+              <>
+                <div className="duas-colunas">
+                  <Campo
+                    rotulo="Vale durante"
+                    tipo="number"
+                    valor={f.surpresaDias}
+                    mudar={mudar('surpresaDias')}
+                    minimo={LIMITES_DO_SACO.dias.min}
+                    maximo={LIMITES_DO_SACO.dias.max}
+                    modoDeTeclado="numeric"
+                    erro={erros.includes('surpresaDias')}
+                    ajuda="dias"
+                  />
+                  <Campo
+                    rotulo="Peso no sorteio"
+                    tipo="number"
+                    valor={f.surpresaPeso}
+                    mudar={mudar('surpresaPeso')}
+                    minimo={LIMITES_DO_SACO.peso.min}
+                    maximo={LIMITES_DO_SACO.peso.max}
+                    modoDeTeclado="numeric"
+                    erro={erros.includes('surpresaPeso')}
+                    ajuda="Mais peso, sai mais vezes."
+                  />
+                </div>
+                <div className="duas-colunas">
+                  <Campo
+                    rotulo="Quantos podem sair"
+                    tipo="number"
+                    valor={f.surpresaRestantes}
+                    mudar={mudar('surpresaRestantes')}
+                    minimo={LIMITES_DO_SACO.restantes.min}
+                    maximo={LIMITES_DO_SACO.restantes.max}
+                    modoDeTeclado="numeric"
+                    erro={erros.includes('surpresaRestantes')}
+                    ajuda="Vazio: sem limite."
+                  />
+                </div>
+              </>
+            )}
+          </div>
           <PrevisaoDaPromocao
             parceiro={parceiro}
             destaque={normalizarDestaque(f.destaque)}
@@ -644,6 +758,7 @@ export function EditorDePromocao({
             fim={f.fim || null}
             hoje={hoje}
             validar={f.validar}
+            surpresa={f.surpresa}
             limite={
               f.validar
                 ? limiteEmTexto({

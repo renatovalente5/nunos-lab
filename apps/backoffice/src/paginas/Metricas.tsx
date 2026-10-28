@@ -329,6 +329,16 @@ export function Metricas() {
               }
               nota={`${m.parcerias.clientesComParcerias.toLocaleString('pt-PT')} de ${m.clientes.total.toLocaleString('pt-PT')} clientes, desde sempre`}
             />
+            <Numero
+              rotulo="Cupões saídos"
+              valor={m.parcerias.cupoesSaidos > 0 ? m.parcerias.cupoesSaidos : '—'}
+              nota="no período"
+            />
+            <Numero
+              rotulo="Cupões usados"
+              valor={m.parcerias.cupoesSaidos > 0 ? m.parcerias.cupoesUsados : '—'}
+              nota="no período"
+            />
           </div>
           <div className="grelha duas" style={{ marginTop: 14, alignItems: 'start' }}>
             <div className="cartao">

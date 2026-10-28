@@ -379,6 +379,12 @@ button.linha:hover {
   background: var(--mau-fundo);
   color: var(--mau);
 }
+/* «Esgotado»: apagada, só o contorno. */
+.etiqueta.fraco {
+  background: transparent;
+  color: var(--tinta-3);
+  border: 1px solid var(--linha);
+}
 
 /* ——— botões ——— */
 .botao {
@@ -918,8 +924,9 @@ dialog.folha::backdrop {
   opacity: 0.82;
   margin-top: 6px;
 }
-/* «Mostra o cartão ao balcão · 1 por dia»: uma linha discreta, como a app a há-de mostrar. */
-.previsao .vale {
+/* «Mostra o cartão ao balcão · 1 por dia» e «Sai como cupão surpresa»: linhas discretas, como a app as há-de mostrar. */
+.previsao .vale,
+.previsao .surpresa {
   font-size: 13px;
   font-weight: 600;
   opacity: 0.72;

@@ -506,7 +506,7 @@ export function Etiqueta({
   children,
   semPonto,
 }: {
-  tom?: 'bom' | 'atencao' | 'mau';
+  tom?: 'bom' | 'atencao' | 'mau' | 'fraco';
   children: ReactNode;
   semPonto?: boolean;
 }) {
@@ -695,6 +695,7 @@ export function PrevisaoDaPromocao({
   hoje,
   validar = false,
   limite = null,
+  surpresa = false,
 }: {
   parceiro: { nome: string; cor: string; logotipo: string | null; capa: string | null } | null;
   destaque: string;
@@ -707,6 +708,8 @@ export function PrevisaoDaPromocao({
   /** O parceiro valida ao ler o cartão: a app pede para o mostrar, com o limite («1 por dia»). */
   validar?: boolean;
   limite?: string | null;
+  /** Está no saco das surpresas: sai como cupão ao carimbar. */
+  surpresa?: boolean;
 }) {
   const validade = validadeEmTexto({ inicio, fim }, hoje);
   const cor = parceiro?.cor ?? '#5C544C';
@@ -731,6 +734,7 @@ export function PrevisaoDaPromocao({
               )}
             </div>
           )}
+          {surpresa && <div className="surpresa">Sai como cupão surpresa</div>}
           {validade && <div className="validade">{validade}</div>}
         </div>
       </div>
