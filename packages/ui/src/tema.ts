@@ -37,5 +37,6 @@ export const CONTINUO: ViewStyle = { borderCurve: 'continuous' };
 /** No computador a app fica numa coluna, como no telemóvel. */
 export const LARGURA_MAXIMA = 560;
 export const MARGEM = 20;
-/** A cápsula da barra de baixo, sem a zona segura. */
-export const ALTURA_DA_BARRA = 58;
+/** A cápsula da barra de baixo, sem a zona segura, e a distância dela ao fundo. */
+export const ALTURA_DA_BARRA = 62;
+export const AFASTAMENTO_DA_BARRA = 16;
