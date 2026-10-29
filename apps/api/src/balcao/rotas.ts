@@ -53,6 +53,22 @@ function exigirBarbearia(c: C) {
   if (c.get('pessoa').papel === 'parceiro') recusar(403, 'so_barbearia');
 }
 
+/**
+ * Um barbeiro não carimba nem entrega o prémio do PRÓPRIO cartão de cliente
+ * (a conta de cliente com o email dele): é outro barbeiro que o faz. Pedido do
+ * Renato a 29 out 2026.
+ */
+async function exigirCartaoDeOutro(c: C, clienteId: number) {
+  const proprio = await c.env.DB.prepare(
+    `SELECT 1 FROM equipa e WHERE e.id = ? AND e.email IS NOT NULL AND (
+       EXISTS (SELECT 1 FROM identidades i WHERE i.cliente_id = ? AND i.email = e.email)
+       OR EXISTS (SELECT 1 FROM clientes k WHERE k.id = ? AND k.email = e.email))`,
+  )
+    .bind(c.get('pessoa').id, clienteId, clienteId)
+    .first();
+  if (proprio) recusar(403, 'proprio_cartao');
+}
+
 function exigirDono(c: C) {
   if (c.get('pessoa').papel !== 'dono') recusar(403, 'so_dono');
 }
@@ -297,6 +313,7 @@ async function carimbar(
   if (!(await c.env.CARIMBAR.limit({ key: `sessao:${pessoa.sessao}` }))?.success)
     recusar(429, 'muitas_tentativas');
   const lojaId = await lojaDe(c, p.lojaId);
+  await exigirCartaoDeOutro(c, cliente.id);
   const programa = await lerPrograma(db);
   if (p.servicoId) {
     const s = await db
@@ -467,6 +484,7 @@ rotasDaBalcao.post('/usar-recompensa', async (c) => {
     }),
   );
   const cliente = await clientePorCodigo(c, codigo);
+  await exigirCartaoDeOutro(c, cliente.id);
   const loja = await lojaDe(c, lojaId);
   const usado = await c.env.DB.prepare(
     `UPDATE cartoes SET usado_em = unixepoch(), usado_loja_id = ?, usado_por = ?
@@ -493,6 +511,13 @@ rotasDaBalcao.post('/clientes', async (c) => {
   const db = c.env.DB;
   const email = p.email ? normalizarEmail(p.email) : null;
   if (p.email && !email) recusar(400, 'invalido');
+  if (email && p.carimbo) {
+    const proprio = await db
+      .prepare('SELECT 1 FROM equipa WHERE id = ? AND email = ?')
+      .bind(c.get('pessoa').id, email)
+      .first();
+    if (proprio) recusar(403, 'proprio_cartao');
+  }
   if (email) {
     const existe = await db
       .prepare(

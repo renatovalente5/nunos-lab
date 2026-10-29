@@ -1641,8 +1641,12 @@ await passo(
     const b = await (await entrarEquipa('BARBEIRO.PROVA@GMAIL.COM')).json();
     assert.ok(b.sessao, 'entra na for partners com o Google (o email em maiúsculas também)');
     const escondido = await entrarEquipa(null);
-  assert.equal(escondido.status, 403, 'a Apple sem email partilhado não entra');
-  assert.equal((await escondido.json()).erro, 'email_escondido', 'e a app diz-lhe para partilhar o email');
+    assert.equal(escondido.status, 403, 'a Apple sem email partilhado não entra');
+    assert.equal(
+      (await escondido.json()).erro,
+      'email_escondido',
+      'e a app diz-lhe para partilhar o email',
+    );
     assert.equal((await entrarEquipa('ninguem@gmail.com')).status, 403);
     const cliente = await (
       await entrarTeste('google', 'id-gb', 'barbeiro.prova@gmail.com', { nome: 'Barbeiro Prova' })

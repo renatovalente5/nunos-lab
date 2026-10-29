@@ -94,6 +94,7 @@ const MENSAGENS: Record<string, string> = {
   cartao_desconhecido: 'Este código não é de nenhum cartão.',
   outra_casa: 'Este cartão não se carimba nesta casa com a tua conta.',
   so_barbearia: 'A tua conta não carimba.',
+  proprio_cartao: 'É o teu cartão. Pede a outro barbeiro.',
   so_parceiro: 'A tua conta não valida vantagens.',
   ja_usou: 'Já usou hoje.',
   limite_do_cliente: 'Este cliente chegou ao limite.',
