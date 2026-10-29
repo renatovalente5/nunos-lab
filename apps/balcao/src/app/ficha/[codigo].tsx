@@ -7,7 +7,7 @@ import {
   fraseDoCorteOferecido,
 } from '@nunos-lab/dominio';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
@@ -64,7 +64,6 @@ export default function Ficha() {
   const { data: eu } = useEu();
   const casa = useCasa(eu);
   const { data: ficha, error, refetch, isPending } = useFicha(codigo ?? '');
-  const [servico, setServico] = useState<number | null>(null);
   const [estado, setEstado] = useState<'pronto' | 'a-enviar' | 'feito' | 'na-fila' | 'erro'>(
     'pronto',
   );
@@ -73,10 +72,6 @@ export default function Ficha() {
   const [aviso, setAviso] = useState<{ quando: number; pessoa: string | null } | null>(null);
   const escala = useRef(new Animated.Value(0.6)).current;
   const chave = useRef(chaveNova());
-
-  useEffect(() => {
-    if (eu?.programa.servicos && eu.servicos[0] && servico === null) setServico(eu.servicos[0].id);
-  }, [eu, servico]);
 
   // Com o limite do dia já atingido, o botão diz logo «Carimbar na mesma»: antes só o dizia depois de
   // a API recusar, e o barbeiro tinha de carregar duas vezes.
@@ -100,7 +95,6 @@ export default function Ficha() {
         codigo: ficha.cliente.codigo,
         chave: chave.current,
         lojaId: casa,
-        servicoId: eu?.programa.servicos ? servico : null,
         confirmar,
       });
       if ('naFila' in r) {
@@ -472,36 +466,6 @@ export default function Ficha() {
               ...CONTINUO,
             }}
           >
-            {eu?.programa.servicos && eu.servicos.length > 0 && (
-              <View
-                style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}
-              >
-                {eu.servicos.map((s) => {
-                  const on = s.id === servico;
-                  return (
-                    <Pressable
-                      key={s.id}
-                      onPress={() => setServico(s.id)}
-                      role="radio"
-                      aria-checked={on}
-                      style={{
-                        paddingHorizontal: 14,
-                        paddingVertical: 9,
-                        borderRadius: 999,
-                        backgroundColor: on ? cor.claro : cor.superficieAlta,
-                      }}
-                    >
-                      <T
-                        v="forte"
-                        style={{ fontSize: 14, color: on ? cor.sobreClaro : cor.texto2 }}
-                      >
-                        {s.nome}
-                      </T>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
             {ficha.recompensas.length > 0 && (
               <Pressable
                 onPress={() => usar(ficha.recompensas[0]!.cartaoId)}

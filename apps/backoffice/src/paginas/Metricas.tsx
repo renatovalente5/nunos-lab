@@ -159,17 +159,7 @@ export function Metricas() {
             />
           </div>
           <div className="grelha duas" style={{ marginTop: 14 }}>
-            {m.totais.receita !== null && (
-              <Numero
-                rotulo="Receita estimada"
-                valor={euros(m.totais.receita)}
-                nota="pelos preços dos serviços"
-              />
-            )}
-            <div
-              className="cartao numero"
-              style={m.totais.receita === null ? { gridColumn: '1 / -1' } : undefined}
-            >
+            <div className="cartao numero" style={{ gridColumn: '1 / -1' }}>
               <div className="numeros-pequenos">
                 <div>
                   <div className="rotulo">Anulados</div>
@@ -293,24 +283,6 @@ export function Metricas() {
                       </tbody>
                     </table>
                   </div>
-                ) : null}
-              </div>
-            </>
-          )}
-
-          {m.servicos.length > 0 && (
-            <>
-              <h2 className="seccao">Serviços</h2>
-              <div className="cartao">
-                {m.servicos.length ? (
-                  <Barras
-                    linhas={m.servicos.map((s) => ({
-                      chave: s.id ?? 'sem',
-                      nome: s.nome,
-                      n: s.n,
-                      detalhe: s.receita !== null ? euros(s.receita) : undefined,
-                    }))}
-                  />
                 ) : null}
               </div>
             </>

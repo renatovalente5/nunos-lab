@@ -490,7 +490,6 @@ await passo('o programa lê-se e grava-se', async () => {
       objectivo: 8,
       recompensa: 'Corte grátis',
       porDia: 2,
-      servicos: true,
       aniversario: '',
     }),
   });
@@ -499,7 +498,7 @@ await passo('o programa lê-se e grava-se', async () => {
   const mau = await pedir('/api/bo/programa', {
     method: 'PUT',
     token,
-    body: json({ objectivo: 0, recompensa: '', porDia: 1, servicos: true, aniversario: '' }),
+    body: json({ objectivo: 0, recompensa: '', porDia: 1, aniversario: '' }),
   });
   assert.equal(mau.status, 400);
   await pedir('/api/bo/programa', {
@@ -509,33 +508,9 @@ await passo('o programa lê-se e grava-se', async () => {
       objectivo: 10,
       recompensa: 'Corte grátis',
       porDia: 1,
-      servicos: true,
       aniversario: '',
     }),
   });
-});
-
-await passo('serviços: criar, mudar o preço, apagar', async () => {
-  const r = await pedir('/api/bo/servicos', {
-    method: 'POST',
-    token,
-    body: json({ nome: 'Prova', preco: 500 }),
-  });
-  assert.equal(r.status, 201);
-  const criado = (await r.json()).find((s) => s.nome === 'Prova');
-  assert.ok(criado);
-  const mudado = await (
-    await pedir(`/api/bo/servicos/${criado.id}`, {
-      method: 'PATCH',
-      token,
-      body: json({ preco: 700 }),
-    })
-  ).json();
-  assert.equal(mudado.find((s) => s.id === criado.id).preco, 700);
-  const depois = await (
-    await pedir(`/api/bo/servicos/${criado.id}`, { method: 'DELETE', token })
-  ).json();
-  assert.ok(!depois.some((s) => s.id === criado.id), 'sem carimbos, apaga-se mesmo');
 });
 
 let tokenBalcao;
@@ -572,7 +547,6 @@ await passo('equipa: um barbeiro, uma ligação de acesso, e a Balcão abre', as
   assert.equal(eu.pessoa.lojaId, 3);
   assert.equal(eu.lojas.length, 3);
   assert.equal(eu.programa.objectivo, 10);
-  assert.ok(eu.servicos.length >= 3);
   assert.equal((await pedir('/api/balcao/eu')).status, 401);
 });
 
@@ -584,7 +558,7 @@ await passo('um cliente novo ao balcão, com o 1.º carimbo', async () => {
     body: json({
       nome: 'Cliente Prova',
       email: 'cliente.prova@gmail.com',
-      carimbo: { chave: 'prova-c-01', lojaId: 3, servicoId: 1 },
+      carimbo: { chave: 'prova-c-01', lojaId: 3 },
     }),
   });
   assert.equal(r.status, 200);
@@ -684,7 +658,6 @@ await passo(
           codigo: codigoDoCliente,
           chave: `prova-c-${String(i).padStart(2, '0')}`,
           lojaId: 3,
-          servicoId: 3,
           confirmar: true,
         }),
       });
@@ -1451,7 +1424,6 @@ await passo('o backoffice vê os clientes, a ficha, o CSV e as métricas', async
   );
   assert.ok(m.clientes.total >= 62);
   assert.ok(m.clientes.distribuicao.length === 4);
-  assert.ok(m.servicos.length >= 1);
   assert.equal(typeof m.contas.google, 'number');
   const tudo = await (
     await pedir('/api/bo/metricas?de=2020-01-01&ate=2020-01-31', { token })

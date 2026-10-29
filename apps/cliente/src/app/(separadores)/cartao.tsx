@@ -252,9 +252,9 @@ export default function Cartao() {
                     >
                       <View style={{ flex: 1 }}>
                         <T v="forte">{v.loja ?? "Nuno's Lab"}</T>
-                        {(v.pessoa || v.servico) && (
+                        {v.pessoa && (
                           <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
-                            {[v.pessoa, v.servico].filter(Boolean).join(' · ')}
+                            {v.pessoa}
                           </T>
                         )}
                       </View>

@@ -7,8 +7,6 @@ export type Programa = {
   recompensa: string;
   /** Carimbos por cliente por dia; acima disto a Balcão avisa e marca «repetido». */
   porDia: number;
-  /** A Balcão pergunta o serviço (Corte, Barba…) a cada carimbo. */
-  servicos: boolean;
   /** A prenda de anos (texto livre; vazio: não há). */
   aniversario: string;
 };
@@ -17,7 +15,6 @@ export const PROGRAMA_PREDEFINIDO: Programa = {
   objectivo: 10,
   recompensa: 'Corte grátis',
   porDia: 1,
-  servicos: true,
   aniversario: '',
 };
 
@@ -26,7 +23,6 @@ export const LIMITES_DO_PROGRAMA = {
   porDia: { min: 1, max: 10 },
   recompensa: 40,
   aniversario: 60,
-  servico: 30,
   nomeDoCliente: 40,
   codigo: 8,
 } as const;

@@ -28,7 +28,6 @@ import {
   type Loja,
   type ResultadoDoCarimbo,
   type ResumoDaBalcao,
-  type Servico,
   type UltimoCarimbo,
 } from '@nunos-lab/dominio';
 import type { Ambiente, C } from '../ambiente.ts';
@@ -94,9 +93,8 @@ async function clientePorCodigo(c: C, texto: string): Promise<LinhaCliente> {
   return cliente;
 }
 
-const VISITA = `SELECT x.id, x.criado_em AS quando, l.nome AS loja, e.nome AS pessoa, s.nome AS servico
-  FROM carimbos x LEFT JOIN lojas l ON l.id = x.loja_id LEFT JOIN equipa e ON e.id = x.pessoa_id
-  LEFT JOIN servicos s ON s.id = x.servico_id`;
+const VISITA = `SELECT x.id, x.criado_em AS quando, l.nome AS loja, e.nome AS pessoa
+  FROM carimbos x LEFT JOIN lojas l ON l.id = x.loja_id LEFT JOIN equipa e ON e.id = x.pessoa_id`;
 
 async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
   const db = c.env.DB;
@@ -169,11 +167,8 @@ async function abrirCartaoSeguinte(
 rotasDaBalcao.get('/eu', async (c) => {
   const pessoa = c.get('pessoa');
   const db = c.env.DB;
-  const [lojas, servicos, parceiro] = await db.batch([
+  const [lojas, parceiro] = await db.batch([
     db.prepare('SELECT id, nome, morada, telefone, marcar, ordem FROM lojas ORDER BY ordem, id'),
-    db.prepare(
-      'SELECT id, nome, preco, ordem, activo FROM servicos WHERE activo = 1 ORDER BY ordem, id',
-    ),
     db.prepare('SELECT id, nome FROM parceiros WHERE id = ?').bind(pessoa.parceiroId ?? 0),
   ]);
   const eu: EuDaBalcao = {
@@ -189,10 +184,6 @@ rotasDaBalcao.get('/eu', async (c) => {
     },
     sessao: pessoa.sessao,
     lojas: lojas!.results as Loja[],
-    servicos: (servicos!.results as (Omit<Servico, 'activo'> & { activo: number })[]).map((s) => ({
-      ...s,
-      activo: s.activo === 1,
-    })),
     programa: await lerPrograma(db),
     parceiro: (parceiro!.results[0] as { id: number; nome: string } | undefined) ?? null,
   };
@@ -209,7 +200,6 @@ const Carimbo = z.object({
   /** A chave de idempotência, gerada pela Balcão. */
   chave: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
   lojaId: z.number().int().positive(),
-  servicoId: z.number().int().positive().nullish(),
   /** Já viu o aviso do limite do dia e quer carimbar na mesma. */
   confirmar: z.boolean().optional(),
   /** Procurado por nome, sem ler o QR. */
@@ -343,13 +333,6 @@ async function carimbar(
   const lojaId = await lojaDe(c, p.lojaId);
   await exigirCartaoDeOutro(c, cliente.id);
   const programa = await lerPrograma(db);
-  if (p.servicoId) {
-    const s = await db
-      .prepare('SELECT 1 FROM servicos WHERE id = ? AND activo = 1')
-      .bind(p.servicoId)
-      .first();
-    if (!s) recusar(400, 'referencia');
-  }
   const hoje = diaEmLisboa();
   let cartao = await cartaoActual(db, cliente.id);
   if (!cartao) {
@@ -395,15 +378,14 @@ async function carimbar(
   const instrucoes = [
     db
       .prepare(
-        `INSERT INTO carimbos (cartao_id, cliente_id, loja_id, pessoa_id, servico_id, chave, dia, repetido, sem_leitura)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, criado_em`,
+        `INSERT INTO carimbos (cartao_id, cliente_id, loja_id, pessoa_id, chave, dia, repetido, sem_leitura)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, criado_em`,
       )
       .bind(
         cartao.id,
         cliente.id,
         lojaId,
         pessoa.id,
-        programa.servicos ? (p.servicoId ?? null) : null,
         p.chave,
         hoje,
         repetido || entregueHoje ? 1 : 0,
@@ -654,12 +636,12 @@ function filtroDaCasa(c: C): number | null {
 }
 
 const ULTIMO = `SELECT x.id, x.criado_em AS quando, k.nome AS cliente, k.id AS clienteId, k.codigo,
-    e.nome AS pessoa, l.nome AS loja, s.nome AS servico, c.objectivo,
+    e.nome AS pessoa, l.nome AS loja, c.objectivo,
     (SELECT count(*) FROM carimbos y WHERE y.cartao_id = c.id AND y.anulado_em IS NULL AND y.id <= x.id) AS carimbos,
     x.anulado_em, x.repetido,
     (c.completo_em IS NOT NULL AND x.id = (SELECT max(id) FROM carimbos z WHERE z.cartao_id = c.id AND z.anulado_em IS NULL)) AS recompensa
   FROM carimbos x JOIN clientes k ON k.id = x.cliente_id JOIN cartoes c ON c.id = x.cartao_id
-  LEFT JOIN equipa e ON e.id = x.pessoa_id LEFT JOIN lojas l ON l.id = x.loja_id LEFT JOIN servicos s ON s.id = x.servico_id`;
+  LEFT JOIN equipa e ON e.id = x.pessoa_id LEFT JOIN lojas l ON l.id = x.loja_id`;
 
 type LinhaUltimo = Omit<UltimoCarimbo, 'anulado' | 'repetido' | 'recompensa'> & {
   anulado_em: number | null;
@@ -674,7 +656,6 @@ const ultimoPublico = (u: LinhaUltimo): UltimoCarimbo => ({
   codigo: u.codigo,
   pessoa: u.pessoa,
   loja: u.loja,
-  servico: u.servico,
   carimbos: u.carimbos,
   objectivo: u.objectivo,
   anulado: u.anulado_em !== null,

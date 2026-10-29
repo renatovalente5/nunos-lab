@@ -216,7 +216,6 @@ export type VisitaDoCliente = {
   quando: number;
   loja: string | null;
   pessoa: string | null;
-  servico: string | null;
 };
 
 export type CartaoDoCliente = {
@@ -300,25 +299,14 @@ export type PessoaDaEquipa = {
   criadoEm: number;
 };
 
-/** Um serviço que a Balcão pergunta ao carimbar; o preço em cêntimos, para a receita estimada. */
-export type Servico = {
-  id: number;
-  nome: string;
-  preco: number | null;
-  ordem: number;
-  activo: boolean;
-};
-
 export type EuDaBalcao = {
   pessoa: PessoaDaEquipa;
   sessao: number;
   lojas: Loja[];
-  servicos: Servico[];
   programa: {
     objectivo: number;
     recompensa: string;
     porDia: number;
-    servicos: boolean;
     aniversario: string;
   };
   parceiro: { id: number; nome: string } | null;
@@ -366,7 +354,6 @@ export type UltimoCarimbo = {
   codigo: string;
   pessoa: string | null;
   loja: string | null;
-  servico: string | null;
   carimbos: number;
   objectivo: number;
   anulado: boolean;
@@ -521,8 +508,6 @@ export type Metricas = {
     anulados: number;
     repetidos: number;
     semLeitura: number;
-    /** Em cêntimos, pelos preços dos serviços; null quando os serviços não têm preço. */
-    receita: number | null;
   };
   porDia: { dia: string; n: number }[];
   porLoja: { id: number; nome: string; n: number; clientes: number; anterior: number }[];
@@ -538,7 +523,6 @@ export type Metricas = {
   }[];
   /** [dia da semana 0–6][hora 0–23], em Lisboa. */
   mapaDeCalor: number[][];
-  servicos: { id: number | null; nome: string; n: number; receita: number | null }[];
   clientes: {
     total: number;
     activos30: number;

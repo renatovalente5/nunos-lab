@@ -1,4 +1,4 @@
-/** O backoffice da fidelidade: o programa, os serviços e a equipa da Balcão. */
+/** O backoffice da fidelidade: o programa e a equipa da Balcão. */
 import { Hono } from 'hono';
 import { z } from 'zod';
 import {
@@ -7,7 +7,6 @@ import {
   LIMITES_DO_PROGRAMA,
   normalizarEmail,
   type PessoaDaEquipaNoBackoffice,
-  type Servico,
 } from '@nunos-lab/dominio';
 import type { Ambiente } from '../ambiente.ts';
 import { lerPrograma } from '../programa.ts';
@@ -37,7 +36,6 @@ const ProgramaPedido = z.object({
     .max(LIMITES_DO_PROGRAMA.objectivo.max),
   recompensa: z.string().trim().min(1).max(LIMITES_DO_PROGRAMA.recompensa),
   porDia: z.number().int().min(LIMITES_DO_PROGRAMA.porDia.min).max(LIMITES_DO_PROGRAMA.porDia.max),
-  servicos: z.boolean(),
   aniversario: z.string().trim().max(LIMITES_DO_PROGRAMA.aniversario),
 });
 
@@ -54,97 +52,10 @@ rotasDaFidelidade.put('/programa', async (c) => {
     por('fid.objectivo', String(p.objectivo)),
     por('fid.recompensa', p.recompensa),
     por('fid.por_dia', String(p.porDia)),
-    por('fid.servicos', p.servicos ? '1' : '0'),
     por('fid.aniversario', p.aniversario),
     registar(c, 'programa.alterado', `${p.objectivo} → ${p.recompensa}`),
   ]);
   return c.json(await lerPrograma(db));
-});
-
-// ——— os serviços ———
-
-type LinhaServico = {
-  id: number;
-  nome: string;
-  preco: number | null;
-  ordem: number;
-  activo: number;
-};
-const servicoPublico = (s: LinhaServico): Servico => ({ ...s, activo: s.activo === 1 });
-
-async function lerServicos(db: D1Database): Promise<Servico[]> {
-  const r = await db
-    .prepare('SELECT id, nome, preco, ordem, activo FROM servicos ORDER BY ordem, id')
-    .all<LinhaServico>();
-  return r.results.map(servicoPublico);
-}
-
-rotasDaFidelidade.get('/servicos', async (c) => c.json(await lerServicos(c.env.DB)));
-
-const ServicoPedido = z.object({
-  nome: z.string().trim().min(1).max(LIMITES_DO_PROGRAMA.servico),
-  preco: z.number().int().min(0).max(100_000).nullable(),
-  activo: z.boolean().optional(),
-});
-
-rotasDaFidelidade.post('/servicos', async (c) => {
-  const s = await corpo(c, ServicoPedido);
-  const db = c.env.DB;
-  const ordem = await db
-    .prepare('SELECT coalesce(max(ordem), 0) + 1 AS n FROM servicos')
-    .first<{ n: number }>();
-  await db.batch([
-    db
-      .prepare('INSERT INTO servicos (nome, preco, ordem, activo) VALUES (?, ?, ?, ?)')
-      .bind(s.nome, s.preco, ordem!.n, s.activo === false ? 0 : 1),
-    registar(c, 'servico.criado', s.nome),
-  ]);
-  return c.json(await lerServicos(db), 201);
-});
-
-rotasDaFidelidade.patch('/servicos/:id', async (c) => {
-  const id = idDaMorada(c);
-  const s = await corpo(c, ServicoPedido.partial());
-  const db = c.env.DB;
-  const partes: string[] = [];
-  const valores: (string | number | null)[] = [];
-  if (s.nome !== undefined) (partes.push('nome = ?'), valores.push(s.nome));
-  if (s.preco !== undefined) (partes.push('preco = ?'), valores.push(s.preco));
-  if (s.activo !== undefined) (partes.push('activo = ?'), valores.push(s.activo ? 1 : 0));
-  if (partes.length === 0) recusar(400, 'nada_a_mudar');
-  const r = await db
-    .prepare(`UPDATE servicos SET ${partes.join(', ')} WHERE id = ?`)
-    .bind(...valores, id)
-    .run();
-  if (!r.meta.changes) recusar(404, 'nao_existe');
-  return c.json(await lerServicos(db));
-});
-
-rotasDaFidelidade.delete('/servicos/:id', async (c) => {
-  const id = idDaMorada(c);
-  const db = c.env.DB;
-  const usado = await db
-    .prepare('SELECT 1 FROM carimbos WHERE servico_id = ? LIMIT 1')
-    .bind(id)
-    .first();
-  // Com carimbos atrás, o serviço desliga-se (os números precisam do nome).
-  const r = await db
-    .prepare(
-      usado ? 'UPDATE servicos SET activo = 0 WHERE id = ?' : 'DELETE FROM servicos WHERE id = ?',
-    )
-    .bind(id)
-    .run();
-  if (!r.meta.changes) recusar(404, 'nao_existe');
-  return c.json(await lerServicos(db));
-});
-
-rotasDaFidelidade.put('/servicos/ordem', async (c) => {
-  const { ids } = await corpo(c, z.object({ ids: z.array(z.number().int().positive()).max(100) }));
-  const db = c.env.DB;
-  await db.batch(
-    ids.map((id, i) => db.prepare('UPDATE servicos SET ordem = ? WHERE id = ?').bind(i + 1, id)),
-  );
-  return c.json(await lerServicos(db));
 });
 
 // ——— a equipa ———

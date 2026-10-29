@@ -126,11 +126,11 @@ rotasDosClientes.get('/clientes/:id', async (c) => {
       .bind(id),
     db
       .prepare(
-        `SELECT x.id, x.criado_em AS quando, l.nome AS loja, e.nome AS pessoa, s.nome AS servico, c.numero,
+        `SELECT x.id, x.criado_em AS quando, l.nome AS loja, e.nome AS pessoa, c.numero,
            x.anulado_em, a.nome AS anulado_por, x.repetido, x.sem_leitura
          FROM carimbos x JOIN cartoes c ON c.id = x.cartao_id
          LEFT JOIN lojas l ON l.id = x.loja_id LEFT JOIN equipa e ON e.id = x.pessoa_id
-         LEFT JOIN servicos s ON s.id = x.servico_id LEFT JOIN equipa a ON a.id = x.anulado_por
+         LEFT JOIN equipa a ON a.id = x.anulado_por
          WHERE x.cliente_id = ? ORDER BY x.criado_em DESC LIMIT 200`,
       )
       .bind(id),
@@ -154,7 +154,6 @@ rotasDosClientes.get('/clientes/:id', async (c) => {
     quando: number;
     loja: string | null;
     pessoa: string | null;
-    servico: string | null;
     numero: number;
     anulado_em: number | null;
     anulado_por: string | null;
@@ -180,7 +179,6 @@ rotasDosClientes.get('/clientes/:id', async (c) => {
       quando: x.quando,
       loja: x.loja,
       pessoa: x.pessoa,
-      servico: x.servico,
       cartaoNumero: x.numero,
       anuladoEm: x.anulado_em,
       anuladoPor: x.anulado_por,

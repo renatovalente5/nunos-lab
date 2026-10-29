@@ -1,6 +1,6 @@
 /**
  * A sessão da Balcão fica no aparelho (um ano sem uso), e o «eu» (a pessoa, as
- * casas, os serviços, o programa) em cache. Os carimbos sem rede ficam numa
+ * casas, o programa) em cache. Os carimbos sem rede ficam numa
  * fila com a chave de idempotência, e seguem quando houver rede.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -266,7 +266,6 @@ export type CarimboNaFila = {
   codigo: string;
   chave: string;
   lojaId: number;
-  servicoId: number | null;
   confirmar: boolean;
   quando: number;
 };
@@ -324,7 +323,6 @@ export async function despejarFila(): Promise<number> {
           codigo: p.codigo,
           chave: p.chave,
           lojaId: p.lojaId,
-          servicoId: p.servicoId,
           confirmar: true,
         },
       });

@@ -24,7 +24,6 @@ export async function lerPrograma(db: D1Database): Promise<Programa> {
     ),
     recompensa: d.get('fid.recompensa') ?? PROGRAMA_PREDEFINIDO.recompensa,
     porDia: inteiro('fid.por_dia', LIMITES_DO_PROGRAMA.porDia, PROGRAMA_PREDEFINIDO.porDia),
-    servicos: (d.get('fid.servicos') ?? '1') === '1',
     aniversario: d.get('fid.aniversario') ?? '',
   };
 }

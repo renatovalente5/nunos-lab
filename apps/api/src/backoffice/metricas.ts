@@ -73,14 +73,12 @@ rotasDasMetricas.get('/metricas', async (c) => {
     db.prepare(
       'SELECT count(*) AS n FROM cartoes c WHERE c.completo_em IS NOT NULL AND c.usado_em IS NULL',
     ),
-    // 8 anulados, repetidos, sem leitura, receita
+    // 8 anulados, repetidos, sem leitura
     db
       .prepare(
         `SELECT sum(x.anulado_em IS NOT NULL) AS anulados, sum(x.repetido = 1 AND x.anulado_em IS NULL) AS repetidos,
-           sum(x.sem_leitura = 1 AND x.anulado_em IS NULL) AS sem_leitura,
-           sum(CASE WHEN x.anulado_em IS NULL THEN s.preco END) AS receita,
-           sum(x.anulado_em IS NULL AND (s.preco IS NULL)) AS sem_preco
-         FROM carimbos x LEFT JOIN servicos s ON s.id = x.servico_id WHERE x.dia BETWEEN ? AND ? ${casa}`,
+           sum(x.sem_leitura = 1 AND x.anulado_em IS NULL) AS sem_leitura
+         FROM carimbos x WHERE x.dia BETWEEN ? AND ? ${casa}`,
       )
       .bind(de, ate, ...l),
     // 9 por dia
@@ -119,32 +117,24 @@ rotasDasMetricas.get('/metricas', async (c) => {
         `SELECT x.dia, x.criado_em FROM carimbos x WHERE x.dia BETWEEN ? AND ? AND x.anulado_em IS NULL ${casa} LIMIT 50000`,
       )
       .bind(de, ate, ...l),
-    // 13 serviços
-    db
-      .prepare(
-        `SELECT s.id, coalesce(s.nome, 'Sem serviço') AS nome, count(*) AS n, sum(s.preco) AS receita
-         FROM carimbos x LEFT JOIN servicos s ON s.id = x.servico_id
-         WHERE x.dia BETWEEN ? AND ? AND x.anulado_em IS NULL ${casa} GROUP BY s.id ORDER BY n DESC`,
-      )
-      .bind(de, ate, ...l),
-    // 14 por cliente (toda a história), para activos, frequência, risco, distribuição, várias casas
+    // 13 por cliente (toda a história), para activos, frequência, risco, distribuição, várias casas
     db.prepare(
       `SELECT x.cliente_id, k.nome, count(*) AS n, min(x.criado_em) AS primeiro, max(x.criado_em) AS ultimo,
            count(DISTINCT x.loja_id) AS lojas
          FROM carimbos x JOIN clientes k ON k.id = x.cliente_id
          WHERE x.anulado_em IS NULL AND k.apagado_em IS NULL GROUP BY x.cliente_id`,
     ),
-    // 15 a segunda visita de cada cliente (o retorno)
+    // 14 a segunda visita de cada cliente (o retorno)
     db.prepare(
       `SELECT cliente_id, min(CASE WHEN rn = 1 THEN criado_em END) AS primeiro, min(CASE WHEN rn = 2 THEN criado_em END) AS segundo
        FROM (SELECT cliente_id, criado_em, row_number() OVER (PARTITION BY cliente_id ORDER BY criado_em) AS rn
              FROM carimbos WHERE anulado_em IS NULL) WHERE rn <= 2 GROUP BY cliente_id`,
     ),
-    // 16 os meses em que cada cliente veio (as coortes)
+    // 15 os meses em que cada cliente veio (as coortes)
     db.prepare(
       `SELECT cliente_id, substr(dia, 1, 7) AS mes FROM carimbos WHERE anulado_em IS NULL GROUP BY cliente_id, mes`,
     ),
-    // 17 validações no período · 18 no anterior · 19 clientes únicos · 20 clientes com parcerias (sempre)
+    // 16 validações no período · 17 no anterior · 18 clientes únicos · 19 clientes com parcerias (sempre)
     db
       .prepare(
         `SELECT count(*) AS n FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.dia BETWEEN ? AND ? AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?' : ''}`,
@@ -163,7 +153,7 @@ rotasDasMetricas.get('/metricas', async (c) => {
     db.prepare(
       'SELECT count(DISTINCT v.cliente_id) AS n FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.anulado_em IS NULL AND k.apagado_em IS NULL',
     ),
-    // 21 por parceiro · 22 por promoção · 23 pela casa do cliente
+    // 20 por parceiro · 21 por promoção · 22 pela casa do cliente
     db
       .prepare(
         `SELECT pa.id, pa.nome,
@@ -189,14 +179,14 @@ rotasDasMetricas.get('/metricas', async (c) => {
          FROM lojas lj ORDER BY lj.ordem, lj.id`,
       )
       .bind(de, ate),
-    // 24 cupões saídos e usados no período
+    // 23 cupões saídos e usados no período
     db
       .prepare(
         `SELECT sum(k.emitido_em >= ?1 AND k.emitido_em < ?2) AS saidos, sum(k.usado_em >= ?1 AND k.usado_em < ?2) AS usados
          FROM cupoes k JOIN clientes c ON c.id = k.cliente_id ${lojaId ? 'WHERE c.loja_id = ?3' : ''}`,
       )
       .bind(inicioDoDia(de), inicioDoDia(somarDias(ate, 1)), ...l),
-    // 25 contas
+    // 24 contas
     db.prepare(
       `SELECT count(*) AS total,
          sum(EXISTS (SELECT 1 FROM identidades i WHERE i.cliente_id = k.id AND i.tipo = 'apple')) AS apple,
@@ -230,7 +220,7 @@ rotasDasMetricas.get('/metricas', async (c) => {
     ultimo: number;
     lojas: number;
   };
-  const porCliente = r[14]!.results as PorCliente[];
+  const porCliente = r[13]!.results as PorCliente[];
   const activos = (dias: number) => porCliente.filter((k) => k.ultimo > t - dias * 86400).length;
   const comVarias = porCliente.filter((k) => k.n >= 2);
   const frequencia =
@@ -242,7 +232,7 @@ rotasDasMetricas.get('/metricas', async (c) => {
         )
       : null;
   type Retorno = { cliente_id: number; primeiro: number; segundo: number | null };
-  const elegiveis = (r[15]!.results as Retorno[]).filter(
+  const elegiveis = (r[14]!.results as Retorno[]).filter(
     (k) => k.primeiro < t - 60 * 86400 && k.primeiro > t - 120 * 86400,
   );
   const retorno =
@@ -264,7 +254,7 @@ rotasDasMetricas.get('/metricas', async (c) => {
   // As coortes dos últimos 12 meses: quem entrou em cada mês, e em quantos dos meses seguintes voltou.
   type Mes = { cliente_id: number; mes: string };
   const mesesPorCliente = new Map<number, string[]>();
-  for (const m of r[16]!.results as Mes[]) {
+  for (const m of r[15]!.results as Mes[]) {
     const lista = mesesPorCliente.get(m.cliente_id) ?? [];
     lista.push(m.mes);
     mesesPorCliente.set(m.cliente_id, lista);
@@ -292,10 +282,8 @@ rotasDasMetricas.get('/metricas', async (c) => {
     anulados: number | null;
     repetidos: number | null;
     sem_leitura: number | null;
-    receita: number | null;
-    sem_preco: number | null;
   };
-  const contas = r[25]!.results[0] as {
+  const contas = r[24]!.results[0] as {
     total: number;
     apple: number | null;
     google: number | null;
@@ -319,7 +307,6 @@ rotasDasMetricas.get('/metricas', async (c) => {
       anulados: extras.anulados ?? 0,
       repetidos: extras.repetidos ?? 0,
       semLeitura: extras.sem_leitura ?? 0,
-      receita: extras.receita !== null && (extras.sem_preco ?? 0) === 0 ? extras.receita : null,
     },
     porDia,
     porLoja: r[10]!.results as Metricas['porLoja'],
@@ -338,7 +325,6 @@ rotasDasMetricas.get('/metricas', async (c) => {
       recompensas: p.recompensas ?? 0,
     })),
     mapaDeCalor,
-    servicos: r[13]!.results as Metricas['servicos'],
     clientes: {
       total: contas.total,
       activos30: activos(30),
@@ -364,18 +350,18 @@ rotasDasMetricas.get('/metricas', async (c) => {
       soBalcao: contas.so_balcao ?? 0,
     },
     parcerias: {
-      validacoes: n(17),
-      validacoesAnterior: n(18),
-      clientesUnicos: n(19),
-      clientesComParcerias: n(20),
-      porParceiro: r[21]!.results as Metricas['parcerias']['porParceiro'],
-      porPromocao: r[22]!.results as Metricas['parcerias']['porPromocao'],
-      semValidacoes: (r[21]!.results as Metricas['parcerias']['porParceiro'])
+      validacoes: n(16),
+      validacoesAnterior: n(17),
+      clientesUnicos: n(18),
+      clientesComParcerias: n(19),
+      porParceiro: r[20]!.results as Metricas['parcerias']['porParceiro'],
+      porPromocao: r[21]!.results as Metricas['parcerias']['porPromocao'],
+      semValidacoes: (r[20]!.results as Metricas['parcerias']['porParceiro'])
         .filter((x) => x.n === 0)
         .map((x) => ({ id: x.id, nome: x.nome })),
-      porCasa: r[23]!.results as Metricas['parcerias']['porCasa'],
-      cupoesSaidos: Number((r[24]!.results[0] as { saidos: number | null }).saidos ?? 0),
-      cupoesUsados: Number((r[24]!.results[0] as { usados: number | null }).usados ?? 0),
+      porCasa: r[22]!.results as Metricas['parcerias']['porCasa'],
+      cupoesSaidos: Number((r[23]!.results[0] as { saidos: number | null }).saidos ?? 0),
+      cupoesUsados: Number((r[23]!.results[0] as { usados: number | null }).usados ?? 0),
     },
   };
   return c.json(m);

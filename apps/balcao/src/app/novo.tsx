@@ -38,7 +38,6 @@ export default function Novo() {
               ? {
                   chave: chaveNova(),
                   lojaId: casa,
-                  servicoId: eu?.programa.servicos ? (eu.servicos[0]?.id ?? null) : null,
                 }
               : null,
           },

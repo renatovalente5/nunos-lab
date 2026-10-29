@@ -511,7 +511,7 @@ function Hoje() {
                         {u.cliente || 'Sem nome'}
                       </T>
                       <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
-                        {[hora(u.quando), u.pessoa, u.servico, u.repetido ? 'repetido' : null]
+                        {[hora(u.quando), u.pessoa, u.repetido ? 'repetido' : null]
                           .filter(Boolean)
                           .join(' · ')}
                       </T>

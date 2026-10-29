@@ -159,9 +159,8 @@ async function lerEu(c: C): Promise<ClienteEu> {
       consultaDasRecompensas(db, id),
       db
         .prepare(
-          `SELECT x.id, x.criado_em AS quando, l.nome AS loja, e.nome AS pessoa, s.nome AS servico
+          `SELECT x.id, x.criado_em AS quando, l.nome AS loja, e.nome AS pessoa
            FROM carimbos x LEFT JOIN lojas l ON l.id = x.loja_id LEFT JOIN equipa e ON e.id = x.pessoa_id
-           LEFT JOIN servicos s ON s.id = x.servico_id
            WHERE x.cliente_id = ? AND x.anulado_em IS NULL ORDER BY x.criado_em DESC LIMIT 30`,
         )
         .bind(id),

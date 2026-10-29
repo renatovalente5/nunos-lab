@@ -168,9 +168,7 @@ export function Cliente({ id }: { id: string }) {
                       {diaDe(h.quando, hoje)} · {horaDe(h.quando)}
                     </div>
                     <div className="detalhe">
-                      {[h.loja, h.pessoa, h.servico, `Cartão ${h.cartaoNumero}`]
-                        .filter(Boolean)
-                        .join(' · ')}
+                      {[h.loja, h.pessoa, `Cartão ${h.cartaoNumero}`].filter(Boolean).join(' · ')}
                     </div>
                   </div>
                   {(h.anuladoEm !== null || h.repetido || h.semLeitura) && (
