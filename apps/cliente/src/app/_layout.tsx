@@ -76,6 +76,9 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
       <T v="legenda" style={{ color: cor.texto2, textAlign: 'center' }}>
         A app não conseguiu abrir este ecrã.
       </T>
+      <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', fontSize: 11 }}>
+        {String(error?.message ?? error).slice(0, 160)}
+      </T>
       <Botao
         nome="Tentar outra vez"
         onPress={() => {

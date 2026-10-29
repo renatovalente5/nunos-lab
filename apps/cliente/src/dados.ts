@@ -146,5 +146,5 @@ export function guardarCasa(id: number | null) {
 }
 
 /** As chaves que a app guarda no aparelho (o telemóvel carrega-as ao arrancar). */
-export const CHAVES_DO_ARMAZEM = [CHAVE, CHAVE_DA_CASA, 'nunoslab:eu:1'];
+export const CHAVES_DO_ARMAZEM = [CHAVE, CHAVE_DA_CASA, 'nunoslab:eu:2'];
 export const CHAVES_SECRETAS = ['nunoslab:sessao'];

@@ -11,7 +11,10 @@ import { guardar as guardarNoArmazem, lerSincrono } from '@nunos-lab/ui';
 import { API } from './dados';
 
 const CHAVE_DA_SESSAO = 'nunoslab:sessao';
-const CHAVE_DO_EU = 'nunoslab:eu:1';
+// A versão sobe quando a forma do «eu» muda: um guardado antigo sem os campos novos rebentava o Cartão.
+const CHAVE_DO_EU = 'nunoslab:eu:2';
+const CHAVE_DO_EU_ANTIGA = 'nunoslab:eu:1';
+let limpouAAntiga = false;
 
 export const GOOGLE_CLIENTE = process.env.EXPO_PUBLIC_GOOGLE_CLIENTE ?? '';
 export const APPLE_CLIENTE = process.env.EXPO_PUBLIC_APPLE_CLIENTE ?? '';
@@ -100,10 +103,39 @@ async function pedir<T = void>(
   return (await r.json()) as T;
 }
 
+/** O «eu» guardado, só se tiver a forma de agora: um de uma versão antiga da app fica de fora. */
 function lerEuGuardado(): ClienteEu | undefined {
   try {
+    if (!limpouAAntiga) {
+      limpouAAntiga = true;
+      guardarNoArmazem(CHAVE_DO_EU_ANTIGA, null);
+    }
     const texto = lerSincrono(CHAVE_DO_EU);
-    return texto ? (JSON.parse(texto) as ClienteEu) : undefined;
+    if (!texto) return undefined;
+    const eu = JSON.parse(texto) as Partial<ClienteEu>;
+    const listas: (keyof ClienteEu)[] = [
+      'recompensas',
+      'visitas',
+      'formas',
+      'sessoes',
+      'vales',
+      'cupoes',
+    ];
+    const inteiro =
+      !!eu &&
+      typeof eu.codigo === 'string' &&
+      !!eu.cartao &&
+      !!eu.programa &&
+      !!eu.wallet &&
+      typeof eu.wallet === 'object' &&
+      typeof eu.activo === 'boolean' &&
+      'prenda' in eu &&
+      listas.every((k) => Array.isArray(eu[k]));
+    if (!inteiro) {
+      guardarNoArmazem(CHAVE_DO_EU, null);
+      return undefined;
+    }
+    return eu as ClienteEu;
   } catch {
     return undefined;
   }
