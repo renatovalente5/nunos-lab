@@ -370,9 +370,12 @@ export default function Ficha() {
               <T v="forte" style={{ color: cor.texto2, fontSize: 18 }}>
                 de {ficha.cartao.objectivo}
               </T>
-              <T v="legenda" style={{ color: cor.texto2, marginLeft: 8 }}>
-                {fraseDoCartao(ficha.cartao.carimbos, ficha.cartao)}
-              </T>
+              {/* Aos 9 a faixa creme já diz «Este corte é grátis»: «O próximo corte é grátis» aqui contradizia-a. */}
+              {ficha.cartao.carimbos !== ficha.cartao.objectivo - 1 && (
+                <T v="legenda" style={{ color: cor.texto2, marginLeft: 8 }}>
+                  {fraseDoCartao(ficha.cartao.carimbos, ficha.cartao)}
+                </T>
+              )}
             </View>
 
             <View
