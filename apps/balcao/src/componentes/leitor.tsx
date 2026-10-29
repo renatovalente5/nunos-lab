@@ -12,9 +12,11 @@ export function Leitor({ aoLer, activo }: { aoLer: (texto: string) => void; acti
   }, [permissao, pedir]);
   if (!permissao?.granted)
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32 }}>
+      <View
+        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32 }}
+      >
         <T v="legenda" style={{ color: cor.texto2, textAlign: 'center' }}>
-          A Balcão precisa da câmara para ler o cartão.
+          A app precisa da câmara para ler o cartão.
         </T>
         {permissao?.canAskAgain && <Botao nome="Permitir a câmara" onPress={() => pedir()} />}
       </View>

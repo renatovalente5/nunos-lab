@@ -36,7 +36,7 @@ const avisar = () => {
 const ler = (chave: string) => lerSincrono(chave);
 const escrever = (chave: string, valor: string | null) => guardarNoArmazem(chave, valor);
 
-/** As chaves que a Balcão guarda no aparelho (o telemóvel carrega-as ao arrancar). */
+/** As chaves que a app guarda no aparelho (o telemóvel carrega-as ao arrancar). */
 export const CHAVES_DO_ARMAZEM = [CHAVE_DO_EU, CHAVE_DA_CASA, CHAVE_DA_FILA];
 export const CHAVES_SECRETAS = [CHAVE_DA_SESSAO];
 

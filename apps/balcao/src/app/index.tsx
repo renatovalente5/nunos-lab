@@ -113,7 +113,7 @@ function HojeParceiro() {
             Parceiro Nuno's Lab
           </T>
           <T v="titulo" numberOfLines={1}>
-            {eu?.parceiro?.nome ?? 'Balcão'}
+            {eu?.parceiro?.nome ?? 'Parceiro'}
           </T>
         </View>
         <Link href="/conta" asChild>
@@ -255,7 +255,7 @@ function Entrar({ estado, mensagem }: { estado: string; mensagem?: string }) {
           v="legenda"
           style={{ color: cor.texto2, letterSpacing: 1.4, textTransform: 'uppercase' }}
         >
-          Balcão
+          for partners
         </T>
         <View style={{ height: 30 }} />
         {estado === 'a-entrar' ? (
@@ -373,7 +373,7 @@ function Hoje() {
               Nuno's Lab
             </T>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <T v="titulo">{nomeDaCasa || 'Balcão'}</T>
+              <T v="titulo">{nomeDaCasa || "Nuno's Lab"}</T>
               {eu && eu.lojas.length > 1 && eu.pessoa.papel !== 'barbeiro' && (
                 <Icone nome="seguinte" tamanho={18} cor={cor.texto3} espessura={2.4} />
               )}

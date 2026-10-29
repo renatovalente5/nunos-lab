@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Nuno's Lab Balcao",
+    "name": "Nuno's Lab for partners",
     "slug": "nunos-lab-balcao",
     "owner": "renatovalente5",
     "scheme": "nunoslab-balcao",
@@ -24,15 +24,15 @@
       },
       "infoPlist": {
         "CFBundleDevelopmentRegion": "pt-PT",
-        "CFBundleName": "Balcão NL",
-        "CFBundleDisplayName": "Balcão NL"
+        "CFBundleName": "Nuno's Partner",
+        "CFBundleDisplayName": "Nuno's Partner"
       }
     },
     "android": {
       "package": "pt.nunoslab.balcao",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0A0A0A"
+        "backgroundColor": "#F4F1EC"
       },
       "predictiveBackGestureEnabled": false,
       "permissions": ["android.permission.CAMERA"],
@@ -45,12 +45,12 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "name": "Nuno's Lab Balcão",
-      "shortName": "Balcão",
+      "name": "Nuno's Lab for partners",
+      "shortName": "Nuno's Partner",
       "lang": "pt-PT",
       "themeColor": "#0A0A0A",
       "backgroundColor": "#0A0A0A",
-      "description": "A Balcão do Nuno's Lab: ler o cartão e carimbar."
+      "description": "A app da equipa e dos parceiros do Nuno's Lab: ler o cartão, carimbar e validar vantagens."
     },
     "plugins": [
       "expo-router",
@@ -76,7 +76,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "A Balcão usa a câmara para ler o cartão do cliente.",
+          "cameraPermission": "A app usa a câmara para ler o cartão do cliente.",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
@@ -90,7 +90,7 @@
       [
         "./plugins/nome-android",
         {
-          "nome": "Balcão NL"
+          "nome": "Nuno's Partner"
         }
       ]
     ],
