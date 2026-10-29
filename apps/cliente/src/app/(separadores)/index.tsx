@@ -1,6 +1,6 @@
 import type { ParceiroPublico, PromocaoPublica } from '@nunos-lab/dominio';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef, type ComponentRef } from 'react';
 import { Image, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { CartaoDestaque, iconeDe, LinhaDoParceiro } from '../../componentes/cartoes';
 import { definirTitulo, guardarCasa, lerCasa, useDados } from '../../dados';
@@ -21,22 +21,21 @@ import {
   cor,
   raio,
 } from '@nunos-lab/ui';
-/** Um desvanecimento no lado direito de uma fila que rola, a dizer que continua. */
+/** Um desvanecimento no lado direito de uma fila que rola, a dizer que continua (só na web). */
 function FadeDireita() {
+  const caixa = useRef<ComponentRef<typeof View>>(null);
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    // O React Native Web não conhece esta propriedade: vai directa ao elemento.
+    const el = caixa.current as unknown as HTMLElement | null;
+    if (el) el.style.backgroundImage = `linear-gradient(to right, rgba(10,10,10,0), ${cor.fundo})`;
+  }, []);
   if (Platform.OS !== 'web') return null;
   return (
     <View
+      ref={caixa}
       pointerEvents="none"
-      style={{
-        position: 'absolute',
-        top: 0,
-        bottom: 0,
-        right: 0,
-        width: 56,
-        ...({
-          backgroundImage: `linear-gradient(to right, rgba(10,10,10,0), ${cor.fundo})`,
-        } as object),
-      }}
+      style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 56 }}
     />
   );
 }
