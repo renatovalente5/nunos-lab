@@ -32,6 +32,7 @@ import {
   type UltimoCarimbo,
 } from '@nunos-lab/dominio';
 import type { Ambiente, C } from '../ambiente.ts';
+import { textoDeBusca } from '@nunos-lab/dominio';
 import {
   cartaoActual,
   cartaoPublico,
@@ -329,10 +330,14 @@ async function carimbar(
   const db = c.env.DB;
   const pessoa = c.get('pessoa');
   const repetida = await db
-    .prepare('SELECT id FROM carimbos WHERE chave = ?')
+    .prepare('SELECT id, cliente_id FROM carimbos WHERE chave = ?')
     .bind(p.chave)
-    .first<{ id: number }>();
-  if (repetida) return resultadoDe(c, repetida.id);
+    .first<{ id: number; cliente_id: number }>();
+  if (repetida) {
+    // A mesma chave noutro cliente é um erro da app: nunca o carimbo do outro.
+    if (repetida.cliente_id !== cliente.id) recusar(409, 'repetido');
+    return resultadoDe(c, repetida.id);
+  }
   if (!(await c.env.CARIMBAR.limit({ key: `sessao:${pessoa.sessao}` }))?.success)
     recusar(429, 'muitas_tentativas');
   const lojaId = await lojaDe(c, p.lojaId);
@@ -423,8 +428,8 @@ async function carimbar(
   } catch (e) {
     // A mesma chave a chegar ao mesmo tempo por dois caminhos: conta uma.
     const outra = await db
-      .prepare('SELECT id FROM carimbos WHERE chave = ?')
-      .bind(p.chave)
+      .prepare('SELECT id FROM carimbos WHERE chave = ? AND cliente_id = ?')
+      .bind(p.chave, cliente.id)
       .first<{ id: number }>();
     if (outra) return resultadoDe(c, outra.id);
     traduzirErroDaBase(e);
@@ -590,9 +595,9 @@ rotasDaBalcao.post('/clientes', async (c) => {
   const codigo = await codigoNovo(db);
   const cliente = await db
     .prepare(
-      'INSERT INTO clientes (codigo, nome, email) VALUES (?, ?, ?) RETURNING id, codigo, nome, criado_em, aniversario',
+      'INSERT INTO clientes (codigo, nome, email, busca) VALUES (?, ?, ?, ?) RETURNING id, codigo, nome, criado_em, aniversario',
     )
-    .bind(codigo, p.nome, email)
+    .bind(codigo, p.nome, email, textoDeBusca(p.nome))
     .first<LinhaCliente>();
   if (!cliente) throw new Error('O cliente não nasceu');
   try {
@@ -625,16 +630,17 @@ rotasDaBalcao.get('/clientes', async (c) => {
   const q = (c.req.query('q') ?? '').trim();
   if (q.length < 2) return c.json([]);
   const padrao = `%${q.replace(/[%_]/g, '')}%`;
+  const busca = `%${textoDeBusca(q.replace(/[%_]/g, ''))}%`;
   const codigo = normalizarCodigo(q);
   const linhas = await c.env.DB.prepare(
     `SELECT k.id, k.codigo, k.nome, k.email,
        (SELECT objectivo FROM cartoes c WHERE c.cliente_id = k.id ORDER BY numero DESC LIMIT 1) AS objectivo,
        (SELECT count(*) FROM carimbos x WHERE x.cartao_id = (SELECT id FROM cartoes c WHERE c.cliente_id = k.id ORDER BY numero DESC LIMIT 1) AND x.anulado_em IS NULL) AS carimbos,
        (SELECT max(criado_em) FROM carimbos x WHERE x.cliente_id = k.id AND x.anulado_em IS NULL) AS ultimo
-     FROM clientes k WHERE k.apagado_em IS NULL AND (k.nome LIKE ? OR k.email LIKE ? OR k.codigo LIKE ?)
+     FROM clientes k WHERE k.apagado_em IS NULL AND (k.nome LIKE ? OR k.busca LIKE ? OR k.email LIKE ? OR k.codigo LIKE ?)
      ORDER BY ultimo DESC NULLS LAST, k.nome LIMIT 20`,
   )
-    .bind(padrao, padrao, `${codigo}%`)
+    .bind(padrao, busca, padrao, `${codigo}%`)
     .all<ClienteProcurado & { objectivo: number | null }>();
   return c.json(linhas.results.map((l) => ({ ...l, objectivo: l.objectivo ?? 0 })));
 });

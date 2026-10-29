@@ -10,6 +10,7 @@ import {
   LIMITES_DO_PROGRAMA,
   diaEmLisboa,
   eAniversarioValido,
+  textoDeBusca,
   type ClienteEu,
   type FormaDeEntrar,
   type TipoDeEntrada,
@@ -30,7 +31,7 @@ import {
 import { DIA, agora, corpo, idDaMorada, recusar } from '../util.ts';
 import { entrarComIdentidade, juntarIdentidade, type IdentidadeProvada } from './identidade.ts';
 import { abrirSessaoDoCliente, provaRecente } from './sessao.ts';
-import { appleLigada, googleLigada, tocarPasse } from '../wallet/servico.ts';
+import { appleLigada, googleLigada, rodarPasse, tocarPasse } from '../wallet/servico.ts';
 
 const Google = z.object({ credencial: z.string().min(20).max(4096) });
 const Apple = z.object({
@@ -278,7 +279,8 @@ rotasDaConta.patch('/perfil', async (c) => {
   }
   const partes: string[] = [];
   const valores: (string | number | null)[] = [];
-  if (p.nome !== undefined) (partes.push('nome = ?'), valores.push(p.nome));
+  if (p.nome !== undefined)
+    (partes.push('nome = ?', 'busca = ?'), valores.push(p.nome, textoDeBusca(p.nome)));
   if (p.aniversario !== undefined) (partes.push('aniversario = ?'), valores.push(p.aniversario));
   if (p.lojaId !== undefined) (partes.push('loja_id = ?'), valores.push(p.lojaId));
   if (partes.length === 0) recusar(400, 'nada_a_mudar');
@@ -399,6 +401,8 @@ rotasDaConta.post('/perdi-o-telemovel', async (c) => {
       .prepare('UPDATE clientes SET codigo = ?, codigo_versao = codigo_versao + 1 WHERE id = ?')
       .bind(codigo, id),
   ]);
+  // O passe do telemóvel perdido não pode receber o código novo: muda de série.
+  await rodarPasse(c, id);
   tocarPasse(c, id);
   return c.json(await lerEu(c));
 });

@@ -123,6 +123,16 @@ export async function tokenDaGoogle(conta: ContaDeServico): Promise<string> {
 
 const API = 'https://walletobjects.googleapis.com/walletobjects/v1';
 
+/** O objecto antigo fica inactivo (o telemóvel perdido não o vê activo): «perdi o telemóvel». */
+export async function desactivarObjeto(token: string, id: string) {
+  const r = await fetch(`${API}/loyaltyObject/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ state: 'INACTIVE' }),
+  });
+  if (!r.ok && r.status !== 404) throw new Error(`O objecto não se desactivou: ${r.status}`);
+}
+
 /** Garante a classe e põe o objecto como está (cria ou substitui). */
 export async function actualizarObjeto(
   token: string,

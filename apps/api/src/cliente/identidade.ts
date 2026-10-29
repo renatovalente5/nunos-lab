@@ -10,7 +10,7 @@
  *  4. senão, nasce uma conta nova com o primeiro cartão.
  * Duas contas com o mesmo email mas sem prova nunca se juntam às escondidas.
  */
-import { donaDaCaixa, eEmailDeRelay, type Programa } from '@nunos-lab/dominio';
+import { donaDaCaixa, eEmailDeRelay, textoDeBusca, type Programa } from '@nunos-lab/dominio';
 import { codigoNovo, novoCartao } from '../programa.ts';
 import { recusar } from '../util.ts';
 
@@ -74,9 +74,9 @@ export async function entrarComIdentidade(
             .bind(irma.id),
           db
             .prepare(
-              "UPDATE clientes SET email = coalesce(email, ?), nome = CASE WHEN nome = '' THEN ? ELSE nome END WHERE id = ?",
+              "UPDATE clientes SET email = coalesce(email, ?), nome = CASE WHEN nome = '' THEN ? ELSE nome END, busca = CASE WHEN nome = '' THEN ? ELSE busca END WHERE id = ?",
             )
-            .bind(email, id.nome.slice(0, 40), irma.cliente_id),
+            .bind(email, id.nome.slice(0, 40), textoDeBusca(id.nome.slice(0, 40)), irma.cliente_id),
         ]);
       } catch (e) {
         const ganhou = await quemGanhou(db, id, e);
@@ -94,8 +94,8 @@ export async function entrarComIdentidade(
   // 4: uma conta nova, com o primeiro cartão.
   const codigo = await codigoNovo(db);
   const cliente = await db
-    .prepare('INSERT INTO clientes (codigo, nome, email) VALUES (?, ?, ?) RETURNING id')
-    .bind(codigo, id.nome.slice(0, 40), email)
+    .prepare('INSERT INTO clientes (codigo, nome, email, busca) VALUES (?, ?, ?, ?) RETURNING id')
+    .bind(codigo, id.nome.slice(0, 40), email, textoDeBusca(id.nome.slice(0, 40)))
     .first<{ id: number }>();
   if (!cliente) throw new Error('A conta não nasceu');
   let identidade;

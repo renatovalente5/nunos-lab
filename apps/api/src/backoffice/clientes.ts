@@ -2,6 +2,7 @@
 import { Hono } from 'hono';
 import {
   diaEmLisboa,
+  textoDeBusca,
   type ClienteDoBackoffice,
   type FichaDoCliente,
   type TipoDeEntrada,
@@ -71,14 +72,15 @@ rotasDosClientes.get('/clientes', async (c) => {
   const estado = c.req.query('estado') ?? 'todos';
   const lojaId = Number(c.req.query('lojaId')) || null;
   const padrao = `%${q.replace(/[%_]/g, '')}%`;
+  const busca = `%${textoDeBusca(q.replace(/[%_]/g, ''))}%`;
   const r = await c.env.DB.prepare(
     `${LISTA} WHERE k.apagado_em IS NULL
-     ${q ? 'AND (k.nome LIKE ? OR k.email LIKE ? OR k.codigo LIKE ?)' : ''}
+     ${q ? 'AND (k.nome LIKE ? OR k.busca LIKE ? OR k.email LIKE ? OR k.codigo LIKE ?)' : ''}
      ${lojaId ? 'AND (k.loja_id = ? OR EXISTS (SELECT 1 FROM carimbos x WHERE x.cliente_id = k.id AND x.loja_id = ?))' : ''}
      ORDER BY ultimo DESC NULLS LAST, k.criado_em DESC LIMIT 500`,
   )
     .bind(
-      ...(q ? [padrao, padrao, `${q.toUpperCase()}%`] : []),
+      ...(q ? [padrao, busca, padrao, `${q.toUpperCase()}%`] : []),
       ...(lojaId ? [lojaId, lojaId] : []),
     )
     .all<Linha>();
@@ -194,7 +196,11 @@ rotasDosClientes.get('/clientes.csv', async (c) => {
   const r = await c.env.DB.prepare(
     `${LISTA} WHERE k.apagado_em IS NULL ORDER BY k.nome`,
   ).all<Linha>();
-  const celula = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  // Uma célula que começa por = + - @ (ou tab/CR) seria uma fórmula no Excel: um apóstrofo à frente desarma-a.
+  const celula = (v: unknown) => {
+    const s = String(v ?? '');
+    return `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+  };
   const data = (s: number | null) => (s ? diaEmLisboa(s * 1000) : '');
   const linhas = [
     [

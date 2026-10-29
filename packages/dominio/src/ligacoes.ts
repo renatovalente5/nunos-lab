@@ -72,6 +72,16 @@ export function normalizarLigacao(entrada: string): string | null {
 }
 
 /** Um email para comparar: sem espaços e em minúsculas. `null` se não tiver forma de email. */
+/** Um nome para procurar: sem acentos nem maiúsculas, espaços arrumados («João Ñandú» → «joao nandu»). */
+export function textoDeBusca(entrada: string): string {
+  return entrada
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function normalizarEmail(entrada: string): string | null {
   const t = entrada.trim().toLowerCase();
   if (t.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) return null;

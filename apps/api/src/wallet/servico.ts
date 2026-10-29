@@ -11,6 +11,7 @@ import { assinarBilheteApns, avisarApns, BILHETE_APNS_VALE } from './apns.ts';
 import { buffer } from './bytes.ts';
 import {
   actualizarObjeto,
+  desactivarObjeto,
   tokenDaGoogle,
   type CartaoDaGoogle,
   type ContaDeServico,
@@ -184,6 +185,37 @@ export function cartaoDaGoogle(env: Env, c: CartaoDoPasse): CartaoDaGoogle {
     cortes: c.cortes,
     hero: `${env.ORIGEM_DA_API}/api/wallet/imagem/${VERSAO_DO_DESENHO}/${c.objectivo}/${c.carimbos}/hero.png`,
   };
+}
+
+/**
+ * «Perdi o telemóvel»: o passe que está no telemóvel perdido não pode receber
+ * o código novo. A série muda (o testemunho deriva dela: o passe antigo deixa
+ * de poder falar com o serviço), os aparelhos registados saem, e o objecto da
+ * Google, se o havia, fica inactivo. O telemóvel novo adiciona um passe novo.
+ */
+export async function rodarPasse(c: C, clienteId: number) {
+  const db = c.env.DB;
+  const passe = await db
+    .prepare('SELECT serie, google_em FROM passes WHERE cliente_id = ?')
+    .bind(clienteId)
+    .first<{ serie: string; google_em: number | null }>();
+  if (!passe) return;
+  const serie = aleatorio(16);
+  await db.batch([
+    db.prepare('DELETE FROM registos_apple WHERE serie = ?').bind(passe.serie),
+    db
+      .prepare(
+        'UPDATE passes SET serie = ?, actualizado_em = unixepoch(), google_em = NULL WHERE cliente_id = ?',
+      )
+      .bind(serie, clienteId),
+  ]);
+  if (passe.google_em && googleLigada(c.env))
+    c.executionCtx.waitUntil(
+      (async () => {
+        const token = await tokenDaGoogle(contaDaGoogle(c.env));
+        await desactivarObjeto(token, `${c.env.GOOGLE_WALLET_EMISSOR}.nl-${passe.serie}`);
+      })().catch((e) => console.error('google', e)),
+    );
 }
 
 /**

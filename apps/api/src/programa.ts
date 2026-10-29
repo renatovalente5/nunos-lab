@@ -114,7 +114,9 @@ export function horaEmLisboa(unix: number): number {
 /** O instante (unix) em que começa um dia de Lisboa («AAAA-MM-DD»). */
 export function inicioDoDia(dia: string): number {
   const [a, m, d] = dia.split('-').map(Number) as [number, number, number];
-  const meioDia = Date.UTC(a, m - 1, d, 12) / 1000;
-  const desvio = horaEmLisboa(meioDia) - 12;
-  return Date.UTC(a, m - 1, d) / 1000 - desvio * 3600;
+  // Em Lisboa o desvio é 0 ou +1 h. À meia-noite UTC desse dia, a hora local diz
+  // quantas horas o dia já leva — nos dias da mudança de hora, o desvio ao
+  // meio-dia (que se usava) não é o da meia-noite.
+  const meiaNoiteUtc = Date.UTC(a, m - 1, d) / 1000;
+  return meiaNoiteUtc - horaEmLisboa(meiaNoiteUtc) * 3600;
 }

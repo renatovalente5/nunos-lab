@@ -1352,10 +1352,60 @@ await passo('«perdi o telemóvel» troca o código e termina as outras sessões
     ).json()
   ).sessao;
   assert.equal((await pedir('/api/eu', { token: segunda })).status, 200);
+  // O passe que está no telemóvel perdido: registado na Apple antes de o perder.
+  const ligacao = (
+    await (await pedir('/api/eu/wallet/apple', { method: 'POST', token: tokenCliente })).json()
+  ).url;
+  const passeAntigo = JSON.parse(
+    new TextDecoder().decode(
+      doZip(new Uint8Array(await (await fetch(ligacao)).arrayBuffer()), 'pass.json'),
+    ),
+  );
+  const registo = await fetch(
+    `${API}/api/wallet/apple/v1/devices/TELEMOVELPERDIDO01/registrations/${passeAntigo.passTypeIdentifier}/${passeAntigo.serialNumber}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `ApplePass ${passeAntigo.authenticationToken}`,
+      },
+      body: json({ pushToken: 'abcdef0123456789abcdef0123456789' }),
+    },
+  );
+  assert.equal(registo.status, 201);
   const r = await pedir('/api/eu/perdi-o-telemovel', { method: 'POST', token: tokenCliente });
   assert.equal(r.status, 200);
   const eu = await r.json();
   assert.notEqual(eu.codigo, codigoDoCliente);
+  // O telemóvel perdido deixa de conseguir o passe (a série morreu) e sai dos registos.
+  const perdido = await fetch(
+    `${API}/api/wallet/apple/v1/passes/${passeAntigo.passTypeIdentifier}/${passeAntigo.serialNumber}`,
+    { headers: { Authorization: `ApplePass ${passeAntigo.authenticationToken}` } },
+  );
+  assert.equal(perdido.status, 404, 'o telemóvel perdido não recebe o passe com o código novo');
+  assert.equal(
+    (
+      await fetch(
+        `${API}/api/wallet/apple/v1/devices/TELEMOVELPERDIDO01/registrations/${passeAntigo.passTypeIdentifier}?passesUpdatedSince=0`,
+      )
+    ).status,
+    204,
+    'deixa de estar registado',
+  );
+  const ligacaoNova = (
+    await (await pedir('/api/eu/wallet/apple', { method: 'POST', token: tokenCliente })).json()
+  ).url;
+  const passeNovo = JSON.parse(
+    new TextDecoder().decode(
+      doZip(new Uint8Array(await (await fetch(ligacaoNova)).arrayBuffer()), 'pass.json'),
+    ),
+  );
+  assert.notEqual(
+    passeNovo.serialNumber,
+    passeAntigo.serialNumber,
+    'o telemóvel novo leva outra série',
+  );
+  assert.equal(passeNovo.barcode.altText.replace(/\s/g, ''), eu.codigo);
   assert.equal(eu.sessoes.length, 1);
   assert.equal((await pedir('/api/eu', { token: segunda })).status, 401);
   assert.equal(
@@ -1784,6 +1834,55 @@ await passo(
     assert.equal(semConfirmar.status, 409);
     assert.equal((await semConfirmar.json()).erro, 'entregue_hoje');
     assert.equal((await carimba(true)).status, 200);
+  },
+);
+
+await passo(
+  'coisas incomuns: fórmulas no CSV, a mesma chave noutro cliente, procurar sem acentos',
+  async () => {
+    const novo = async (nome) =>
+      (
+        await (
+          await pedir('/api/balcao/clientes', {
+            method: 'POST',
+            token: sessaoDonoProva,
+            body: json({ nome }),
+          })
+        ).json()
+      ).ficha;
+    const formula = await novo('=HYPERLINK("http://x")');
+    const csv = await (await pedir('/api/bo/clientes.csv', { token })).text();
+    const linha = csv.split(/\r?\n/).find((l) => l.includes('HYPERLINK'));
+    assert.ok(linha && linha.startsWith(`"'=`), `a fórmula desarmada: ${linha}`);
+    const x = await novo('Chave X');
+    const y = await novo('Chave Y');
+    const chave = chaveNova();
+    const a = await pedir('/api/balcao/carimbar', {
+      method: 'POST',
+      token: sessaoDonoProva,
+      body: json({ codigo: x.cliente.codigo, chave, lojaId: lojaDaProva }),
+    });
+    assert.equal(a.status, 200);
+    const b = await pedir('/api/balcao/carimbar', {
+      method: 'POST',
+      token: sessaoDonoProva,
+      body: json({ codigo: y.cliente.codigo, chave, lojaId: lojaDaProva }),
+    });
+    assert.equal(b.status, 409, 'a mesma chave noutro cliente não devolve o carimbo do primeiro');
+    await novo('João Ñandú');
+    const balcao = await (
+      await pedir('/api/balcao/clientes?q=joao', { token: sessaoDonoProva })
+    ).json();
+    assert.ok(
+      balcao.some((k) => k.nome === 'João Ñandú'),
+      'o balcão encontra «João» com «joao»',
+    );
+    const bo = await (await pedir('/api/bo/clientes?q=nandu', { token })).json();
+    assert.ok(
+      bo.some((k) => k.nome === 'João Ñandú'),
+      'o backoffice encontra «Ñandú» com «nandu»',
+    );
+    assert.ok(formula.cliente.codigo);
   },
 );
 
