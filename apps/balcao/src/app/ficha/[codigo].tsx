@@ -537,11 +537,26 @@ export default function Ficha() {
                     : pressed
                       ? cor.claroPremido
                       : cor.claro,
+                flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
+                gap: 10,
                 opacity: estado === 'a-enviar' ? 0.6 : 1,
               })}
             >
+              {/* O carimbo da prenda (o 10.º) leva a prenda no botão. */}
+              {ficha.cartao.carimbos === ficha.cartao.objectivo - 1 && (
+                <Icone
+                  nome="presente"
+                  tamanho={22}
+                  cor={
+                    ficha.recompensas.length > 0 || aviso || precisaConfirmar
+                      ? cor.texto
+                      : cor.sobreClaro
+                  }
+                  espessura={2.2}
+                />
+              )}
               <T
                 v="forte"
                 style={{
