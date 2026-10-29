@@ -41,8 +41,21 @@ function codigoNaMorada(): string | null {
   return /^#acesso=([A-Za-z0-9_-]{43})$/.exec(location.hash)?.[1] ?? null;
 }
 
+/** Na web, o 404.html da raiz manda para cá as moradas da app que não têm index («?p=/ficha/XXXX»). */
+function caminhoNaMorada(): string | null {
+  if (Platform.OS !== 'web' || typeof location === 'undefined') return null;
+  const p = new URLSearchParams(location.search).get('p');
+  return p && /^\/[A-Za-z0-9/_-]*$/.test(p) ? p : null;
+}
+
 export default function Inicio() {
   const temSessao = useTemSessao();
+  useEffect(() => {
+    const p = caminhoNaMorada();
+    if (!p) return;
+    history.replaceState(null, '', location.pathname + location.hash);
+    router.replace(p as never);
+  }, []);
   const [entrada, setEntrada] = useState<{
     estado: 'parado' | 'a-entrar' | 'erro';
     mensagem?: string;

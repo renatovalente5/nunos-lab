@@ -20,7 +20,15 @@
  *                       ignora tudo o que começa por «_»)
  */
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -70,7 +78,15 @@ for (const f of ['manifest.webmanifest', 'apple-touch-icon.png', 'icone-192.png'
 if (!html.includes(`src="${BASE}/_expo/static/js/web/`))
   throw new Error('Os scripts do Expo não levam a base');
 writeFileSync(join(site, 'index.html'), html);
-writeFileSync(join(site, '404.html'), html);
+// O 404.html da raiz é a app do cliente; as moradas da Balcão que não têm index
+// (a ficha, o vale) vão para a Balcão com o caminho em «?p=», e ela abre-o.
+writeFileSync(
+  join(site, '404.html'),
+  html.replace(
+    '<head>',
+    `<head><script>if(location.pathname.indexOf('${BASE}/balcao/')===0){location.replace('${BASE}/balcao/?p='+encodeURIComponent(location.pathname.slice('${BASE}/balcao'.length)+location.search+location.hash))}</script>`,
+  ),
+);
 // As moradas fixas respondem 200 (o 404.html abre a app, mas com «404», e as
 // pré-visualizações do WhatsApp e do Facebook desistem). Um parceiro partilha-se
 // como /?parceiro=N, que é o index.
@@ -104,7 +120,66 @@ console.log('\n_site pronto.');
 
 if (process.argv.includes('--so-construir')) process.exit(0);
 
-// 4. Enviar para o ramo gh-pages (um commit só, sem histórico: é o resultado
+// 4. Os ficheiros com resumo no nome das publicações dos últimos 7 dias vêm
+//    junto: quem tem a app aberta de antes ainda vai buscar os ecrãs pelo nome
+//    antigo, e sem eles ficava com um ecrã preto. A lista de quando cada um
+//    apareceu vive no próprio site (ficheiros-publicados.json).
+const DIAS = 7;
+const agora = new Date();
+const lista = {};
+function registarFicheiros(pasta) {
+  if (!existsSync(join(site, pasta))) return;
+  for (const f of readdirSync(join(site, pasta))) lista[`${pasta}/${f}`] = agora.toISOString();
+}
+const PASTAS_COM_RESUMO = [
+  '_expo/static/js/web',
+  'balcao/_expo/static/js/web',
+  'backoffice/ficheiros',
+];
+for (const pasta of PASTAS_COM_RESUMO) registarFicheiros(pasta);
+try {
+  execFileSync('git', ['fetch', '-q', 'origin', 'gh-pages'], { cwd: raiz, stdio: 'ignore' });
+  let antiga = {};
+  try {
+    antiga = JSON.parse(
+      execFileSync('git', ['show', 'origin/gh-pages:ficheiros-publicados.json'], {
+        cwd: raiz,
+        encoding: 'utf8',
+      }),
+    );
+  } catch {
+    // A primeira publicação com lista: trazem-se os ficheiros que lá estão, com a data de hoje.
+    const arvore = execFileSync('git', ['ls-tree', '-r', '--name-only', 'origin/gh-pages'], {
+      cwd: raiz,
+      encoding: 'utf8',
+    });
+    for (const f of arvore.split('\n'))
+      if (PASTAS_COM_RESUMO.some((p) => f.startsWith(`${p}/`))) antiga[f] = agora.toISOString();
+  }
+  let trazidos = 0;
+  for (const [f, quando] of Object.entries(antiga)) {
+    if (lista[f]) continue;
+    if ((agora - new Date(quando)) / 86400000 > DIAS) continue;
+    try {
+      const conteudo = execFileSync('git', ['show', `origin/gh-pages:${f}`], {
+        cwd: raiz,
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      mkdirSync(join(site, f, '..'), { recursive: true });
+      writeFileSync(join(site, f), conteudo);
+      lista[f] = quando;
+      trazidos++;
+    } catch {
+      // Já não existe no ramo: fica de fora.
+    }
+  }
+  console.log(`Ficheiros das publicações anteriores guardados: ${trazidos}.`);
+} catch {
+  console.log('Sem publicação anterior para guardar ficheiros.');
+}
+writeFileSync(join(site, 'ficheiros-publicados.json'), JSON.stringify(lista, null, 1));
+
+// 5. Enviar para o ramo gh-pages (um commit só, sem histórico: é o resultado
 //    de uma construção, e o código vive no main).
 const sha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
   cwd: raiz,

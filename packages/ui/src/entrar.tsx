@@ -91,6 +91,9 @@ export function BotaoDoGoogle({
         const google = window.google;
         const onde = caixa.current as unknown as HTMLElement | null;
         if (!vivo || !google || !onde) return;
+        // O Safari pinta de branco um iframe «claro» dentro de uma página escura
+        // (desencontro de color-scheme): a caixa declara-se clara e fica transparente.
+        onde.style.colorScheme = 'light';
         google.accounts.id.initialize({
           client_id: clienteId,
           callback: (r) => ultimo.current(r.credential),
@@ -123,7 +126,15 @@ export function BotaoDoGoogle({
   return (
     <View
       ref={caixa}
-      style={{ width: LARGURA_DO_BOTAO, height: 44, alignSelf: 'center', overflow: 'hidden' }}
+      style={{
+        width: LARGURA_DO_BOTAO,
+        height: 44,
+        alignSelf: 'center',
+        overflow: 'hidden',
+        borderRadius: 999,
+        backgroundColor: '#131314',
+        justifyContent: 'center',
+      }}
     />
   );
 }

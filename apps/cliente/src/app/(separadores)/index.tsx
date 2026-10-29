@@ -21,6 +21,26 @@ import {
   cor,
   raio,
 } from '@nunos-lab/ui';
+/** Um desvanecimento no lado direito de uma fila que rola, a dizer que continua. */
+function FadeDireita() {
+  if (Platform.OS !== 'web') return null;
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        right: 0,
+        width: 56,
+        ...({
+          backgroundImage: `linear-gradient(to right, rgba(10,10,10,0), ${cor.fundo})`,
+        } as object),
+      }}
+    />
+  );
+}
+
 const palavra = require('../../../assets/marca/palavra.png');
 
 export default function Vantagens() {
@@ -173,44 +193,51 @@ export default function Vantagens() {
             </View>
           )}
           {data.categorias.length > 1 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: MARGEM, gap: 8, marginBottom: 14 }}
-              role="radiogroup"
-              aria-label="Categorias"
-            >
-              {[{ id: null as number | null, nome: 'Tudo' }, ...data.categorias].map((k) => {
-                const activa = escolhida === k.id;
-                return (
-                  <Pressable
-                    key={k.id ?? 'tudo'}
-                    onPress={() => setCategoria(k.id)}
-                    role="radio"
-                    aria-checked={activa}
-                    style={({ pressed }) => ({
-                      paddingHorizontal: 16,
-                      height: 40,
-                      justifyContent: 'center',
-                      borderRadius: raio.pilula,
-                      backgroundColor: activa ? cor.claro : cor.superficie,
-                      opacity: pressed ? 0.8 : 1,
-                    })}
-                  >
-                    <T
-                      v="forte"
-                      style={{
-                        fontSize: 14,
-                        lineHeight: 18,
-                        color: activa ? cor.sobreClaro : cor.texto,
-                      }}
+            <View style={{ marginBottom: 14 }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{
+                  paddingHorizontal: MARGEM,
+                  paddingRight: MARGEM + 32,
+                  gap: 8,
+                }}
+                role="radiogroup"
+                aria-label="Categorias"
+              >
+                {[{ id: null as number | null, nome: 'Tudo' }, ...data.categorias].map((k) => {
+                  const activa = escolhida === k.id;
+                  return (
+                    <Pressable
+                      key={k.id ?? 'tudo'}
+                      onPress={() => setCategoria(k.id)}
+                      role="radio"
+                      aria-checked={activa}
+                      style={({ pressed }) => ({
+                        paddingHorizontal: 16,
+                        height: 40,
+                        justifyContent: 'center',
+                        borderRadius: raio.pilula,
+                        backgroundColor: activa ? cor.claro : cor.superficie,
+                        opacity: pressed ? 0.8 : 1,
+                      })}
                     >
-                      {k.nome}
-                    </T>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+                      <T
+                        v="forte"
+                        style={{
+                          fontSize: 14,
+                          lineHeight: 18,
+                          color: activa ? cor.sobreClaro : cor.texto,
+                        }}
+                      >
+                        {k.nome}
+                      </T>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              <FadeDireita />
+            </View>
           )}
           <Folha aberta={aEscolherCasa} fechar={() => setAEscolherCasa(false)} titulo="A tua casa">
             <View role="radiogroup" aria-label="A tua casa">

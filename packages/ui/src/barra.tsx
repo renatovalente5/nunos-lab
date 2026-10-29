@@ -1,6 +1,6 @@
 import type { TabTriggerSlotProps } from 'expo-router/ui';
 import type { ComponentRef, ReactNode, Ref } from 'react';
-import { Pressable, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ALTURA_DA_BARRA, cor, letra } from './tema';
 import { Icone, type NomeDoIcone } from './icone';
@@ -23,7 +23,9 @@ export function BarraDeBaixo({
     <View
       pointerEvents="box-none"
       style={{
-        position: 'absolute',
+        // Na web, presa à janela: o Safari esconde e mostra a barra dele ao rolar, e
+        // uma barra «absolute» dentro da página ficava a meio do ecrã.
+        position: Platform.OS === 'web' ? ('fixed' as 'absolute') : 'absolute',
         left: 0,
         right: 0,
         bottom: margens.bottom + 14,
