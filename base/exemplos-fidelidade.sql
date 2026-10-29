@@ -10,8 +10,8 @@ INSERT INTO equipa (id, nome, papel, loja_id) VALUES
 
 INSERT INTO servicos (id, nome, preco, ordem) VALUES
   (1, 'Corte', 1500, 1),
-  (2, 'Barba', 1000, 2),
-  (3, 'Corte + Barba', 2200, 3);
+  (2, 'Barba', 1000, 3),
+  (3, 'Corte + Barba', 2200, 2);
 
 INSERT INTO clientes (id, codigo, nome, email, loja_id, aniversario, exemplo, criado_em, visto_em) VALUES
   (1001, 'VGYAKWH3', 'João Ferreira', NULL, 3, '06-25', 1, 1770284333, 1791994260),

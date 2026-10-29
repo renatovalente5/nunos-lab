@@ -473,7 +473,9 @@ export default function Ficha() {
             }}
           >
             {eu?.programa.servicos && eu.servicos.length > 0 && (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              <View
+                style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}
+              >
                 {eu.servicos.map((s) => {
                   const on = s.id === servico;
                   return (
