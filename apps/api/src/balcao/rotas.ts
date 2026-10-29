@@ -124,7 +124,7 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
     db
       .prepare(
         `SELECT c.usado_em AS quando, e.nome AS pessoa FROM cartoes c LEFT JOIN equipa e ON e.id = c.usado_por
-         WHERE c.cliente_id = ? AND c.usado_em >= ? ORDER BY c.usado_em DESC LIMIT 1`,
+         WHERE c.cliente_id = ? AND c.usado_em >= ? AND c.usado_em != c.completo_em ORDER BY c.usado_em DESC LIMIT 1`,
       )
       .bind(cliente.id, inicioDoDia(hoje)),
   ]);
@@ -355,11 +355,12 @@ async function carimbar(
     // o cliente veio pagar um corte, nasce o seguinte (e o prémio fica por usar).
     cartao = await abrirCartaoSeguinte(db, cliente.id, cartao, programa);
   }
-  // O corte grátis não leva carimbo: entregue hoje, carimbar pede confirmação.
+  // Um prémio entregue hoje à parte («Entregar», os cartões de antes da regra do
+  // 10.º): o corte grátis não leva carimbo, e carimbar pede confirmação.
   const entregueHoje = await db
     .prepare(
       `SELECT c.usado_em AS quando, e.nome AS pessoa FROM cartoes c LEFT JOIN equipa e ON e.id = c.usado_por
-       WHERE c.cliente_id = ? AND c.usado_em >= ? ORDER BY c.usado_em DESC LIMIT 1`,
+       WHERE c.cliente_id = ? AND c.usado_em >= ? AND c.usado_em != c.completo_em ORDER BY c.usado_em DESC LIMIT 1`,
     )
     .bind(cliente.id, inicioDoDia(hoje))
     .first<{ quando: number; pessoa: string | null }>();
@@ -405,11 +406,16 @@ async function carimbar(
       ),
     db.prepare('UPDATE clientes SET visto_em = unixepoch() WHERE id = ?').bind(cliente.id),
   ];
-  // Completo, o cartão FICA cheio: as dez casas à vista e o prémio por usar. O
-  // seguinte só nasce na entrega do prémio ou no próximo carimbo.
+  // O 10.º corte é a oferta: o carimbo que completa o cartão entrega o prémio
+  // nesse mesmo acto (completo e usado ao mesmo segundo). O cartão fica cheio
+  // à vista até ao carimbo seguinte, que abre o próximo.
   if (completa)
     instrucoes.push(
-      db.prepare('UPDATE cartoes SET completo_em = unixepoch() WHERE id = ?').bind(cartao.id),
+      db
+        .prepare(
+          'UPDATE cartoes SET completo_em = unixepoch(), usado_em = unixepoch(), usado_loja_id = ?, usado_por = ? WHERE id = ?',
+        )
+        .bind(lojaId, pessoa.id, cartao.id),
     );
   let r: D1Result[];
   try {
@@ -497,7 +503,8 @@ rotasDaBalcao.post('/anular', async (c) => {
     db.prepare('DELETE FROM cupoes WHERE carimbo_id = ? AND usado_em IS NULL').bind(x.id),
   ];
   if (x.completo_em && x.carimbos - 1 < x.objectivo) {
-    if (x.usado_em) recusar(409, 'recompensa_usada');
+    // Entregue à parte («Entregar»), já não se anula; entregue pelo próprio 10.º carimbo, anula-se com ele.
+    if (x.usado_em && x.usado_em !== x.completo_em) recusar(409, 'recompensa_usada');
     const seguinte = await db
       .prepare(
         `SELECT c.id, (SELECT count(*) FROM carimbos y WHERE y.cartao_id = c.id) AS carimbos
@@ -507,7 +514,11 @@ rotasDaBalcao.post('/anular', async (c) => {
       .first<{ id: number; carimbos: number }>();
     if (seguinte && seguinte.carimbos > 0) recusar(409, 'cartao_seguinte');
     instrucoes.push(
-      db.prepare('UPDATE cartoes SET completo_em = NULL WHERE id = ?').bind(x.cartao_id),
+      db
+        .prepare(
+          'UPDATE cartoes SET completo_em = NULL, usado_em = NULL, usado_loja_id = NULL, usado_por = NULL WHERE id = ?',
+        )
+        .bind(x.cartao_id),
     );
     if (seguinte) instrucoes.push(db.prepare('DELETE FROM cartoes WHERE id = ?').bind(seguinte.id));
   }

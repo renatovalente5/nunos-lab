@@ -263,7 +263,7 @@ export default function Ficha() {
           </T>
           {feito.completo && feito.recompensa && (
             <T v="subtitulo" style={{ color: cor.texto2, marginTop: 8, textAlign: 'center' }}>
-              {feito.recompensa} · na próxima visita
+              {feito.recompensa} · entregue neste corte
             </T>
           )}
           {estado === 'na-fila' && (
@@ -405,6 +405,27 @@ export default function Ficha() {
                 </T>
               </View>
             )}
+            {ficha.cartao.carimbos === ficha.cartao.objectivo - 1 && !jaHoje && (
+              <View
+                style={{
+                  marginHorizontal: MARGEM,
+                  marginTop: 14,
+                  backgroundColor: cor.claro,
+                  borderRadius: 16,
+                  padding: 12,
+                  flexDirection: 'row',
+                  gap: 10,
+                  alignItems: 'center',
+                  ...CONTINUO,
+                }}
+              >
+                <Icone nome="presente" tamanho={18} cor={cor.sobreClaro} espessura={2.2} />
+                <T v="forte" style={{ flex: 1, color: cor.sobreClaro }}>
+                  {ficha.cartao.recompensa}: é o {ficha.cartao.objectivo}.º corte. O carimbo
+                  entrega-o.
+                </T>
+              </View>
+            )}
             {(ficha.hoje.carimbos > 0 || aviso || entregueHoje) && (
               <View
                 style={{
@@ -526,7 +547,9 @@ export default function Ficha() {
                   ? 'Carimbar na mesma'
                   : estado === 'a-enviar'
                     ? 'A carimbar…'
-                    : 'Carimbar'}
+                    : ficha.cartao.carimbos === ficha.cartao.objectivo - 1
+                      ? `Carimbar: ${ficha.cartao.recompensa.toLowerCase()}`
+                      : 'Carimbar'}
               </T>
             </Pressable>
             {erro && (

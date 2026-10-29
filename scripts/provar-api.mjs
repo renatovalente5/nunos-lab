@@ -673,7 +673,7 @@ await passo(
 );
 
 await passo(
-  'completar o cartão dá a recompensa, que se usa uma vez; o carimbo que a deu já não se anula',
+  'o 10.º carimbo completa o cartão e é ele a oferta: nada fica por usar, e o cartão segue cheio',
   async () => {
     let ultimo;
     for (let i = 3; i <= 11; i++) {
@@ -697,34 +697,17 @@ await passo(
     const ficha = await (
       await pedir(`/api/balcao/ficha/${codigoDoCliente}`, { token: tokenBalcao })
     ).json();
-    assert.equal(ficha.cartao.numero, 1, 'o cartão cheio fica cheio até ser entregue');
+    assert.equal(ficha.cartao.numero, 1, 'o cartão cheio fica cheio até ao carimbo seguinte');
     assert.equal(ficha.cartao.carimbos, ficha.cartao.objectivo);
-    assert.equal(ficha.recompensas.length, 1);
+    assert.equal(ficha.recompensas.length, 0, 'o 10.º corte foi a oferta: nada fica por usar');
     assert.equal(ficha.cliente.cortes, 10);
+    assert.equal(ficha.hoje.entregue, null, 'entregue pelo próprio carimbo, não «à parte»');
     const usar = await pedir('/api/balcao/usar-recompensa', {
       method: 'POST',
       token: tokenBalcao,
-      body: json({ codigo: codigoDoCliente, cartaoId: ficha.recompensas[0].cartaoId, lojaId: 3 }),
+      body: json({ codigo: codigoDoCliente, cartaoId: ficha.cartao.id, lojaId: 3 }),
     });
-    assert.equal(usar.status, 200);
-    const depoisDeUsar = await usar.json();
-    assert.equal(depoisDeUsar.recompensas.length, 0);
-    assert.equal(depoisDeUsar.cartao.numero, 2, 'entregar o prémio abre o cartão seguinte');
-    assert.equal(depoisDeUsar.cartao.carimbos, 0);
-    assert.ok(depoisDeUsar.hoje.entregue, 'a ficha diz que o prémio foi entregue hoje');
-    const outraVez = await pedir('/api/balcao/usar-recompensa', {
-      method: 'POST',
-      token: tokenBalcao,
-      body: json({ codigo: codigoDoCliente, cartaoId: ficha.recompensas[0].cartaoId, lojaId: 3 }),
-    });
-    assert.equal(outraVez.status, 409);
-    const anular = await pedir('/api/balcao/anular', {
-      method: 'POST',
-      token: tokenBalcao,
-      body: json({ carimboId: ultimoCarimbo }),
-    });
-    assert.equal(anular.status, 409);
-    assert.equal((await anular.json()).erro, 'recompensa_usada');
+    assert.equal(usar.status, 409, 'não há nada para entregar à parte');
   },
 );
 
@@ -744,7 +727,7 @@ await passo('o dia da casa, e procurar um cliente', async () => {
   );
   const lista = await (await pedir('/api/balcao/clientes?q=prova', { token: tokenBalcao })).json();
   assert.equal(lista.length, 1);
-  assert.equal(lista[0].carimbos, 0);
+  assert.equal(lista[0].carimbos, 10, 'o cartão cheio ainda à vista na procura');
   assert.equal(lista[0].objectivo, 10);
   assert.equal(
     (await (await pedir('/api/balcao/clientes?q=p', { token: tokenBalcao })).json()).length,
@@ -804,7 +787,8 @@ await passo('o cliente entra com a Google e fica com o cartão aberto ao balcão
   assert.equal(euAntes.nome, 'Cliente Prova', 'o nome escrito ao balcão fica');
   assert.equal(euAntes.codigo, codigoDoCliente);
   assert.equal(euAntes.cortes, 10);
-  assert.equal(euAntes.cartao.numero, 2);
+  assert.equal(euAntes.cartao.numero, 1, 'o cartão cheio ainda à vista');
+  assert.equal(euAntes.cartao.carimbos, 10);
   assert.deepEqual(euAntes.formas.map((f) => f.tipo).sort(), ['email', 'google']);
   assert.equal(euAntes.provaRecente, true);
   assert.equal(euAntes.visitas.length, 10);
@@ -884,7 +868,11 @@ await passo(
     passe = JSON.parse(new TextDecoder().decode(json));
     assert.equal(passe.passTypeIdentifier, 'pass.pt.nunoslab.cartao');
     assert.equal(passe.barcode.message, `NL1.${codigoDoCliente}`);
-    assert.equal(passe.storeCard.headerFields[0].value, '0 de 10');
+    assert.equal(passe.storeCard.headerFields[0].value, '10 de 10');
+    assert.equal(
+      passe.storeCard.headerFields[0].changeMessage,
+      'Cartão completo (%@): corte grátis entregue',
+    );
     assert.ok(doZip(bytes, 'signature').length > 1000, 'tem assinatura');
     assert.ok(doZip(bytes, 'icon.png') && doZip(bytes, 'logo@2x.png'), 'tem as imagens');
     assert.equal(passe.locations.length, 3);
@@ -1734,7 +1722,7 @@ await passo(
 );
 
 await passo(
-  'o cartão cheio fica cheio: carimbar antes de entregar abre o seguinte; entregue hoje, carimbar pede confirmação',
+  'o cartão cheio: o 10.º anula-se nos 10 min; o seguinte nasce no próximo carimbo; um prémio antigo entrega-se à parte',
   async () => {
     const g = await (
       await entrarTeste('google', 'id-cheio', 'id.cheio@gmail.com', { nome: 'Cheio' })
@@ -1758,14 +1746,29 @@ await passo(
     let e = (await euDe(g.sessao)).eu;
     assert.equal(e.cartao.numero, 1, 'o cliente vê o cartão cheio');
     assert.equal(e.cartao.carimbos, e.cartao.objectivo);
-    assert.equal(e.recompensas.length, 1);
-    // Vem pagar um corte antes de usar o prémio: o carimbo abre o cartão 2 e o prémio fica.
+    assert.equal(e.recompensas.length, 0, 'o 10.º corte foi a oferta');
+    // O 10.º anula-se nos 10 minutos (a entrega vai com ele): volta a 9, e completa-se outra vez.
+    const anular = await pedir('/api/balcao/anular', {
+      method: 'POST',
+      token: sessaoDonoProva,
+      body: json({ carimboId: r.carimboId }),
+    });
+    assert.equal(anular.status, 204);
+    e = (await euDe(g.sessao)).eu;
+    assert.equal(e.cartao.carimbos, e.cartao.objectivo - 1);
+    r = await (await carimba(true)).json();
+    assert.equal(r.completo, true);
+    // O seguinte nasce no próximo carimbo.
     r = await (await carimba(true)).json();
     assert.equal(r.cartao.numero, 2);
     assert.equal(r.cartao.carimbos, 1);
+    // Um cartão de antes da regra (completo, por entregar): «Entregar» ainda serve.
+    daBaseLocal(
+      // (completo há um minuto: uma entrega à parte nunca é no mesmo segundo do 10.º carimbo)
+      `UPDATE cartoes SET usado_em = NULL, usado_loja_id = NULL, usado_por = NULL, completo_em = completo_em - 60 WHERE cliente_id = ${e.id} AND numero = 1`,
+    );
     e = (await euDe(g.sessao)).eu;
     assert.equal(e.recompensas.length, 1);
-    // Entregar: o cartão 2 já existe, não nasce outro.
     const usar = await pedir('/api/balcao/usar-recompensa', {
       method: 'POST',
       token: sessaoDonoProva,
@@ -1773,7 +1776,7 @@ await passo(
     });
     assert.equal(usar.status, 200);
     const f = await usar.json();
-    assert.equal(f.cartao.numero, 2);
+    assert.equal(f.cartao.numero, 2, 'o cartão 2 já existia: não nasce outro');
     assert.equal(f.recompensas.length, 0);
     assert.ok(f.hoje.entregue, 'a ficha diz que o prémio foi entregue hoje');
     // O corte grátis não leva carimbo: sem confirmar, 409 «entregue_hoje»; com confirmar, entra.

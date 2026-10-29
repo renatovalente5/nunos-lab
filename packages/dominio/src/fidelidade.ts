@@ -37,7 +37,7 @@ export function estadoDoCartao(carimbos: number, objectivo: number) {
   return { faltam, completo: carimbos >= objectivo };
 }
 
-/** «Faltam 3 para o corte grátis», «Falta 1 para…», ou «Cartão completo». */
+/** «Faltam 3 para o corte grátis», «O próximo é corte grátis» (o último corte é a oferta), ou «Cartão completo». */
 export function fraseDoCartao(
   carimbos: number,
   programa: Pick<Programa, 'objectivo' | 'recompensa'>,
@@ -48,7 +48,11 @@ export function fraseDoCartao(
   const alvo = recompensa
     ? ` para ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`
     : '';
-  return faltam === 1 ? `Falta 1${alvo}` : `Faltam ${faltam}${alvo}`;
+  if (faltam === 1)
+    return recompensa
+      ? `O próximo é ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`
+      : 'Falta 1';
+  return `Faltam ${faltam}${alvo}`;
 }
 
 /** Quanto tempo vale uma sessão da Balcão parada (um barbeiro não volta a entrar). */

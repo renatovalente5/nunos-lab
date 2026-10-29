@@ -350,7 +350,7 @@ export type FichaDoBalcao = {
 export type ResultadoDoCarimbo = {
   carimboId: number;
   cartao: CartaoDoCliente;
-  /** Este carimbo completou o cartão: a recompensa fica por usar. */
+  /** Este carimbo completou o cartão: foi o corte da oferta (o 10.º), já entregue. */
   completo: boolean;
   recompensa: string | null;
   anulavelAte: number;

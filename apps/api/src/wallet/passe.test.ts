@@ -89,8 +89,18 @@ test('o aviso do passe muda com o estado: novo carimbo, cartão completo, nada a
   const aviso = (carimbos: number) =>
     passJson({ ...cartao, carimbos }, cfg).storeCard.headerFields[0]!.changeMessage;
   assert.equal(aviso(7), 'Carimbo novo: %@');
-  assert.equal(aviso(10), 'Cartão completo (%@): corte grátis na próxima visita');
+  assert.equal(aviso(9), 'Carimbo novo: %@ · o próximo é corte grátis');
+  assert.equal(aviso(10), 'Cartão completo (%@): corte grátis entregue');
   assert.equal(aviso(0), undefined);
+  assert.equal(
+    passJson({ ...cartao, carimbos: 9 }, cfg).posterGeneric.footerFields[0]!.value,
+    'O próximo é corte grátis',
+  );
+  assert.deepEqual(passJson({ ...cartao, carimbos: 10 }, cfg).posterGeneric.primaryFields[1], {
+    key: 'cartao',
+    label: 'CARTÃO',
+    value: 'Completo',
+  });
 });
 
 test('sem nome, não há campo do cliente nem título no poster', () => {

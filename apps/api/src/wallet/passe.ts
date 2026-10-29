@@ -69,10 +69,12 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
     label: 'CARIMBOS',
     value: `${c.carimbos} de ${c.objectivo}`,
     ...(c.carimbos >= c.objectivo
-      ? { changeMessage: `Cartão completo (%@): ${minuscula(recompensa)} na próxima visita` }
-      : c.carimbos > 0
-        ? { changeMessage: 'Carimbo novo: %@' }
-        : {}),
+      ? { changeMessage: `Cartão completo (%@): ${minuscula(recompensa)} entregue` }
+      : c.carimbos === c.objectivo - 1
+        ? { changeMessage: `Carimbo novo: %@ · o próximo é ${minuscula(recompensa)}` }
+        : c.carimbos > 0
+          ? { changeMessage: 'Carimbo novo: %@' }
+          : {}),
   };
   const cliente = c.nome ? [{ key: 'nome', label: 'CLIENTE', value: c.nome }] : [];
   const porUsar =
@@ -171,11 +173,10 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
       headerFields: [carimbos],
       primaryFields: [
         ...(c.nome ? [{ key: 'nome', value: c.nome }] : []),
-        porUsar[0] ?? {
-          key: 'faltam',
-          label: faltam === 1 ? 'FALTA' : 'FALTAM',
-          value: String(faltam),
-        },
+        porUsar[0] ??
+          (faltam === 0
+            ? { key: 'cartao', label: 'CARTÃO', value: 'Completo' }
+            : { key: 'faltam', label: faltam === 1 ? 'FALTA' : 'FALTAM', value: String(faltam) }),
       ],
       footerFields: [
         {
@@ -183,7 +184,11 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
           value:
             c.porUsar > 0
               ? `Tens ${c.porUsar === 1 ? '' : `${c.porUsar} × `}${minuscula(recompensa)} por usar`
-              : `${recompensa} ao ${c.objectivo}.º`,
+              : faltam === 0
+                ? 'Cartão completo'
+                : faltam === 1
+                  ? `O próximo é ${minuscula(recompensa)}`
+                  : `${recompensa} ao ${c.objectivo}.º`,
         },
       ],
       backFields: [{ key: 'cortes', label: 'Cortes', value: String(c.cortes) }, ...costas],
