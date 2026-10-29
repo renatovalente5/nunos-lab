@@ -71,10 +71,14 @@ export default function Ficha() {
     if (eu?.programa.servicos && eu.servicos[0] && servico === null) setServico(eu.servicos[0].id);
   }, [eu, servico]);
 
+  // Com o limite do dia já atingido, o botão diz logo «Carimbar na mesma»: antes só o dizia depois de
+  // a API recusar, e o barbeiro tinha de carregar duas vezes.
+  const jaHoje = !!ficha && ficha.hoje.carimbos >= (eu?.programa.porDia ?? 1);
   const sair = () => (router.canGoBack() ? router.back() : router.replace('/'));
   const concluir = () => {
     consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
-    setTimeout(sair, 1400);
+    // 1,4 s passava despercebido e o barbeiro carregava outra vez; 3 s, e o «Concluir» para quem tem pressa.
+    setTimeout(sair, 3000);
   };
 
   const dar = async (confirmar = false) => {
@@ -288,11 +292,9 @@ export default function Ficha() {
               </T>
             </View>
           )}
-          {(feito.completo || feito.cupao) && (
-            <View style={{ marginTop: 28 }}>
-              <Botao nome="Concluir" onPress={sair} />
-            </View>
-          )}
+          <View style={{ marginTop: 28 }}>
+            <Botao nome="Concluir" onPress={sair} />
+          </View>
         </View>
       )}
 
@@ -329,7 +331,7 @@ export default function Ficha() {
                 )}
               </View>
               <T v="legenda" style={{ color: cor.texto2 }}>
-                {`Cliente desde ${new Date(ficha.cliente.criadoEm * 1000).getFullYear()} · ${ficha.cliente.cortes} ${ficha.cliente.cortes === 1 ? 'corte' : 'cortes'}`}
+                {`Cliente desde ${new Date(ficha.cliente.criadoEm * 1000).getFullYear()} · ${ficha.cliente.cortes} ${ficha.cliente.cortes === 1 ? 'corte' : 'cortes'}${ficha.cartao.numero > 1 ? ` · ${ficha.cartao.numero - 1} ${ficha.cartao.numero === 2 ? 'cartão completo' : 'cartões completos'}` : ''}`}
               </T>
             </View>
 
@@ -411,7 +413,7 @@ export default function Ficha() {
                   ...CONTINUO,
                 }}
               >
-                <Icone nome="aviso" tamanho={18} cor={cor.texto} espessura={2} />
+                <Icone nome="atencao" tamanho={18} cor={cor.texto} espessura={2} />
                 <T v="legenda" style={{ flex: 1 }}>
                   {ficha.hoje.ultimo
                     ? `Já carimbado hoje às ${hora(ficha.hoje.ultimo.quando)}${ficha.hoje.ultimo.pessoa ? ` por ${ficha.hoje.ultimo.pessoa}` : ''}.`
@@ -483,14 +485,14 @@ export default function Ficha() {
               </Pressable>
             )}
             <Pressable
-              onPress={() => dar(!!aviso)}
+              onPress={() => dar(!!aviso || jaHoje)}
               role="button"
               aria-disabled={estado === 'a-enviar'}
               style={({ pressed }) => ({
                 height: 56,
                 borderRadius: 999,
                 backgroundColor:
-                  ficha.recompensas.length > 0
+                  ficha.recompensas.length > 0 || aviso || jaHoje
                     ? pressed
                       ? cor.linha
                       : cor.superficieAlta
@@ -505,11 +507,16 @@ export default function Ficha() {
               <T
                 v="forte"
                 style={{
-                  color: ficha.recompensas.length > 0 ? cor.texto : cor.sobreClaro,
+                  color:
+                    ficha.recompensas.length > 0 || aviso || jaHoje ? cor.texto : cor.sobreClaro,
                   fontSize: 17,
                 }}
               >
-                {aviso ? 'Carimbar na mesma' : estado === 'a-enviar' ? 'A carimbar…' : 'Carimbar'}
+                {aviso || jaHoje
+                  ? 'Carimbar na mesma'
+                  : estado === 'a-enviar'
+                    ? 'A carimbar…'
+                    : 'Carimbar'}
               </T>
             </Pressable>
             {erro && (

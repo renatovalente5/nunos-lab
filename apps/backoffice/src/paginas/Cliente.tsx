@@ -102,6 +102,10 @@ export function Cliente({ id }: { id: string }) {
             <dd>{c.cortes.toLocaleString('pt-PT')}</dd>
           </div>
           <div>
+            <dt>Cartões completos</dt>
+            <dd>{c.cartoes.filter((k) => k.completoEm).length.toLocaleString('pt-PT')}</dd>
+          </div>
+          <div>
             <dt>Entra com</dt>
             <dd>
               <Formas formas={c.formas} />

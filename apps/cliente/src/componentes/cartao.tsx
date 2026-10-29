@@ -54,7 +54,7 @@ export function CartaoDoCliente({
       </T>
       <T v="legenda" style={{ color: cor.texto2, marginTop: 3 }}>
         {eu
-          ? `Cliente desde ${desde} · ${eu.cortes} ${eu.cortes === 1 ? 'corte' : 'cortes'}`
+          ? `Cliente desde ${desde} · ${eu.cortes} ${eu.cortes === 1 ? 'corte' : 'cortes'}${eu.cartao.numero > 1 ? ` · ${eu.cartao.numero}.º cartão` : ''}`
           : 'Um carimbo por corte'}
       </T>
       <View style={{ marginTop: 22 }}>

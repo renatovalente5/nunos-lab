@@ -39,11 +39,8 @@ export default function Resumo() {
   const todasAsCasas = eu?.lojas.length === 3 ? 'As três casas' : 'Todas as casas';
   const nomeDaCasa =
     casa === null ? todasAsCasas : (eu?.lojas.find((l) => l.id === casa)?.nome ?? 'Esta casa');
-  // Sem carimbos ainda, «▼ 100 %» de manhã é alarme sem razão: só se compara quando há.
-  const variacao =
-    r && r.carimbos > 0 && r.anterior > 0
-      ? Math.round(((r.carimbos - r.anterior) / r.anterior) * 100)
-      : null;
+  // O período de agora está a meio: uma percentagem contra o anterior inteiro mentia («▼ 92 %» às
+  // 9 da manhã). Fica só o número do período anterior, sem setas.
   const anterior =
     periodo === 'hoje' ? 'ontem' : periodo === 'semana' ? 'a semana anterior' : 'o mês anterior';
   return (
@@ -171,16 +168,7 @@ export default function Resumo() {
             </T>
             <T v="corpo" style={{ color: cor.texto2, marginTop: 2 }}>
               carimbos
-              {variacao !== null && (
-                <T v="corpo" style={{ color: variacao >= 0 ? '#8FD3A1' : '#E07A72' }}>
-                  {' '}
-                  · {variacao >= 0 ? '▲' : '▼'} {Math.abs(variacao)} %
-                </T>
-              )}
-              {variacao !== null ? ` vs. ${anterior}` : ''}
-              {variacao === null && r.carimbos === 0 && r.anterior > 0
-                ? ` · ${anterior}: ${r.anterior}`
-                : ''}
+              {r.anterior > 0 ? ` · ${anterior}: ${r.anterior}` : ''}
             </T>
           </View>
           <View style={{ paddingHorizontal: MARGEM, marginTop: 18, flexDirection: 'row', gap: 10 }}>

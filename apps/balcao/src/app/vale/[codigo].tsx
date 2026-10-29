@@ -52,7 +52,7 @@ export default function ValeDoParceiro() {
       setEstado('feito');
       Animated.spring(escala, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
       consultas.invalidateQueries({ queryKey: ['balcao', 'hoje-parceiro'] });
-      setTimeout(sair, 1600);
+      setTimeout(sair, 3000);
     } catch (e) {
       setEstado('pronto');
       setErro(mensagemDe(e));
@@ -154,6 +154,9 @@ export default function ValeDoParceiro() {
             <T v="subtitulo" style={{ color: cor.texto2, marginTop: 8, textAlign: 'center' }}>
               {semPartir(feito.destaque)} · {semPartir(feito.titulo)} · {hora(feito.quando)}
             </T>
+            <View style={{ marginTop: 28 }}>
+              <Botao nome="Concluir" onPress={sair} />
+            </View>
           </View>
         )}
 

@@ -24,6 +24,8 @@ const DESENHOS = {
     'M12 3c2.3 2.5 3.4 5.5 3.4 9s-1.1 6.5-3.4 9c-2.3-2.5-3.4-5.5-3.4-9s1.1-6.5 3.4-9z',
   ],
   relogio: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 7v5l3.2 2'],
+  /** Um ponto de atenção («já carimbado hoje»): círculo com exclamação. O «aviso» é o altifalante dos anúncios. */
+  atencao: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 7.5v5.5', 'M12 16.5h.01'],
   etiqueta: [
     'M3.5 12.4V4.5a1 1 0 0 1 1-1h7.9l8.6 8.6a1.4 1.4 0 0 1 0 2l-6.4 6.4a1.4 1.4 0 0 1-2 0z',
     'M8 8h.01',
