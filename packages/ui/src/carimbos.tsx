@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Animated, Platform, View } from 'react-native';
 import { cor } from './tema';
 import { Icone } from './icone';
@@ -30,21 +30,19 @@ export function Carimbos({
   novasDesde?: number | null;
   aoAcabar?: () => void;
 }) {
-  const escalas = useRef(new Map<number, Animated.Value>()).current;
+  const animar = novasDesde !== null && novasDesde >= 0 && novasDesde < carimbos;
+  // Cada animação tem os seus valores, criados já a zero para as casas novas:
+  // nascem a zero antes da primeira pintura (um setValue num efeito chegava
+  // tarde, via-se a casa cheia a encolher; e durante a pintura o React avisa).
+  const valores = useMemo(() => new Map<number, Animated.Value>(), [animar, novasDesde, carimbos]);
   const escala = (i: number) => {
-    let v = escalas.get(i);
+    let v = valores.get(i);
     if (!v) {
-      v = new Animated.Value(1);
-      escalas.set(i, v);
+      v = new Animated.Value(animar && i >= (novasDesde as number) && i < carimbos ? 0 : 1);
+      valores.set(i, v);
     }
     return v;
   };
-  const animar = novasDesde !== null && novasDesde >= 0 && novasDesde < carimbos;
-  // As casas novas nascem a zero ANTES da primeira pintura: num efeito chegava
-  // tarde, e via-se a casa cheia a encolher antes de crescer.
-  useMemo(() => {
-    if (animar) for (let i = novasDesde; i < carimbos; i++) escala(i).setValue(0);
-  }, [animar, novasDesde, carimbos]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!animar) return;
     const completa = carimbos >= objectivo;
@@ -65,7 +63,7 @@ export function Carimbos({
       if (finished) aoAcabar?.();
     });
     return () => sequencia.stop();
-  }, [animar, novasDesde, carimbos, objectivo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [animar, novasDesde, carimbos, objectivo, valores]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const linhas: number[][] = [];
   for (let i = 0; i < objectivo; i += porLinha)
