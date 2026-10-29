@@ -1,8 +1,9 @@
 import { codigoCurto, dataCurta, diaEmLisboa, textoDoQr } from '@nunos-lab/dominio';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Modal, Pressable, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCarimbosNovos } from '../../carimbos-novos';
 import { CartaoDoCliente } from '../../componentes/cartao';
 import {
   APPLE_CLIENTE,
@@ -49,6 +50,15 @@ export default function Cartao() {
     definirTitulo("Nuno's Lab · Cartão");
     contar('cartao');
   }, []);
+  // A cerimónia do carimbo novo só com este separador à frente.
+  const [focado, setFocado] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setFocado(true);
+      return () => setFocado(false);
+    }, []),
+  );
+  const { novasDesde, aoAcabar } = useCarimbosNovos(temSessao ? eu?.cartao : null, focado);
 
   return (
     <Ecra>
@@ -92,7 +102,12 @@ export default function Cartao() {
       </View>
 
       <View style={{ paddingHorizontal: MARGEM, marginTop: 18 }}>
-        <CartaoDoCliente eu={temSessao ? (eu ?? null) : null} largura={largura} />
+        <CartaoDoCliente
+          eu={temSessao ? (eu ?? null) : null}
+          largura={largura}
+          novasDesde={novasDesde}
+          aoAcabar={aoAcabar}
+        />
       </View>
 
       {!temSessao && <Entrar />}

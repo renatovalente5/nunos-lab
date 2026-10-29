@@ -8,9 +8,14 @@ const palavra = require('../../assets/marca/palavra.png');
 export function CartaoDoCliente({
   eu,
   largura,
+  novasDesde = null,
+  aoAcabar,
 }: {
   eu: Pick<ClienteEu, 'nome' | 'criadoEm' | 'cortes' | 'cartao' | 'programa'> | null;
   largura: number;
+  /** As casas novas desde a última vez que o cliente viu o cartão (ver useCarimbosNovos). */
+  novasDesde?: number | null;
+  aoAcabar?: () => void;
 }) {
   const carimbos = eu?.cartao.carimbos ?? 0;
   const objectivo = eu?.cartao.objectivo ?? eu?.programa.objectivo ?? 10;
@@ -58,7 +63,14 @@ export function CartaoDoCliente({
           : 'Um carimbo por corte'}
       </T>
       <View style={{ marginTop: 22 }}>
-        <Carimbos carimbos={carimbos} objectivo={objectivo} tamanho={tamanho} porLinha={5} />
+        <Carimbos
+          carimbos={carimbos}
+          objectivo={objectivo}
+          tamanho={tamanho}
+          porLinha={5}
+          novasDesde={novasDesde}
+          aoAcabar={aoAcabar}
+        />
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 22 }}>
         <T v="destaque">{carimbos}</T>
