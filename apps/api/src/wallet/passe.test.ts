@@ -50,7 +50,7 @@ test('o poster do iOS 27 vai ao lado: nome em título, o que falta, e um rodapé
     { key: 'faltam', label: 'FALTAM', value: '3' },
   ]);
   const rodape = p.posterGeneric.footerFields[0]!.value;
-  assert.equal(rodape, 'Corte grátis ao 10.º · nas três casas');
+  assert.equal(rodape, 'Corte grátis ao 10.º');
   assert.ok(rodape.length <= 40);
   assert.equal(
     passJson({ ...cartao, carimbos: 9 }, cfg).posterGeneric.primaryFields[1]!.label,
@@ -73,7 +73,7 @@ test('as costas levam o contacto de quem emite, as casas e a privacidade', () =>
   const p = passJson(cartao, cfg);
   const costas = Object.fromEntries(p.storeCard.backFields.map((f) => [f.key, f.value]));
   assert.equal(costas.contacto, 'WhatsApp +351 910 000 000\nNogueira do Cravo: 910 000 000');
-  assert.equal(costas.como, 'Um carimbo por corte. Ao 10.º, corte grátis. Serve nas três casas.');
+  assert.equal(costas.como, 'Um carimbo por corte. Ao 10.º, corte grátis.');
   assert.equal(costas.casas, 'Nogueira do Cravo · Santa Maria da Feira · Aveiro');
   assert.equal(costas.privacidade, 'https://app.local/nunos-lab/privacidade/');
   assert.equal(p.posterGeneric.backFields[0]!.key, 'cortes');

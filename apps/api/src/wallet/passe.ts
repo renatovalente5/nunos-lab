@@ -17,7 +17,7 @@ import { zipar } from './zip.ts';
  * ao ver uma versão diferente da guardada, refaz os passes de todos e avisa
  * os telemóveis (servico.ts, refrescarSePreciso).
  */
-export const VERSAO_DO_PASSE = '2026-10-30';
+export const VERSAO_DO_PASSE = '2026-10-30b';
 
 export type CartaoDoPasse = {
   serie: string;
@@ -79,14 +79,6 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
           },
         ]
       : [];
-  const casas =
-    c.lojas.length === 3
-      ? 'nas três casas'
-      : c.lojas.length > 1
-        ? `nas ${c.lojas.length} casas`
-        : c.lojas.length === 1
-          ? `em ${c.lojas[0]!.nome}`
-          : '';
   const contacto = [
     c.whatsapp ? `WhatsApp ${c.whatsapp}` : '',
     ...c.lojas.filter((l) => l.telefone).map((l) => `${l.nome}: ${l.telefone}`),
@@ -108,7 +100,7 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
     {
       key: 'como',
       label: 'Como funciona',
-      value: `Um carimbo por corte. Ao ${c.objectivo}.º, ${minuscula(recompensa)}.${casas ? ` Serve ${casas}.` : ''}`,
+      value: `Um carimbo por corte. Ao ${c.objectivo}.º, ${minuscula(recompensa)}.`,
     },
     ...(c.lojas.length
       ? [{ key: 'casas', label: 'As casas', value: c.lojas.map((l) => l.nome).join(' · ') }]
@@ -185,7 +177,7 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
           value:
             c.porUsar > 0
               ? `Tens ${c.porUsar === 1 ? '' : `${c.porUsar} × `}${minuscula(recompensa)} por usar`
-              : `${recompensa} ao ${c.objectivo}.º${casas ? ` · ${casas}` : ''}`,
+              : `${recompensa} ao ${c.objectivo}.º`,
         },
       ],
       backFields: [{ key: 'cortes', label: 'Cortes', value: String(c.cortes) }, ...costas],
