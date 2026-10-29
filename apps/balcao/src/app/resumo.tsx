@@ -1,13 +1,15 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { useCasa, useEu, useResumo } from '../sessao';
+import { useEu, useResumo } from '../sessao';
 import {
   CONTINUO,
   Ecra,
+  Folha,
   Grupo,
   Icone,
   MARGEM,
+  OpcaoDaFolha,
   Rotulo,
   Separador,
   T,
@@ -30,12 +32,18 @@ function hora(unix: number | null): string {
 /** O resumo do dono: os carimbos, por casa e por pessoa, hoje, na semana ou no mês. */
 export default function Resumo() {
   const { data: eu } = useEu();
-  const casaActiva = useCasa(eu);
   const [periodo, setPeriodo] = useState<(typeof PERIODOS)[number][0]>('hoje');
-  const [todas, setTodas] = useState(true);
-  const { data: r } = useResumo(periodo, todas ? null : casaActiva);
+  const [casa, setCasa] = useState<number | null>(null);
+  const [aEscolherCasa, setAEscolherCasa] = useState(false);
+  const { data: r } = useResumo(periodo, casa);
+  const todasAsCasas = eu?.lojas.length === 3 ? 'As três casas' : 'Todas as casas';
+  const nomeDaCasa =
+    casa === null ? todasAsCasas : (eu?.lojas.find((l) => l.id === casa)?.nome ?? 'Esta casa');
+  // Sem carimbos ainda, «▼ 100 %» de manhã é alarme sem razão: só se compara quando há.
   const variacao =
-    r && r.anterior > 0 ? Math.round(((r.carimbos - r.anterior) / r.anterior) * 100) : null;
+    r && r.carimbos > 0 && r.anterior > 0
+      ? Math.round(((r.carimbos - r.anterior) / r.anterior) * 100)
+      : null;
   const anterior =
     periodo === 'hoje' ? 'ontem' : periodo === 'semana' ? 'a semana anterior' : 'o mês anterior';
   return (
@@ -100,19 +108,59 @@ export default function Resumo() {
       </View>
 
       {eu && eu.lojas.length > 1 && (
-        <Pressable
-          onPress={() => setTodas((t) => !t)}
-          role="switch"
-          aria-checked={!todas}
-          style={{ marginHorizontal: MARGEM, marginTop: 10, alignSelf: 'flex-start' }}
-        >
-          <T v="legenda" style={{ color: cor.texto2 }}>
-            {todas
-              ? 'As três casas'
-              : (eu.lojas.find((l) => l.id === casaActiva)?.nome ?? 'Esta casa')}{' '}
-            · tocar para mudar
-          </T>
-        </Pressable>
+        <View style={{ paddingHorizontal: MARGEM, marginTop: 14, flexDirection: 'row' }}>
+          <Pressable
+            onPress={() => setAEscolherCasa(true)}
+            role="button"
+            aria-label={`Casa: ${nomeDaCasa}. Mudar.`}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              height: 40,
+              paddingLeft: 12,
+              paddingRight: 10,
+              borderRadius: raio.pilula,
+              borderWidth: 1,
+              borderColor: cor.linha,
+              backgroundColor: pressed ? cor.superficie : 'transparent',
+            })}
+          >
+            <Icone nome="mapa" tamanho={16} cor={cor.texto2} espessura={2} />
+            <T v="legenda" style={{ color: cor.texto }}>
+              {nomeDaCasa}
+            </T>
+            <View style={{ transform: [{ rotate: '90deg' }] }}>
+              <Icone nome="seguinte" tamanho={14} cor={cor.texto3} espessura={2.2} />
+            </View>
+          </Pressable>
+        </View>
+      )}
+      {eu && eu.lojas.length > 1 && (
+        <Folha aberta={aEscolherCasa} fechar={() => setAEscolherCasa(false)} titulo="Casa">
+          <View role="radiogroup" aria-label="Casa">
+            <OpcaoDaFolha
+              nome={todasAsCasas}
+              escolhida={casa === null}
+              onPress={() => {
+                setCasa(null);
+                setAEscolherCasa(false);
+              }}
+            />
+            {eu.lojas.map((l) => (
+              <OpcaoDaFolha
+                key={l.id}
+                nome={l.nome}
+                escolhida={casa === l.id}
+                onPress={() => {
+                  setCasa(l.id);
+                  setAEscolherCasa(false);
+                }}
+                separador
+              />
+            ))}
+          </View>
+        </Folha>
       )}
 
       {r && (
@@ -129,7 +177,10 @@ export default function Resumo() {
                   · {variacao >= 0 ? '▲' : '▼'} {Math.abs(variacao)} %
                 </T>
               )}
-              {variacao === null && r.anterior === 0 ? '' : ` vs. ${anterior}`}
+              {variacao !== null ? ` vs. ${anterior}` : ''}
+              {variacao === null && r.carimbos === 0 && r.anterior > 0
+                ? ` · ${anterior}: ${r.anterior}`
+                : ''}
             </T>
           </View>
           <View style={{ paddingHorizontal: MARGEM, marginTop: 18, flexDirection: 'row', gap: 10 }}>

@@ -1,7 +1,7 @@
 import { codigoCurto, dataCurta, diaEmLisboa, fraseDoCartao } from '@nunos-lab/dominio';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, View } from 'react-native';
+import { Animated, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -9,6 +9,7 @@ import {
   chaveNova,
   mensagemDe,
   pedir,
+  semRemedio,
   useCasa,
   useEu,
   useFicha,
@@ -208,7 +209,11 @@ export default function Ficha() {
           <T v="subtitulo" style={{ textAlign: 'center' }}>
             {mensagemDe(error)}
           </T>
-          <Botao nome="Tentar outra vez" secundario onPress={() => refetch()} />
+          {semRemedio(error) ? (
+            <Botao nome="Fechar" secundario onPress={sair} />
+          ) : (
+            <Botao nome="Tentar outra vez" secundario onPress={() => refetch()} />
+          )}
         </View>
       )}
 
@@ -292,137 +297,134 @@ export default function Ficha() {
       )}
 
       {ficha && estado !== 'feito' && estado !== 'na-fila' && (
-        <View
-          style={{
-            flex: 1,
-            justifyContent: 'flex-end',
-            width: '100%',
-            maxWidth: LARGURA_MAXIMA,
-            alignSelf: 'center',
-          }}
-        >
-          <View style={{ paddingHorizontal: MARGEM, paddingTop: 24, gap: 6 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <T v="titulo" numberOfLines={1} style={{ flexShrink: 1 }}>
-                {ficha.cliente.nome || 'Sem nome'}
+        <View style={{ flex: 1, width: '100%', maxWidth: LARGURA_MAXIMA, alignSelf: 'center' }}>
+          {/* A ficha lê-se de cima; as acções ficam presas ao fundo, à mão. */}
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={{ paddingHorizontal: MARGEM, paddingTop: 24, gap: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <T v="titulo" numberOfLines={1} style={{ flexShrink: 1 }}>
+                  {ficha.cliente.nome || 'Sem nome'}
+                </T>
+                {ficha.cliente.aniversario && (
+                  <View
+                    style={{
+                      backgroundColor: cor.claro,
+                      borderRadius: 999,
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      flexDirection: 'row',
+                      gap: 6,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Icone nome="bolo" tamanho={16} cor={cor.sobreClaro} espessura={2.2} />
+                    <T v="legenda" style={{ color: cor.sobreClaro }}>
+                      Faz anos
+                    </T>
+                  </View>
+                )}
+              </View>
+              <T v="legenda" style={{ color: cor.texto2 }}>
+                {`Cliente desde ${new Date(ficha.cliente.criadoEm * 1000).getFullYear()} · ${ficha.cliente.cortes} ${ficha.cliente.cortes === 1 ? 'corte' : 'cortes'}`}
               </T>
-              {ficha.cliente.aniversario && (
-                <View
-                  style={{
-                    backgroundColor: cor.claro,
-                    borderRadius: 999,
-                    paddingHorizontal: 10,
-                    paddingVertical: 5,
-                    flexDirection: 'row',
-                    gap: 6,
-                    alignItems: 'center',
-                  }}
-                >
-                  <Icone nome="bolo" tamanho={16} cor={cor.sobreClaro} espessura={2.2} />
-                  <T v="legenda" style={{ color: cor.sobreClaro }}>
-                    Faz anos
-                  </T>
-                </View>
-              )}
             </View>
-            <T v="legenda" style={{ color: cor.texto2 }}>
-              {`Cliente desde ${new Date(ficha.cliente.criadoEm * 1000).getFullYear()} · ${ficha.cliente.cortes} ${ficha.cliente.cortes === 1 ? 'corte' : 'cortes'}`}
-            </T>
-          </View>
 
-          <View style={{ paddingHorizontal: MARGEM, marginTop: 22 }}>
-            <Carimbos
-              carimbos={ficha.cartao.carimbos}
-              objectivo={ficha.cartao.objectivo}
-              tamanho={28}
-              porLinha={10}
-              folga={6}
-            />
-          </View>
-          <View
-            style={{
-              paddingHorizontal: MARGEM,
-              flexDirection: 'row',
-              alignItems: 'baseline',
-              gap: 6,
-              marginTop: 18,
-            }}
-          >
-            <T v="destaque">{ficha.cartao.carimbos}</T>
-            <T v="forte" style={{ color: cor.texto2, fontSize: 18 }}>
-              de {ficha.cartao.objectivo}
-            </T>
-            <T v="legenda" style={{ color: cor.texto2, marginLeft: 8 }}>
-              {fraseDoCartao(ficha.cartao.carimbos, ficha.cartao)}
-            </T>
-          </View>
-
-          <View
-            style={{
-              paddingHorizontal: MARGEM,
-              marginTop: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <Icone nome="relogio" tamanho={16} cor={cor.texto2} espessura={2} />
-            <T v="legenda" style={{ color: cor.texto2 }}>
-              {ficha.ultima
-                ? `Última visita ${haQuanto(ficha.ultima.quando)}${ficha.ultima.loja ? ` · ${ficha.ultima.loja}` : ''}${ficha.ultima.pessoa ? ` · ${ficha.ultima.pessoa}` : ''}`
-                : 'Primeira visita'}
-            </T>
-          </View>
-
-          {ficha.prenda && (
+            <View style={{ paddingHorizontal: MARGEM, marginTop: 22 }}>
+              <Carimbos
+                carimbos={ficha.cartao.carimbos}
+                objectivo={ficha.cartao.objectivo}
+                tamanho={28}
+                porLinha={10}
+                folga={6}
+              />
+            </View>
             <View
               style={{
-                marginHorizontal: MARGEM,
-                marginTop: 14,
-                backgroundColor: cor.claro,
-                borderRadius: 16,
-                padding: 12,
+                paddingHorizontal: MARGEM,
                 flexDirection: 'row',
-                gap: 10,
-                alignItems: 'center',
-                ...CONTINUO,
+                alignItems: 'baseline',
+                gap: 6,
+                marginTop: 18,
               }}
             >
-              <Icone nome="bolo" tamanho={18} cor={cor.sobreClaro} espessura={2.2} />
-              <T v="forte" style={{ flex: 1, color: cor.sobreClaro }}>
-                Prenda de anos: {ficha.prenda}
+              <T v="destaque">{ficha.cartao.carimbos}</T>
+              <T v="forte" style={{ color: cor.texto2, fontSize: 18 }}>
+                de {ficha.cartao.objectivo}
+              </T>
+              <T v="legenda" style={{ color: cor.texto2, marginLeft: 8 }}>
+                {fraseDoCartao(ficha.cartao.carimbos, ficha.cartao)}
               </T>
             </View>
-          )}
-          {(ficha.hoje.carimbos > 0 || aviso) && (
+
             <View
               style={{
-                marginHorizontal: MARGEM,
-                marginTop: 14,
-                backgroundColor: cor.superficieAlta,
-                borderRadius: 16,
-                padding: 12,
+                paddingHorizontal: MARGEM,
+                marginTop: 16,
                 flexDirection: 'row',
-                gap: 10,
                 alignItems: 'center',
-                ...CONTINUO,
+                gap: 8,
               }}
             >
-              <Icone nome="aviso" tamanho={18} cor={cor.texto} espessura={2} />
-              <T v="legenda" style={{ flex: 1 }}>
-                {ficha.hoje.ultimo
-                  ? `Já carimbado hoje às ${hora(ficha.hoje.ultimo.quando)}${ficha.hoje.ultimo.pessoa ? ` por ${ficha.hoje.ultimo.pessoa}` : ''}.`
-                  : 'Já carimbado hoje.'}
+              <Icone nome="relogio" tamanho={16} cor={cor.texto2} espessura={2} />
+              <T v="legenda" style={{ color: cor.texto2 }}>
+                {ficha.ultima
+                  ? `Última visita ${haQuanto(ficha.ultima.quando)}${ficha.ultima.loja ? ` · ${ficha.ultima.loja}` : ''}${ficha.ultima.pessoa ? ` · ${ficha.ultima.pessoa}` : ''}`
+                  : 'Primeira visita'}
               </T>
             </View>
-          )}
 
+            {ficha.prenda && (
+              <View
+                style={{
+                  marginHorizontal: MARGEM,
+                  marginTop: 14,
+                  backgroundColor: cor.claro,
+                  borderRadius: 16,
+                  padding: 12,
+                  flexDirection: 'row',
+                  gap: 10,
+                  alignItems: 'center',
+                  ...CONTINUO,
+                }}
+              >
+                <Icone nome="bolo" tamanho={18} cor={cor.sobreClaro} espessura={2.2} />
+                <T v="forte" style={{ flex: 1, color: cor.sobreClaro }}>
+                  Prenda de anos: {ficha.prenda}
+                </T>
+              </View>
+            )}
+            {(ficha.hoje.carimbos > 0 || aviso) && (
+              <View
+                style={{
+                  marginHorizontal: MARGEM,
+                  marginTop: 14,
+                  backgroundColor: cor.superficieAlta,
+                  borderRadius: 16,
+                  padding: 12,
+                  flexDirection: 'row',
+                  gap: 10,
+                  alignItems: 'center',
+                  ...CONTINUO,
+                }}
+              >
+                <Icone nome="aviso" tamanho={18} cor={cor.texto} espessura={2} />
+                <T v="legenda" style={{ flex: 1 }}>
+                  {ficha.hoje.ultimo
+                    ? `Já carimbado hoje às ${hora(ficha.hoje.ultimo.quando)}${ficha.hoje.ultimo.pessoa ? ` por ${ficha.hoje.ultimo.pessoa}` : ''}.`
+                    : 'Já carimbado hoje.'}
+                </T>
+              </View>
+            )}
+          </ScrollView>
           <View
             style={{
               backgroundColor: cor.superficie,
               borderTopLeftRadius: 28,
               borderTopRightRadius: 28,
-              marginTop: 22,
               paddingHorizontal: MARGEM,
               paddingTop: 20,
               paddingBottom: margens.bottom + 20,

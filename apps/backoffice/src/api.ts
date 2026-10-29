@@ -104,7 +104,8 @@ export const consultas = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 15_000,
-      retry: (n, e) => !(e instanceof ErroDaApi && e.codigo === 'sessao') && n < 2,
+      retry: (n, e) =>
+        !(e instanceof ErroDaApi && (e.codigo === 'sessao' || e.codigo === 'nao_existe')) && n < 2,
     },
   },
 });

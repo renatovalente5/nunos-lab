@@ -172,7 +172,7 @@ export default function Vantagens() {
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: 6,
-                  height: 36,
+                  height: 40,
                   paddingLeft: 12,
                   paddingRight: 10,
                   borderRadius: raio.pilula,

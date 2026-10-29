@@ -46,7 +46,7 @@ export const ACCOES: Record<string, string> = {
   'servico.criado': 'criou o serviço',
   'equipa.criada': 'juntou à equipa',
   'equipa.removida': 'tirou da equipa',
-  'equipa.ligacao': 'criou uma ligação da Balcão para',
+  'equipa.ligacao': 'criou uma ligação da app for partners para',
   'clientes.exemplos_apagados': 'apagou os clientes de exemplo',
 };
 

@@ -4,7 +4,15 @@ import { View } from 'react-native';
 import { Botao, T, cor } from '@nunos-lab/ui';
 
 /** A câmara no telemóvel: a expo-camera lê o QR sozinha. */
-export function Leitor({ aoLer, activo }: { aoLer: (texto: string) => void; activo: boolean }) {
+export function Leitor({
+  aoLer,
+  activo,
+}: {
+  aoLer: (texto: string) => void;
+  activo: boolean;
+  /** Só a web fica sem câmara; no telemóvel pede-se a permissão. */
+  aoSemCamara?: () => void;
+}) {
   const [permissao, pedir] = useCameraPermissions();
   const ultimo = useRef<string>('');
   useEffect(() => {

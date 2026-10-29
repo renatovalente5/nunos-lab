@@ -11,7 +11,7 @@ import { useRef, useState } from 'react';
 import { Animated, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
-import { chaveNova, mensagemDe, useFichaParceiro, validar } from '../../sessao';
+import { chaveNova, mensagemDe, semRemedio, useFichaParceiro, validar } from '../../sessao';
 import { Botao, CONTINUO, Icone, LARGURA_MAXIMA, MARGEM, T, cor, raio } from '@nunos-lab/ui';
 
 const MOTIVO: Record<Exclude<VantagemDoParceiro['motivo'], 'ok'>, string> = {
@@ -118,7 +118,11 @@ export default function ValeDoParceiro() {
             <T v="subtitulo" style={{ textAlign: 'center' }}>
               {mensagemDe(error)}
             </T>
-            <Botao nome="Tentar outra vez" secundario onPress={() => refetch()} />
+            {semRemedio(error) ? (
+              <Botao nome="Fechar" secundario onPress={sair} />
+            ) : (
+              <Botao nome="Tentar outra vez" secundario onPress={() => refetch()} />
+            )}
           </View>
         )}
 

@@ -201,7 +201,9 @@ export function Fidelidade() {
       <div className="cabecalho">
         <div>
           <h1>Fidelidade</h1>
-          <p className="subtitulo">O cartão de carimbos e os serviços que a Balcão pergunta.</p>
+          <p className="subtitulo">
+            O cartão de carimbos e os serviços que a app for partners pergunta.
+          </p>
         </div>
       </div>
 
@@ -243,7 +245,7 @@ export function Fidelidade() {
             valor={f.porDia}
             mudar={mudar('porDia')}
             erro={erros.includes('porDia')}
-            ajuda="Por cliente. Acima disto, a Balcão avisa."
+            ajuda="Por cliente. Acima disto, a app for partners avisa."
             obrigatorio
           />
           <Campo

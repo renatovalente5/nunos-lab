@@ -13,6 +13,7 @@ export default function Ler() {
   const [texto, setTexto] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [activo, setActivo] = useState(true);
+  const [semCamara, setSemCamara] = useState(false);
   const { data: eu } = useEu();
   const abrir = (lido: string) => {
     const codigo = codigoLido(lido);
@@ -25,7 +26,7 @@ export default function Ler() {
   };
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
-      <Leitor activo={activo} aoLer={abrir} />
+      <Leitor activo={activo} aoLer={abrir} aoSemCamara={() => setSemCamara(true)} />
       <View
         pointerEvents="none"
         style={{ position: 'absolute', left: 0, right: 0, top: '22%', alignItems: 'center' }}
@@ -93,7 +94,7 @@ export default function Ler() {
         }}
       >
         <T v="legenda" style={{ color: cor.texto2 }}>
-          Ou escreve o código
+          {semCamara ? 'Escreve o código' : 'Ou escreve o código'}
         </T>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1 }}>

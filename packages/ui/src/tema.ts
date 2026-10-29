@@ -12,7 +12,8 @@ export const cor = {
   linha: '#2A2A2A',
   texto: '#F4F1EC',
   texto2: '#A9A49C',
-  texto3: '#7C776F',
+  /** 5,4:1 sobre o fundo e 4,9 sobre os cartões (o #7C776F ficava a 4,45 e 4,07). */
+  texto3: '#8A857D',
   claro: '#F4F1EC',
   claroPremido: '#DDD9D2',
   sobreClaro: '#0A0A0A',

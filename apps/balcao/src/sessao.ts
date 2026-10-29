@@ -119,6 +119,11 @@ export class ErroDaBalcao extends Error {
     super(MENSAGENS[codigo] ?? MENSAGENS.interno);
   }
 }
+/** Um erro que voltar a pedir não resolve: a conta não tem esse papel, a casa é outra, o código não é de ninguém. */
+export const semRemedio = (e: unknown) =>
+  e instanceof ErroDaBalcao &&
+  ['so_parceiro', 'so_barbearia', 'outra_casa', 'cartao_desconhecido'].includes(e.codigo);
+
 export const mensagemDe = (e: unknown) =>
   e instanceof ErroDaBalcao ? e.message : (MENSAGENS.interno as string);
 

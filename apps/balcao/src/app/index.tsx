@@ -1,5 +1,5 @@
 import { dataCurta, diaEmLisboa } from '@nunos-lab/dominio';
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import {
@@ -129,24 +129,24 @@ function HojeParceiro() {
             {eu?.parceiro?.nome ?? 'Parceiro'}
           </T>
         </View>
-        <Link href="/conta" asChild>
-          <Pressable
-            role="link"
-            aria-label="Conta"
-            style={({ pressed }) => ({
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: pressed ? cor.linha : cor.superficieAlta,
-              alignItems: 'center',
-              justifyContent: 'center',
-            })}
-          >
-            <T v="forte" style={{ fontSize: 15 }}>
-              {(eu?.pessoa.nome ?? '·').trim().charAt(0).toUpperCase()}
-            </T>
-          </Pressable>
-        </Link>
+        <Pressable
+          onPress={() => router.push('/conta')}
+          role="link"
+          aria-label="Conta"
+          hitSlop={6}
+          style={({ pressed }) => ({
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: pressed ? cor.linha : cor.superficieAlta,
+            alignItems: 'center',
+            justifyContent: 'center',
+          })}
+        >
+          <T v="forte" style={{ fontSize: 15 }}>
+            {(eu?.pessoa.nome ?? '·').trim().charAt(0).toUpperCase()}
+          </T>
+        </Pressable>
       </View>
 
       <View style={{ paddingHorizontal: MARGEM, marginTop: 22, flexDirection: 'row', gap: 10 }}>
@@ -373,44 +373,43 @@ function Hoje() {
           justifyContent: 'space-between',
         }}
       >
-        <Link href="/conta" asChild>
-          <Pressable
-            role="link"
-            aria-label="Casa e conta"
-            style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+        <Pressable
+          onPress={() => router.push('/conta')}
+          role="link"
+          aria-label="Casa e conta"
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+        >
+          <T
+            v="legenda"
+            style={{ color: cor.texto3, letterSpacing: 1.2, textTransform: 'uppercase' }}
           >
-            <T
-              v="legenda"
-              style={{ color: cor.texto3, letterSpacing: 1.2, textTransform: 'uppercase' }}
-            >
-              Nuno's Lab
-            </T>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <T v="titulo">{nomeDaCasa || "Nuno's Lab"}</T>
-              {eu && eu.lojas.length > 1 && eu.pessoa.papel !== 'barbeiro' && (
-                <Icone nome="seguinte" tamanho={18} cor={cor.texto3} espessura={2.4} />
-              )}
-            </View>
-          </Pressable>
-        </Link>
-        <Link href="/conta" asChild>
-          <Pressable
-            role="link"
-            aria-label="Conta"
-            style={({ pressed }) => ({
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: pressed ? cor.linha : cor.superficieAlta,
-              alignItems: 'center',
-              justifyContent: 'center',
-            })}
-          >
-            <T v="forte" style={{ fontSize: 15 }}>
-              {(eu?.pessoa.nome ?? '·').trim().charAt(0).toUpperCase()}
-            </T>
-          </Pressable>
-        </Link>
+            Nuno's Lab
+          </T>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <T v="titulo">{nomeDaCasa || "Nuno's Lab"}</T>
+            {eu && eu.lojas.length > 1 && eu.pessoa.papel !== 'barbeiro' && (
+              <Icone nome="seguinte" tamanho={18} cor={cor.texto3} espessura={2.4} />
+            )}
+          </View>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push('/conta')}
+          role="link"
+          aria-label="Conta"
+          hitSlop={6}
+          style={({ pressed }) => ({
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: pressed ? cor.linha : cor.superficieAlta,
+            alignItems: 'center',
+            justifyContent: 'center',
+          })}
+        >
+          <T v="forte" style={{ fontSize: 15 }}>
+            {(eu?.pessoa.nome ?? '·').trim().charAt(0).toUpperCase()}
+          </T>
+        </Pressable>
       </View>
 
       <View style={{ paddingHorizontal: MARGEM, marginTop: 22, flexDirection: 'row', gap: 10 }}>

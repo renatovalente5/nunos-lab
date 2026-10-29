@@ -190,7 +190,11 @@ export function Barbearia() {
                   mudar={(v) => mudarLoja(l.chave, 'marcar', v)}
                   max={500}
                   erro={errado('marcar')}
-                  ajuda="A página da Fresha desta loja. O botão «Marcar» abre-a."
+                  ajuda={
+                    i === 0
+                      ? 'A página da Fresha de cada loja. O botão «Marcar» abre-a.'
+                      : undefined
+                  }
                 />
               </div>
             );

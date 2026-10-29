@@ -217,7 +217,7 @@ export function Clientes() {
                     {c.cortes.toLocaleString('pt-PT')}
                   </td>
                   <td className="ultimo">{c.ultimo ? haQuanto(c.ultimo) : '—'}</td>
-                  <td className="cartao forte">
+                  <td className="carimbos forte">
                     {c.objectivo ? `${c.carimbos} de ${c.objectivo}` : '—'}
                   </td>
                   <td className="por-usar">

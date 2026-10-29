@@ -86,6 +86,7 @@ export function Metricas() {
   const totalDoMapa = m ? m.mapaDeCalor.flat().reduce((s, n) => s + n, 0) : 0;
   const maiorDoMapa = m ? Math.max(1, ...m.mapaDeCalor.flat()) : 1;
   const coortesComGente = m ? m.coortes.some((k) => k.clientes > 0) : false;
+  const temPorCasa = m ? m.parcerias.porCasa.some((c) => c.n > 0) : false;
   // Só os parceiros com validações agora ou no período anterior; os outros vão na lista «sem validações».
   const porParceiro = m ? m.parcerias.porParceiro.filter((p) => p.n > 0 || p.anterior > 0) : [];
 
@@ -195,117 +196,125 @@ export function Metricas() {
             )}
           </div>
 
-          <h2 className="seccao">Por casa</h2>
-          <div className="cartao">
-            {m.porLoja.length ? (
-              <Barras
-                linhas={m.porLoja.map((l) => ({
-                  chave: l.id,
-                  nome: l.nome,
-                  n: l.n,
-                  detalhe: (
-                    <>
-                      {plural(l.clientes, 'cliente', 'clientes')} ·{' '}
-                      <Variacao actual={l.n} anterior={l.anterior} curta />
-                    </>
-                  ),
-                }))}
-              />
-            ) : (
-              <Vazio titulo="Sem dados" />
-            )}
-          </div>
+          {m.porLoja.length > 0 && (
+            <>
+              <h2 className="seccao">Por casa</h2>
+              <div className="cartao">
+                {m.porLoja.length ? (
+                  <Barras
+                    linhas={m.porLoja.map((l) => ({
+                      chave: l.id,
+                      nome: l.nome,
+                      n: l.n,
+                      detalhe: (
+                        <>
+                          {plural(l.clientes, 'cliente', 'clientes')} ·{' '}
+                          <Variacao actual={l.n} anterior={l.anterior} curta />
+                        </>
+                      ),
+                    }))}
+                  />
+                ) : null}
+              </div>
+            </>
+          )}
 
-          <h2 className="seccao">Mapa de calor</h2>
-          <div className="cartao recheado">
-            {totalDoMapa > 0 ? (
-              <div className="calor" role="img" aria-label="Carimbos por dia da semana e hora">
-                <div />
-                {Array.from({ length: 24 }, (_, h) => (
-                  <div key={h} className="hora">
-                    {h % 3 === 0 ? `${h}h` : ''}
-                  </div>
-                ))}
-                {m.mapaDeCalor.map((horas, d) => (
-                  <div key={d} style={{ display: 'contents' }}>
-                    <div className="dia">{DIAS[d]}</div>
-                    {horas.map((n, h) => (
-                      <div
-                        key={h}
-                        className={`celula${n ? '' : ' vazia'}`}
-                        style={n ? { opacity: 0.12 + 0.88 * (n / maiorDoMapa) } : undefined}
-                        title={`${DIAS[d]} · ${h}h: ${plural(n, 'carimbo', 'carimbos')}`}
-                      />
+          {totalDoMapa > 0 && (
+            <>
+              <h2 className="seccao">Mapa de calor</h2>
+              <div className="cartao recheado">
+                {totalDoMapa > 0 ? (
+                  <div className="calor" role="img" aria-label="Carimbos por dia da semana e hora">
+                    <div />
+                    {Array.from({ length: 24 }, (_, h) => (
+                      <div key={h} className="hora">
+                        {h % 3 === 0 ? `${h}h` : ''}
+                      </div>
+                    ))}
+                    {m.mapaDeCalor.map((horas, d) => (
+                      <div key={d} style={{ display: 'contents' }}>
+                        <div className="dia">{DIAS[d]}</div>
+                        {horas.map((n, h) => (
+                          <div
+                            key={h}
+                            className={`celula${n ? '' : ' vazia'}`}
+                            style={n ? { opacity: 0.12 + 0.88 * (n / maiorDoMapa) } : undefined}
+                            title={`${DIAS[d]} · ${h}h: ${plural(n, 'carimbo', 'carimbos')}`}
+                          />
+                        ))}
+                      </div>
                     ))}
                   </div>
-                ))}
+                ) : null}
               </div>
-            ) : (
-              <Vazio titulo="Sem dados" />
-            )}
-          </div>
+            </>
+          )}
 
-          <h2 className="seccao">Equipa</h2>
-          <div className="cartao">
-            {m.porPessoa.length ? (
-              <div className="rola">
-                <table className="quadro">
-                  <thead>
-                    <tr>
-                      <th scope="col">Nome</th>
-                      <th scope="col">Casa</th>
-                      <th scope="col" className="num">
-                        Carimbos
-                      </th>
-                      <th scope="col" className="num">
-                        Anulados
-                      </th>
-                      <th scope="col" className="num">
-                        Repetidos
-                      </th>
-                      <th scope="col" className="num">
-                        Sem leitura
-                      </th>
-                      <th scope="col" className="num">
-                        Recompensas
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {m.porPessoa.map((p) => (
-                      <tr key={p.id}>
-                        <td className="forte">{p.nome}</td>
-                        <td>{p.loja ?? 'Todas as casas'}</td>
-                        <td className="num forte">{p.n.toLocaleString('pt-PT')}</td>
-                        <td className="num">{p.anulados.toLocaleString('pt-PT')}</td>
-                        <td className="num">{p.repetidos.toLocaleString('pt-PT')}</td>
-                        <td className="num">{p.semLeitura.toLocaleString('pt-PT')}</td>
-                        <td className="num">{p.recompensas.toLocaleString('pt-PT')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {m.porPessoa.length > 0 && (
+            <>
+              <h2 className="seccao">Equipa</h2>
+              <div className="cartao">
+                {m.porPessoa.length ? (
+                  <div className="rola">
+                    <table className="quadro">
+                      <thead>
+                        <tr>
+                          <th scope="col">Nome</th>
+                          <th scope="col">Casa</th>
+                          <th scope="col" className="num">
+                            Carimbos
+                          </th>
+                          <th scope="col" className="num">
+                            Anulados
+                          </th>
+                          <th scope="col" className="num">
+                            Repetidos
+                          </th>
+                          <th scope="col" className="num">
+                            Sem leitura
+                          </th>
+                          <th scope="col" className="num">
+                            Recompensas
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {m.porPessoa.map((p) => (
+                          <tr key={p.id}>
+                            <td className="forte">{p.nome}</td>
+                            <td>{p.loja ?? 'Todas as casas'}</td>
+                            <td className="num forte">{p.n.toLocaleString('pt-PT')}</td>
+                            <td className="num">{p.anulados.toLocaleString('pt-PT')}</td>
+                            <td className="num">{p.repetidos.toLocaleString('pt-PT')}</td>
+                            <td className="num">{p.semLeitura.toLocaleString('pt-PT')}</td>
+                            <td className="num">{p.recompensas.toLocaleString('pt-PT')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
               </div>
-            ) : (
-              <Vazio titulo="Sem dados" />
-            )}
-          </div>
+            </>
+          )}
 
-          <h2 className="seccao">Serviços</h2>
-          <div className="cartao">
-            {m.servicos.length ? (
-              <Barras
-                linhas={m.servicos.map((s) => ({
-                  chave: s.id ?? 'sem',
-                  nome: s.nome,
-                  n: s.n,
-                  detalhe: s.receita !== null ? euros(s.receita) : undefined,
-                }))}
-              />
-            ) : (
-              <Vazio titulo="Sem dados" />
-            )}
-          </div>
+          {m.servicos.length > 0 && (
+            <>
+              <h2 className="seccao">Serviços</h2>
+              <div className="cartao">
+                {m.servicos.length ? (
+                  <Barras
+                    linhas={m.servicos.map((s) => ({
+                      chave: s.id ?? 'sem',
+                      nome: s.nome,
+                      n: s.n,
+                      detalhe: s.receita !== null ? euros(s.receita) : undefined,
+                    }))}
+                  />
+                ) : null}
+              </div>
+            </>
+          )}
 
           <h2 className="seccao">Parcerias</h2>
           <div className="grelha tres">
@@ -329,105 +338,109 @@ export function Metricas() {
               }
               nota={`${m.parcerias.clientesComParcerias.toLocaleString('pt-PT')} de ${m.clientes.total.toLocaleString('pt-PT')} clientes, desde sempre`}
             />
-            <Numero
-              rotulo="Cupões saídos"
-              valor={m.parcerias.cupoesSaidos > 0 ? m.parcerias.cupoesSaidos : '—'}
-              nota="no período"
-            />
-            <Numero
-              rotulo="Cupões usados"
-              valor={m.parcerias.cupoesSaidos > 0 ? m.parcerias.cupoesUsados : '—'}
-              nota="no período"
-            />
-          </div>
-          <div className="grelha duas" style={{ marginTop: 14, alignItems: 'start' }}>
-            <div className="cartao">
-              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>Por parceiro</div>
-              {porParceiro.length ? (
-                <Barras
-                  linhas={porParceiro.map((p) => ({
-                    chave: p.id,
-                    nome: p.nome,
-                    n: p.n,
-                    detalhe: (
-                      <>
-                        {plural(p.clientes, 'cliente', 'clientes')} ·{' '}
-                        <Variacao actual={p.n} anterior={p.anterior} curta />
-                      </>
-                    ),
-                  }))}
-                />
-              ) : (
-                <Vazio titulo="Sem dados" />
-              )}
-              {m.parcerias.semValidacoes.length > 0 && (
-                <p
-                  className="detalhe"
-                  style={{
-                    margin: 0,
-                    padding: '4px 20px 18px',
-                    color: 'var(--tinta-3)',
-                    fontSize: 13.5,
-                  }}
-                >
-                  Sem validações: {m.parcerias.semValidacoes.map((p) => p.nome).join(', ')}.
-                </p>
-              )}
-            </div>
-            <div className="cartao">
-              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>Pela casa do cliente</div>
-              {m.parcerias.porCasa.some((c) => c.n > 0) ? (
-                <Barras
-                  linhas={m.parcerias.porCasa.map((c) => ({ chave: c.id, nome: c.nome, n: c.n }))}
-                />
-              ) : (
-                <Vazio titulo="Sem dados" />
-              )}
-            </div>
-          </div>
-          <div className="cartao" style={{ marginTop: 14 }}>
-            <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>Por vantagem</div>
-            {m.parcerias.porPromocao.length ? (
-              <div className="rola">
-                <table className="quadro">
-                  <thead>
-                    <tr>
-                      <th scope="col">Parceiro</th>
-                      <th scope="col">Vantagem</th>
-                      <th scope="col" className="num">
-                        No período
-                      </th>
-                      <th scope="col" className="num">
-                        Total
-                      </th>
-                      <th scope="col" className="num">
-                        Limite
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {m.parcerias.porPromocao.map((p) => (
-                      <tr key={p.id}>
-                        <td className="forte">{p.parceiro}</td>
-                        <td>
-                          <span className="forte">{p.destaque}</span> {p.titulo}
-                        </td>
-                        <td className="num forte">{p.n.toLocaleString('pt-PT')}</td>
-                        <td className="num">{p.total.toLocaleString('pt-PT')}</td>
-                        <td className="num">
-                          {p.limiteTotal === null
-                            ? '—'
-                            : `${p.total.toLocaleString('pt-PT')} de ${p.limiteTotal.toLocaleString('pt-PT')}`}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <Vazio titulo="Sem dados" />
+            {m.parcerias.cupoesSaidos > 0 && (
+              <>
+                <Numero rotulo="Cupões saídos" valor={m.parcerias.cupoesSaidos} nota="no período" />
+                <Numero rotulo="Cupões usados" valor={m.parcerias.cupoesUsados} nota="no período" />
+              </>
             )}
           </div>
+          {(porParceiro.length > 0 || temPorCasa) && (
+            <div className="grelha duas" style={{ marginTop: 14, alignItems: 'start' }}>
+              {porParceiro.length > 0 && (
+                <div className="cartao">
+                  <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>Por parceiro</div>
+                  {porParceiro.length ? (
+                    <Barras
+                      linhas={porParceiro.map((p) => ({
+                        chave: p.id,
+                        nome: p.nome,
+                        n: p.n,
+                        detalhe: (
+                          <>
+                            {plural(p.clientes, 'cliente', 'clientes')} ·{' '}
+                            <Variacao actual={p.n} anterior={p.anterior} curta />
+                          </>
+                        ),
+                      }))}
+                    />
+                  ) : null}
+                  {m.parcerias.semValidacoes.length > 0 && (
+                    <p
+                      className="detalhe"
+                      style={{
+                        margin: 0,
+                        padding: '4px 20px 18px',
+                        color: 'var(--tinta-3)',
+                        fontSize: 13.5,
+                      }}
+                    >
+                      Sem validações: {m.parcerias.semValidacoes.map((p) => p.nome).join(', ')}.
+                    </p>
+                  )}
+                </div>
+              )}
+              {temPorCasa && (
+                <div className="cartao">
+                  <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>
+                    Pela casa do cliente
+                  </div>
+                  {m.parcerias.porCasa.some((c) => c.n > 0) ? (
+                    <Barras
+                      linhas={m.parcerias.porCasa.map((c) => ({
+                        chave: c.id,
+                        nome: c.nome,
+                        n: c.n,
+                      }))}
+                    />
+                  ) : null}
+                </div>
+              )}
+            </div>
+          )}
+          {m.parcerias.porPromocao.length > 0 && (
+            <div className="cartao" style={{ marginTop: 14 }}>
+              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>Por vantagem</div>
+              {m.parcerias.porPromocao.length ? (
+                <div className="rola">
+                  <table className="quadro">
+                    <thead>
+                      <tr>
+                        <th scope="col">Parceiro</th>
+                        <th scope="col">Vantagem</th>
+                        <th scope="col" className="num">
+                          No período
+                        </th>
+                        <th scope="col" className="num">
+                          Total
+                        </th>
+                        <th scope="col" className="num">
+                          Limite
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {m.parcerias.porPromocao.map((p) => (
+                        <tr key={p.id}>
+                          <td className="forte">{p.parceiro}</td>
+                          <td>
+                            <span className="forte">{p.destaque}</span> {p.titulo}
+                          </td>
+                          <td className="num forte">{p.n.toLocaleString('pt-PT')}</td>
+                          <td className="num">{p.total.toLocaleString('pt-PT')}</td>
+                          <td className="num">
+                            {p.limiteTotal === null
+                              ? '—'
+                              : `${p.total.toLocaleString('pt-PT')} de ${p.limiteTotal.toLocaleString('pt-PT')}`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </div>
+          )}
 
           <h2 className="seccao">Clientes</h2>
           <div className="grelha quatro">
@@ -452,97 +465,101 @@ export function Metricas() {
             <Numero rotulo="Em risco" valor={m.clientes.emRisco} />
             <Numero rotulo="Perdidos" valor={m.clientes.perdidos} nota="sem vir há 180 dias" />
           </div>
-          <div className="grelha duas" style={{ marginTop: 14, alignItems: 'start' }}>
-            <div className="cartao">
-              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>Distribuição</div>
-              {m.clientes.total > 0 ? (
-                <Barras
-                  linhas={m.clientes.distribuicao.map((d) => ({
-                    chave: d.faixa,
-                    nome: `${d.faixa} ${d.faixa === '1' ? 'corte' : 'cortes'}`,
-                    n: d.n,
-                  }))}
-                />
-              ) : (
-                <Vazio titulo="Sem dados" />
-              )}
-            </div>
-            <div className="cartao">
-              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>Top 10</div>
-              {m.clientes.top.length ? (
-                <ul className="lista">
-                  {m.clientes.top.map((k, i) => (
-                    <li key={k.id}>
-                      <a className="linha" href={`#/clientes/${k.id}`}>
-                        <span style={{ width: 22, color: 'var(--tinta-3)', fontWeight: 800 }}>
-                          {i + 1}
-                        </span>
-                        <div className="meio">
-                          <div className="titulo-linha">{k.nome}</div>
-                          <div className="detalhe">Último {haQuanto(k.ultimo)}</div>
-                        </div>
-                        <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {plural(k.cortes, 'corte', 'cortes')}
-                        </strong>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <Vazio titulo="Sem dados" />
-              )}
-            </div>
-          </div>
-
-          <h2 className="seccao">Coortes</h2>
-          <div className="cartao">
-            {coortesComGente ? (
-              <div className="rola">
-                <table className="quadro coortes">
-                  <thead>
-                    <tr>
-                      <th scope="col">1.º corte</th>
-                      <th scope="col" className="num">
-                        Clientes
-                      </th>
-                      {[1, 2, 3, 4, 5, 6].map((k) => (
-                        <th key={k} scope="col" className="num">
-                          +{k}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {m.coortes.map((k) => (
-                      <tr key={k.mes}>
-                        <td className="forte">{mesPorExtenso(k.mes)}</td>
-                        <td className="num">{k.clientes.toLocaleString('pt-PT')}</td>
-                        {[0, 1, 2, 3, 4, 5].map((i) => {
-                          const v = k.voltaram[i];
-                          const p = k.clientes > 0 && v !== undefined ? v / k.clientes : null;
-                          return (
-                            <td
-                              key={i}
-                              className="num"
-                              style={
-                                p !== null
-                                  ? { background: `rgba(20, 20, 20, ${0.03 + p * 0.17})` }
-                                  : undefined
-                              }
-                            >
-                              {p !== null ? percentagem(p) : ''}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {m.clientes.total > 0 && (
+            <div className="grelha duas" style={{ marginTop: 14, alignItems: 'start' }}>
+              <div className="cartao">
+                <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>Distribuição</div>
+                {m.clientes.total > 0 ? (
+                  <Barras
+                    linhas={m.clientes.distribuicao.map((d) => ({
+                      chave: d.faixa,
+                      nome: `${d.faixa} ${d.faixa === '1' ? 'corte' : 'cortes'}`,
+                      n: d.n,
+                    }))}
+                  />
+                ) : null}
               </div>
-            ) : (
-              <Vazio titulo="Sem dados" />
-            )}
-          </div>
+              {m.clientes.top.length > 0 && (
+                <div className="cartao">
+                  <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>Top 10</div>
+                  {m.clientes.top.length ? (
+                    <ul className="lista">
+                      {m.clientes.top.map((k, i) => (
+                        <li key={k.id}>
+                          <a className="linha" href={`#/clientes/${k.id}`}>
+                            <span style={{ width: 22, color: 'var(--tinta-3)', fontWeight: 800 }}>
+                              {i + 1}
+                            </span>
+                            <div className="meio">
+                              <div className="titulo-linha">{k.nome}</div>
+                              <div className="detalhe">Último {haQuanto(k.ultimo)}</div>
+                            </div>
+                            <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
+                              {plural(k.cortes, 'corte', 'cortes')}
+                            </strong>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          )}
+
+          {coortesComGente && (
+            <>
+              <h2 className="seccao">Coortes</h2>
+              <div className="cartao">
+                {coortesComGente ? (
+                  <div className="rola">
+                    <table className="quadro coortes">
+                      <thead>
+                        <tr>
+                          <th scope="col">1.º corte</th>
+                          <th scope="col" className="num">
+                            Clientes
+                          </th>
+                          {[1, 2, 3, 4, 5, 6].map((k) => (
+                            <th key={k} scope="col" className="num">
+                              +{k}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {m.coortes
+                          .filter((k) => k.clientes > 0)
+                          .map((k) => (
+                            <tr key={k.mes}>
+                              <td className="forte">{mesPorExtenso(k.mes)}</td>
+                              <td className="num">{k.clientes.toLocaleString('pt-PT')}</td>
+                              {[0, 1, 2, 3, 4, 5].map((i) => {
+                                const v = k.voltaram[i];
+                                const p = k.clientes > 0 && v !== undefined ? v / k.clientes : null;
+                                return (
+                                  <td
+                                    key={i}
+                                    className="num"
+                                    style={
+                                      p !== null
+                                        ? { background: `rgba(20, 20, 20, ${0.03 + p * 0.17})` }
+                                        : undefined
+                                    }
+                                  >
+                                    {p !== null ? percentagem(p) : ''}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          )}
 
           <h2 className="seccao">Contas</h2>
           <div className="grelha quatro">

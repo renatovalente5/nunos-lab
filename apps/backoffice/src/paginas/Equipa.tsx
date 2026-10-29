@@ -218,7 +218,7 @@ export function Equipa() {
       <div className="cabecalho">
         <div>
           <h1>Equipa</h1>
-          <p className="subtitulo">Quem carimba na Balcão, e os parceiros que validam.</p>
+          <p className="subtitulo">Quem carimba na app for partners, e os parceiros que validam.</p>
         </div>
         <button type="button" className="botao" onClick={() => abrir(null)}>
           <Icone nome="mais" tamanho={18} /> Adicionar à equipa
@@ -267,29 +267,12 @@ export function Equipa() {
                             {plural(p.sessoes.length, 'aparelho', 'aparelhos')}
                           </button>
                         )}
-                        {p.activo && (
-                          <button
-                            type="button"
-                            className="botao secundario pequeno so-largo"
-                            disabled={aCorrer}
-                            onClick={() => criarLigacao(p)}
-                          >
-                            Ligação
-                          </button>
-                        )}
                         <button
                           type="button"
                           className="botao secundario pequeno"
                           onClick={() => abrir(p)}
                         >
                           Editar
-                        </button>
-                        <button
-                          type="button"
-                          className="botao perigo pequeno so-largo"
-                          onClick={() => remover(p)}
-                        >
-                          Remover
                         </button>
                       </div>
                     </div>
@@ -335,7 +318,7 @@ export function Equipa() {
               max={254}
               erro={erros.includes('email')}
               placeholder="nome@gmail.com"
-              ajuda="Entra na Balcão com o Google ou a Apple deste email. Vazio: só por ligação."
+              ajuda="Entra na app for partners com o Google ou a Apple deste email. Vazio: só por ligação."
             />
             <div className="campo">
               <span className="rotulo-campo">Papel</span>
@@ -371,7 +354,7 @@ export function Equipa() {
                   ligado={f.activo}
                   mudar={mudar('activo')}
                   rotulo="Activo"
-                  ajuda="Desligado, não entra na Balcão."
+                  ajuda="Desligado, não entra na app for partners."
                 />
                 <div className="botoes">
                   {f.activo && (
@@ -426,7 +409,7 @@ export function Equipa() {
                         if (
                           await confirmar(
                             'Terminar a sessão?',
-                            `${comAparelhos.nome} sai da Balcão nesse aparelho.`,
+                            `${comAparelhos.nome} sai da app for partners nesse aparelho.`,
                             'Terminar',
                           )
                         )
@@ -475,7 +458,7 @@ export function Equipa() {
                 onClick={() =>
                   ligacao &&
                   navigator
-                    .share({ title: "Balcão do Nuno's Lab", url: ligacao.url })
+                    .share({ title: "Nuno's Lab for partners", url: ligacao.url })
                     .catch(() => {})
                 }
               >
@@ -500,7 +483,7 @@ export function Equipa() {
                 day: 'numeric',
                 month: 'long',
               })}
-              . Manda-a só a {ligacao.para}: quem a abrir entra na Balcão.
+              . Manda-a só a {ligacao.para}: quem a abrir entra na app for partners.
             </div>
           </div>
         )}

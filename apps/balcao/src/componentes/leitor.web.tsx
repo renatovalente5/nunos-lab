@@ -8,11 +8,25 @@ import { T, cor } from '@nunos-lab/ui';
  * fotogramas por segundo numa tela escondida. O Safari não tem BarcodeDetector,
  * por isso é assim em todos os telemóveis.
  */
-export function Leitor({ aoLer, activo }: { aoLer: (texto: string) => void; activo: boolean }) {
+export function Leitor({
+  aoLer,
+  activo,
+  aoSemCamara,
+}: {
+  aoLer: (texto: string) => void;
+  activo: boolean;
+  /** Chamado quando não há câmara: o ecrã pede o código escrito sem o «Ou». */
+  aoSemCamara?: () => void;
+}) {
   const caixa = useRef<ComponentRef<typeof View>>(null);
   const [estado, setEstado] = useState<'a-abrir' | 'aberta' | 'sem-camara'>('a-abrir');
   const ultimo = useRef(aoLer);
   ultimo.current = aoLer;
+  const avisarSemCamara = useRef(aoSemCamara);
+  avisarSemCamara.current = aoSemCamara;
+  useEffect(() => {
+    if (estado === 'sem-camara') avisarSemCamara.current?.();
+  }, [estado]);
   useEffect(() => {
     if (!activo) return;
     const onde = caixa.current as unknown as HTMLElement | null;
@@ -82,7 +96,7 @@ export function Leitor({ aoLer, activo }: { aoLer: (texto: string) => void; acti
       {estado !== 'aberta' && (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <T v="legenda" style={{ color: cor.texto2 }}>
-            {estado === 'a-abrir' ? 'A abrir a câmara…' : 'Sem câmara. Escreve o código.'}
+            {estado === 'a-abrir' ? 'A abrir a câmara…' : 'Sem câmara.'}
           </T>
         </View>
       )}

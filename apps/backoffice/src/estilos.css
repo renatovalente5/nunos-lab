@@ -1496,7 +1496,7 @@ table.quadro {
     grid-column: 1 / 3;
     grid-row: 1;
   }
-  .quadro.clientes td.cartao {
+  .quadro.clientes td.carimbos {
     grid-column: 3;
     grid-row: 1;
     text-align: right;

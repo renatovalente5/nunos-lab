@@ -646,7 +646,7 @@ export function EditorDePromocao({
           </div>
           <div className="cartao recheado formulario" style={{ boxShadow: 'none' }}>
             <div className="campo">
-              <span className="rotulo-campo">Na Balcão do parceiro</span>
+              <span className="rotulo-campo">Na app for partners do parceiro</span>
               <Interruptor
                 ligado={f.validar}
                 mudar={ligarValidacao}

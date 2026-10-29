@@ -1,5 +1,5 @@
 import { eAniversarioValido, type FormaDeEntrar, type Loja } from '@nunos-lab/dominio';
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import {
@@ -257,16 +257,7 @@ export default function Conta() {
 
       <Rotulo>Mais</Rotulo>
       <Grupo>
-        <Link href="/privacidade" asChild>
-          <Pressable
-            role="link"
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? cor.superficieAlta : 'transparent',
-            })}
-          >
-            <Linha icone="escudo" nome="Privacidade" />
-          </Pressable>
-        </Link>
+        <Linha icone="escudo" nome="Privacidade" onPress={() => router.push('/privacidade')} />
         <Separador recuo={48} />
         <Linha icone="lixo" nome="Apagar a conta" perigo onPress={() => abrir('apagar')} />
       </Grupo>

@@ -1,5 +1,5 @@
 import { codigoCurto, dataCurta, diaEmLisboa, textoDoQr } from '@nunos-lab/dominio';
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -65,28 +65,29 @@ export default function Cartao() {
           Cartão
         </T>
         {temSessao && (
-          <Link href="/conta" asChild>
-            <Pressable
-              role="link"
-              aria-label="Conta"
-              style={({ pressed }) => ({
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: pressed ? cor.linha : cor.superficieAlta,
-                alignItems: 'center',
-                justifyContent: 'center',
-              })}
-            >
-              {eu?.nome ? (
-                <T v="forte" style={{ fontSize: 15 }}>
-                  {iniciais(eu.nome)}
-                </T>
-              ) : (
-                <Icone nome="pessoa" tamanho={20} espessura={2} />
-              )}
-            </Pressable>
-          </Link>
+          // Sem <Link asChild>: o Slot espalha um estilo em função num objecto e o círculo perdia-se.
+          <Pressable
+            onPress={() => router.push('/conta')}
+            role="link"
+            aria-label="Conta"
+            hitSlop={6}
+            style={({ pressed }) => ({
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: pressed ? cor.linha : cor.superficieAlta,
+              alignItems: 'center',
+              justifyContent: 'center',
+            })}
+          >
+            {eu?.nome ? (
+              <T v="forte" style={{ fontSize: 15 }}>
+                {iniciais(eu.nome)}
+              </T>
+            ) : (
+              <Icone nome="pessoa" tamanho={20} espessura={2} />
+            )}
+          </Pressable>
         )}
       </View>
 
