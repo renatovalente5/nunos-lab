@@ -9,6 +9,7 @@ import type { Ambiente, C } from '../ambiente.ts';
 import { agora, corpo, recusar } from '../util.ts';
 import { buffer } from './bytes.ts';
 import { ligacaoParaGuardar } from './google.ts';
+import { heroDoCartao, VERSAO_DO_DESENHO } from './grelha.ts';
 import {
   appleLigada,
   assinarTexto,
@@ -181,6 +182,26 @@ rotasDaWallet.get('/apple/v1/passes/:tipo/:serie', async (c) => {
   tipoCerto(c, c.req.param('tipo'));
   const passe = await passeAutorizado(c, c.req.param('serie'));
   return servirPkpass(c, passe.cliente_id, passe.actualizado_em);
+});
+
+/** A hero da Google: a grelha de um estado (objectivo, carimbos), pública e imutável (o URL muda com o desenho). */
+rotasDaWallet.get('/imagem/:versao/:objectivo/:carimbos/hero.png', async (c) => {
+  const objectivo = Number(c.req.param('objectivo'));
+  const carimbos = Number(c.req.param('carimbos'));
+  if (
+    c.req.param('versao') !== VERSAO_DO_DESENHO ||
+    !Number.isInteger(objectivo) ||
+    !Number.isInteger(carimbos) ||
+    objectivo < 1 ||
+    objectivo > 50 ||
+    carimbos < 0 ||
+    carimbos > objectivo
+  )
+    return c.body(null, 404);
+  return c.body(buffer(await heroDoCartao({ objectivo, carimbos })), 200, {
+    'Content-Type': 'image/png',
+    'Cache-Control': 'public, max-age=31536000, immutable',
+  });
 });
 
 rotasDaWallet.post('/apple/v1/log', async (c) => {

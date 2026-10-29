@@ -18,6 +18,8 @@ export type CartaoDaGoogle = {
   recompensa: string;
   porUsar: number;
   cortes: number;
+  /** A imagem com a grelha dos carimbos, num URL só deste estado (a Google guarda-a por URL). */
+  hero: string;
 };
 
 export const classeId = (emissor: string) => `${emissor}.nunoslab-cartao`;
@@ -53,6 +55,12 @@ export function objeto(emissor: string, c: CartaoDaGoogle) {
         ? { label: 'Por usar', balance: { string: `${c.porUsar} × ${c.recompensa}` } }
         : undefined,
     barcode: { type: 'QR_CODE', value: c.qr, alternateText: c.codigo },
+    heroImage: {
+      sourceUri: { uri: c.hero },
+      contentDescription: {
+        defaultValue: { language: 'pt-PT', value: `${c.carimbos} de ${c.objectivo} carimbos` },
+      },
+    },
     textModulesData: [
       { id: 'cortes', header: 'Cortes', body: String(c.cortes) },
       {

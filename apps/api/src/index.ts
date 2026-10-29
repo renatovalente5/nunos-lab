@@ -16,6 +16,7 @@ import { rotasDaRevisao } from './revisao.ts';
 import { limpar } from './limpeza.ts';
 import { rotasPublicas } from './publico.ts';
 import { rotasDaWallet, rotasDaWalletDoCliente } from './wallet/rotas.ts';
+import { refrescarSePreciso } from './wallet/servico.ts';
 
 const app = new Hono<Ambiente>();
 
@@ -35,6 +36,12 @@ app.use('/api/*', async (c, next) => {
   await next();
   c.header('X-Content-Type-Options', 'nosniff');
   if (/^\/api\/(bo|eu|balcao)(\/|$)/.test(c.req.path)) c.header('Cache-Control', 'no-store');
+});
+
+// Um passe com cara nova (VERSAO_DO_PASSE) refaz-se sozinho na primeira vez que o Worker acorda.
+app.use('/api/*', async (c, next) => {
+  refrescarSePreciso(c.env, (p) => c.executionCtx.waitUntil(p));
+  await next();
 });
 
 app.route('/api', rotasPublicas);

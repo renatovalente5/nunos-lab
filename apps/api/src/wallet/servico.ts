@@ -15,7 +15,8 @@ import {
   type CartaoDaGoogle,
   type ContaDeServico,
 } from './google.ts';
-import { pkpass, type CartaoDoPasse, type ConfiguracaoDoPasse } from './passe.ts';
+import { VERSAO_DO_DESENHO } from './grelha.ts';
+import { pkpass, VERSAO_DO_PASSE, type CartaoDoPasse, type ConfiguracaoDoPasse } from './passe.ts';
 
 type Env = C['env'];
 
@@ -115,8 +116,10 @@ export async function cartaoParaOPasse(
          WHERE x.cliente_id = ? AND x.anulado_em IS NULL ORDER BY x.criado_em DESC LIMIT 1`,
       )
       .bind(clienteId),
-    db.prepare('SELECT id, nome, lat, lng FROM lojas ORDER BY ordem, id'),
-    db.prepare("SELECT chave, valor FROM definicoes WHERE chave IN ('site', 'instagram')"),
+    db.prepare('SELECT id, nome, telefone, lat, lng FROM lojas ORDER BY ordem, id'),
+    db.prepare(
+      "SELECT chave, valor FROM definicoes WHERE chave IN ('site', 'instagram', 'whatsapp')",
+    ),
   ]);
   const serie = (passe!.results[0] as { serie: string } | undefined)?.serie;
   if (!serie) return null;
@@ -126,6 +129,7 @@ export async function cartaoParaOPasse(
   const l = lojas!.results as {
     id: number;
     nome: string;
+    telefone: string;
     lat: number | null;
     lng: number | null;
   }[];
@@ -143,6 +147,7 @@ export async function cartaoParaOPasse(
     lojasIds: l.map((x) => x.id),
     site: d.get('site') ?? '',
     instagram: d.get('instagram') ?? '',
+    whatsapp: d.get('whatsapp') ?? '',
   };
 }
 
@@ -177,6 +182,7 @@ export function cartaoDaGoogle(env: Env, c: CartaoDoPasse): CartaoDaGoogle {
     recompensa: c.recompensa,
     porUsar: c.porUsar,
     cortes: c.cortes,
+    hero: `${env.ORIGEM_DA_API}/api/wallet/imagem/${VERSAO_DO_DESENHO}/${c.objectivo}/${c.carimbos}/hero.png`,
   };
 }
 
@@ -201,6 +207,58 @@ export function tocarPasse(c: C, clienteId: number) {
         .run();
       await Promise.allSettled([avisarApple(c.env, passe.serie), avisarGoogle(c.env, clienteId)]);
     })().catch((e) => console.error('passe', e)),
+  );
+}
+
+/**
+ * Todos os passes passam a «actualizado agora», cada aparelho registado na
+ * Apple recebe um toque, e a Google recebe os objectos de quem lá guardou.
+ * Serve quando o passe muda de cara. Devolve o que fez.
+ */
+export async function refrescarPasses(env: Env) {
+  const db = env.DB;
+  await db.prepare('UPDATE passes SET actualizado_em = unixepoch()').run();
+  const series = (
+    await db.prepare('SELECT DISTINCT serie FROM registos_apple').all<{ serie: string }>()
+  ).results;
+  for (const { serie } of series)
+    await avisarApple(env, serie).catch((e) => console.error('apns', e));
+  const google = (
+    await db
+      .prepare('SELECT cliente_id FROM passes WHERE google_em IS NOT NULL')
+      .all<{ cliente_id: number }>()
+  ).results;
+  for (const { cliente_id } of google)
+    await avisarGoogle(env, cliente_id).catch((e) => console.error('google', e));
+  return { apple: series.length, google: google.length };
+}
+
+/**
+ * Depois de publicar um passe com outra cara (VERSAO_DO_PASSE), a primeira
+ * vez que cada instância do Worker acorda compara a versão com a guardada;
+ * se for outra, refaz os passes e guarda a nova. Duas instâncias ao mesmo
+ * tempo dão, no pior caso, dois toques: não faz mal.
+ */
+let versaoConferida = false;
+export function refrescarSePreciso(env: Env, esperar: (p: Promise<unknown>) => void) {
+  if (versaoConferida) return;
+  versaoConferida = true;
+  esperar(
+    (async () => {
+      const db = env.DB;
+      const guardada = await db
+        .prepare("SELECT valor FROM definicoes WHERE chave = 'passe_versao'")
+        .first<{ valor: string }>();
+      if (guardada?.valor === VERSAO_DO_PASSE) return;
+      const feito = await refrescarPasses(env);
+      await db
+        .prepare(
+          "INSERT INTO definicoes (chave, valor) VALUES ('passe_versao', ?) ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor",
+        )
+        .bind(VERSAO_DO_PASSE)
+        .run();
+      console.log('passes refeitos', VERSAO_DO_PASSE, JSON.stringify(feito));
+    })().catch((e) => console.error('passes', e)),
   );
 }
 

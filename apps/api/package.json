@@ -11,7 +11,7 @@
     "migrar:local": "wrangler d1 migrations apply DB --local",
     "migrar:remoto": "wrangler d1 migrations apply DB --remote",
     "publicar": "wrangler deploy",
-    "testar": "node --experimental-strip-types --no-warnings --test src/backoffice/google.test.ts"
+    "testar": "node --experimental-strip-types --no-warnings --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@nunos-lab/dominio": "*",

@@ -1,14 +1,23 @@
 import { codigoCurto, fraseDoCartao, textoDoQr } from '@nunos-lab/dominio';
 import { buffer, deBase64, hex, utf8 } from './bytes.ts';
 import { assinarManifesto } from './cms.ts';
+import { imagensDoCartao } from './grelha.ts';
 import { IMAGENS_DO_PASSE } from './imagens.ts';
 import { zipar } from './zip.ts';
 
 /**
- * O passe da Apple: o pass.json de um cartão (um storeCard preto, com o
- * logótipo oficial), as imagens, o manifest.json (o SHA-1 de cada ficheiro)
- * e a assinatura (cms.ts). Não lê a base: a API dá-lhe o cartão já lido.
+ * O passe da Apple: o pass.json de um cartão (um storeCard preto com a faixa
+ * dos carimbos, e o poster do iOS 27 ao lado, com a mesma grelha na arte e o
+ * código a meio), as imagens, o manifest.json (o SHA-1 de cada ficheiro) e a
+ * assinatura (cms.ts). Não lê a base: a API dá-lhe o cartão já lido.
  */
+
+/**
+ * Muda sempre que o passe muda de cara (campos, imagens, estilos): o Worker,
+ * ao ver uma versão diferente da guardada, refaz os passes de todos e avisa
+ * os telemóveis (servico.ts, refrescarSePreciso).
+ */
+export const VERSAO_DO_PASSE = '2026-10-30';
 
 export type CartaoDoPasse = {
   serie: string;
@@ -20,9 +29,10 @@ export type CartaoDoPasse = {
   porUsar: number;
   cortes: number;
   ultima: { quando: number; loja: string | null; pessoa: string | null } | null;
-  lojas: { nome: string; lat: number | null; lng: number | null }[];
+  lojas: { nome: string; telefone: string; lat: number | null; lng: number | null }[];
   site: string;
   instagram: string;
+  whatsapp: string;
 };
 
 export type ConfiguracaoDoPasse = {
@@ -47,17 +57,75 @@ const dataCurta = (unix: number) =>
     timeZone: 'Europe/Lisbon',
   });
 
+const minuscula = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+
 export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
+  const faltam = Math.max(0, c.objectivo - c.carimbos);
+  const recompensa = c.recompensa.trim() || 'Prémio';
+  const carimbos = {
+    key: 'carimbos',
+    label: 'CARIMBOS',
+    value: `${c.carimbos} de ${c.objectivo}`,
+    changeMessage: 'Carimbo novo: %@',
+  };
+  const cliente = c.nome ? [{ key: 'nome', label: 'CLIENTE', value: c.nome }] : [];
   const porUsar =
     c.porUsar > 0
       ? [
           {
             key: 'porUsar',
             label: 'POR USAR',
-            value: c.porUsar === 1 ? c.recompensa : `${c.porUsar} × ${c.recompensa}`,
+            value: c.porUsar === 1 ? recompensa : `${c.porUsar} × ${recompensa}`,
           },
         ]
       : [];
+  const casas =
+    c.lojas.length === 3
+      ? 'nas três casas'
+      : c.lojas.length > 1
+        ? `nas ${c.lojas.length} casas`
+        : c.lojas.length === 1
+          ? `em ${c.lojas[0]!.nome}`
+          : '';
+  const contacto = [
+    c.whatsapp ? `WhatsApp ${c.whatsapp}` : '',
+    ...c.lojas.filter((l) => l.telefone).map((l) => `${l.nome}: ${l.telefone}`),
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const costas = [
+    ...(c.ultima
+      ? [
+          {
+            key: 'ultima',
+            label: 'Última visita',
+            value: [dataCurta(c.ultima.quando), c.ultima.loja, c.ultima.pessoa]
+              .filter(Boolean)
+              .join(' · '),
+          },
+        ]
+      : []),
+    {
+      key: 'como',
+      label: 'Como funciona',
+      value: `Um carimbo por corte. Ao ${c.objectivo}.º, ${minuscula(recompensa)}.${casas ? ` Serve ${casas}.` : ''}`,
+    },
+    ...(c.lojas.length
+      ? [{ key: 'casas', label: 'As casas', value: c.lojas.map((l) => l.nome).join(' · ') }]
+      : []),
+    ...(contacto ? [{ key: 'contacto', label: 'Contacto', value: contacto }] : []),
+    ...(c.site ? [{ key: 'site', label: 'Site', value: c.site }] : []),
+    ...(c.instagram
+      ? [{ key: 'instagram', label: 'Instagram', value: `instagram.com/${c.instagram}` }]
+      : []),
+    { key: 'privacidade', label: 'Privacidade', value: `${cfg.origemDaApp}/privacidade/` },
+  ];
+  const codigo = {
+    format: 'PKBarcodeFormatQR',
+    message: textoDoQr(c.codigo),
+    messageEncoding: 'iso-8859-1',
+    altText: codigoCurto(c.codigo).replace(' ', ' '),
+  };
   return {
     formatVersion: 1,
     passTypeIdentifier: cfg.passTipo,
@@ -71,20 +139,8 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
     sharingProhibited: true,
     webServiceURL: `${cfg.origemDaApi}/api/wallet/apple`,
     authenticationToken: cfg.testemunho,
-    barcode: {
-      format: 'PKBarcodeFormatQR',
-      message: textoDoQr(c.codigo),
-      messageEncoding: 'iso-8859-1',
-      altText: codigoCurto(c.codigo).replace(' ', ' '),
-    },
-    barcodes: [
-      {
-        format: 'PKBarcodeFormatQR',
-        message: textoDoQr(c.codigo),
-        messageEncoding: 'iso-8859-1',
-        altText: codigoCurto(c.codigo).replace(' ', ' '),
-      },
-    ],
+    barcode: codigo,
+    barcodes: [codigo],
     locations: c.lojas
       .filter((l) => l.lat !== null && l.lng !== null)
       .slice(0, 10)
@@ -93,49 +149,46 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
         longitude: l.lng,
         relevantText: `Nuno's Lab ${l.nome}: mostra o cartão.`,
       })),
+    // O iOS 26 e anteriores: a faixa com as casas (strip.png) por cima da linha
+    // de campos, e o código em baixo. Sem campos principais, para a faixa ficar limpa.
     storeCard: {
-      headerFields: [
-        {
-          key: 'carimbos',
-          label: 'CARIMBOS',
-          value: `${c.carimbos} de ${c.objectivo}`,
-          changeMessage: 'Carimbo novo: %@',
-        },
-      ],
-      primaryFields: [{ key: 'nome', label: 'CLIENTE', value: c.nome || 'Nuno’s Lab' }],
+      headerFields: [carimbos],
       secondaryFields: [
+        ...cliente,
         {
           key: 'faltam',
-          label: c.recompensa.toUpperCase(),
+          label: recompensa.toUpperCase(),
           value: fraseDoCartao(c.carimbos, { objectivo: c.objectivo, recompensa: '' }),
         },
         ...porUsar,
       ],
       auxiliaryFields: [{ key: 'cortes', label: 'CORTES', value: String(c.cortes) }],
-      backFields: [
-        ...(c.ultima
-          ? [
-              {
-                key: 'ultima',
-                label: 'Última visita',
-                value: [dataCurta(c.ultima.quando), c.ultima.loja, c.ultima.pessoa]
-                  .filter(Boolean)
-                  .join(' · '),
-              },
-            ]
-          : []),
-        {
-          key: 'como',
-          label: 'Como funciona',
-          value: `Um carimbo por corte. Ao ${c.objectivo}.º, ${c.recompensa.toLowerCase()}. Serve nas três casas.`,
+      backFields: costas,
+    },
+    // O iOS 27 prefere o poster: a arte (artwork.png) enche o cartão, com as
+    // casas a meio e o código num quadro branco por baixo delas; o logótipo
+    // principal em cima à esquerda, o cabeçalho à direita, e uma faixa em
+    // baixo com o nome (um principal sem rótulo sai em título) e o que falta.
+    posterGeneric: {
+      headerFields: [carimbos],
+      primaryFields: [
+        ...(c.nome ? [{ key: 'nome', value: c.nome }] : []),
+        porUsar[0] ?? {
+          key: 'faltam',
+          label: faltam === 1 ? 'FALTA' : 'FALTAM',
+          value: String(faltam),
         },
-        { key: 'casas', label: 'As casas', value: c.lojas.map((l) => l.nome).join(' · ') },
-        ...(c.site ? [{ key: 'site', label: 'Site', value: c.site }] : []),
-        ...(c.instagram
-          ? [{ key: 'instagram', label: 'Instagram', value: `instagram.com/${c.instagram}` }]
-          : []),
-        { key: 'privacidade', label: 'Privacidade', value: `${cfg.origemDaApp}/privacidade/` },
       ],
+      footerFields: [
+        {
+          key: 'rodape',
+          value:
+            c.porUsar > 0
+              ? `Tens ${c.porUsar === 1 ? '' : `${c.porUsar} × `}${minuscula(recompensa)} por usar`
+              : `${recompensa} ao ${c.objectivo}.º${casas ? ` · ${casas}` : ''}`,
+        },
+      ],
+      backFields: [{ key: 'cortes', label: 'Cortes', value: String(c.cortes) }, ...costas],
     },
   };
 }
@@ -151,12 +204,14 @@ export async function pkpass(
   identidade: { certificado: string; chave: string; cadeia: string },
   quando = new Date(),
 ): Promise<Uint8Array> {
+  const geradas = await imagensDoCartao({ carimbos: cartao.carimbos, objectivo: cartao.objectivo });
   const ficheiros: [string, Uint8Array][] = [
     ['pass.json', utf8(JSON.stringify(passJson(cartao, cfg)))],
     ...Object.entries(IMAGENS_DO_PASSE).map(([nome, b64]): [string, Uint8Array] => [
       nome,
       deBase64(b64),
     ]),
+    ...Object.entries(geradas),
   ];
   const manifesto: Record<string, string> = {};
   for (const [nome, bytes] of ficheiros) manifesto[nome] = await sha1(bytes);
