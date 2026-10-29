@@ -60,20 +60,29 @@ export async function entrarComIdentidade(
       .bind(email)
       .first<Encontrada & { dona: number; tipo: string }>();
     if (irma && (irma.dona === 1 ? dona(id) : true)) {
-      const [identidade] = await db.batch([
-        db
-          .prepare(
-            'INSERT INTO identidades (cliente_id, tipo, sujeito, email, dona) VALUES (?, ?, ?, ?, ?) RETURNING id',
-          )
-          .bind(irma.cliente_id, id.tipo, id.sujeito, id.email, dona(id) ? 1 : 0),
-        // O email escrito ao balcão fica provado por quem o abriu.
-        db.prepare("UPDATE identidades SET dona = 1 WHERE id = ? AND tipo = 'email'").bind(irma.id),
-        db
-          .prepare(
-            "UPDATE clientes SET email = coalesce(email, ?), nome = CASE WHEN nome = '' THEN ? ELSE nome END WHERE id = ?",
-          )
-          .bind(email, id.nome.slice(0, 40), irma.cliente_id),
-      ]);
+      let identidade;
+      try {
+        [identidade] = await db.batch([
+          db
+            .prepare(
+              'INSERT INTO identidades (cliente_id, tipo, sujeito, email, dona) VALUES (?, ?, ?, ?, ?) RETURNING id',
+            )
+            .bind(irma.cliente_id, id.tipo, id.sujeito, id.email, dona(id) ? 1 : 0),
+          // O email escrito ao balcão fica provado por quem o abriu.
+          db
+            .prepare("UPDATE identidades SET dona = 1 WHERE id = ? AND tipo = 'email'")
+            .bind(irma.id),
+          db
+            .prepare(
+              "UPDATE clientes SET email = coalesce(email, ?), nome = CASE WHEN nome = '' THEN ? ELSE nome END WHERE id = ?",
+            )
+            .bind(email, id.nome.slice(0, 40), irma.cliente_id),
+        ]);
+      } catch (e) {
+        const ganhou = await quemGanhou(db, id, e);
+        if (!ganhou) throw e;
+        return { clienteId: ganhou.cliente_id, identidadeId: ganhou.id, nova: false };
+      }
       return {
         clienteId: irma.cliente_id,
         identidadeId: (identidade!.results[0] as { id: number }).id,
@@ -89,19 +98,49 @@ export async function entrarComIdentidade(
     .bind(codigo, id.nome.slice(0, 40), email)
     .first<{ id: number }>();
   if (!cliente) throw new Error('A conta não nasceu');
-  const [identidade] = await db.batch([
-    db
-      .prepare(
-        'INSERT INTO identidades (cliente_id, tipo, sujeito, email, dona) VALUES (?, ?, ?, ?, ?) RETURNING id',
-      )
-      .bind(cliente.id, id.tipo, id.sujeito, id.email, dona(id) ? 1 : 0),
-    novoCartao(db, cliente.id, 1, programa),
-  ]);
+  let identidade;
+  try {
+    [identidade] = await db.batch([
+      db
+        .prepare(
+          'INSERT INTO identidades (cliente_id, tipo, sujeito, email, dona) VALUES (?, ?, ?, ?, ?) RETURNING id',
+        )
+        .bind(cliente.id, id.tipo, id.sujeito, id.email, dona(id) ? 1 : 0),
+      novoCartao(db, cliente.id, 1, programa),
+    ]);
+  } catch (e) {
+    // Dois toques ao mesmo tempo na primeira entrada: o outro pedido ficou com a
+    // identidade. A conta que acabou de nascer apaga-se (ficava órfã, a contar
+    // como cliente) e devolve-se a que ganhou.
+    const ganhou = await quemGanhou(db, id, e);
+    if (!ganhou) throw e;
+    await db.prepare('DELETE FROM clientes WHERE id = ?').bind(cliente.id).run();
+    return { clienteId: ganhou.cliente_id, identidadeId: ganhou.id, nova: false };
+  }
   return {
     clienteId: cliente.id,
     identidadeId: (identidade!.results[0] as { id: number }).id,
     nova: true,
   };
+}
+
+/**
+ * Quando um INSERT da identidade falha por já existir (dois pedidos ao mesmo
+ * tempo com a mesma Apple/Google), quem a tem agora. Outro erro qualquer: null.
+ */
+async function quemGanhou(
+  db: D1Database,
+  id: IdentidadeProvada,
+  e: unknown,
+): Promise<Encontrada | null> {
+  if (!String(e).includes('UNIQUE constraint failed: identidades')) return null;
+  return db
+    .prepare(
+      `SELECT i.id, i.cliente_id FROM identidades i JOIN clientes k ON k.id = i.cliente_id
+       WHERE i.tipo = ? AND i.sujeito = ? AND k.apagado_em IS NULL`,
+    )
+    .bind(id.tipo, id.sujeito)
+    .first<Encontrada>();
 }
 
 /** Junta uma forma de entrar à conta que já está aberta. Uma forma de outra conta não se rouba. */

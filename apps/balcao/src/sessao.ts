@@ -87,6 +87,8 @@ const MENSAGENS: Record<string, string> = {
   apple_invalido: 'A Apple não confirmou a entrada.',
   apple_desligado: 'Entrar com a Apple ainda não está disponível.',
   sem_acesso: 'Esta conta não está na equipa. Pede ao Nuno para a juntar.',
+  email_escondido:
+    'A Apple não partilhou o teu email, e é por ele que a equipa te conhece. Entra outra vez com a Apple e escolhe «Partilhar o meu email», ou entra com o Google.',
   muitas_tentativas: 'Demasiadas tentativas. Espera um minuto.',
   codigo_invalido: 'Código errado.',
   cartao_desconhecido: 'Este código não é de nenhum cartão.',

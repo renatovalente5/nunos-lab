@@ -1491,6 +1491,240 @@ await passo(
   },
 );
 
+// ——— As identidades, a fundo: a mesma pessoa por várias portas, cliente e equipa ———
+const entrarTeste = (tipo, sujeito, email, extra = {}) =>
+  pedir('/api/eu/entrar/teste', { method: 'POST', body: json({ tipo, sujeito, email, ...extra }) });
+const euDe = async (sessao) => {
+  const r = await pedir('/api/eu', { token: sessao });
+  return { status: r.status, eu: r.status === 200 ? await r.json() : null };
+};
+const entrarEquipa = (email) =>
+  pedir('/api/balcao/entrar/teste', { method: 'POST', body: json({ email }) });
+const chaveNova = () => Math.random().toString(36).slice(2, 14).padEnd(12, 'x');
+const lojaDaProva = (await (await pedir('/api/bo/barbearia', { token })).json()).lojas[0].id;
+
+await passo('a mesma pessoa pela Google e pela Apple (o mesmo Gmail) é uma conta só', async () => {
+  const g = await (await entrarTeste('google', 'id-g1', 'id.um@gmail.com', { nome: 'Um' })).json();
+  const g2 = await (await entrarTeste('google', 'id-g1', 'id.um@gmail.com')).json();
+  const a = await (
+    await entrarTeste('apple', 'id-a1', 'id.um@gmail.com', { emailVerificado: true })
+  ).json();
+  assert.equal(g.nova, true);
+  assert.equal(g2.nova, false);
+  assert.equal(a.nova, false, 'a Apple com o mesmo Gmail verificado junta-se');
+  const [eg, eg2, ea] = await Promise.all([euDe(g.sessao), euDe(g2.sessao), euDe(a.sessao)]);
+  assert.equal(eg.status, 200, 'duas sessões vivas ao mesmo tempo');
+  assert.equal(eg2.status, 200);
+  assert.equal(ea.eu.id, eg.eu.id);
+  assert.deepEqual(ea.eu.formas.map((f) => f.tipo).sort(), ['apple', 'google']);
+  // Um email de empresa não é uma caixa que fique sempre com a mesma pessoa: Google e Apple dão duas contas.
+  const ge = await (await entrarTeste('google', 'id-g5', 'id.cinco@empresa.pt')).json();
+  const ae = await (
+    await entrarTeste('apple', 'id-a5', 'id.cinco@empresa.pt', { emailVerificado: true })
+  ).json();
+  assert.equal(ae.nova, true);
+  assert.notEqual((await euDe(ge.sessao)).eu.id, (await euDe(ae.sessao)).eu.id);
+});
+
+await passo(
+  'a Apple com o email escondido é outra conta; só se junta depois de apagar a outra',
+  async () => {
+    const relay = await (
+      await entrarTeste('apple', 'id-ar', 'xyz@privaterelay.appleid.com', { emailVerificado: true })
+    ).json();
+    const g = await (await entrarTeste('google', 'id-g2', 'id.dois@gmail.com')).json();
+    assert.equal(relay.nova, true);
+    assert.equal(g.nova, true);
+    const roubo = await pedir('/api/eu/formas/teste', {
+      method: 'POST',
+      token: g.sessao,
+      body: json({ tipo: 'apple', sujeito: 'id-ar', email: 'xyz@privaterelay.appleid.com' }),
+    });
+    assert.equal(roubo.status, 409);
+    assert.equal((await roubo.json()).erro, 'noutra_conta');
+    assert.equal((await pedir('/api/eu', { method: 'DELETE', token: relay.sessao })).status, 204);
+    const juntou = await pedir('/api/eu/formas/teste', {
+      method: 'POST',
+      token: g.sessao,
+      body: json({ tipo: 'apple', sujeito: 'id-ar', email: 'xyz@privaterelay.appleid.com' }),
+    });
+    assert.equal(juntou.status, 200);
+    const outraVez = await (
+      await entrarTeste('apple', 'id-ar', 'xyz@privaterelay.appleid.com')
+    ).json();
+    assert.equal((await euDe(outraVez.sessao)).eu.id, (await euDe(g.sessao)).eu.id);
+  },
+);
+
+let sessaoDonoProva;
+await passo(
+  'o email escrito ao balcão (até com maiúsculas) fica com quem o prova pela Google',
+  async () => {
+    sessaoDonoProva = (
+      await (
+        await pedir('/api/balcao/entrar/demonstracao', {
+          method: 'POST',
+          body: json({ codigo: 'DEMOLOCAL2026' }),
+        })
+      ).json()
+    ).sessao;
+    const novo = await pedir('/api/balcao/clientes', {
+      method: 'POST',
+      token: sessaoDonoProva,
+      body: json({
+        nome: 'Ao Balcão',
+        email: '  Ao.Balcao@Gmail.com ',
+        carimbo: { chave: chaveNova(), lojaId: lojaDaProva },
+      }),
+    });
+    assert.equal(novo.status, 200);
+    const codigo = (await novo.json()).ficha.cliente.codigo;
+    const repetido = await pedir('/api/balcao/clientes', {
+      method: 'POST',
+      token: sessaoDonoProva,
+      body: json({ nome: 'Outro', email: 'ao.balcao@gmail.com' }),
+    });
+    assert.equal(repetido.status, 409, 'o mesmo email não abre dois cartões');
+    const g = await (
+      await entrarTeste('google', 'id-g3', 'ao.balcao@gmail.com', { nome: 'Ao Balcão' })
+    ).json();
+    assert.equal(g.nova, false);
+    const { eu } = await euDe(g.sessao);
+    assert.equal(eu.codigo, codigo);
+    assert.equal(eu.cartao.carimbos, 1, 'o carimbo dado ao balcão vem com o cartão');
+    // Dois toques ao mesmo tempo na primeira entrada: uma conta só, sem órfãs.
+    const antes = daBaseLocal('SELECT count(*) AS n FROM clientes')[0].n;
+    const [c1, c2] = await Promise.all([
+      entrarTeste('google', 'id-gc', 'id.conc@gmail.com'),
+      entrarTeste('google', 'id-gc', 'id.conc@gmail.com'),
+    ]);
+    assert.equal(c1.status, 200);
+    assert.equal(c2.status, 200);
+    const [e1, e2] = await Promise.all([
+      euDe((await c1.json()).sessao),
+      euDe((await c2.json()).sessao),
+    ]);
+    assert.equal(e1.eu.id, e2.eu.id);
+    assert.equal(daBaseLocal('SELECT count(*) AS n FROM clientes')[0].n, antes + 1);
+  },
+);
+
+await passo(
+  'a mesma pessoa é cliente e equipa; tirar da equipa fecha só a sessão da for partners',
+  async () => {
+    const criar = await pedir('/api/bo/equipa', {
+      method: 'POST',
+      token,
+      body: json({
+        nome: 'Barbeiro Prova',
+        email: '  Barbeiro.Prova@Gmail.com ',
+        papel: 'barbeiro',
+        lojaId: lojaDaProva,
+        parceiroId: null,
+      }),
+    });
+    assert.equal(criar.status, 201);
+    const pessoa = (await criar.json()).find((p) => p.nome === 'Barbeiro Prova');
+    assert.equal(pessoa.email, 'barbeiro.prova@gmail.com', 'o email guarda-se normalizado');
+    const repetido = await pedir('/api/bo/equipa', {
+      method: 'POST',
+      token,
+      body: json({
+        nome: 'Repetido',
+        email: 'barbeiro.prova@gmail.com',
+        papel: 'barbeiro',
+        lojaId: lojaDaProva,
+        parceiroId: null,
+      }),
+    });
+    assert.ok([400, 409].includes(repetido.status), `email repetido na equipa: ${repetido.status}`);
+    const b = await (await entrarEquipa('BARBEIRO.PROVA@GMAIL.COM')).json();
+    assert.ok(b.sessao, 'entra na for partners com o Google (o email em maiúsculas também)');
+    const escondido = await entrarEquipa(null);
+  assert.equal(escondido.status, 403, 'a Apple sem email partilhado não entra');
+  assert.equal((await escondido.json()).erro, 'email_escondido', 'e a app diz-lhe para partilhar o email');
+    assert.equal((await entrarEquipa('ninguem@gmail.com')).status, 403);
+    const cliente = await (
+      await entrarTeste('google', 'id-gb', 'barbeiro.prova@gmail.com', { nome: 'Barbeiro Prova' })
+    ).json();
+    const { eu } = await euDe(cliente.sessao);
+    assert.ok(eu.cartao, 'como cliente tem o cartão dele, à parte');
+    assert.equal((await pedir('/api/balcao/hoje', { token: b.sessao })).status, 200);
+    // Desactivar fecha a sessão e a porta; reactivar abre; tirar fecha de vez — e a conta de cliente fica.
+    assert.equal(
+      (
+        await pedir(`/api/bo/equipa/${pessoa.id}`, {
+          method: 'PATCH',
+          token,
+          body: json({ activo: false }),
+        })
+      ).status,
+      200,
+    );
+    assert.equal((await pedir('/api/balcao/hoje', { token: b.sessao })).status, 401);
+    assert.equal((await entrarEquipa('barbeiro.prova@gmail.com')).status, 403);
+    assert.equal(
+      (
+        await pedir(`/api/bo/equipa/${pessoa.id}`, {
+          method: 'PATCH',
+          token,
+          body: json({ activo: true }),
+        })
+      ).status,
+      200,
+    );
+    const b2 = await (await entrarEquipa('barbeiro.prova@gmail.com')).json();
+    assert.ok(b2.sessao);
+    assert.equal(
+      (await pedir(`/api/bo/equipa/${pessoa.id}`, { method: 'DELETE', token })).status,
+      200,
+    );
+    assert.equal((await pedir('/api/balcao/hoje', { token: b2.sessao })).status, 401);
+    assert.equal((await entrarEquipa('barbeiro.prova@gmail.com')).status, 403);
+    assert.equal((await euDe(cliente.sessao)).status, 200);
+  },
+);
+
+await passo(
+  'o parceiro não carimba, não vê a ficha nem o resumo: só a ficha de parceiro',
+  async () => {
+    const parceiroId = daBaseLocal('SELECT id FROM parceiros ORDER BY id LIMIT 1')[0]?.id;
+    assert.ok(parceiroId, 'há um parceiro na base');
+    const criar = await pedir('/api/bo/equipa', {
+      method: 'POST',
+      token,
+      body: json({
+        nome: 'Parceiro Prova',
+        email: 'parceiro.prova@gmail.com',
+        papel: 'parceiro',
+        lojaId: null,
+        parceiroId,
+      }),
+    });
+    assert.equal(criar.status, 201);
+    const pessoa = (await criar.json()).find((p) => p.nome === 'Parceiro Prova');
+    const p = await (await entrarEquipa('parceiro.prova@gmail.com')).json();
+    const alvo = await (await entrarTeste('google', 'id-g1', 'id.um@gmail.com')).json();
+    const codigo = (await euDe(alvo.sessao)).eu.codigo;
+    const carimbo = await pedir('/api/balcao/carimbar', {
+      method: 'POST',
+      token: p.sessao,
+      body: json({ codigo, chave: chaveNova(), lojaId: lojaDaProva }),
+    });
+    assert.equal(carimbo.status, 403);
+    assert.equal((await carimbo.json()).erro, 'so_barbearia');
+    assert.equal((await pedir(`/api/balcao/ficha/${codigo}`, { token: p.sessao })).status, 403);
+    assert.equal((await pedir('/api/balcao/resumo', { token: p.sessao })).status, 403);
+    const ficha = await pedir(`/api/balcao/ficha-parceiro/${codigo}`, { token: p.sessao });
+    assert.equal(ficha.status, 200);
+    assert.ok(!(await ficha.text()).includes('id.um@gmail.com'), 'sem o email do cliente');
+    assert.equal(
+      (await pedir(`/api/bo/equipa/${pessoa.id}`, { method: 'DELETE', token })).status,
+      200,
+    );
+  },
+);
+
 await passo('sair termina a sessão', async () => {
   assert.equal((await pedir('/api/bo/sair', { method: 'POST', token })).status, 204);
   assert.equal((await pedir('/api/bo/eu', { token })).status, 401);

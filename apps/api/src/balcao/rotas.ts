@@ -512,18 +512,27 @@ rotasDaBalcao.post('/clientes', async (c) => {
     .bind(codigo, p.nome, email)
     .first<LinhaCliente>();
   if (!cliente) throw new Error('O cliente não nasceu');
-  await db.batch([
-    ...(email
-      ? [
-          db
-            .prepare(
-              "INSERT INTO identidades (cliente_id, tipo, sujeito, email, dona) VALUES (?, 'email', ?, ?, 0)",
-            )
-            .bind(cliente.id, email, email),
-        ]
-      : []),
-    novoCartao(db, cliente.id, 1, programa),
-  ]);
+  try {
+    await db.batch([
+      ...(email
+        ? [
+            db
+              .prepare(
+                "INSERT INTO identidades (cliente_id, tipo, sujeito, email, dona) VALUES (?, 'email', ?, ?, 0)",
+              )
+              .bind(cliente.id, email, email),
+          ]
+        : []),
+      novoCartao(db, cliente.id, 1, programa),
+    ]);
+  } catch (e) {
+    // Dois «novo cliente» ao mesmo tempo com o mesmo email: o segundo perde o
+    // INSERT da identidade. A conta que acabou de nascer apaga-se e responde-se
+    // como se o email já tivesse cartão (tem).
+    if (!String(e).includes('UNIQUE constraint failed: identidades')) throw e;
+    await db.prepare('DELETE FROM clientes WHERE id = ?').bind(cliente.id).run();
+    recusar(409, 'email_ja_tem_cartao');
+  }
   const carimbo = p.carimbo ? await carimbar(c, cliente, { ...p.carimbo, confirmar: true }) : null;
   return c.json({ ficha: await ficha(c, cliente), carimbo });
 });

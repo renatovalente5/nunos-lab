@@ -5,7 +5,7 @@
  */
 import { Hono, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
-import { DIAS_DA_SESSAO_DA_EQUIPA, type PapelDaEquipa } from '@nunos-lab/dominio';
+import { DIAS_DA_SESSAO_DA_EQUIPA, eEmailDeRelay, type PapelDaEquipa } from '@nunos-lab/dominio';
 import type { Ambiente, C } from '../ambiente.ts';
 import { conferirCredencialGoogle } from '../backoffice/google.ts';
 import { conferirTokenDaApple } from '../entrada/apple.ts';
@@ -116,6 +116,18 @@ rotasDeEntradaDaBalcao.post('/entrar/google', async (c) => {
   return abrirSessao(c, await pessoaDoEmail(c, id.email));
 });
 
+/**
+ * SÓ NO «wrangler dev» (MODO=desenvolvimento, que a publicação não leva): entrar
+ * como se o Google ou a Apple tivessem provado este email, para a prova da API
+ * percorrer as regras da equipa sem tokens. Em produção não existe (404).
+ */
+rotasDeEntradaDaBalcao.post('/entrar/teste', async (c) => {
+  if ((c.env as { MODO?: string }).MODO !== 'desenvolvimento') recusar(404, 'nao_existe');
+  const { email } = await corpo(c, z.object({ email: z.string().trim().max(254).nullable() }));
+  if (!email) recusar(403, 'email_escondido');
+  return abrirSessao(c, await pessoaDoEmail(c, email.toLowerCase()));
+});
+
 rotasDeEntradaDaBalcao.post('/entrar/apple', async (c) => {
   await travar(c);
   const { token, nonce } = await corpo(
@@ -128,6 +140,8 @@ rotasDeEntradaDaBalcao.post('/entrar/apple', async (c) => {
   if (clientes.length === 0) recusar(400, 'apple_desligado');
   const id = await conferirTokenDaApple(token, clientes, nonce ?? null);
   if (!id) recusar(401, 'apple_invalido');
-  // Um email de retransmissão da Apple nunca está na equipa: pede-se que partilhe o email.
-  return abrirSessao(c, await pessoaDoEmail(c, id.emailVerificado ? id.email : null));
+  // Sem o email partilhado (ou um de retransmissão), a Apple não diz quem é: a app
+  // pede para entrar outra vez e escolher «Partilhar o meu email», ou usar o Google.
+  if (!id.email || !id.emailVerificado || eEmailDeRelay(id.email)) recusar(403, 'email_escondido');
+  return abrirSessao(c, await pessoaDoEmail(c, id.email));
 });
