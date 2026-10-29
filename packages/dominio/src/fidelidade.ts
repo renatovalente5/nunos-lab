@@ -37,7 +37,29 @@ export function estadoDoCartao(carimbos: number, objectivo: number) {
   return { faltam, completo: carimbos >= objectivo };
 }
 
-/** «Faltam 3 para o corte grátis», «O próximo é corte grátis» (o último corte é a oferta), ou «Cartão completo». */
+const eCorteGratis = (recompensa: string) => /^corte gr[áa]tis$/i.test(recompensa.trim());
+const minuscula = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+
+/** Quando falta um: «O próximo corte é grátis» (a oferta é o último corte), ou «O próximo é −50 % na barba». */
+export function fraseDoProximo(recompensa: string): string {
+  const r = recompensa.trim();
+  if (!r) return 'Falta 1';
+  return eCorteGratis(r) ? 'O próximo corte é grátis' : `O próximo é ${minuscula(r)}`;
+}
+
+/** O que a ficha diz ao barbeiro no corte da oferta: «Este corte é grátis». */
+export function fraseDesteCorte(recompensa: string): string {
+  const r = recompensa.trim();
+  return eCorteGratis(r) ? 'Este corte é grátis' : `Este corte: ${minuscula(r)}`;
+}
+
+/** Depois do carimbo que completa o cartão: «Este corte foi grátis». */
+export function fraseDoCorteOferecido(recompensa: string): string {
+  const r = recompensa.trim();
+  return eCorteGratis(r) ? 'Este corte foi grátis' : `${r} · entregue`;
+}
+
+/** «Faltam 3 para o corte grátis», «O próximo corte é grátis», ou «Cartão completo». */
 export function fraseDoCartao(
   carimbos: number,
   programa: Pick<Programa, 'objectivo' | 'recompensa'>,
@@ -48,10 +70,7 @@ export function fraseDoCartao(
   const alvo = recompensa
     ? ` para ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`
     : '';
-  if (faltam === 1)
-    return recompensa
-      ? `O próximo é ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`
-      : 'Falta 1';
+  if (faltam === 1) return fraseDoProximo(recompensa);
   return `Faltam ${faltam}${alvo}`;
 }
 

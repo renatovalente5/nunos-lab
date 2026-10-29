@@ -186,7 +186,11 @@ test('o estado do cartão e a frase', () => {
   assert.deepEqual(estadoDoCartao(12, 10), { faltam: 0, completo: true });
   const programa = { objectivo: 10, recompensa: 'Corte grátis' };
   assert.equal(fraseDoCartao(7, programa), 'Faltam 3 para corte grátis');
-  assert.equal(fraseDoCartao(9, programa), 'O próximo é corte grátis');
+  assert.equal(fraseDoCartao(9, programa), 'O próximo corte é grátis');
+  assert.equal(
+    fraseDoCartao(9, { objectivo: 10, recompensa: '−50 % na barba' }),
+    'O próximo é −50 % na barba',
+  );
   assert.equal(fraseDoCartao(10, programa), 'Cartão completo');
   assert.equal(fraseDoCartao(3, { objectivo: 5, recompensa: '' }), 'Faltam 2');
 });

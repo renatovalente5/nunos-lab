@@ -1,4 +1,11 @@
-import { codigoCurto, dataCurta, diaEmLisboa, fraseDoCartao } from '@nunos-lab/dominio';
+import {
+  codigoCurto,
+  dataCurta,
+  diaEmLisboa,
+  fraseDesteCorte,
+  fraseDoCartao,
+  fraseDoCorteOferecido,
+} from '@nunos-lab/dominio';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, View } from 'react-native';
@@ -263,7 +270,7 @@ export default function Ficha() {
           </T>
           {feito.completo && feito.recompensa && (
             <T v="subtitulo" style={{ color: cor.texto2, marginTop: 8, textAlign: 'center' }}>
-              {feito.recompensa} · entregue neste corte
+              {fraseDoCorteOferecido(feito.recompensa)}
             </T>
           )}
           {estado === 'na-fila' && (
@@ -421,8 +428,7 @@ export default function Ficha() {
               >
                 <Icone nome="presente" tamanho={18} cor={cor.sobreClaro} espessura={2.2} />
                 <T v="forte" style={{ flex: 1, color: cor.sobreClaro }}>
-                  {ficha.cartao.recompensa}: é o {ficha.cartao.objectivo}.º corte. O carimbo
-                  entrega-o.
+                  {fraseDesteCorte(ficha.cartao.recompensa)}
                 </T>
               </View>
             )}
@@ -547,9 +553,7 @@ export default function Ficha() {
                   ? 'Carimbar na mesma'
                   : estado === 'a-enviar'
                     ? 'A carimbar…'
-                    : ficha.cartao.carimbos === ficha.cartao.objectivo - 1
-                      ? `Carimbar: ${ficha.cartao.recompensa.toLowerCase()}`
-                      : 'Carimbar'}
+                    : 'Carimbar'}
               </T>
             </Pressable>
             {erro && (

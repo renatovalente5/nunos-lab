@@ -871,7 +871,7 @@ await passo(
     assert.equal(passe.storeCard.headerFields[0].value, '10 de 10');
     assert.equal(
       passe.storeCard.headerFields[0].changeMessage,
-      'Cartão completo (%@): corte grátis entregue',
+      'Cartão completo (%@): este corte foi grátis',
     );
     assert.ok(doZip(bytes, 'signature').length > 1000, 'tem assinatura');
     assert.ok(doZip(bytes, 'icon.png') && doZip(bytes, 'logo@2x.png'), 'tem as imagens');

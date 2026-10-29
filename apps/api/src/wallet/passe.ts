@@ -1,4 +1,10 @@
-import { codigoCurto, fraseDoCartao, textoDoQr } from '@nunos-lab/dominio';
+import {
+  codigoCurto,
+  fraseDoCartao,
+  fraseDoCorteOferecido,
+  fraseDoProximo,
+  textoDoQr,
+} from '@nunos-lab/dominio';
 import { buffer, deBase64, hex, utf8 } from './bytes.ts';
 import { assinarManifesto } from './cms.ts';
 import { imagensDoCartao } from './grelha.ts';
@@ -69,9 +75,9 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
     label: 'CARIMBOS',
     value: `${c.carimbos} de ${c.objectivo}`,
     ...(c.carimbos >= c.objectivo
-      ? { changeMessage: `Cartão completo (%@): ${minuscula(recompensa)} entregue` }
+      ? { changeMessage: `Cartão completo (%@): ${minuscula(fraseDoCorteOferecido(recompensa))}` }
       : c.carimbos === c.objectivo - 1
-        ? { changeMessage: `Carimbo novo: %@ · o próximo é ${minuscula(recompensa)}` }
+        ? { changeMessage: `Carimbo novo: %@ · ${minuscula(fraseDoProximo(recompensa))}` }
         : c.carimbos > 0
           ? { changeMessage: 'Carimbo novo: %@' }
           : {}),
@@ -187,7 +193,7 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
               : faltam === 0
                 ? 'Cartão completo'
                 : faltam === 1
-                  ? `O próximo é ${minuscula(recompensa)}`
+                  ? fraseDoProximo(recompensa)
                   : `${recompensa} ao ${c.objectivo}.º`,
         },
       ],
