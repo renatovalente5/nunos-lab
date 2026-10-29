@@ -337,7 +337,12 @@ export type FichaDoBalcao = {
   cartao: CartaoDoCliente;
   recompensas: RecompensaPorUsar[];
   ultima: VisitaDoCliente | null;
-  hoje: { carimbos: number; ultimo: { quando: number; pessoa: string | null } | null };
+  hoje: {
+    carimbos: number;
+    ultimo: { quando: number; pessoa: string | null } | null;
+    /** O prémio entregue hoje (o corte grátis não leva carimbo). */
+    entregue: { quando: number; pessoa: string | null } | null;
+  };
   /** A prenda de anos do programa, quando faz anos. */
   prenda: string | null;
 };

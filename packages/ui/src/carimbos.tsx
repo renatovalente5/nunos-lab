@@ -46,7 +46,7 @@ export function Carimbos({
               >
                 {cheio ? (
                   <Icone
-                    nome="tesoura"
+                    nome={ultimo ? 'presente' : 'tesoura'}
                     tamanho={tamanho * 0.5}
                     cor={cor.sobreClaro}
                     espessura={2.2}

@@ -105,7 +105,7 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
     await novoCartao(db, cliente.id, 1, await lerPrograma(db)).run();
     cartao = (await cartaoActual(db, cliente.id))!;
   }
-  const [cortes, recompensas, ultima, deHoje] = await db.batch([
+  const [cortes, recompensas, ultima, deHoje, entregue] = await db.batch([
     db
       .prepare('SELECT count(*) AS n FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL')
       .bind(cliente.id),
@@ -121,8 +121,16 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
          WHERE x.cliente_id = ? AND x.dia = ? AND x.anulado_em IS NULL ORDER BY x.criado_em DESC`,
       )
       .bind(cliente.id, hoje),
+    db
+      .prepare(
+        `SELECT c.usado_em AS quando, e.nome AS pessoa FROM cartoes c LEFT JOIN equipa e ON e.id = c.usado_por
+         WHERE c.cliente_id = ? AND c.usado_em >= ? ORDER BY c.usado_em DESC LIMIT 1`,
+      )
+      .bind(cliente.id, inicioDoDia(hoje)),
   ]);
   const hojeLinhas = deHoje!.results as { quando: number; pessoa: string | null }[];
+  const entregueHoje =
+    (entregue!.results[0] as { quando: number; pessoa: string | null } | undefined) ?? null;
   const fazAnos = !!cliente.aniversario && hoje.slice(5) === cliente.aniversario;
   const programaDeHoje = await lerPrograma(db);
   return {
@@ -138,8 +146,23 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
     cartao: cartaoPublico(cartao),
     recompensas: recompensas!.results as FichaDoBalcao['recompensas'],
     ultima: (ultima!.results[0] as FichaDoBalcao['ultima']) ?? null,
-    hoje: { carimbos: hojeLinhas.length, ultimo: hojeLinhas[0] ?? null },
+    hoje: { carimbos: hojeLinhas.length, ultimo: hojeLinhas[0] ?? null, entregue: entregueHoje },
   };
+}
+
+/** O cartão a seguir a um cheio. Dois pedidos ao mesmo tempo: o UNIQUE (cliente, número) deixa passar um, e o outro lê-o. */
+async function abrirCartaoSeguinte(
+  db: D1Database,
+  clienteId: number,
+  cheio: LinhaCartao,
+  programa: Programa,
+): Promise<LinhaCartao> {
+  try {
+    await novoCartao(db, clienteId, cheio.numero + 1, programa).run();
+  } catch (e) {
+    if (!String(e).includes('UNIQUE constraint failed: cartoes')) throw e;
+  }
+  return (await cartaoActual(db, clienteId))!;
 }
 
 rotasDaBalcao.get('/eu', async (c) => {
@@ -327,7 +350,26 @@ async function carimbar(
   if (!cartao) {
     await novoCartao(db, cliente.id, 1, programa).run();
     cartao = (await cartaoActual(db, cliente.id))!;
+  } else if (cartao.completo_em) {
+    // O cartão cheio fica cheio até o prémio ser entregue ou até este carimbo:
+    // o cliente veio pagar um corte, nasce o seguinte (e o prémio fica por usar).
+    cartao = await abrirCartaoSeguinte(db, cliente.id, cartao, programa);
   }
+  // O corte grátis não leva carimbo: entregue hoje, carimbar pede confirmação.
+  const entregueHoje = await db
+    .prepare(
+      `SELECT c.usado_em AS quando, e.nome AS pessoa FROM cartoes c LEFT JOIN equipa e ON e.id = c.usado_por
+       WHERE c.cliente_id = ? AND c.usado_em >= ? ORDER BY c.usado_em DESC LIMIT 1`,
+    )
+    .bind(cliente.id, inicioDoDia(hoje))
+    .first<{ quando: number; pessoa: string | null }>();
+  if (entregueHoje && !p.confirmar)
+    throw new HTTPException(409, {
+      res: new Response(JSON.stringify({ erro: 'entregue_hoje', ultimo: entregueHoje }), {
+        status: 409,
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      }),
+    });
   const deHoje = await db
     .prepare(
       `SELECT x.criado_em AS quando, e.nome AS pessoa FROM carimbos x LEFT JOIN equipa e ON e.id = x.pessoa_id
@@ -358,15 +400,16 @@ async function carimbar(
         programa.servicos ? (p.servicoId ?? null) : null,
         p.chave,
         hoje,
-        repetido ? 1 : 0,
+        repetido || entregueHoje ? 1 : 0,
         p.semLeitura ? 1 : 0,
       ),
     db.prepare('UPDATE clientes SET visto_em = unixepoch() WHERE id = ?').bind(cliente.id),
   ];
+  // Completo, o cartão FICA cheio: as dez casas à vista e o prémio por usar. O
+  // seguinte só nasce na entrega do prémio ou no próximo carimbo.
   if (completa)
     instrucoes.push(
       db.prepare('UPDATE cartoes SET completo_em = unixepoch() WHERE id = ?').bind(cartao.id),
-      novoCartao(db, cliente.id, cartao.numero + 1, programa),
     );
   let r: D1Result[];
   try {
@@ -493,6 +536,10 @@ rotasDaBalcao.post('/usar-recompensa', async (c) => {
     .bind(loja, c.get('pessoa').id, cartaoId, cliente.id)
     .first();
   if (!usado) recusar(409, 'recompensa_usada');
+  // Entregue o prémio do cartão mais recente, nasce o seguinte: o cliente volta a ver um cartão a zeros.
+  const actual = await cartaoActual(c.env.DB, cliente.id);
+  if (actual && actual.id === cartaoId)
+    await abrirCartaoSeguinte(c.env.DB, cliente.id, actual, await lerPrograma(c.env.DB));
   tocarPasse(c, cliente.id);
   return c.json(await ficha(c, cliente));
 });

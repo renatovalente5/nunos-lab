@@ -74,6 +74,9 @@ export default function Ficha() {
   // Com o limite do dia já atingido, o botão diz logo «Carimbar na mesma»: antes só o dizia depois de
   // a API recusar, e o barbeiro tinha de carregar duas vezes.
   const jaHoje = !!ficha && ficha.hoje.carimbos >= (eu?.programa.porDia ?? 1);
+  // O prémio entregue hoje: o corte grátis não leva carimbo, e carimbar pede confirmação.
+  const entregueHoje = ficha?.hoje.entregue ?? null;
+  const precisaConfirmar = jaHoje || !!entregueHoje;
   const sair = () => (router.canGoBack() ? router.back() : router.replace('/'));
   const concluir = () => {
     consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
@@ -116,7 +119,10 @@ export default function Ficha() {
       // Com um prémio ou um cupão fica até «Concluir»: o barbeiro tem de o dizer ao cliente.
       if (!('resultado' in r && (r.resultado.completo || r.resultado.cupao))) concluir();
     } catch (e) {
-      if (e instanceof ErroDaBalcao && e.codigo === 'limite_do_dia') {
+      if (
+        e instanceof ErroDaBalcao &&
+        (e.codigo === 'limite_do_dia' || e.codigo === 'entregue_hoje')
+      ) {
         setAviso(
           (e.dados.ultimo as { quando: number; pessoa: string | null } | undefined) ?? {
             quando: 0,
@@ -399,7 +405,7 @@ export default function Ficha() {
                 </T>
               </View>
             )}
-            {(ficha.hoje.carimbos > 0 || aviso) && (
+            {(ficha.hoje.carimbos > 0 || aviso || entregueHoje) && (
               <View
                 style={{
                   marginHorizontal: MARGEM,
@@ -417,7 +423,9 @@ export default function Ficha() {
                 <T v="legenda" style={{ flex: 1 }}>
                   {ficha.hoje.ultimo
                     ? `Já carimbado hoje às ${hora(ficha.hoje.ultimo.quando)}${ficha.hoje.ultimo.pessoa ? ` por ${ficha.hoje.ultimo.pessoa}` : ''}.`
-                    : 'Já carimbado hoje.'}
+                    : entregueHoje
+                      ? `${eu?.programa.recompensa ?? 'Prémio'} entregue hoje às ${hora(entregueHoje.quando)}${entregueHoje.pessoa ? ` por ${entregueHoje.pessoa}` : ''}. Não leva carimbo.`
+                      : 'Já carimbado hoje.'}
                 </T>
               </View>
             )}
@@ -485,14 +493,14 @@ export default function Ficha() {
               </Pressable>
             )}
             <Pressable
-              onPress={() => dar(!!aviso || jaHoje)}
+              onPress={() => dar(!!aviso || precisaConfirmar)}
               role="button"
               aria-disabled={estado === 'a-enviar'}
               style={({ pressed }) => ({
                 height: 56,
                 borderRadius: 999,
                 backgroundColor:
-                  ficha.recompensas.length > 0 || aviso || jaHoje
+                  ficha.recompensas.length > 0 || aviso || precisaConfirmar
                     ? pressed
                       ? cor.linha
                       : cor.superficieAlta
@@ -508,11 +516,13 @@ export default function Ficha() {
                 v="forte"
                 style={{
                   color:
-                    ficha.recompensas.length > 0 || aviso || jaHoje ? cor.texto : cor.sobreClaro,
+                    ficha.recompensas.length > 0 || aviso || precisaConfirmar
+                      ? cor.texto
+                      : cor.sobreClaro,
                   fontSize: 17,
                 }}
               >
-                {aviso || jaHoje
+                {aviso || precisaConfirmar
                   ? 'Carimbar na mesma'
                   : estado === 'a-enviar'
                     ? 'A carimbar…'

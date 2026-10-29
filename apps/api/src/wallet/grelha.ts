@@ -12,7 +12,7 @@ import { mascara, Tela, type Cor, type Mascara } from './tela.ts';
  */
 
 /** Muda quando o desenho muda: faz parte da chave da cache e do URL da hero. */
-export const VERSAO_DO_DESENHO = 'v1';
+export const VERSAO_DO_DESENHO = 'v2';
 
 export type Grelha = { carimbos: number; objectivo: number };
 
@@ -64,9 +64,10 @@ async function casas(tela: Tela, g: Grelha, lado: number, centros: [number, numb
     const [cx, cy] = centros[i]!;
     const ultima = i === g.objectivo - 1;
     if (i < g.carimbos) {
+      // A casa dada: disco creme com a tesoura; a última, cheia, fica com a prenda.
       tela.disco(cx, cy, r, CREME);
-      const l = lado * 0.5;
-      tela.glifo(tesoura, cx - l / 2, cy - l / 2, l, SOBRE_CREME);
+      const l = lado * (ultima ? 0.48 : 0.5);
+      tela.glifo(ultima ? presente : tesoura, cx - l / 2, cy - l / 2, l, SOBRE_CREME);
       continue;
     }
     if (ultima) tela.anel(cx, cy, r + 2 * traco, 4 * traco, CREME, 0.06);

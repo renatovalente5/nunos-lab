@@ -17,7 +17,7 @@ import { zipar } from './zip.ts';
  * ao ver uma versão diferente da guardada, refaz os passes de todos e avisa
  * os telemóveis (servico.ts, refrescarSePreciso).
  */
-export const VERSAO_DO_PASSE = '2026-10-30b';
+export const VERSAO_DO_PASSE = '2026-10-30c';
 
 export type CartaoDoPasse = {
   serie: string;
@@ -62,11 +62,17 @@ const minuscula = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
   const faltam = Math.max(0, c.objectivo - c.carimbos);
   const recompensa = c.recompensa.trim() || 'Prémio';
+  // O aviso no ecrã bloqueado: «Carimbo novo: 7 de 10»; no 10.º, que o cartão está
+  // completo; a zeros (a entrega do prémio, ou anulado o único) nada — era «Carimbo novo: 0 de 10».
   const carimbos = {
     key: 'carimbos',
     label: 'CARIMBOS',
     value: `${c.carimbos} de ${c.objectivo}`,
-    changeMessage: 'Carimbo novo: %@',
+    ...(c.carimbos >= c.objectivo
+      ? { changeMessage: `Cartão completo (%@): ${minuscula(recompensa)} na próxima visita` }
+      : c.carimbos > 0
+        ? { changeMessage: 'Carimbo novo: %@' }
+        : {}),
   };
   const cliente = c.nome ? [{ key: 'nome', label: 'CLIENTE', value: c.nome }] : [];
   const porUsar =

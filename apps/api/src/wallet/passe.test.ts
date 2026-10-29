@@ -85,6 +85,14 @@ test('as costas levam o contacto de quem emite, as casas e a privacidade', () =>
   assert.ok(!semContacto.storeCard.backFields.some((f) => f.key === 'contacto'));
 });
 
+test('o aviso do passe muda com o estado: novo carimbo, cartão completo, nada a zeros', () => {
+  const aviso = (carimbos: number) =>
+    passJson({ ...cartao, carimbos }, cfg).storeCard.headerFields[0]!.changeMessage;
+  assert.equal(aviso(7), 'Carimbo novo: %@');
+  assert.equal(aviso(10), 'Cartão completo (%@): corte grátis na próxima visita');
+  assert.equal(aviso(0), undefined);
+});
+
 test('sem nome, não há campo do cliente nem título no poster', () => {
   const p = passJson({ ...cartao, nome: '' }, cfg);
   assert.equal(p.storeCard.secondaryFields[0]!.key, 'faltam');
