@@ -135,6 +135,7 @@ rotasPublicas.post('/contar', async (c) => {
   const ip = c.req.header('CF-Connecting-IP') ?? 'local';
   const { success } = await c.env.CONTAR.limit({ key: ip });
   if (!success) return c.body(null, 204);
+  if (Number(c.req.header('Content-Length') ?? 0) > 1024) return c.body(null, 204);
   let dados: { tipo?: unknown; ref?: unknown };
   try {
     dados = JSON.parse((await c.req.text()).slice(0, 200));

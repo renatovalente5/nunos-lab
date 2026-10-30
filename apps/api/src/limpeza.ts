@@ -21,9 +21,15 @@ export async function limpar(env: Env): Promise<void> {
       'DELETE FROM sessoes_de_cliente WHERE expira_em < unixepoch() - 30 * 86400 OR (revogada_em IS NOT NULL AND revogada_em < unixepoch() - 30 * 86400)',
     ),
     db.prepare('DELETE FROM codigos_de_entrada WHERE expira_em < unixepoch() - 86400'),
-    // Imagens que ninguém usa (carregadas e depois trocadas), com mais de um dia.
+    // O que ficou de contas apagadas: a coluna de procura, e o passe (com os registos da Apple).
+    db.prepare("UPDATE clientes SET busca = '' WHERE apagado_em IS NOT NULL AND busca != ''"),
     db.prepare(
-      `DELETE FROM imagens WHERE criada_em < unixepoch() - 86400
+      'DELETE FROM passes WHERE cliente_id IN (SELECT id FROM clientes WHERE apagado_em IS NOT NULL)',
+    ),
+    // Imagens que ninguém usa (carregadas e depois trocadas), com mais de uma semana:
+    // um logótipo escolhido e só gravado dias depois ainda está cá.
+    db.prepare(
+      `DELETE FROM imagens WHERE criada_em < unixepoch() - 7 * 86400
          AND id NOT IN (SELECT logotipo_id FROM parceiros WHERE logotipo_id IS NOT NULL)
          AND id NOT IN (SELECT capa_id FROM parceiros WHERE capa_id IS NOT NULL)`,
     ),

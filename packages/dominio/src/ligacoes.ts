@@ -47,7 +47,11 @@ export function normalizarSite(entrada: string): string | null {
 
 /** Telefones portugueses e internacionais: algarismos, espaços e um «+» no início. */
 export function normalizarTelefone(entrada: string): string | null {
-  const t = entrada.trim().replace(/\s+/g, ' ');
+  // «912-345-678», «(+351) 912 345 678», «912.345.678»: a pontuação vira espaço.
+  const t = entrada
+    .replace(/[().\-]/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
   if (!t) return '';
   if (!/^\+?[0-9 ]+$/.test(t)) return null;
   const algarismos = t.replace(/\D/g, '');
@@ -73,11 +77,23 @@ export function normalizarLigacao(entrada: string): string | null {
 
 /** Um email para comparar: sem espaços e em minúsculas. `null` se não tiver forma de email. */
 /** Um nome para procurar: sem acentos nem maiúsculas, espaços arrumados («João Ñandú» → «joao nandu»). */
+const LETRAS_QUE_O_NFD_NAO_PARTE: Record<string, string> = {
+  ø: 'o',
+  ł: 'l',
+  ß: 'ss',
+  æ: 'ae',
+  œ: 'oe',
+  đ: 'd',
+  ð: 'd',
+  þ: 'th',
+  ı: 'i',
+};
 export function textoDeBusca(entrada: string): string {
   return entrada
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
+    .replace(/[øłßæœđðþı]/g, (l) => LETRAS_QUE_O_NFD_NAO_PARTE[l] ?? l)
     .replace(/\s+/g, ' ')
     .trim();
 }

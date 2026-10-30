@@ -66,9 +66,17 @@ export function Cliente({ id }: { id: string }) {
       {voltar}
       <div className="cabecalho">
         <div>
-          <h1>{c.nome}</h1>
+          <h1>{c.apagado ? 'Conta apagada' : c.nome}</h1>
           <p className="subtitulo">
             <code className="codigo">{c.codigo}</code>
+            {c.apagado && (
+              <>
+                {' '}
+                <Etiqueta tom="mau" semPonto>
+                  Apagada
+                </Etiqueta>
+              </>
+            )}
             {c.exemplo && (
               <>
                 {' '}

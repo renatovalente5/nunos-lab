@@ -256,8 +256,15 @@ rotasDosAcessos.delete('/pessoas/:id', async (c) => {
     .bind(id)
     .first<{ nome: string }>();
   if (!a) recusar(404, 'nao_existe');
+  // Nunca fica zero admins (dois a tirarem-se um ao outro ao mesmo tempo).
+  const tirado = await db
+    .prepare(
+      'UPDATE admins SET removido_em = unixepoch() WHERE id = ? AND removido_em IS NULL AND (SELECT count(*) FROM admins WHERE removido_em IS NULL) > 1',
+    )
+    .bind(id)
+    .run();
+  if (!tirado.meta.changes) recusar(409, 'ultimo_admin');
   await db.batch([
-    db.prepare('UPDATE admins SET removido_em = unixepoch() WHERE id = ?').bind(id),
     db
       .prepare(
         'UPDATE sessoes SET revogada_em = unixepoch() WHERE admin_id = ? AND revogada_em IS NULL',

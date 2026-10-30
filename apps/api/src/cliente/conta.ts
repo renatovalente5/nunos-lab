@@ -8,8 +8,10 @@ import {
   DIAS_A_EXPERIENCIA,
   DIAS_DE_CLIENTE_ACTIVO,
   LIMITES_DO_PROGRAMA,
+  MINUTOS_DE_PROVA_RECENTE,
   diaEmLisboa,
   eAniversarioValido,
+  fazAnosHoje,
   textoDeBusca,
   type ClienteEu,
   type FormaDeEntrar,
@@ -31,12 +33,19 @@ import {
 import { DIA, agora, corpo, idDaMorada, recusar } from '../util.ts';
 import { entrarComIdentidade, juntarIdentidade, type IdentidadeProvada } from './identidade.ts';
 import { abrirSessaoDoCliente, provaRecente } from './sessao.ts';
-import { appleLigada, googleLigada, rodarPasse, tocarPasse } from '../wallet/servico.ts';
+import {
+  appleLigada,
+  desactivarPasseDaGoogle,
+  googleLigada,
+  rodarPasse,
+  tocarPasse,
+} from '../wallet/servico.ts';
 
 const Google = z.object({ credencial: z.string().min(20).max(4096) });
 const Apple = z.object({
   token: z.string().min(20).max(8192),
-  nonce: z.string().min(8).max(128).nullish(),
+  /** O nonce prende o token a este pedido: sem ele, um token apanhado valia até caducar. */
+  nonce: z.string().min(8).max(128),
   /** O nome que a Apple dá só na 1.ª vez (não é assinado: serve só para o perfil). */
   nome: z.string().trim().max(40).nullish(),
 });
@@ -62,7 +71,7 @@ async function identidadeApple(
     .map((s) => s.trim())
     .filter(Boolean);
   if (clientes.length === 0) recusar(400, 'apple_desligado');
-  const id = await conferirTokenDaApple(token, clientes, nonce ?? null);
+  const id = await conferirTokenDaApple(token, clientes, nonce);
   if (!id) recusar(401, 'apple_invalido');
   return {
     tipo: 'apple',
@@ -243,14 +252,15 @@ async function lerEu(c: C): Promise<ClienteEu> {
       vistaEm: s.vista_em,
       actual: s.id === sessao,
     })),
-    provaRecente: criadaEm > agora() - 15 * 60,
+    demo: c.get('cliente').demo,
+    provaRecente: criadaEm > agora() - MINUTOS_DE_PROVA_RECENTE * 60,
     programa: { objectivo: programa.objectivo, recompensa: programa.recompensa },
     activo: r[8]!.results.length > 0,
     vales: r[7]!.results as ClienteEu['vales'],
     wallet: { apple: appleLigada(c.env), google: googleLigada(c.env) },
     cupoes: r[9]!.results as ClienteEu['cupoes'],
     prenda:
-      cliente.aniversario && diaEmLisboa().slice(5) === cliente.aniversario && programa.aniversario
+      fazAnosHoje(cliente.aniversario, diaEmLisboa()) && programa.aniversario
         ? programa.aniversario
         : null,
   };
@@ -259,7 +269,7 @@ async function lerEu(c: C): Promise<ClienteEu> {
 rotasDaConta.get('/', async (c) => c.json(await lerEu(c)));
 
 const Perfil = z.object({
-  nome: z.string().trim().max(LIMITES_DO_PROGRAMA.nomeDoCliente).optional(),
+  nome: z.string().trim().min(1).max(LIMITES_DO_PROGRAMA.nomeDoCliente).optional(),
   aniversario: z
     .string()
     .nullable()
@@ -297,7 +307,17 @@ function exigirProvaRecente(c: C) {
   if (!provaRecente(c)) recusar(403, 'prova_recente');
 }
 
+/**
+ * A sessão de demonstração (os revisores das lojas) lê o cartão e pouco mais:
+ * não roda o código, não apaga a conta, não junta nem tira formas de entrar
+ * — a porta da revisão tem de continuar a abrir para o revisor seguinte.
+ */
+function exigirNaoDemo(c: C) {
+  if (c.get('cliente').demo) recusar(403, 'demonstracao');
+}
+
 rotasDaConta.post('/formas/google', async (c) => {
+  exigirNaoDemo(c);
   exigirProvaRecente(c);
   const { credencial } = await corpo(c, Google);
   await juntarIdentidade(c.env.DB, c.get('cliente').id, await identidadeGoogle(c, credencial));
@@ -305,6 +325,7 @@ rotasDaConta.post('/formas/google', async (c) => {
 });
 
 rotasDaConta.post('/formas/teste', async (c) => {
+  exigirNaoDemo(c);
   exigirProvaRecente(c);
   await juntarIdentidade(
     c.env.DB,
@@ -315,6 +336,7 @@ rotasDaConta.post('/formas/teste', async (c) => {
 });
 
 rotasDaConta.post('/formas/apple', async (c) => {
+  exigirNaoDemo(c);
   exigirProvaRecente(c);
   await juntarIdentidade(
     c.env.DB,
@@ -331,6 +353,7 @@ rotasDaConta.post('/formas/apple', async (c) => {
  * Tirar termina as sessões que essa forma abriu.
  */
 rotasDaConta.delete('/formas/:id', async (c) => {
+  exigirNaoDemo(c);
   exigirProvaRecente(c);
   const formaId = idDaMorada(c);
   const { id, identidadeId } = c.get('cliente');
@@ -352,17 +375,23 @@ rotasDaConta.delete('/formas/:id', async (c) => {
     recusar(409, 'so_formas_novas');
   // A morada dos avisos passa a outra forma provada que já cá estava, ou a nenhuma.
   const outra = ficam.find((f) => f.dona === 1 && f.email && f.criada_em <= limite)?.email ?? null;
-  await db.batch([
+  // A conta nunca fica sem forma nenhuma (dois aparelhos a tirar cada um a do
+  // outro ao mesmo tempo): a condição vai nas duas instruções, na mesma transacção.
+  const ficaAlguma = '(SELECT count(*) FROM identidades WHERE cliente_id = ?) > 1';
+  const r = await db.batch([
     db
       .prepare(
-        'UPDATE sessoes_de_cliente SET revogada_em = unixepoch() WHERE identidade_id = ? AND revogada_em IS NULL',
+        `UPDATE sessoes_de_cliente SET revogada_em = unixepoch() WHERE identidade_id = ? AND revogada_em IS NULL AND ${ficaAlguma}`,
       )
-      .bind(formaId),
-    db.prepare('DELETE FROM identidades WHERE id = ? AND cliente_id = ?').bind(formaId, id),
+      .bind(formaId, id),
+    db
+      .prepare(`DELETE FROM identidades WHERE id = ? AND cliente_id = ? AND ${ficaAlguma}`)
+      .bind(formaId, id, id),
     ...(email && email === sai.email
       ? [db.prepare('UPDATE clientes SET email = ? WHERE id = ?').bind(outra, id)]
       : []),
   ]);
+  if (!r[1]!.meta.changes) recusar(409, 'ultima_forma');
   return c.json(await lerEu(c));
 });
 
@@ -376,6 +405,7 @@ rotasDaConta.post('/sair', async (c) => {
 });
 
 rotasDaConta.post('/sair-das-outras', async (c) => {
+  exigirNaoDemo(c);
   const { id, sessao } = c.get('cliente');
   await c.env.DB.prepare(
     'UPDATE sessoes_de_cliente SET revogada_em = unixepoch() WHERE cliente_id = ? AND id != ? AND revogada_em IS NULL',
@@ -387,6 +417,7 @@ rotasDaConta.post('/sair-das-outras', async (c) => {
 
 /** Termina as outras sessões E troca o código do cartão: o telemóvel perdido deixa de servir. */
 rotasDaConta.post('/perdi-o-telemovel', async (c) => {
+  exigirNaoDemo(c);
   const { id, sessao } = c.get('cliente');
   const db = c.env.DB;
   const codigo = await codigoNovo(db);
@@ -408,12 +439,19 @@ rotasDaConta.post('/perdi-o-telemovel', async (c) => {
 
 /** Apagar a conta: sai tudo o que é pessoal; os carimbos ficam sem dono, para as contagens. */
 rotasDaConta.delete('/', async (c) => {
+  exigirNaoDemo(c);
   exigirProvaRecente(c);
   const { id } = c.get('cliente');
   const db = c.env.DB;
   const codigo = await codigoNovo(db);
+  const passe = await db
+    .prepare('SELECT serie, google_em FROM passes WHERE cliente_id = ?')
+    .bind(id)
+    .first<{ serie: string; google_em: number | null }>();
   await db.batch([
     db.prepare('DELETE FROM identidades WHERE cliente_id = ?').bind(id),
+    // O passe sai também (e os registos da Apple com ele): a Wallet deixa de o actualizar.
+    db.prepare('DELETE FROM passes WHERE cliente_id = ?').bind(id),
     db
       .prepare(
         'UPDATE sessoes_de_cliente SET revogada_em = unixepoch() WHERE cliente_id = ? AND revogada_em IS NULL',
@@ -421,10 +459,11 @@ rotasDaConta.delete('/', async (c) => {
       .bind(id),
     db
       .prepare(
-        `UPDATE clientes SET nome = '', email = NULL, aniversario = NULL, loja_id = NULL,
+        `UPDATE clientes SET nome = '', busca = '', email = NULL, aniversario = NULL, loja_id = NULL,
          codigo = ?, codigo_versao = codigo_versao + 1, apagado_em = unixepoch() WHERE id = ?`,
       )
       .bind(codigo, id),
   ]);
+  if (passe?.google_em) desactivarPasseDaGoogle(c, passe.serie);
   return c.body(null, 204);
 });

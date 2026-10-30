@@ -46,7 +46,7 @@ export const rotasDoConteudo = new Hono<Ambiente>();
 const SELECT_PARCEIROS = `
   SELECT p.*,
     (SELECT count(*) FROM promocoes WHERE parceiro_id = p.id) AS total,
-    (SELECT count(*) FROM promocoes WHERE parceiro_id = p.id AND activa = 1
+    (SELECT count(*) FROM promocoes WHERE parceiro_id = p.id AND activa = 1 AND surpresa = 0
        AND (inicio IS NULL OR inicio <= ?1) AND (fim IS NULL OR fim >= ?1)) AS na_app
   FROM parceiros p`;
 
@@ -178,6 +178,24 @@ rotasDoConteudo.delete('/parceiros/:id', async (c) => {
     .first<{ nome: string }>();
   if (!antes) recusar(404, 'nao_existe');
   await db.batch([
+    // As pessoas da equipa ligadas ao parceiro saem como quem é tirado da
+    // equipa (as sessões terminam, ficam no histórico), não pela cascata da base.
+    db
+      .prepare(
+        'UPDATE sessoes_da_equipa SET revogada_em = unixepoch() WHERE revogada_em IS NULL AND pessoa_id IN (SELECT id FROM equipa WHERE parceiro_id = ?)',
+      )
+      .bind(id),
+    db
+      .prepare(
+        'DELETE FROM acessos_da_equipa WHERE usado_em IS NULL AND pessoa_id IN (SELECT id FROM equipa WHERE parceiro_id = ?)',
+      )
+      .bind(id),
+    db
+      .prepare(
+        'UPDATE equipa SET removido_em = unixepoch(), activo = 0, email = NULL WHERE parceiro_id = ? AND removido_em IS NULL',
+      )
+      .bind(id),
+    db.prepare('UPDATE equipa SET parceiro_id = NULL WHERE parceiro_id = ?').bind(id),
     // As contagens vão com ele: os ids reaproveitam-se, e um parceiro novo com
     // o mesmo número não pode herdar as vistas do apagado.
     db
@@ -358,6 +376,17 @@ rotasDoConteudo.patch('/promocoes/:id', async (c) => {
   try {
     await db.batch([
       actualizar(c, 'promocoes', 'alterada_em', COLUNAS_DA_PROMOCAO, dados, id),
+      // Mudar o parceiro leva os vales e os cupões dela: senão ficavam no antigo.
+      ...(dados.parceiroId !== undefined
+        ? [
+            db
+              .prepare('UPDATE vales SET parceiro_id = ? WHERE promocao_id = ?')
+              .bind(dados.parceiroId, id),
+            db
+              .prepare('UPDATE cupoes SET parceiro_id = ? WHERE promocao_id = ?')
+              .bind(dados.parceiroId, id),
+          ]
+        : []),
       registar(
         c,
         accao,
@@ -572,7 +601,8 @@ rotasDoConteudo.post('/imagens', async (c) => {
   if (!assinaturaCerta(bytes, tipo)) recusar(415, 'imagem_invalida');
   const id = hex(await sha256(bytes)).slice(0, 32);
   await c.env.DB.prepare(
-    'INSERT OR IGNORE INTO imagens (id, tipo, bytes, largura, altura) VALUES (?, ?, ?, ?, ?)',
+    // A mesma imagem outra vez renova a data: a limpeza não a leva por ter sido escolhida há dias.
+    'INSERT INTO imagens (id, tipo, bytes, largura, altura) VALUES (?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET criada_em = unixepoch()',
   )
     .bind(id, tipo, blob(bytes), largura, altura)
     .run();

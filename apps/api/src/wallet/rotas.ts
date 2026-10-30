@@ -6,15 +6,16 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { Ambiente, C } from '../ambiente.ts';
-import { agora, corpo, recusar } from '../util.ts';
+import { agora, corpo, recusar, sha256 } from '../util.ts';
 import { buffer } from './bytes.ts';
-import { ligacaoParaGuardar } from './google.ts';
+import { actualizarObjeto, ligacaoParaGuardar, tokenDaGoogle } from './google.ts';
 import { heroDoCartao, VERSAO_DO_DESENHO } from './grelha.ts';
 import {
   appleLigada,
   assinarTexto,
   cartaoDaGoogle,
   cartaoParaOPasse,
+  configuracaoDoPasse,
   construirPkpass,
   contaDaGoogle,
   googleLigada,
@@ -23,6 +24,14 @@ import {
 } from './servico.ts';
 
 const SERIE = /^[A-Za-z0-9_-]{8,64}$/;
+
+/** Dois textos iguais, em tempo constante (comparam-se os resumos, byte a byte). */
+async function iguais(a: string, b: string): Promise<boolean> {
+  const [x, y] = await Promise.all([sha256(a), sha256(b)]);
+  let diferenca = 0;
+  for (let i = 0; i < x.length; i++) diferenca |= x[i]! ^ y[i]!;
+  return diferenca === 0;
+}
 const APARELHO = /^[A-Za-z0-9_-]{8,128}$/;
 
 async function servirPkpass(c: C, clienteId: number, actualizadoEm: number) {
@@ -68,12 +77,22 @@ rotasDaWalletDoCliente.post('/wallet/google', async (c) => {
   const cartao = await cartaoParaOPasse(db, id);
   if (!cartao) recusar(404, 'nao_existe');
   const origens = c.env.ORIGENS.split(',').map((o) => o.trim());
-  const url = await ligacaoParaGuardar(
-    contaDaGoogle(c.env),
-    c.env.GOOGLE_WALLET_EMISSOR,
-    origens,
-    cartaoDaGoogle(c.env, cartao),
-  );
+  const conta = contaDaGoogle(c.env);
+  const cartaoG = cartaoDaGoogle(c.env, cartao);
+  // A classe e o objecto existem na Google antes de a ligação abrir: a primeira
+  // vez de um emissor não pode cair numa classe que ainda não há.
+  try {
+    const token = await tokenDaGoogle(conta);
+    await actualizarObjeto(
+      token,
+      c.env.GOOGLE_WALLET_EMISSOR,
+      configuracaoDoPasse(c.env, '').origemDaApp,
+      cartaoG,
+    );
+  } catch (e) {
+    console.error('google', e);
+  }
+  const url = await ligacaoParaGuardar(conta, c.env.GOOGLE_WALLET_EMISSOR, origens, cartaoG);
   // A partir daqui, cada mudança do cartão vai à Google.
   await db
     .prepare('UPDATE passes SET google_em = coalesce(google_em, unixepoch()) WHERE cliente_id = ?')
@@ -93,7 +112,8 @@ rotasDaWallet.get('/apple/passe', async (c) => {
   const s = c.req.query('s') ?? '';
   if (!Number.isInteger(id) || !Number.isInteger(ate) || ate < agora())
     return c.text('A ligação caducou. Pede outra na app.', 410);
-  if (s !== (await assinarTexto(c.env, `descarregar:${id}:${ate}`))) return c.body(null, 403);
+  if (!(await iguais(s, await assinarTexto(c.env, `descarregar:${id}:${ate}`))))
+    return c.body(null, 403);
   const passe = await c.env.DB.prepare('SELECT actualizado_em FROM passes WHERE cliente_id = ?')
     .bind(id)
     .first<{ actualizado_em: number }>();
@@ -109,7 +129,7 @@ async function passeAutorizado(
   if (!SERIE.test(serie)) recusar(404, 'nao_existe');
   const cabecalho = c.req.header('Authorization') ?? '';
   const dado = cabecalho.startsWith('ApplePass ') ? cabecalho.slice(10).trim() : '';
-  if (!dado || dado !== (await testemunhoDoPasse(c.env, serie))) recusar(401, 'sessao');
+  if (!dado || !(await iguais(dado, await testemunhoDoPasse(c.env, serie)))) recusar(401, 'sessao');
   const passe = await c.env.DB.prepare(
     'SELECT cliente_id, actualizado_em FROM passes WHERE serie = ?',
   )
@@ -205,6 +225,9 @@ rotasDaWallet.get('/imagem/:versao/:objectivo/:carimbos/hero.png', async (c) => 
 });
 
 rotasDaWallet.post('/apple/v1/log', async (c) => {
+  const ip = c.req.header('CF-Connecting-IP') ?? 'local';
+  if (!(await c.env.CONTAR.limit({ key: `log:${ip}` }))?.success) return c.body(null, 200);
+  if (Number(c.req.header('Content-Length') ?? 0) > 8192) return c.body(null, 200);
   const texto = (await c.req.text()).slice(0, 2000);
   console.log('wallet apple log', texto);
   return c.body(null, 200);

@@ -1,4 +1,4 @@
-import { fraseDoCartao, type ClienteEu } from '@nunos-lab/dominio';
+import { fraseDoCartao, fraseDoCorteOferecido, type ClienteEu } from '@nunos-lab/dominio';
 import { Image, View } from 'react-native';
 import { CONTINUO, Carimbos, T, cor, raio } from '@nunos-lab/ui';
 
@@ -7,11 +7,14 @@ const palavra = require('../../assets/marca/palavra.png');
 /** O cartão de cliente: o logótipo oficial, o nome, os carimbos, a conta. */
 export function CartaoDoCliente({
   eu,
+  recompensas,
   largura,
   novasDesde = null,
   aoAcabar,
 }: {
   eu: Pick<ClienteEu, 'nome' | 'criadoEm' | 'cortes' | 'cartao' | 'programa'> | null;
+  /** Cartões cheios por entregar (eu.recompensas.length). */
+  recompensas: number;
   largura: number;
   /** As casas novas desde a última vez que o cliente viu o cartão (ver useCarimbosNovos). */
   novasDesde?: number | null;
@@ -21,6 +24,8 @@ export function CartaoDoCliente({
   const objectivo = eu?.cartao.objectivo ?? eu?.programa.objectivo ?? 10;
   const recompensa = eu?.cartao.recompensa ?? eu?.programa.recompensa ?? 'Corte grátis';
   const desde = eu ? new Date(eu.criadoEm * 1000).getFullYear() : null;
+  // Cheio e sem nada por entregar: o carimbo que o completou já foi o corte da oferta.
+  const entregue = carimbos >= objectivo && recompensas === 0;
   // Antes da primeira medição a largura pode vir a zero: nunca um círculo negativo.
   const tamanho = Math.max(28, Math.floor((largura - 44 - 4 * 12) / 5));
   return (
@@ -79,8 +84,15 @@ export function CartaoDoCliente({
         </T>
       </View>
       <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
-        {fraseDoCartao(carimbos, { objectivo, recompensa })}
+        {entregue
+          ? fraseDoCorteOferecido(recompensa)
+          : fraseDoCartao(carimbos, { objectivo, recompensa })}
       </T>
+      {entregue && (
+        <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
+          O próximo carimbo abre um cartão novo
+        </T>
+      )}
     </View>
   );
 }

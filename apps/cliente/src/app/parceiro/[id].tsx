@@ -1,6 +1,7 @@
 import {
   dataCurta,
   diaEmLisboa,
+  inicioDoPeriodo,
   ligacaoDoInstagram,
   ligacaoDoMapa,
   ligacaoDoTelefone,
@@ -71,7 +72,9 @@ export default function PaginaDoParceiro() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isError, isFetching, dataUpdatedAt, refetch } = useDados();
   const temSessao = useTemSessao();
-  const { data: eu } = useEu(true);
+  const { data: euGuardado } = useEu(true);
+  // Depois de um 401 a sessão vai-se, mas a consulta ainda tem o «eu» da conta que saiu.
+  const eu = temSessao ? euGuardado : undefined;
   const margens = useSafeAreaInsets();
   const parceiro = data?.parceiros.find((p) => String(p.id) === id);
   // A lista guardada no aparelho pode ser de antes deste parceiro (uma ligação
@@ -245,20 +248,24 @@ export default function PaginaDoParceiro() {
           </View>
         ))}
       <Rotulo>{p.promocoes.length === 1 ? 'A tua vantagem' : 'As tuas vantagens'}</Rotulo>
-      {p.promocoes.map((pr) => (
-        <CartaoDaPromocao
-          key={pr.id}
-          promocao={pr}
-          hoje={data.hoje}
-          aoAbrir={() => contar('promocao', pr.id)}
-          temCartao={temSessao}
-          usadaHoje={
-            eu?.vales.find(
-              (v) => v.promocaoId === pr.id && diaEmLisboa(v.quando * 1000) === data.hoje,
-            )?.quando ?? null
-          }
-        />
-      ))}
+      {p.promocoes.map((pr) => {
+        const vales = eu?.vales.filter((v) => v.promocaoId === pr.id) ?? [];
+        const inicio = inicioDoPeriodo(pr.periodoDoLimite, data.hoje);
+        return (
+          <CartaoDaPromocao
+            key={pr.id}
+            promocao={pr}
+            hoje={data.hoje}
+            aoAbrir={() => contar('promocao', pr.id)}
+            temCartao={temSessao}
+            activo={eu?.activo ?? true}
+            usadas={vales.filter((v) => diaEmLisboa(v.quando * 1000) >= inicio).length}
+            usadaHoje={
+              vales.find((v) => diaEmLisboa(v.quando * 1000) === data.hoje)?.quando ?? null
+            }
+          />
+        );
+      })}
 
       {(!!p.horario || !!p.morada) && (
         <Grupo style={{ marginTop: 20 }}>

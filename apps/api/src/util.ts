@@ -20,6 +20,8 @@ export function recusar(
 
 /** O corpo JSON do pedido, validado; um campo errado dá 400 com os nomes dos campos. */
 export async function corpo<T extends z.ZodType>(c: C, esquema: T): Promise<z.output<T>> {
+  // Nenhum corpo legítimo passa de uns KB: o resto nem se lê.
+  if (Number(c.req.header('Content-Length') ?? 0) > 65_536) recusar(413, 'grande');
   let dados: unknown;
   try {
     dados = await c.req.json();

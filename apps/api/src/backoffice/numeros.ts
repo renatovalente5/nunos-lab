@@ -25,7 +25,9 @@ rotasDosNumeros.get('/resumo', async (c) => {
   const db = c.env.DB;
   const [pars, proms, abrir, porRef, lojas] = await db.batch([
     db.prepare('SELECT id, nome, activo, exemplo FROM parceiros'),
-    db.prepare('SELECT id, parceiro_id, destaque, titulo, inicio, fim, activa FROM promocoes'),
+    db.prepare(
+      'SELECT id, parceiro_id, destaque, titulo, inicio, fim, activa, surpresa FROM promocoes',
+    ),
     db.prepare("SELECT dia, n FROM contagens WHERE tipo = 'abrir' AND dia >= ?").bind(desde),
     db
       .prepare(
@@ -45,6 +47,7 @@ rotasDosNumeros.get('/resumo', async (c) => {
     inicio: string | null;
     fim: string | null;
     activa: number;
+    surpresa: number;
   };
   const parceiros = pars!.results as P[];
   const nomes = new Map(parceiros.map((p) => [p.id, p.nome]));
@@ -53,8 +56,18 @@ rotasDosNumeros.get('/resumo', async (c) => {
   const comPromocaoNaApp = new Set<number>();
   const aAcabar: Resumo['aAcabar'] = [];
   for (const p of proms!.results as Pr[]) {
-    const estado = estadoDaPromocao({ activa: p.activa === 1, inicio: p.inicio, fim: p.fim }, hoje);
-    if (estado === 'activa' && activos.get(p.parceiro_id)) {
+    // Com o parceiro desligado a promoção conta como pausada (como na lista); uma
+    // surpresa não está «na app» (sai só ao carimbar).
+    const estado = estadoDaPromocao(
+      {
+        activa: p.activa === 1 && activos.get(p.parceiro_id) === true,
+        inicio: p.inicio,
+        fim: p.fim,
+      },
+      hoje,
+    );
+    if (estado === 'activa' && p.surpresa === 1) continue;
+    if (estado === 'activa') {
       contas.naApp++;
       comPromocaoNaApp.add(p.parceiro_id);
       if (p.fim && diasEntre(hoje, p.fim) <= DIAS_A_ACABAR)

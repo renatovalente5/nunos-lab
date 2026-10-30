@@ -1,11 +1,14 @@
 import type { ClienteDoBackoffice, DefinicoesDaBarbearia, TipoDeEntrada } from '@nunos-lab/dominio';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { API, ErroDaApi, pedir, refrescar, sessao } from '../api';
+import { API, ErroDaApi, guardarSessao, pedir, refrescar, sessao } from '../api';
 import { Esqueleto, Etiqueta, Icone, Segmentado, useAccao, useConfirmar, Vazio } from '../pecas';
 import { haQuanto, ir, plural } from '../util';
 
 type Estado = 'todos' | 'novos' | 'activos' | 'em-risco' | 'perdidos' | 'sem-app';
+
+/** A API devolve no máximo estes: a partir daí a lista está cortada. */
+const MAXIMO_DA_LISTA = 5000;
 
 export const NOME_DA_FORMA: Record<TipoDeEntrada, string> = {
   apple: 'Apple',
@@ -67,6 +70,8 @@ export function Clientes() {
       } catch {
         throw new ErroDaApi('rede');
       }
+      // Como em «pedir»: um 401 é a sessão que acabou.
+      if (r.status === 401) guardarSessao(null);
       if (!r.ok) throw new ErroDaApi(r.status === 401 ? 'sessao' : 'interno');
       const url = URL.createObjectURL(await r.blob());
       const a = document.createElement('a');
@@ -232,6 +237,19 @@ export function Clientes() {
               ))}
             </tbody>
           </table>
+          {lista.length >= MAXIMO_DA_LISTA && (
+            <p
+              className="detalhe"
+              style={{
+                margin: 0,
+                padding: '12px 20px 16px',
+                color: 'var(--tinta-3)',
+                fontSize: 13.5,
+              }}
+            >
+              A mostrar os {MAXIMO_DA_LISTA.toLocaleString('pt-PT')} mais recentes: afina a procura.
+            </p>
+          )}
         </div>
       )}
       {dialogo}

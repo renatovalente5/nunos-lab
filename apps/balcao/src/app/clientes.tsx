@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { pedir } from '../sessao';
+import { mensagemDe, pedir } from '../sessao';
 import { Campo, Ecra, Grupo, Icone, MARGEM, Separador, T, cor } from '@nunos-lab/ui';
 
 /** Procurar um cliente pelo nome, pelo email ou pelo código (quando não há QR à mão). */
@@ -14,12 +14,13 @@ export default function Clientes() {
     const id = setTimeout(() => setQ(texto.trim()), 250);
     return () => clearTimeout(id);
   }, [texto]);
-  const { data } = useQuery({
+  const { data, error } = useQuery({
     queryKey: ['balcao', 'clientes', q],
     queryFn: () => pedir<ClienteProcurado[]>(`/clientes?q=${encodeURIComponent(q)}`),
     enabled: q.length >= 2,
     networkMode: 'always',
     staleTime: 10_000,
+    retry: 1,
   });
   return (
     <Ecra comBarra={false}>
@@ -63,7 +64,12 @@ export default function Clientes() {
               <View key={k.id}>
                 {i > 0 && <Separador />}
                 <Pressable
-                  onPress={() => router.push(`/ficha/${k.codigo}`)}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/ficha/[codigo]',
+                      params: { codigo: k.codigo, semLeitura: '1' },
+                    })
+                  }
                   role="link"
                   style={({ pressed }) => ({
                     flexDirection: 'row',
@@ -102,6 +108,15 @@ export default function Clientes() {
       {data && data.length === 0 && q.length >= 2 && (
         <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 30 }}>
           Ninguém com «{q}».
+        </T>
+      )}
+      {!!error && (
+        <T
+          v="legenda"
+          role="alert"
+          style={{ color: '#E07A72', textAlign: 'center', marginTop: 30 }}
+        >
+          {mensagemDe(error)}
         </T>
       )}
     </Ecra>

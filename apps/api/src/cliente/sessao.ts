@@ -9,7 +9,7 @@ export const exigirCliente: MiddlewareHandler<Ambiente> = async (c, next) => {
   const testemunho = cabecalho.startsWith('Bearer ') ? cabecalho.slice(7).trim() : '';
   if (!/^[A-Za-z0-9_-]{43}$/.test(testemunho)) recusar(401, 'sessao');
   const linha = await c.env.DB.prepare(
-    `SELECT s.id, s.cliente_id, s.vista_em, s.criada_em, s.identidade_id
+    `SELECT s.id, s.cliente_id, s.vista_em, s.criada_em, s.identidade_id, k.codigo
      FROM sessoes_de_cliente s JOIN clientes k ON k.id = s.cliente_id
      WHERE s.resumo = ? AND s.revogada_em IS NULL AND s.expira_em > unixepoch() AND k.apagado_em IS NULL`,
   )
@@ -20,6 +20,7 @@ export const exigirCliente: MiddlewareHandler<Ambiente> = async (c, next) => {
       vista_em: number;
       criada_em: number;
       identidade_id: number | null;
+      codigo: string;
     }>();
   if (!linha) recusar(401, 'sessao');
   if (linha.vista_em < agora() - 3600) {
@@ -42,6 +43,10 @@ export const exigirCliente: MiddlewareHandler<Ambiente> = async (c, next) => {
     sessao: linha.id,
     criadaEm: linha.criada_em,
     identidadeId: linha.identidade_id,
+    // A demonstração é a sessão sem identidade na conta de revisão (a única que nasce assim).
+    demo:
+      linha.identidade_id === null &&
+      linha.codigo === (c.env as { REVISAO_CLIENTE?: string }).REVISAO_CLIENTE,
   });
   await next();
 };

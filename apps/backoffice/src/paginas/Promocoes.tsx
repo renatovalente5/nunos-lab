@@ -356,7 +356,7 @@ export function EditorDePromocao({
   fechar: () => void;
 }) {
   const hoje = diaEmLisboa();
-  const [f, setF] = useState<FormularioDaPromocao>(() =>
+  const [inicial] = useState<FormularioDaPromocao>(() =>
     promocao
       ? {
           parceiroId: promocao.parceiroId,
@@ -399,6 +399,8 @@ export function EditorDePromocao({
           surpresaRestantes: '',
         },
   );
+  const [f, setF] = useState(inicial);
+  const sujo = JSON.stringify(f) !== JSON.stringify(inicial);
   const [erros, setErros] = useState<string[]>([]);
   // A primeira vez que se liga a validação propõem-se as predefinições («1 por dia», só
   // clientes activos: a API devolve-as vazias enquanto está desligada); depois fica o que se escreveu.
@@ -437,6 +439,17 @@ export function EditorDePromocao({
   const surpresaPeso = numeroEscrito(f.surpresaPeso, LIMITES_DO_SACO.peso);
   const surpresaRestantes = limiteEscrito(f.surpresaRestantes, LIMITES_DO_SACO.restantes);
   const parceiro = parceiroFixo ?? parceiros?.find((p) => p.id === f.parceiroId) ?? null;
+  // Já validou ou já saiu como cupão: o que se apaga ou se muda de parceiro leva isso junto.
+  const comHistorico = !!promocao && (promocao.validacoes > 0 || promocao.cupoes > 0);
+  const vaoJunto =
+    promocao && comHistorico
+      ? `${promocao.validacoes + promocao.cupoes === 1 ? 'Sai' : 'Saem'} também ${[
+          promocao.validacoes > 0 && plural(promocao.validacoes, 'validação', 'validações'),
+          promocao.cupoes > 0 && `${plural(promocao.cupoes, 'cupão', 'cupões')} por usar`,
+        ]
+          .filter(Boolean)
+          .join(' e ')}.`
+      : '';
   const fimDoMes = (() => {
     const [a, m] = hoje.split('-').map(Number) as [number, number];
     return new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10);
@@ -480,7 +493,12 @@ export function EditorDePromocao({
       // Com o saco desligado os números ficam como estão na API, e voltam quando se liga.
       surpresaDias: f.surpresa ? surpresaDias : undefined,
       surpresaPeso: f.surpresa ? surpresaPeso : undefined,
-      surpresaRestantes: f.surpresa ? surpresaRestantes : undefined,
+      // «Quantos podem sair» só vai quando se escreveu outro número: reenviar o
+      // que veio repunha na base os cupões que entretanto saíram.
+      surpresaRestantes:
+        f.surpresa && !(promocao && !comoNova && surpresaRestantes === promocao.surpresaRestantes)
+          ? surpresaRestantes
+          : undefined,
     };
     try {
       if (promocao && !comoNova)
@@ -500,6 +518,7 @@ export function EditorDePromocao({
       <Folha
         aberta
         fechar={fechar}
+        sujo={sujo}
         titulo={promocao ? 'Promoção' : 'Nova promoção'}
         pe={
           <>
@@ -535,7 +554,7 @@ export function EditorDePromocao({
                   if (
                     await confirmar(
                       'Apagar a promoção?',
-                      'Sai da app e do backoffice. Para a tirar só por uns tempos, desliga-a.',
+                      `Sai da app e do backoffice.${vaoJunto ? ` ${vaoJunto}` : ''} Para a tirar só por uns tempos, desliga-a.`,
                       'Apagar',
                     )
                   )
@@ -561,6 +580,11 @@ export function EditorDePromocao({
               vazio="Escolhe o parceiro"
               erro={erros.includes('parceiroId')}
               opcoes={(parceiros ?? []).map((p) => ({ valor: p.id, nome: p.nome }))}
+              ajuda={
+                comHistorico
+                  ? 'As validações e os cupões vão com ela para o parceiro novo.'
+                  : undefined
+              }
             />
           )}
           <div className="campo">

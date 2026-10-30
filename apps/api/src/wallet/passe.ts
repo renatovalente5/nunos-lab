@@ -64,6 +64,8 @@ const dataCurta = (unix: number) =>
   });
 
 const minuscula = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+/** Um changeMessage é um formato da Apple: só o «%@» é especial, um «%» da recompensa escreve-se «%%». */
+const semFormato = (s: string) => s.replace(/%/g, '%%');
 
 export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
   const faltam = Math.max(0, c.objectivo - c.carimbos);
@@ -74,10 +76,14 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
     key: 'carimbos',
     label: 'CARIMBOS',
     value: `${c.carimbos} de ${c.objectivo}`,
-    ...(c.carimbos >= c.objectivo
-      ? { changeMessage: `Cartão completo (%@): ${minuscula(fraseDoCorteOferecido(recompensa))}` }
-      : c.carimbos === c.objectivo - 1
-        ? { changeMessage: `Carimbo novo: %@ · ${minuscula(fraseDoProximo(recompensa))}` }
+    ...(c.carimbos > 0 && c.carimbos >= c.objectivo
+      ? {
+          changeMessage: `Cartão completo (%@): ${semFormato(minuscula(fraseDoCorteOferecido(recompensa)))}`,
+        }
+      : c.carimbos > 0 && c.carimbos === c.objectivo - 1
+        ? {
+            changeMessage: `Carimbo novo: %@ · ${semFormato(minuscula(fraseDoProximo(recompensa)))}`,
+          }
         : c.carimbos > 0
           ? { changeMessage: 'Carimbo novo: %@' }
           : {}),

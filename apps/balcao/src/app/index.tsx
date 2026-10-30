@@ -6,7 +6,9 @@ import {
   APPLE_CLIENTE,
   GOOGLE_CLIENTE,
   guardarSessao,
+  lerFila,
   mensagemDe,
+  motivoCurto,
   pedir,
   useCasa,
   useDespejarFila,
@@ -350,7 +352,7 @@ function Hoje() {
   const casa = useCasa(eu);
   const { data: hoje, refetch } = useHoje(casa, !!eu);
   const fila = useFila();
-  useDespejarFila();
+  useDespejarFila(eu?.pessoa.id);
   const [aviso, setAviso] = useState<string | null>(null);
   const nomeDaCasa = eu?.lojas.find((l) => l.id === casa)?.nome ?? '';
   const anular = async (id: number) => {
@@ -362,7 +364,12 @@ function Hoje() {
       setAviso(mensagemDe(e));
     }
   };
-  const naFila = fila ? (JSON.parse(fila) as unknown[]).length : 0;
+  // A fila é desta pessoa (os itens sem pessoa são da fila antiga); o primeiro erro guardado é o motivo.
+  const itensNaFila = fila
+    ? lerFila().filter((p) => p.pessoaId === undefined || p.pessoaId === eu?.pessoa.id)
+    : [];
+  const naFila = itensNaFila.length;
+  const motivo = itensNaFila.find((p) => p.erro)?.erro;
   return (
     <Ecra comBarra={false}>
       <View
@@ -371,13 +378,15 @@ function Hoje() {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
+          gap: 12,
         }}
       >
+        {/* O nome da casa encolhe (uma linha) para a pastilha ficar dentro da margem a 320 px. */}
         <Pressable
           onPress={() => router.push('/conta')}
           role="link"
           aria-label="Casa e conta"
-          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexShrink: 1 })}
         >
           <T
             v="legenda"
@@ -386,7 +395,9 @@ function Hoje() {
             Nuno's Lab
           </T>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <T v="titulo">{nomeDaCasa || "Nuno's Lab"}</T>
+            <T v="titulo" numberOfLines={1} style={{ flexShrink: 1 }}>
+              {nomeDaCasa || "Nuno's Lab"}
+            </T>
             {eu && eu.lojas.length > 1 && eu.pessoa.papel !== 'barbeiro' && (
               <Icone nome="seguinte" tamanho={18} cor={cor.texto3} espessura={2.4} />
             )}
@@ -463,9 +474,11 @@ function Hoje() {
 
       {naFila > 0 && (
         <T v="legenda" style={{ color: cor.texto2, textAlign: 'center', marginTop: 16 }}>
-          {naFila === 1
-            ? '1 carimbo guardado, a enviar…'
-            : `${naFila} carimbos guardados, a enviar…`}
+          {motivo
+            ? `${naFila} por enviar · ${motivoCurto(motivo)}`
+            : naFila === 1
+              ? '1 carimbo guardado, a enviar…'
+              : `${naFila} carimbos guardados, a enviar…`}
         </T>
       )}
       {aviso && (
@@ -483,14 +496,20 @@ function Hoje() {
           <Rotulo>Hoje</Rotulo>
           <Grupo>
             {hoje.ultimos.map((u, i) => {
+              // Quem carimbou anula até ao instante que o servidor diz; o dono sempre.
               const minhaEmTempo =
-                u.pessoa === eu?.pessoa.nome && Date.now() / 1000 - u.quando < 600 && !u.anulado;
+                !!eu && u.pessoaId === eu.pessoa.id && Date.now() / 1000 < u.anulavelAte;
               const podeAnular = minhaEmTempo || eu?.pessoa.papel === 'dono';
               return (
                 <View key={u.id}>
                   {i > 0 && <Separador />}
                   <Pressable
-                    onPress={() => router.push(`/ficha/${u.codigo}`)}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/ficha/[codigo]',
+                        params: { codigo: u.codigo, semLeitura: '1' },
+                      })
+                    }
                     role="link"
                     style={({ pressed }) => ({
                       flexDirection: 'row',

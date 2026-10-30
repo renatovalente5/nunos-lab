@@ -19,6 +19,7 @@ export default function Novo() {
   const [feito, setFeito] = useState<FichaDoBalcao | null>(null);
 
   const criar = async () => {
+    if (aEnviar) return;
     const e: typeof erro = {};
     if (!nome.trim()) e.nome = 'O nome faz falta.';
     const emailLimpo = email.trim() ? normalizarEmail(email) : null;
@@ -142,7 +143,7 @@ export default function Novo() {
             <Interruptor ligado={carimbarJa} mudar={setCarimbarJa} rotulo="Carimbar já" />
           </View>
           <View style={{ marginTop: 8 }}>
-            <Botao nome={aEnviar ? 'A guardar…' : 'Guardar'} onPress={criar} />
+            <Botao nome={aEnviar ? 'A guardar…' : 'Guardar'} ocupado={aEnviar} onPress={criar} />
           </View>
           {erro.geral && (
             <T v="legenda" role="alert" style={{ color: '#E07A72', textAlign: 'center' }}>

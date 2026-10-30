@@ -231,6 +231,8 @@ export type RecompensaPorUsar = { cartaoId: number; recompensa: string; ganhaEm:
 /** O que a app recebe de /api/eu: a pessoa, o cartão, as visitas, a conta. */
 export type ClienteEu = {
   id: number;
+  /** A sessão de demonstração (os revisores das lojas): a app esconde o que a API recusa. */
+  demo?: boolean;
   codigo: string;
   nome: string;
   aniversario: string | null;
@@ -353,6 +355,9 @@ export type UltimoCarimbo = {
   clienteId: number;
   codigo: string;
   pessoa: string | null;
+  pessoaId: number | null;
+  /** Até quando quem carimbou pode anular (instante do servidor). */
+  anulavelAte: number;
   loja: string | null;
   carimbos: number;
   objectivo: number;

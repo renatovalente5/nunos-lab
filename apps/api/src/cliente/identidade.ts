@@ -54,7 +54,7 @@ export async function entrarComIdentidade(
     const irma = await db
       .prepare(
         `SELECT i.id, i.cliente_id, i.dona, i.tipo FROM identidades i JOIN clientes k ON k.id = i.cliente_id
-         WHERE i.email = ? AND k.apagado_em IS NULL AND (i.dona = 1 OR i.tipo = 'email')
+         WHERE i.email = ? AND k.apagado_em IS NULL AND k.exemplo = 0 AND (i.dona = 1 OR i.tipo = 'email')
          ORDER BY i.dona DESC, i.id LIMIT 1`,
       )
       .bind(email)

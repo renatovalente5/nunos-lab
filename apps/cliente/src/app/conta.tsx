@@ -1,7 +1,7 @@
 import { eAniversarioValido, type FormaDeEntrar, type Loja } from '@nunos-lab/dominio';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import {
   APPLE_CLIENTE,
   GOOGLE_CLIENTE,
@@ -131,8 +131,14 @@ export default function Conta() {
     setFolha(qual);
   };
   const semProva = !eu.provaRecente;
+  // Só a demonstração (os revisores das lojas) não tem formas de entrar: a API recusa-lhe o resto.
+  const demonstracao = eu.demo ?? eu.formas.length === 0;
+  const naCarteira = eu.wallet.apple || eu.wallet.google;
+  // No Android não há Apple: a folha «Juntar» abria vazia.
   const formasQueFaltam = (['apple', 'google'] as const).filter(
-    (t) => !eu.formas.some((f) => f.tipo === t) && (t === 'apple' ? APPLE_CLIENTE : GOOGLE_CLIENTE),
+    (t) =>
+      !eu.formas.some((f) => f.tipo === t) &&
+      (t === 'apple' ? APPLE_CLIENTE && Platform.OS !== 'android' : GOOGLE_CLIENTE),
   );
 
   return (
@@ -224,7 +230,7 @@ export default function Conta() {
             </View>
           </View>
         ))}
-        {formasQueFaltam.length > 0 && (
+        {formasQueFaltam.length > 0 && !demonstracao && (
           <>
             <Separador recuo={48} />
             <Linha icone="mais" nome="Juntar outra forma" onPress={() => abrir('juntar')} />
@@ -237,11 +243,19 @@ export default function Conta() {
         <Linha
           icone="aparelho"
           nome={eu.sessoes.length === 1 ? 'Só este aparelho' : `${eu.sessoes.length} aparelhos`}
-          valor={eu.sessoes.length > 1 ? 'Terminar as outras' : undefined}
-          onPress={eu.sessoes.length > 1 ? () => correr(() => conta.sairDasOutras()) : undefined}
+          valor={eu.sessoes.length > 1 && !demonstracao ? 'Terminar as outras' : undefined}
+          onPress={
+            eu.sessoes.length > 1 && !demonstracao
+              ? () => correr(() => conta.sairDasOutras())
+              : undefined
+          }
         />
-        <Separador recuo={48} />
-        <Linha icone="escudo" nome="Perdi o telemóvel" onPress={() => abrir('perdi')} />
+        {!demonstracao && (
+          <>
+            <Separador recuo={48} />
+            <Linha icone="escudo" nome="Perdi o telemóvel" onPress={() => abrir('perdi')} />
+          </>
+        )}
         <Separador recuo={48} />
         <Linha
           icone="sair"
@@ -258,8 +272,12 @@ export default function Conta() {
       <Rotulo>Mais</Rotulo>
       <Grupo>
         <Linha icone="escudo" nome="Privacidade" onPress={() => router.push('/privacidade')} />
-        <Separador recuo={48} />
-        <Linha icone="lixo" nome="Apagar a conta" perigo onPress={() => abrir('apagar')} />
+        {!demonstracao && (
+          <>
+            <Separador recuo={48} />
+            <Linha icone="lixo" nome="Apagar a conta" perigo onPress={() => abrir('apagar')} />
+          </>
+        )}
       </Grupo>
 
       {(erro || aviso) && (
@@ -286,15 +304,18 @@ export default function Conta() {
             maxLength={40}
             placeholder="Nome próprio"
             autoCapitalize="words"
+            erro={erro}
           />
           <Botao
             nome="Guardar"
-            onPress={() =>
+            onPress={() => {
+              const nome = texto.trim();
+              if (!nome) return setErro('Escreve o teu nome.');
               correr(
-                () => conta.perfil({ nome: texto.trim() }),
+                () => conta.perfil({ nome }),
                 () => setFolha(null),
-              )
-            }
+              );
+            }}
           />
         </View>
       </Folha>
@@ -348,6 +369,11 @@ export default function Conta() {
             }
           />
         ))}
+        {erro && (
+          <T v="legenda" style={{ color: '#E07A72', paddingHorizontal: MARGEM, marginTop: 10 }}>
+            {erro}
+          </T>
+        )}
       </Folha>
 
       <Folha aberta={folha === 'juntar'} fechar={() => setFolha(null)} titulo="Juntar outra forma">
@@ -408,6 +434,7 @@ export default function Conta() {
         <View style={{ paddingHorizontal: MARGEM, paddingTop: 6, gap: 14 }}>
           <T v="corpo" style={{ color: cor.texto2 }}>
             As outras sessões terminam e o código do cartão muda. Os carimbos ficam.
+            {naCarteira && ' Se tens o cartão na Wallet, volta a adicioná-lo depois.'}
           </T>
           <Botao
             nome="Terminar e mudar o código"
@@ -416,11 +443,20 @@ export default function Conta() {
                 () => conta.perdiOTelemovel(),
                 () => {
                   setFolha(null);
-                  setAviso('Feito: código novo.');
+                  setAviso(
+                    naCarteira
+                      ? 'Feito: código novo. Se tinhas o cartão na carteira, volta a adicioná-lo.'
+                      : 'Feito: código novo.',
+                  );
                 },
               )
             }
           />
+          {erro && (
+            <T v="legenda" style={{ color: '#E07A72' }}>
+              {erro}
+            </T>
+          )}
         </View>
       </Folha>
 

@@ -156,6 +156,7 @@ export function Botao({
   secundario = false,
   largo = false,
   rotulo,
+  ocupado = false,
 }: {
   nome: string;
   onPress: () => void;
@@ -163,13 +164,16 @@ export function Botao({
   secundario?: boolean;
   largo?: boolean;
   rotulo?: string;
+  /** A enviar: ignora os toques (sem `disabled`, que na web perde o foco e o aria-disabled). */
+  ocupado?: boolean;
 }) {
   const tinta = secundario ? cor.texto : cor.sobreClaro;
   return (
     <Pressable
-      onPress={onPress}
+      onPress={ocupado ? undefined : onPress}
       role="button"
       aria-label={rotulo ?? nome}
+      aria-busy={ocupado}
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',

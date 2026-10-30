@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useRef } from 'react';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
 import { Botao, T, cor } from '@nunos-lab/ui';
 
 /** A câmara no telemóvel: a expo-camera lê o QR sozinha. */
@@ -27,6 +27,12 @@ export function Leitor({
           A app precisa da câmara para ler o cartão.
         </T>
         {permissao?.canAskAgain && <Botao nome="Permitir a câmara" onPress={() => pedir()} />}
+        {permissao && !permissao.canAskAgain && (
+          <Botao
+            nome="Abrir as definições"
+            onPress={() => Linking.openSettings().catch(() => {})}
+          />
+        )}
       </View>
     );
   return (

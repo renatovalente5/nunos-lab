@@ -5,6 +5,7 @@ import { Modal, Pressable, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCarimbosNovos } from '../../carimbos-novos';
 import { CartaoDoCliente } from '../../componentes/cartao';
+import { horaDe } from '../../componentes/cartoes';
 import {
   APPLE_CLIENTE,
   GOOGLE_CLIENTE,
@@ -35,14 +36,24 @@ import {
   EntradaDeDemonstracao,
 } from '@nunos-lab/ui';
 
+// Array.from: um emoji não se parte a meio.
+const primeiraLetra = (palavra?: string) => Array.from(palavra ?? '')[0] ?? '';
+
 function iniciais(nome: string): string {
   const p = nome.trim().split(/\s+/).filter(Boolean);
-  return ((p[0]?.[0] ?? '') + (p[1]?.[0] ?? '')).toUpperCase() || '·';
+  return (primeiraLetra(p[0]) + primeiraLetra(p[1])).toUpperCase() || '·';
+}
+
+/** «14:05» se foi hoje, senão «28 out»: a última vez que o cartão veio da rede. */
+function quandoFoi(instante: number): string {
+  const hoje = diaEmLisboa();
+  const dia = diaEmLisboa(instante);
+  return dia === hoje ? horaDe(instante / 1000) : dataCurta(dia, hoje);
 }
 
 export default function Cartao() {
   const temSessao = useTemSessao();
-  const { data: eu, isError, refetch } = useEu(true);
+  const { data: eu, isError, dataUpdatedAt, refetch } = useEu(true);
   const { width } = useWindowDimensions();
   const largura = Math.min(width, LARGURA_MAXIMA) - MARGEM * 2;
   const [qrAberto, setQrAberto] = useState(false);
@@ -104,6 +115,7 @@ export default function Cartao() {
       <View style={{ paddingHorizontal: MARGEM, marginTop: 18 }}>
         <CartaoDoCliente
           eu={temSessao ? (eu ?? null) : null}
+          recompensas={eu?.recompensas.length ?? 0}
           largura={largura}
           novasDesde={novasDesde}
           aoAcabar={aoAcabar}
@@ -164,7 +176,7 @@ export default function Cartao() {
                 {codigoCurto(eu.codigo)}
               </T>
               <T v="legenda" style={{ color: cor.texto2, marginTop: 6 }}>
-                Mostra ao balcão.{'\n'}Serve nas três casas.
+                Mostra ao balcão.{'\n'}Serve em todas as casas.
               </T>
             </View>
           </Pressable>
@@ -306,9 +318,11 @@ export default function Cartao() {
             </>
           )}
 
-          {isError && !eu && (
+          {isError && (
             <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 20 }}>
-              Sem ligação.
+              {dataUpdatedAt
+                ? `Sem ligação · dados de ${quandoFoi(dataUpdatedAt)}`
+                : 'Sem ligação.'}
             </T>
           )}
 

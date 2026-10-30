@@ -125,6 +125,7 @@ export function Fidelidade() {
             valor={f.objectivo}
             mudar={mudar('objectivo')}
             erro={erros.includes('objectivo')}
+            ajuda="Os cartões já começados completam-se com o número com que começaram."
             obrigatorio
           />
           <Campo

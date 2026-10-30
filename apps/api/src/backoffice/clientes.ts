@@ -1,7 +1,9 @@
 /** Os clientes no backoffice: a lista, a ficha, o CSV, e apagar os de exemplo. */
 import { Hono } from 'hono';
 import {
+  MESES,
   diaEmLisboa,
+  normalizarCodigo,
   textoDeBusca,
   type ClienteDoBackoffice,
   type FichaDoCliente,
@@ -68,8 +70,10 @@ function publico(l: Linha): ClienteDoBackoffice {
  * novos (1.º corte há 30 dias), activos (corte há 90), em risco, perdidos (> 180).
  */
 rotasDosClientes.get('/clientes', async (c) => {
-  const q = (c.req.query('q') ?? '').trim();
+  // O D1 recusa padrões LIKE com mais de 50 caracteres: um nome tem no máximo 40.
+  const q = (c.req.query('q') ?? '').trim().slice(0, 40);
   const estado = c.req.query('estado') ?? 'todos';
+  const codigo = normalizarCodigo(q);
   const lojaId = Number(c.req.query('lojaId')) || null;
   const padrao = `%${q.replace(/[%_]/g, '')}%`;
   const busca = `%${textoDeBusca(q.replace(/[%_]/g, ''))}%`;
@@ -77,10 +81,10 @@ rotasDosClientes.get('/clientes', async (c) => {
     `${LISTA} WHERE k.apagado_em IS NULL
      ${q ? 'AND (k.nome LIKE ? OR k.busca LIKE ? OR k.email LIKE ? OR k.codigo LIKE ?)' : ''}
      ${lojaId ? 'AND (k.loja_id = ? OR EXISTS (SELECT 1 FROM carimbos x WHERE x.cliente_id = k.id AND x.loja_id = ?))' : ''}
-     ORDER BY ultimo DESC NULLS LAST, k.criado_em DESC LIMIT 500`,
+     ORDER BY ultimo DESC NULLS LAST, k.criado_em DESC LIMIT 5000`,
   )
     .bind(
-      ...(q ? [padrao, busca, padrao, `${q.toUpperCase()}%`] : []),
+      ...(q ? [padrao, busca, padrao, codigo ? `${codigo}%` : ''] : []),
       ...(lojaId ? [lojaId, lojaId] : []),
     )
     .all<Linha>();
@@ -192,7 +196,7 @@ rotasDosClientes.get('/clientes/:id', async (c) => {
 /** A lista em CSV (Excel/Numbers): o que o Nuno quer levar para fora. */
 rotasDosClientes.get('/clientes.csv', async (c) => {
   const r = await c.env.DB.prepare(
-    `${LISTA} WHERE k.apagado_em IS NULL ORDER BY k.nome`,
+    `${LISTA} WHERE k.apagado_em IS NULL AND k.exemplo = 0 ORDER BY k.nome`,
   ).all<Linha>();
   // Uma célula que começa por = + - @ (ou tab/CR) seria uma fórmula no Excel: um apóstrofo à frente desarma-a.
   const celula = (v: unknown) => {
@@ -200,6 +204,9 @@ rotasDosClientes.get('/clientes.csv', async (c) => {
     return `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
   };
   const data = (s: number | null) => (s ? diaEmLisboa(s * 1000) : '');
+  // «5 de mar»: o Excel lia «03-05» como uma data (e trocava o dia e o mês).
+  const aniversario = (a: string | null) =>
+    a ? `${Number(a.slice(3))} de ${MESES[Number(a.slice(0, 2)) - 1] ?? ''}` : '';
   const linhas = [
     [
       'Nome',
@@ -224,7 +231,7 @@ rotasDosClientes.get('/clientes.csv', async (c) => {
       l.carimbos,
       l.objectivo ?? '',
       l.por_usar,
-      l.aniversario ?? '',
+      aniversario(l.aniversario),
       data(l.criado_em),
     ]),
   ];

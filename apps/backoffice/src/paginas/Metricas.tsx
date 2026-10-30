@@ -155,7 +155,7 @@ export function Metricas() {
             <Numero
               rotulo="Recompensas ganhas"
               valor={m.totais.recompensasGanhas}
-              nota={`${m.totais.recompensasUsadas} usadas · ${m.totais.recompensasPorUsar} por usar`}
+              nota={`${m.totais.recompensasUsadas} usadas · ${m.totais.recompensasPorUsar} por usar no total`}
             />
           </div>
           <div className="grelha duas" style={{ marginTop: 14 }}>

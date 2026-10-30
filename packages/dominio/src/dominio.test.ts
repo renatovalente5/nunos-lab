@@ -9,6 +9,7 @@ import {
   diasEntre,
   eDiaValido,
   estadoDaPromocao,
+  fazAnosHoje,
   ligacaoDoTelefone,
   normalizarDestaque,
   normalizarEmail,
@@ -19,6 +20,7 @@ import {
   periodoEmTexto,
   semPartir,
   somarDias,
+  textoDeBusca,
   tintaSobre,
   validadeEmTexto,
 } from './index.ts';
@@ -259,4 +261,30 @@ test('o motivo de uma vantagem, por ordem', () => {
   assert.equal(limiteEmTexto({ limitePorCliente: 1, periodoDoLimite: 'dia' }), '1 por dia');
   assert.equal(limiteEmTexto({ limitePorCliente: 3, periodoDoLimite: 'sempre' }), '3 no total');
   assert.equal(limiteEmTexto({ limitePorCliente: null, periodoDoLimite: 'dia' }), null);
+});
+
+test('faz anos hoje: o 29 de Fevereiro cai no 28 nos anos sem 29', () => {
+  assert.equal(fazAnosHoje('03-05', '2026-03-05'), true);
+  assert.equal(fazAnosHoje('03-05', '2026-05-03'), false);
+  assert.equal(fazAnosHoje(null, '2026-03-05'), false);
+  assert.equal(fazAnosHoje('02-29', '2028-02-29'), true, 'bissexto: no próprio dia');
+  assert.equal(fazAnosHoje('02-29', '2028-02-28'), false, 'bissexto: não é no 28');
+  assert.equal(fazAnosHoje('02-29', '2027-02-28'), true, 'sem 29: é no 28');
+  assert.equal(fazAnosHoje('02-29', '2027-03-01'), false);
+  assert.equal(fazAnosHoje('02-29', '2100-02-28'), true, '2100 não é bissexto');
+  assert.equal(fazAnosHoje('02-29', '2000-02-28'), false, '2000 é bissexto');
+});
+
+test('procurar sem acentos apanha as letras que o NFD não parte, e é idempotente', () => {
+  assert.equal(textoDeBusca('Jørgen Ølsen'), 'jorgen olsen');
+  assert.equal(textoDeBusca('Łukasz Straße'), 'lukasz strasse');
+  assert.equal(textoDeBusca('  João   Ñandú '), 'joao nandu');
+  for (const n of ['Jørgen Ølsen', 'Łukasz Straße', 'João Ñandú', 'Æsir Œuvre Đorđe'])
+    assert.equal(textoDeBusca(textoDeBusca(n)), textoDeBusca(n));
+});
+
+test('um telefone com hífens, pontos ou parênteses é arrumado, não recusado', () => {
+  assert.equal(normalizarTelefone('912-345-678'), '912 345 678');
+  assert.equal(normalizarTelefone('(+351) 912.345.678'), '+351 912 345 678');
+  assert.equal(normalizarTelefone('912 345 67a'), null);
 });

@@ -8,6 +8,7 @@ import type { ClienteEu } from '@nunos-lab/dominio';
 import { useSyncExternalStore } from 'react';
 import { Linking, Platform } from 'react-native';
 import { guardar as guardarNoArmazem, lerSincrono } from '@nunos-lab/ui';
+import { CHAVE_DO_CARTAO_VISTO } from './carimbos-novos';
 import { API } from './dados';
 
 const CHAVE_DA_SESSAO = 'nunoslab:sessao';
@@ -30,7 +31,11 @@ export function sessao(): string | null {
 
 export function guardarSessao(testemunho: string | null) {
   guardarNoArmazem(CHAVE_DA_SESSAO, testemunho);
-  if (!testemunho) guardarNoArmazem(CHAVE_DO_EU, null);
+  if (!testemunho) {
+    guardarNoArmazem(CHAVE_DO_EU, null);
+    // Senão a conta seguinte neste aparelho via o cartão inteiro a animar.
+    guardarNoArmazem(CHAVE_DO_CARTAO_VISTO, null);
+  }
   avisar();
 }
 
@@ -59,13 +64,21 @@ const MENSAGENS: Record<string, string> = {
   ultima_forma: 'É a única forma de entrar: não se pode tirar.',
   so_formas_novas: 'Só podes tirar esta daqui a uns dias.',
   invalido: 'Há algo por corrigir.',
+  demonstracao: 'Na conta de demonstração isto não se muda.',
+  grande: 'O pedido é grande de mais.',
   rede: 'Sem ligação. Tenta outra vez.',
   interno: 'Algo correu mal. Tenta outra vez.',
 };
 
+/** O texto de um código; um desconhecido (ou do protótipo: «constructor») dá «Algo correu mal». */
+function textoDoCodigo(codigo: string): string {
+  const texto = MENSAGENS[codigo];
+  return typeof texto === 'string' ? texto : (MENSAGENS.interno as string);
+}
+
 export class ErroDaConta extends Error {
   constructor(public codigo: string) {
-    super(MENSAGENS[codigo] ?? MENSAGENS.interno);
+    super(textoDoCodigo(codigo));
   }
 }
 

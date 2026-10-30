@@ -9,7 +9,9 @@ const PEQUENAS = /^(do|da|dos|das|de|e|o|a|os|as)$/i;
 /** As iniciais de um nome sem as palavras pequenas: «Tasca Velha do Cravo» → «TV». */
 export function iniciaisDe(nome: string): string {
   const palavras = nome.split(/\s+/).filter((p) => p && !PEQUENAS.test(p));
-  return ((palavras[0]?.[0] ?? '') + (palavras[1]?.[0] ?? '')).toUpperCase();
+  // Array.from: um emoji não se parte a meio.
+  const primeira = (p?: string) => Array.from(p ?? '')[0] ?? '';
+  return (primeira(palavras[0]) + primeira(palavras[1])).toUpperCase();
 }
 
 /**

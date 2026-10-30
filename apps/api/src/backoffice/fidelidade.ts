@@ -181,6 +181,9 @@ rotasDaFidelidade.patch('/equipa/:id', async (c) => {
   if (p.lojaId !== undefined) (partes.push('loja_id = ?'), valores.push(p.lojaId));
   if (p.parceiroId !== undefined) (partes.push('parceiro_id = ?'), valores.push(p.parceiroId));
   if (p.activo !== undefined) (partes.push('activo = ?'), valores.push(p.activo ? 1 : 0));
+  // Como no POST: um parceiro não tem casa, e quem não é parceiro não tem parceiro.
+  if (p.papel === 'parceiro') partes.push('loja_id = NULL');
+  else if (p.papel !== undefined) partes.push('parceiro_id = NULL');
   if (partes.length === 0) recusar(400, 'nada_a_mudar');
   try {
     const r = await db

@@ -2,7 +2,7 @@ import { LIMITES, type DefinicoesDaBarbearia } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
-import { Campo, Esqueleto, Icone, useAccao, useAvisar } from '../pecas';
+import { Campo, Esqueleto, Icone, useAccao, useAvisar, useConfirmar } from '../pecas';
 import { ListaArrastavel } from '../arrastar';
 import { useAvisoAoSair } from '../util';
 
@@ -44,6 +44,7 @@ export function Barbearia() {
   const [erros, setErros] = useState<string[]>([]);
   const { correr, aCorrer } = useAccao();
   const avisar = useAvisar();
+  const { confirmar, dialogo } = useConfirmar();
 
   useEffect(() => {
     if (data && !original) {
@@ -151,9 +152,21 @@ export function Barbearia() {
                   <button
                     type="button"
                     className="botao perigo pequeno"
-                    onClick={() =>
-                      setF({ ...f, lojas: f.lojas.filter((x) => x.chave !== l.chave) })
-                    }
+                    onClick={async () => {
+                      // Uma loja que já existe leva coisas com ela: pergunta-se primeiro.
+                      if (
+                        l.id &&
+                        !(await confirmar(
+                          `Tirar ${l.nome || 'a loja'}?`,
+                          'Os carimbos dados nesta casa ficam sem casa, os clientes e a equipa desta casa passam a «sem casa», e as coordenadas perdem-se. Não se desfaz.',
+                          'Tirar',
+                        ))
+                      )
+                        return;
+                      setF((x) =>
+                        x ? { ...x, lojas: x.lojas.filter((y) => y.chave !== l.chave) } : x,
+                      );
+                    }}
                   >
                     Tirar
                   </button>
@@ -272,6 +285,7 @@ export function Barbearia() {
         </button>
         {sujo && <span className="estado">Alterações por guardar</span>}
       </div>
+      {dialogo}
     </>
   );
 }

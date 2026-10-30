@@ -104,3 +104,14 @@ export function donaDaCaixa(email: string): boolean {
 export function eEmailDeRelay(email: string): boolean {
   return /@privaterelay\.appleid\.com$/i.test(email);
 }
+
+/** Faz anos hoje? Quem nasceu a 29 de Fevereiro faz anos a 28 nos anos sem 29. */
+export function fazAnosHoje(aniversario: string | null | undefined, hoje: string): boolean {
+  if (!aniversario) return false;
+  const diaDeHoje = hoje.slice(5);
+  if (diaDeHoje === aniversario) return true;
+  if (aniversario !== '02-29' || diaDeHoje !== '02-28') return false;
+  const ano = Number(hoje.slice(0, 4));
+  const bissexto = (ano % 4 === 0 && ano % 100 !== 0) || ano % 400 === 0;
+  return !bissexto;
+}

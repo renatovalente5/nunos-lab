@@ -1,7 +1,15 @@
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
-import { guardarCasa, guardarSessao, pedir, useCasa, useEu } from '../sessao';
+import {
+  despejarFila,
+  guardarCasa,
+  guardarSessao,
+  lerFila,
+  pedir,
+  useCasa,
+  useEu,
+} from '../sessao';
 import { Ecra, Grupo, Icone, MARGEM, OpcaoDaFolha, Rotulo, T, cor } from '@nunos-lab/ui';
 
 const PAPEL = { dono: 'Dono', barbeiro: 'Barbeiro', parceiro: 'Parceiro' } as const;
@@ -15,13 +23,15 @@ export default function Conta() {
     !!eu && eu.lojas.length > 1 && !(eu.pessoa.papel === 'barbeiro' && eu.pessoa.lojaId);
   const sair = async () => {
     try {
+      // Os carimbos guardados sem rede vão antes; os que ficarem esperam que esta pessoa volte a entrar.
+      if (lerFila().length) await despejarFila(eu?.pessoa.id);
       await pedir('/sair', { metodo: 'POST' });
     } catch {
       // Sem rede: a sessão sai daqui na mesma.
     } finally {
+      // guardarSessao(null) volta ao início.
       guardarSessao(null);
       consultas.clear();
-      router.replace('/');
     }
   };
   return (

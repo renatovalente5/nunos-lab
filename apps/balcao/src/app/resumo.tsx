@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { useEu, useResumo } from '../sessao';
+import { mensagemDe, useEu, useResumo } from '../sessao';
 import {
   CONTINUO,
   Ecra,
@@ -35,7 +35,8 @@ export default function Resumo() {
   const [periodo, setPeriodo] = useState<(typeof PERIODOS)[number][0]>('hoje');
   const [casa, setCasa] = useState<number | null>(null);
   const [aEscolherCasa, setAEscolherCasa] = useState(false);
-  const { data: r } = useResumo(periodo, casa);
+  const dono = eu?.pessoa.papel === 'dono';
+  const { data: r, error } = useResumo(periodo, casa, dono);
   const todasAsCasas = eu?.lojas.length === 3 ? 'As três casas' : 'Todas as casas';
   const nomeDaCasa =
     casa === null ? todasAsCasas : (eu?.lojas.find((l) => l.id === casa)?.nome ?? 'Esta casa');
@@ -160,6 +161,20 @@ export default function Resumo() {
         </Folha>
       )}
 
+      {eu && !dono && (
+        <T v="legenda" style={{ color: cor.texto2, textAlign: 'center', marginTop: 40 }}>
+          Só o dono vê o resumo.
+        </T>
+      )}
+      {!!error && (
+        <T
+          v="legenda"
+          role="alert"
+          style={{ color: '#E07A72', textAlign: 'center', marginTop: 40 }}
+        >
+          {mensagemDe(error)}
+        </T>
+      )}
       {r && (
         <>
           <View style={{ paddingHorizontal: MARGEM, marginTop: 22 }}>

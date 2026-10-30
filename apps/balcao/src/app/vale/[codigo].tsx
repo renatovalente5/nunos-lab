@@ -7,7 +7,7 @@ import {
   type VantagemDoParceiro,
 } from '@nunos-lab/dominio';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
@@ -34,8 +34,14 @@ export default function ValeDoParceiro() {
   const [erro, setErro] = useState<string | null>(null);
   const escala = useRef(new Animated.Value(0.6)).current;
   const chaves = useRef(new Map<number, string>());
+  // O «Concluir» automático: limpa-se ao sair e ao desmontar, para não fechar o ecrã seguinte.
+  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => clearTimeout(temporizador.current ?? undefined), []);
 
-  const sair = () => (router.canGoBack() ? router.back() : router.replace('/'));
+  const sair = () => {
+    clearTimeout(temporizador.current ?? undefined);
+    return router.canGoBack() ? router.back() : router.replace('/');
+  };
   const usar = async (v: VantagemDoParceiro) => {
     if (!ficha || estado === 'a-enviar') return;
     setEstado('a-enviar');
@@ -46,13 +52,14 @@ export default function ValeDoParceiro() {
       const r = await validar({
         codigo: ficha.cliente.codigo,
         promocaoId: v.id,
-        chave: chaves.current.get(v.id)!,
+        chave: chaves.current.get(chaveDe)!,
+        cupaoId: v.cupaoId,
       });
       setFeito({ destaque: r.vale.destaque, titulo: r.vale.titulo, quando: r.vale.quando });
       setEstado('feito');
       Animated.spring(escala, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
       consultas.invalidateQueries({ queryKey: ['balcao', 'hoje-parceiro'] });
-      setTimeout(sair, 3000);
+      temporizador.current = setTimeout(sair, 3000);
     } catch (e) {
       setEstado('pronto');
       setErro(mensagemDe(e));

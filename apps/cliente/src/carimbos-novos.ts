@@ -1,6 +1,6 @@
 import type { ClienteEu } from '@nunos-lab/dominio';
 import { guardar, lerSincrono, vibrar } from '@nunos-lab/ui';
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
 export const CHAVE_DO_CARTAO_VISTO = 'nunoslab:cartao-visto';
@@ -20,7 +20,8 @@ export function useCarimbosNovos(
 ): { novasDesde: number | null; aoAcabar: () => void } {
   const [novasDesde, setNovasDesde] = useState<number | null>(null);
   const [festa, setFesta] = useState(false);
-  useEffect(() => {
+  // Antes da pintura: a casa nova nasce a zero, em vez de piscar cheia antes da mola.
+  useLayoutEffect(() => {
     if (!cartao || !focado) return;
     let visto: Visto | null = null;
     try {
@@ -41,6 +42,8 @@ export function useCarimbosNovos(
           : null;
     if (desde === null) return;
     const completo = actual.carimbos >= cartao.objectivo;
+    setFesta(completo);
+    setNovasDesde(desde);
     let vivo = true;
     const reduzir: Promise<boolean> =
       typeof AccessibilityInfo.isReduceMotionEnabled === 'function'
@@ -51,11 +54,12 @@ export function useCarimbosNovos(
       .then((semMovimento) => {
         if (!vivo) return;
         if (semMovimento) {
+          // Sem mola: as casas ficam logo cheias (a resposta chega antes da pausa inicial).
+          setFesta(false);
+          setNovasDesde(null);
           vibrar(completo ? 'festa' : 'feito');
           return;
         }
-        setFesta(completo);
-        setNovasDesde(desde);
         // O toque vai com a primeira casa a entrar (a pausa inicial da animação).
         setTimeout(() => vivo && vibrar('feito'), 350);
       });

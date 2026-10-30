@@ -12,8 +12,18 @@ export function chavesDe(url: string): Chaves {
   let guardadas: { chaves: Map<string, CryptoKey>; ate: number } | null = null;
   return async (renovar = false) => {
     if (!renovar && guardadas && guardadas.ate > Date.now()) return guardadas.chaves;
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`As chaves de ${new URL(url).host} responderam ${r.status}`);
+    // O provedor lento ou em baixo não pode pendurar nem derrubar a entrada: 5 s, e as chaves de antes se as houver.
+    let r: Response;
+    try {
+      r = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    } catch (e) {
+      if (guardadas) return guardadas.chaves;
+      throw e;
+    }
+    if (!r.ok) {
+      if (guardadas) return guardadas.chaves;
+      throw new Error(`As chaves de ${new URL(url).host} responderam ${r.status}`);
+    }
     const { keys } = (await r.json()) as { keys: (JsonWebKey & { kid: string })[] };
     const chaves = new Map<string, CryptoKey>();
     for (const k of keys)
@@ -68,12 +78,13 @@ export async function conteudoDoJwt(
   if (!chave) chave = (await chaves(true)).get(cabecalho.kid);
   if (!chave) return null;
   const assinada = new TextEncoder().encode(`${partes[0]}.${partes[1]}`);
-  const certa = await crypto.subtle.verify(
-    'RSASSA-PKCS1-v1_5',
-    chave,
-    deBase64url(partes[2]!),
-    assinada,
-  );
+  let assinatura: Uint8Array;
+  try {
+    assinatura = deBase64url(partes[2]!);
+  } catch {
+    return null;
+  }
+  const certa = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', chave, assinatura, assinada);
   return certa ? corpo : null;
 }
 

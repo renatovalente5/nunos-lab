@@ -178,6 +178,7 @@ export function Acessos() {
                       <button
                         type="button"
                         className="botao secundario pequeno"
+                        disabled={aCorrer}
                         onClick={async () => {
                           const texto = s.actual
                             ? 'Sais do backoffice neste aparelho.'
@@ -213,6 +214,7 @@ export function Acessos() {
                       <button
                         type="button"
                         className="botao secundario pequeno"
+                        disabled={aCorrer}
                         onClick={() =>
                           correr(async () => {
                             await pedir(`/api/bo/acessos/${l.id}`, { metodo: 'DELETE' });
@@ -244,7 +246,7 @@ export function Acessos() {
           <button
             type="button"
             className="botao"
-            disabled={!nova?.nome.trim() || !nova?.email.trim()}
+            disabled={!nova?.nome.trim() || !nova?.email.trim() || aCorrer}
             onClick={() => correr(darAcesso)}
           >
             Dar acesso
@@ -282,7 +284,12 @@ export function Acessos() {
         fechar={() => setMudarEmail(null)}
         titulo={`Editar ${mudarEmail?.nome ?? ''}`}
         pe={
-          <button type="button" className="botao" onClick={() => correr(guardarEmail)}>
+          <button
+            type="button"
+            className="botao"
+            disabled={aCorrer}
+            onClick={() => correr(guardarEmail)}
+          >
             Guardar
           </button>
         }

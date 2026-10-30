@@ -96,7 +96,7 @@ export function Leitor({
       {estado !== 'aberta' && (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <T v="legenda" style={{ color: cor.texto2 }}>
-            {estado === 'a-abrir' ? 'A abrir a câmara…' : 'Sem câmara.'}
+            {estado === 'a-abrir' ? 'A abrir a câmara…' : 'Sem acesso à câmara.'}
           </T>
         </View>
       )}

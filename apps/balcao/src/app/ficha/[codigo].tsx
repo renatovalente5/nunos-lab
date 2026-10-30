@@ -2,24 +2,27 @@ import {
   codigoCurto,
   dataCurta,
   diaEmLisboa,
+  diasEntre,
   fraseDesteCorte,
   fraseDoCartao,
   fraseDoCorteOferecido,
 } from '@nunos-lab/dominio';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
-import { Animated, Pressable, ScrollView, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   carimbar,
   chaveNova,
+  lerFila,
   mensagemDe,
   pedir,
   semRemedio,
   useCasa,
   useEu,
   useFicha,
+  useFila,
   ErroDaBalcao,
 } from '../../sessao';
 import {
@@ -36,7 +39,8 @@ import {
 } from '@nunos-lab/ui';
 
 function haQuanto(unix: number): string {
-  const dias = Math.floor((Date.now() / 1000 - unix) / 86400);
+  // Dias de calendário em Lisboa: ontem às 23 h é «ontem», não «hoje».
+  const dias = diasEntre(diaEmLisboa(unix * 1000), diaEmLisboa());
   if (dias === 0) return 'hoje';
   if (dias === 1) return 'ontem';
   if (dias < 14) return `há ${dias} dias`;
@@ -58,36 +62,60 @@ type Feito = {
 };
 
 export default function Ficha() {
-  const { codigo } = useLocalSearchParams<{ codigo: string }>();
+  const { codigo, semLeitura } = useLocalSearchParams<{ codigo: string; semLeitura?: string }>();
   const margens = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const consultas = useQueryClient();
   const { data: eu } = useEu();
   const casa = useCasa(eu);
   const { data: ficha, error, refetch, isPending } = useFicha(codigo ?? '');
+  const filaTexto = useFila();
   const [estado, setEstado] = useState<'pronto' | 'a-enviar' | 'feito' | 'na-fila' | 'erro'>(
     'pronto',
   );
   const [feito, setFeito] = useState<Feito | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<{ quando: number; pessoa: string | null } | null>(null);
+  const [aviso, setAviso] = useState<{
+    quando: number;
+    pessoa: string | null;
+    entregue?: boolean;
+  } | null>(null);
   const escala = useRef(new Animated.Value(0.6)).current;
   const chave = useRef(chaveNova());
+  // O «Concluir» automático: limpa-se ao sair e ao desmontar, para não fechar o ecrã seguinte.
+  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => clearTimeout(temporizador.current ?? undefined), []);
 
+  // Os carimbos deste cartão ainda na fila sem rede contam como dados: nos círculos, no número e no «já hoje».
+  const naFila =
+    ficha && filaTexto ? lerFila().filter((p) => p.codigo === ficha.cliente.codigo).length : 0;
+  const carimbos = (ficha?.cartao.carimbos ?? 0) + naFila;
+  // Os 10 círculos numa linha cabem nas margens em qualquer largura (a 320 px eram 334 px).
+  const tamanho = Math.min(
+    28,
+    Math.floor((Math.min(width, LARGURA_MAXIMA) - 2 * MARGEM - 9 * 6) / 10),
+  );
   // Com o limite do dia já atingido, o botão diz logo «Carimbar na mesma»: antes só o dizia depois de
   // a API recusar, e o barbeiro tinha de carregar duas vezes.
-  const jaHoje = !!ficha && ficha.hoje.carimbos >= (eu?.programa.porDia ?? 1);
+  const jaHoje = !!ficha && ficha.hoje.carimbos + naFila >= (eu?.programa.porDia ?? 1);
   // O prémio entregue hoje: o corte grátis não leva carimbo, e carimbar pede confirmação.
   const entregueHoje = ficha?.hoje.entregue ?? null;
   const precisaConfirmar = jaHoje || !!entregueHoje;
-  const sair = () => (router.canGoBack() ? router.back() : router.replace('/'));
+  // A caixa do aviso: o 409 traz a hora e a pessoa mais frescas do que a ficha.
+  const ultimoDeHoje = aviso?.quando && !aviso.entregue ? aviso : (ficha?.hoje.ultimo ?? null);
+  const entregue = aviso?.quando && aviso.entregue ? aviso : entregueHoje;
+  const sair = () => {
+    clearTimeout(temporizador.current ?? undefined);
+    return router.canGoBack() ? router.back() : router.replace('/');
+  };
   const concluir = () => {
     consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
     // 1,4 s passava despercebido e o barbeiro carregava outra vez; 3 s, e o «Concluir» para quem tem pressa.
-    setTimeout(sair, 3000);
+    temporizador.current = setTimeout(sair, 3000);
   };
 
   const dar = async (confirmar = false) => {
-    if (!ficha || !casa) return;
+    if (!ficha || !casa || estado === 'a-enviar') return;
     setEstado('a-enviar');
     setErro(null);
     try {
@@ -96,11 +124,13 @@ export default function Ficha() {
         chave: chave.current,
         lojaId: casa,
         confirmar,
+        semLeitura: semLeitura === '1',
+        pessoaId: eu?.pessoa.id,
       });
       if ('naFila' in r) {
         setEstado('na-fila');
         setFeito({
-          carimbos: ficha.cartao.carimbos + 1,
+          carimbos: carimbos + 1,
           objectivo: ficha.cartao.objectivo,
           completo: false,
           recompensa: null,
@@ -124,12 +154,13 @@ export default function Ficha() {
         e instanceof ErroDaBalcao &&
         (e.codigo === 'limite_do_dia' || e.codigo === 'entregue_hoje')
       ) {
-        setAviso(
-          (e.dados.ultimo as { quando: number; pessoa: string | null } | undefined) ?? {
+        setAviso({
+          ...((e.dados.ultimo as { quando: number; pessoa: string | null } | undefined) ?? {
             quando: 0,
             pessoa: null,
-          },
-        );
+          }),
+          entregue: e.codigo === 'entregue_hoje',
+        });
         setEstado('pronto');
         return;
       }
@@ -139,7 +170,7 @@ export default function Ficha() {
   };
 
   const usar = async (cartaoId: number) => {
-    if (!ficha || !casa) return;
+    if (!ficha || !casa || estado === 'a-enviar') return;
     setEstado('a-enviar');
     setErro(null);
     try {
@@ -344,9 +375,9 @@ export default function Ficha() {
 
             <View style={{ paddingHorizontal: MARGEM, marginTop: 22 }}>
               <Carimbos
-                carimbos={ficha.cartao.carimbos}
+                carimbos={carimbos}
                 objectivo={ficha.cartao.objectivo}
-                tamanho={28}
+                tamanho={tamanho}
                 porLinha={10}
                 folga={6}
               />
@@ -360,17 +391,22 @@ export default function Ficha() {
                 marginTop: 18,
               }}
             >
-              <T v="destaque">{ficha.cartao.carimbos}</T>
+              <T v="destaque">{carimbos}</T>
               <T v="forte" style={{ color: cor.texto2, fontSize: 18 }}>
                 de {ficha.cartao.objectivo}
               </T>
               {/* Aos 9 a faixa creme já diz «Este corte é grátis»: «O próximo corte é grátis» aqui contradizia-a. */}
-              {ficha.cartao.carimbos !== ficha.cartao.objectivo - 1 && (
+              {carimbos !== ficha.cartao.objectivo - 1 && (
                 <T v="legenda" style={{ color: cor.texto2, marginLeft: 8 }}>
-                  {fraseDoCartao(ficha.cartao.carimbos, ficha.cartao)}
+                  {fraseDoCartao(carimbos, ficha.cartao)}
                 </T>
               )}
             </View>
+            {naFila > 0 && (
+              <T v="legenda" style={{ color: cor.texto2, paddingHorizontal: MARGEM, marginTop: 6 }}>
+                {naFila === 1 ? '1 carimbo por enviar' : `${naFila} carimbos por enviar`}
+              </T>
+            )}
 
             <View
               style={{
@@ -409,7 +445,10 @@ export default function Ficha() {
                 </T>
               </View>
             )}
-            {ficha.cartao.carimbos === ficha.cartao.objectivo - 1 && !jaHoje && (
+            {/* Ao 9.º (sem carimbo hoje) este corte é o grátis; e também quando o 10.º já está na fila por enviar. */}
+            {(carimbos === ficha.cartao.objectivo - 1
+              ? !jaHoje
+              : naFila > 0 && carimbos >= ficha.cartao.objectivo) && (
               <View
                 style={{
                   marginHorizontal: MARGEM,
@@ -445,10 +484,10 @@ export default function Ficha() {
               >
                 <Icone nome="atencao" tamanho={18} cor={cor.texto} espessura={2} />
                 <T v="legenda" style={{ flex: 1 }}>
-                  {ficha.hoje.ultimo
-                    ? `Já carimbado hoje às ${hora(ficha.hoje.ultimo.quando)}${ficha.hoje.ultimo.pessoa ? ` por ${ficha.hoje.ultimo.pessoa}` : ''}.`
-                    : entregueHoje
-                      ? `${eu?.programa.recompensa ?? 'Prémio'} entregue hoje às ${hora(entregueHoje.quando)}${entregueHoje.pessoa ? ` por ${entregueHoje.pessoa}` : ''}. Não leva carimbo.`
+                  {ultimoDeHoje
+                    ? `Já carimbado hoje às ${hora(ultimoDeHoje.quando)}${ultimoDeHoje.pessoa ? ` por ${ultimoDeHoje.pessoa}` : ''}.`
+                    : entregue
+                      ? `${eu?.programa.recompensa ?? 'Prémio'} entregue hoje às ${hora(entregue.quando)}${entregue.pessoa ? ` por ${entregue.pessoa}` : ''}. Não leva carimbo.`
                       : 'Já carimbado hoje.'}
                 </T>
               </View>
@@ -511,7 +550,7 @@ export default function Ficha() {
               })}
             >
               {/* O carimbo da prenda (o 10.º) leva a prenda no botão. */}
-              {ficha.cartao.carimbos === ficha.cartao.objectivo - 1 && (
+              {carimbos === ficha.cartao.objectivo - 1 && (
                 <Icone
                   nome="presente"
                   tamanho={22}

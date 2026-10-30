@@ -10,7 +10,7 @@ const PARAGRAFOS = [
   'Se puseres o cartão na Apple Wallet ou na Google Wallet, o cartão (o nome, os carimbos, o código) fica também nessa carteira e actualiza-se a cada corte; a Apple e a Google tratam-no pelas regras delas.',
   'Podes mudar ou apagar a conta na app, a qualquer altura. Ao apagar, o que é teu sai; ficam só contagens sem nome, para os números da barbearia.',
   'Para o Nuno saber o que interessa, a app conta, sem saber quem és, quantas vezes é aberta e quantas vezes cada parceiro é visto ou contactado. Fica só o dia e o número.',
-  'A app guarda neste aparelho a última lista de vantagens, para a mostrar quando a rede falha.',
+  'A app guarda neste aparelho a última lista de vantagens, para a mostrar quando a rede falha, e o teu cartão, para abrir sem rede.',
   'A app é servida pelo GitHub Pages e os dados vêm de um servidor da Cloudflare, com a base de dados na União Europeia. Como em qualquer site, estes serviços recebem o endereço do teu aparelho para te entregar a página.',
 ];
 

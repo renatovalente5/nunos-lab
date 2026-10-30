@@ -1,18 +1,15 @@
-import type { EntradaDoRegisto } from '@nunos-lab/dominio';
+import { dataCurta, diaEmLisboa, somarDias, type EntradaDoRegisto } from '@nunos-lab/dominio';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { pedir } from '../api';
 import { Esqueleto, Vazio } from '../pecas';
 import { ACCOES, haQuanto } from '../util';
 
-/** «Hoje», «Ontem», ou o dia («20 out»), para separar o histórico por dias. */
-function diaDe(segundos: number): string {
-  const d = new Date(segundos * 1000);
-  const hoje = new Date();
-  const ontem = new Date();
-  ontem.setDate(hoje.getDate() - 1);
-  if (d.toDateString() === hoje.toDateString()) return 'Hoje';
-  if (d.toDateString() === ontem.toDateString()) return 'Ontem';
-  return d.toLocaleDateString('pt-PT', { day: 'numeric', month: 'long' });
+/** «Hoje», «Ontem», ou o dia («20 out»), em Lisboa, para separar o histórico por dias. */
+function diaDe(segundos: number, hoje: string): string {
+  const dia = diaEmLisboa(segundos * 1000);
+  if (dia === hoje) return 'Hoje';
+  if (dia === somarDias(hoje, -1)) return 'Ontem';
+  return dataCurta(dia, hoje);
 }
 
 export function Historico() {
@@ -24,10 +21,11 @@ export function Historico() {
     getNextPageParam: (ultima) =>
       ultima.length === 50 ? ultima[ultima.length - 1]!.id : undefined,
   });
+  const hoje = diaEmLisboa();
   const entradas = q.data?.pages.flat() ?? [];
   const dias: { dia: string; entradas: EntradaDoRegisto[] }[] = [];
   for (const e of entradas) {
-    const dia = diaDe(e.quando);
+    const dia = diaDe(e.quando, hoje);
     if (dias.at(-1)?.dia === dia) dias.at(-1)!.entradas.push(e);
     else dias.push({ dia, entradas: [e] });
   }
@@ -63,7 +61,9 @@ export function Historico() {
                       <span
                         className="detalhe"
                         style={{ whiteSpace: 'nowrap' }}
-                        title={new Date(e.quando * 1000).toLocaleString('pt-PT')}
+                        title={new Date(e.quando * 1000).toLocaleString('pt-PT', {
+                          timeZone: 'Europe/Lisbon',
+                        })}
                       >
                         {haQuanto(e.quando)}
                       </span>

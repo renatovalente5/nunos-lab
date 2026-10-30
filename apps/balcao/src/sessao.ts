@@ -15,7 +15,8 @@ import type {
   Vale,
 } from '@nunos-lab/dominio';
 import { getRandomBytes } from 'expo-crypto';
-import { useEffect, useSyncExternalStore } from 'react';
+import { router } from 'expo-router';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { guardar as guardarNoArmazem, lerSincrono } from '@nunos-lab/ui';
 
 export const API = (
@@ -48,6 +49,8 @@ export function guardarSessao(t: string | null) {
     escrever(CHAVE_DA_CASA, null);
   }
   avisar();
+  // Sem sessão volta-se ao início; a fila fica guardada para quando a pessoa voltar a entrar.
+  if (!t) router.replace('/');
 }
 export function useTemSessao(): boolean {
   return useSyncExternalStore(
@@ -97,6 +100,7 @@ const MENSAGENS: Record<string, string> = {
   proprio_cartao: 'É o teu cartão. Pede a outro barbeiro.',
   entregue_hoje: 'O prémio foi entregue hoje: o corte grátis não leva carimbo.',
   so_parceiro: 'A tua conta não valida vantagens.',
+  parceiro_desligado: "Este parceiro está desligado no Nuno's Lab. Fala com a barbearia.",
   ja_usou: 'Já usou hoje.',
   limite_do_cliente: 'Este cliente chegou ao limite.',
   limite_total: 'Esta vantagem esgotou.',
@@ -110,6 +114,7 @@ const MENSAGENS: Record<string, string> = {
   cartao_seguinte: 'O cartão seguinte já tem carimbos.',
   email_ja_tem_cartao: 'Esse email já tem cartão. Procura o cliente.',
   invalido: 'Há algo por corrigir.',
+  grande: 'O pedido é demasiado grande.',
   referencia: 'Isso já não existe. Recarrega.',
   rede: 'Sem ligação.',
   interno: 'Algo correu mal. Tenta outra vez.',
@@ -130,6 +135,9 @@ export const semRemedio = (e: unknown) =>
 
 export const mensagemDe = (e: unknown) =>
   e instanceof ErroDaBalcao ? e.message : (MENSAGENS.interno as string);
+/** A primeira frase da mensagem («Sem ligação»), para caber numa linha ao lado de um número. */
+export const motivoCurto = (codigo: string) =>
+  (MENSAGENS[codigo] ?? MENSAGENS.interno ?? '').split('.')[0] ?? '';
 
 export async function pedir<T = void>(
   caminho: string,
@@ -205,11 +213,16 @@ export function useHoje(lojaId: number | null, activo = true) {
   });
 }
 
-export function useResumo(periodo: 'hoje' | 'semana' | 'mes', lojaId: number | null) {
+export function useResumo(
+  periodo: 'hoje' | 'semana' | 'mes',
+  lojaId: number | null,
+  activo = true,
+) {
   return useQuery({
     queryKey: ['balcao', 'resumo', periodo, lojaId],
     queryFn: () =>
       pedir<ResumoDaBalcao>(`/resumo?periodo=${periodo}${lojaId ? `&lojaId=${lojaId}` : ''}`),
+    enabled: activo,
     networkMode: 'always',
     staleTime: 30_000,
     retry: 1,
@@ -267,9 +280,14 @@ export type CarimboNaFila = {
   chave: string;
   lojaId: number;
   confirmar: boolean;
+  semLeitura?: boolean;
+  /** Quem deu o carimbo: a fila é da pessoa, só ela a despeja (sem id: a fila antiga, vai sempre). */
+  pessoaId?: number;
   quando: number;
+  /** O código da última recusa que não foi definitiva: o início mostra o motivo. */
+  erro?: string;
 };
-const lerFila = (): CarimboNaFila[] => {
+export const lerFila = (): CarimboNaFila[] => {
   try {
     return JSON.parse(ler(CHAVE_DA_FILA) ?? '[]') as CarimboNaFila[];
   } catch {
@@ -290,17 +308,27 @@ export const useFila = () =>
     () => '',
   );
 
+/** O corpo que a API espera: a pessoa e o erro ficam só no aparelho. */
+const corpoDoCarimbo = (p: Omit<CarimboNaFila, 'quando' | 'erro'>, quando?: number) => ({
+  codigo: p.codigo,
+  chave: p.chave,
+  lojaId: p.lojaId,
+  confirmar: p.confirmar,
+  semLeitura: p.semLeitura,
+  quando,
+});
+
 /**
  * Carimbar: tenta já; sem rede, fica na fila (a chave garante que nunca conta
  * duas vezes) e devolve «na fila». Um 409 do limite do dia sobe como erro.
  */
 export async function carimbar(
-  pedido: Omit<CarimboNaFila, 'quando'>,
+  pedido: Omit<CarimboNaFila, 'quando' | 'erro'>,
 ): Promise<{ resultado: ResultadoDoCarimbo } | { naFila: true }> {
   try {
     const resultado = await pedir<ResultadoDoCarimbo>('/carimbar', {
       metodo: 'POST',
-      corpo: pedido,
+      corpo: corpoDoCarimbo(pedido),
     });
     return { resultado };
   } catch (e) {
@@ -312,23 +340,39 @@ export async function carimbar(
   }
 }
 
-/** Despeja a fila: um a um, pela ordem; pára na primeira falta de rede. */
-export async function despejarFila(): Promise<number> {
+/** As recusas que voltar a enviar não resolve: o item sai da fila. */
+const RECUSAS_DEFINITIVAS = [
+  'cartao_desconhecido',
+  'repetido',
+  'limite_do_dia',
+  'entregue_hoje',
+  'proprio_cartao',
+  'outra_casa',
+  'referencia',
+  'invalido',
+];
+
+/**
+ * Despeja a fila desta pessoa (os itens sem pessoa, da fila antiga, vão também):
+ * um a um, pela ordem, com o que foi decidido ao tocar e o instante do toque.
+ * Sai da fila com sucesso ou com uma recusa definitiva; outra falha (rede,
+ * sessão, limite, servidor) pára o ciclo e fica guardada no item.
+ */
+export async function despejarFila(pessoaId?: number): Promise<number> {
   let feitos = 0;
   for (const p of lerFila()) {
+    if (p.pessoaId !== undefined && p.pessoaId !== pessoaId) continue;
     try {
       await pedir<ResultadoDoCarimbo>('/carimbar', {
         metodo: 'POST',
-        corpo: {
-          codigo: p.codigo,
-          chave: p.chave,
-          lojaId: p.lojaId,
-          confirmar: true,
-        },
+        corpo: corpoDoCarimbo(p, Math.floor(p.quando / 1000)),
       });
     } catch (e) {
-      if (e instanceof ErroDaBalcao && e.codigo === 'rede') break;
-      // Outra recusa (o cartão já não existe): sai da fila na mesma.
+      const codigo = e instanceof ErroDaBalcao ? e.codigo : 'interno';
+      if (!RECUSAS_DEFINITIVAS.includes(codigo)) {
+        guardarFila(lerFila().map((x) => (x.chave === p.chave ? { ...x, erro: codigo } : x)));
+        break;
+      }
     }
     guardarFila(lerFila().filter((x) => x.chave !== p.chave));
     feitos++;
@@ -336,24 +380,31 @@ export async function despejarFila(): Promise<number> {
   return feitos;
 }
 
-/** Tenta despejar a fila ao abrir e sempre que a rede volta. */
-export function useDespejarFila() {
+/** Tenta despejar a fila ao abrir e sempre que a rede volta; nunca dois despejos ao mesmo tempo. */
+export function useDespejarFila(pessoaId?: number) {
   const consultas = useQueryClient();
   const fila = useFila();
+  const aDespejar = useRef(false);
   useEffect(() => {
     if (!fila) return;
-    let parado = false;
-    const tentar = () =>
-      despejarFila().then((n) => {
-        if (n && !parado) consultas.invalidateQueries({ queryKey: ['balcao'] });
-      });
+    const tentar = () => {
+      // Cada item que sai muda a fila e volta a correr este efeito: o despejo a meio continua sozinho.
+      if (aDespejar.current) return;
+      aDespejar.current = true;
+      despejarFila(pessoaId)
+        .then((n) => {
+          if (n) consultas.invalidateQueries({ queryKey: ['balcao'] });
+        })
+        .finally(() => {
+          aDespejar.current = false;
+        });
+    };
     tentar();
     const id = setInterval(tentar, 15_000);
     globalThis.addEventListener?.('online', tentar);
     return () => {
-      parado = true;
       clearInterval(id);
       globalThis.removeEventListener?.('online', tentar);
     };
-  }, [fila, consultas]);
+  }, [fila, pessoaId, consultas]);
 }

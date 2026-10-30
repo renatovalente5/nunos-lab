@@ -105,12 +105,12 @@ rotasDasMetricas.get('/metricas', async (c) => {
            sum(x.anulado_em IS NOT NULL) AS anulados,
            sum(x.repetido = 1 AND x.anulado_em IS NULL) AS repetidos,
            sum(x.sem_leitura = 1 AND x.anulado_em IS NULL) AS sem_leitura,
-           (SELECT count(*) FROM cartoes c WHERE c.usado_por = e.id AND c.usado_em >= ? AND c.usado_em < ?) AS recompensas
+           (SELECT count(*) FROM cartoes c WHERE c.usado_por = e.id AND c.usado_em >= ? AND c.usado_em < ? ${lojaId ? 'AND c.usado_loja_id = ?' : ''}) AS recompensas
          FROM equipa e LEFT JOIN lojas lj ON lj.id = e.loja_id
          LEFT JOIN carimbos x ON x.pessoa_id = e.id AND x.dia BETWEEN ? AND ? ${casa}
          WHERE e.removido_em IS NULL AND e.papel != 'parceiro' GROUP BY e.id ORDER BY n DESC, e.nome`,
       )
-      .bind(inicioDoDia(de), inicioDoDia(somarDias(ate, 1)), de, ate, ...l),
+      .bind(inicioDoDia(de), inicioDoDia(somarDias(ate, 1)), ...l, de, ate, ...l),
     // 12 os instantes, para o mapa de calor
     db
       .prepare(
@@ -160,7 +160,7 @@ rotasDasMetricas.get('/metricas', async (c) => {
            (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.parceiro_id = pa.id AND v.dia BETWEEN ?1 AND ?2 AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?5' : ''}) AS n,
            (SELECT count(DISTINCT v.cliente_id) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.parceiro_id = pa.id AND v.dia BETWEEN ?1 AND ?2 AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?5' : ''}) AS clientes,
            (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.parceiro_id = pa.id AND v.dia BETWEEN ?3 AND ?4 AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?5' : ''}) AS anterior
-         FROM parceiros pa WHERE pa.activo = 1 ORDER BY n DESC, pa.ordem, pa.nome`,
+         FROM parceiros pa ORDER BY n DESC, pa.ordem, pa.nome`,
       )
       .bind(de, ate, antesDe, antesAte, ...l),
     db
@@ -168,7 +168,8 @@ rotasDasMetricas.get('/metricas', async (c) => {
         `SELECT p.id, pa.nome AS parceiro, p.destaque, p.titulo, p.limite_total AS limiteTotal,
            (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.promocao_id = p.id AND v.dia BETWEEN ?1 AND ?2 AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?3' : ''}) AS n,
            (SELECT count(*) FROM vales v WHERE v.promocao_id = p.id AND v.anulado_em IS NULL) AS total
-         FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id WHERE p.validar = 1
+         FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
+         WHERE p.validar = 1 OR EXISTS (SELECT 1 FROM vales v WHERE v.promocao_id = p.id)
          ORDER BY n DESC, total DESC, pa.nome LIMIT 40`,
       )
       .bind(de, ate, ...l),

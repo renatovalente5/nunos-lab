@@ -45,6 +45,8 @@ const MENSAGENS: Record<string, string> = {
   nao_existe: 'Isto já não existe. Recarrega a página.',
   nada_a_mudar: 'Não havia nada para gravar.',
   repetido: 'Isso já existe.',
+  ultimo_admin: 'É o último admin: não se tira.',
+  grande: 'O pedido é demasiado grande.',
   rede: 'Sem ligação à internet. Tenta outra vez.',
   interno: 'Algo correu mal do nosso lado. Tenta outra vez.',
 };

@@ -25,14 +25,16 @@ export const exigirPessoa: MiddlewareHandler<Ambiente> = async (c, next) => {
   const testemunho = cabecalho.startsWith('Bearer ') ? cabecalho.slice(7).trim() : '';
   if (!/^[A-Za-z0-9_-]{43}$/.test(testemunho)) recusar(401, 'sessao');
   const linha = await c.env.DB.prepare(
-    `SELECT s.id AS sessao, s.vista_em, e.id, e.nome, e.papel, e.loja_id, e.parceiro_id
-     FROM sessoes_da_equipa s JOIN equipa e ON e.id = s.pessoa_id
+    `SELECT s.id AS sessao, s.vista_em, e.id, e.nome, e.papel, e.loja_id, e.parceiro_id, pa.activo AS parceiro_activo
+     FROM sessoes_da_equipa s JOIN equipa e ON e.id = s.pessoa_id LEFT JOIN parceiros pa ON pa.id = e.parceiro_id
      WHERE s.resumo = ? AND s.revogada_em IS NULL AND s.expira_em > unixepoch()
        AND e.removido_em IS NULL AND e.activo = 1`,
   )
     .bind(blob(await sha256(testemunho)))
-    .first<LinhaPessoa & { sessao: number; vista_em: number }>();
+    .first<LinhaPessoa & { sessao: number; vista_em: number; parceiro_activo: number | null }>();
   if (!linha) recusar(401, 'sessao');
+  // A pessoa de um parceiro desligado no backoffice não valida nada até ele voltar.
+  if (linha.papel === 'parceiro' && linha.parceiro_activo === 0) recusar(403, 'parceiro_desligado');
   if (linha.vista_em < agora() - 3600)
     c.executionCtx.waitUntil(
       c.env.DB.prepare(
@@ -48,6 +50,7 @@ export const exigirPessoa: MiddlewareHandler<Ambiente> = async (c, next) => {
     lojaId: linha.loja_id,
     parceiroId: linha.parceiro_id,
     sessao: linha.sessao,
+    demo: linha.id === Number((c.env as { REVISAO_PESSOA?: string }).REVISAO_PESSOA),
   });
   await next();
 };
@@ -78,11 +81,13 @@ async function abrirSessao(c: C, pessoaId: number) {
 async function pessoaDoEmail(c: C, email: string | null): Promise<number> {
   if (!email) recusar(403, 'sem_acesso');
   const p = await c.env.DB.prepare(
-    'SELECT id FROM equipa WHERE email = ? AND removido_em IS NULL AND activo = 1',
+    `SELECT e.id, pa.activo AS parceiro_activo FROM equipa e LEFT JOIN parceiros pa ON pa.id = e.parceiro_id
+     WHERE e.email = ? AND e.removido_em IS NULL AND e.activo = 1`,
   )
     .bind(email)
-    .first<{ id: number }>();
+    .first<{ id: number; parceiro_activo: number | null }>();
   if (!p) recusar(403, 'sem_acesso');
+  if (p.parceiro_activo === 0) recusar(403, 'parceiro_desligado');
   return p.id;
 }
 
@@ -132,13 +137,13 @@ rotasDeEntradaDaBalcao.post('/entrar/apple', async (c) => {
   await travar(c);
   const { token, nonce } = await corpo(
     c,
-    z.object({ token: z.string().min(20).max(8192), nonce: z.string().min(8).max(128).nullish() }),
+    z.object({ token: z.string().min(20).max(8192), nonce: z.string().min(8).max(128) }),
   );
   const clientes = c.env.APPLE_CLIENTES.split(',')
     .map((s: string) => s.trim())
     .filter(Boolean);
   if (clientes.length === 0) recusar(400, 'apple_desligado');
-  const id = await conferirTokenDaApple(token, clientes, nonce ?? null);
+  const id = await conferirTokenDaApple(token, clientes, nonce);
   if (!id) recusar(401, 'apple_invalido');
   // Sem o email partilhado (ou um de retransmissão), a Apple não diz quem é: a app
   // pede para entrar outra vez e escolher «Partilhar o meu email», ou usar o Google.

@@ -215,7 +215,8 @@ NOMES.forEach((nome, i) => {
       tipo: 'google',
       sujeito: `exemplo-google-${id}`,
       email,
-      dona: 1,
+      // Nunca «dona»: um Gmail inventado podia ser de uma pessoa real, que cairia nesta conta ao entrar.
+      dona: 0,
     });
   else if (entrada < 0.8)
     identidades.push({

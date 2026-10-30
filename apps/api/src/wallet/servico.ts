@@ -205,17 +205,22 @@ export async function rodarPasse(c: C, clienteId: number) {
     db.prepare('DELETE FROM registos_apple WHERE serie = ?').bind(passe.serie),
     db
       .prepare(
-        'UPDATE passes SET serie = ?, actualizado_em = unixepoch(), google_em = NULL WHERE cliente_id = ?',
+        'UPDATE passes SET serie = ?, actualizado_em = max(unixepoch(), actualizado_em + 1), google_em = NULL WHERE cliente_id = ?',
       )
       .bind(serie, clienteId),
   ]);
-  if (passe.google_em && googleLigada(c.env))
-    c.executionCtx.waitUntil(
-      (async () => {
-        const token = await tokenDaGoogle(contaDaGoogle(c.env));
-        await desactivarObjeto(token, `${c.env.GOOGLE_WALLET_EMISSOR}.nl-${passe.serie}`);
-      })().catch((e) => console.error('google', e)),
-    );
+  if (passe.google_em) desactivarPasseDaGoogle(c, passe.serie);
+}
+
+/** O objecto da Google de uma série que já não serve fica inactivo (em waitUntil). */
+export function desactivarPasseDaGoogle(c: C, serie: string) {
+  if (!googleLigada(c.env)) return;
+  c.executionCtx.waitUntil(
+    (async () => {
+      const token = await tokenDaGoogle(contaDaGoogle(c.env));
+      await desactivarObjeto(token, `${c.env.GOOGLE_WALLET_EMISSOR}.nl-${serie}`);
+    })().catch((e) => console.error('google', e)),
+  );
 }
 
 /**
@@ -233,8 +238,11 @@ export function tocarPasse(c: C, clienteId: number) {
         .bind(clienteId)
         .first<{ serie: string }>();
       if (!passe) return;
+      // Sempre a avançar: duas mudanças no mesmo segundo davam a mesma etiqueta, e a 2.ª não chegava à Wallet.
       await db
-        .prepare('UPDATE passes SET actualizado_em = unixepoch() WHERE cliente_id = ?')
+        .prepare(
+          'UPDATE passes SET actualizado_em = max(unixepoch(), actualizado_em + 1) WHERE cliente_id = ?',
+        )
         .bind(clienteId)
         .run();
       await Promise.allSettled([avisarApple(c.env, passe.serie), avisarGoogle(c.env, clienteId)]);
@@ -249,7 +257,7 @@ export function tocarPasse(c: C, clienteId: number) {
  */
 export async function refrescarPasses(env: Env) {
   const db = env.DB;
-  await db.prepare('UPDATE passes SET actualizado_em = unixepoch()').run();
+  await db.prepare('UPDATE passes SET actualizado_em = max(unixepoch(), actualizado_em + 1)').run();
   const series = (
     await db.prepare('SELECT DISTINCT serie FROM registos_apple').all<{ serie: string }>()
   ).results;
@@ -282,13 +290,17 @@ export function refrescarSePreciso(env: Env, esperar: (p: Promise<unknown>) => v
         .prepare("SELECT valor FROM definicoes WHERE chave = 'passe_versao'")
         .first<{ valor: string }>();
       if (guardada?.valor === VERSAO_DO_PASSE) return;
-      const feito = await refrescarPasses(env);
-      await db
+      // A versão grava-se ANTES de refazer, e só uma instância a consegue mudar:
+      // as outras lêem-na já nova e saem; e uma tarefa cortada a meio não volta
+      // a correr em cada instância que acorda.
+      const ganhou = await db
         .prepare(
-          "INSERT INTO definicoes (chave, valor) VALUES ('passe_versao', ?) ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor",
+          "INSERT INTO definicoes (chave, valor) VALUES ('passe_versao', ?1) ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor WHERE valor != ?1",
         )
         .bind(VERSAO_DO_PASSE)
         .run();
+      if (!ganhou.meta.changes) return;
+      const feito = await refrescarPasses(env);
       console.log('passes refeitos', VERSAO_DO_PASSE, JSON.stringify(feito));
     })().catch((e) => console.error('passes', e)),
   );

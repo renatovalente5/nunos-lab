@@ -49,7 +49,17 @@ export async function pessoaDeRevisao(c: C): Promise<number> {
 export const rotasDaRevisao = new Hono<Ambiente>();
 
 /** A página com o QR do cliente de demonstração (em inglês: é para os revisores). */
+const escapar = (s: string) =>
+  s.replace(
+    /[&<>"']/g,
+    (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!,
+  );
+
 rotasDaRevisao.get('/', async (c) => {
+  // O mesmo travão das portas de entrar: o código não se adivinha à força.
+  const ip = c.req.header('CF-Connecting-IP') ?? 'local';
+  if (!(await c.env.TRAVAO.limit({ key: `entrar:${ip}` }))?.success)
+    recusar(429, 'muitas_tentativas');
   if (!(await codigoDeRevisaoValido(c, c.req.query('codigo') ?? ''))) recusar(404, 'nao_existe');
   const cl = await clienteDeRevisao(c);
   const svg = renderSVG(textoDoQr(cl.codigo), {
@@ -64,5 +74,5 @@ rotasDaRevisao.get('/', async (c) => {
 main{padding:32px 20px;max-width:420px}svg{width:min(80vw,320px);height:auto;border-radius:16px;background:#fff;padding:12px;box-sizing:border-box}
 h1{font-size:20px;margin:0 0 16px}code{font-size:28px;letter-spacing:.12em;font-weight:700}p{color:#b7b2a8;margin:16px 0 0}</style></head>
 <body><main><h1>Nuno's Lab · demo client card</h1>${svg}<div style="margin-top:16px"><code>${codigoCurto(cl.codigo)}</code></div>
-<p>${cl.nome}. In the <b>Nuno's Lab for partners</b> app, sign in with the demo code, tap “Ler o cartão” and scan this QR, or type the code in “Ou escreve o código”.</p></main></body></html>`);
+<p>${escapar(cl.nome)}. In the <b>Nuno's Lab for partners</b> app, sign in with the demo code, tap “Ler o cartão” and scan this QR, or type the code in “Ou escreve o código”.</p></main></body></html>`);
 });

@@ -65,7 +65,9 @@ export function App() {
       history.replaceState(null, '', `${location.pathname}${location.search}#/`);
       setEntrada({ estado: 'a-entrar' });
       pedir<{ sessao: string }>('/api/bo/entrar', { metodo: 'POST', corpo: { acesso: codigo } })
-        .then(({ sessao: s }) => {
+        .then(async ({ sessao: s }) => {
+          // Com uma sessão já aberta neste aparelho, fecha-se essa antes de ficar a nova.
+          if (sessao()) await pedir('/api/bo/sair', { metodo: 'POST' }).catch(() => {});
           guardarSessao(s);
           setEntrada({ estado: 'parado' });
           window.dispatchEvent(new HashChangeEvent('hashchange'));
@@ -178,24 +180,26 @@ function Casca() {
             </a>
           ))}
         </nav>
-        {eu.data && (
-          <div className="rodape-lateral">
-            Entraste como <strong>{eu.data.nome}</strong>
-            <button
-              type="button"
-              className="sair"
-              onClick={async () => {
-                try {
-                  await pedir('/api/bo/sair', { metodo: 'POST' });
-                } finally {
-                  guardarSessao(null);
-                }
-              }}
-            >
-              <Icone nome="sair" tamanho={16} /> Sair
-            </button>
-          </div>
-        )}
+        <div className="rodape-lateral">
+          {eu.data && (
+            <>
+              Entraste como <strong>{eu.data.nome}</strong>
+            </>
+          )}
+          <button
+            type="button"
+            className="sair"
+            onClick={async () => {
+              try {
+                await pedir('/api/bo/sair', { metodo: 'POST' });
+              } finally {
+                guardarSessao(null);
+              }
+            }}
+          >
+            <Icone nome="sair" tamanho={16} /> Sair
+          </button>
+        </div>
       </aside>
       <main className="principal" ref={principal}>
         <div className="conteudo">{pagina}</div>

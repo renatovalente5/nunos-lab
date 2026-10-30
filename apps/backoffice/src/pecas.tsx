@@ -405,14 +405,20 @@ export function Folha({
   titulo,
   children,
   pe,
+  sujo = false,
 }: {
   aberta: boolean;
   fechar: () => void;
   titulo: string;
   children: ReactNode;
   pe?: ReactNode;
+  /** Há alterações por guardar: fechar pergunta primeiro. */
+  sujo?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const fecharSePuder = () => {
+    if (!sujo || window.confirm('Há alterações por guardar. Fechar sem guardar?')) fechar();
+  };
   // Fecha com um clique FORA, e só se o clique também começou fora: seleccionar
   // texto num campo e largar o rato fora da folha não a fecha.
   const comecouFora = useRef(false);
@@ -429,13 +435,13 @@ export function Folha({
       aria-labelledby="titulo-da-folha"
       onCancel={(e) => {
         e.preventDefault();
-        fechar();
+        fecharSePuder();
       }}
       onPointerDown={(e) => {
         comecouFora.current = e.target === ref.current;
       }}
       onClick={(e) => {
-        if (e.target === ref.current && comecouFora.current) fechar();
+        if (e.target === ref.current && comecouFora.current) fecharSePuder();
         comecouFora.current = false;
       }}
     >
@@ -447,7 +453,7 @@ export function Folha({
               type="button"
               className="botao secundario icone"
               aria-label="Fechar"
-              onClick={fechar}
+              onClick={fecharSePuder}
             >
               <Icone nome="fechar" />
             </button>
@@ -618,18 +624,20 @@ export function CampoDeImagem({
   mudar,
   modo,
   ajuda,
+  erro,
 }: {
   rotulo: string;
   valor: string | null;
   mudar: (id: string | null) => void;
   modo: 'logotipo' | 'capa';
   ajuda: string;
+  erro?: boolean;
 }) {
   const entrada = useRef<HTMLInputElement>(null);
   const avisar = useAvisar();
   const [aCarregar, setACarregar] = useState(false);
   return (
-    <div className="campo">
+    <div className={`campo${erro ? ' erro' : ''}`}>
       <span className="rotulo-campo">{rotulo}</span>
       <div className="imagem-campo">
         <div className={`previa${modo === 'capa' ? ' capa' : ''}`}>
@@ -670,7 +678,11 @@ export function CampoDeImagem({
           }}
         />
       </div>
-      <div className="ajuda">{ajuda}</div>
+      {erro ? (
+        <div className="mensagem-erro">Revê este campo.</div>
+      ) : (
+        <div className="ajuda">{ajuda}</div>
+      )}
     </div>
   );
 }

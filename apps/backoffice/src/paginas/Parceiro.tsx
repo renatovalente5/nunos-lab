@@ -170,6 +170,13 @@ export function Parceiro({ id }: { id: string }) {
         avisar('Guardado');
       }
     } catch (e) {
+      // Uma imagem escolhida há dias já saiu da base: volta-se a escolher só ela.
+      if (e instanceof ErroDaApi && e.codigo === 'referencia' && (f.logotipo || f.capa)) {
+        setF((x) => (x ? { ...x, logotipo: null, capa: null } : x));
+        setErros([f.logotipo && 'logotipo', f.capa && 'capa'].filter(Boolean) as string[]);
+        avisar('A imagem caducou: volta a escolhê-la.', true);
+        return;
+      }
       if (e instanceof ErroDaApi && e.campos.length) setErros(e.campos);
       avisar(mensagemDe(e), true);
     }
@@ -296,6 +303,7 @@ export function Parceiro({ id }: { id: string }) {
                 mudar={mudar('logotipo')}
                 modo="logotipo"
                 ajuda="Aparece num círculo branco."
+                erro={erros.includes('logotipo')}
               />
               <CampoDeImagem
                 rotulo="Fotografia de capa"
@@ -303,6 +311,7 @@ export function Parceiro({ id }: { id: string }) {
                 mudar={mudar('capa')}
                 modo="capa"
                 ajuda="Na horizontal. Sem capa, usa a cor."
+                erro={erros.includes('capa')}
               />
             </div>
           </div>
@@ -438,7 +447,7 @@ export function Parceiro({ id }: { id: string }) {
                   if (
                     await confirmar(
                       `Apagar ${f.nome}?`,
-                      `O parceiro e ${promocoes.length === 1 ? 'a promoção dele saem' : `as ${promocoes.length} promoções dele saem`} da app e do backoffice. Não se desfaz. Para tirar só por uns tempos, desliga «Mostrar na app».`,
+                      `O parceiro, ${promocoes.length === 1 ? 'a promoção' : `as ${promocoes.length} promoções`}, as pessoas da equipa ligadas a ele, as validações e os cupões saem. Não se desfaz. Para tirar só por uns tempos, desliga «Mostrar na app».`,
                       'Apagar',
                     )
                   )

@@ -11,6 +11,8 @@ export type ClienteDaSessao = {
   /** Quando a sessão abriu: é a «prova recente» para mexer na conta. */
   criadaEm: number;
   identidadeId: number | null;
+  /** A sessão de demonstração (a porta da revisão das lojas): não mexe na conta. */
+  demo: boolean;
 };
 
 /** A pessoa da equipa neste pedido (/api/balcao). */
@@ -21,6 +23,8 @@ export type PessoaDaSessao = {
   lojaId: number | null;
   parceiroId: number | null;
   sessao: number;
+  /** A pessoa de demonstração (a porta da revisão das lojas): só vê clientes de exemplo. */
+  demo: boolean;
 };
 
 export type Ambiente = {
