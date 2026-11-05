@@ -1,25 +1,25 @@
 import type { TabTriggerSlotProps } from 'expo-router/ui';
 import { Children, type ComponentRef, type ReactNode, type Ref } from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AFASTAMENTO_DA_BARRA, ALTURA_DA_BARRA, cor } from './tema';
+import { AFASTAMENTO_DA_BARRA, ALTURA_DA_BARRA, cor, letra } from './tema';
 import { Icone, type NomeDoIcone } from './icone';
 
 /**
- * A barra de baixo, à imagem da do iPhone (iOS 26): uma cápsula a flutuar ao
- * fundo, ao meio, de largura FIXA — não estica com a janela — e só com os
- * desenhos; o nome fica para o leitor de ecrã. O separador actual é uma
- * pastilha clara, a cor do logótipo, com o desenho a preto.
+ * A barra de baixo: uma cápsula fina, rente ao fundo, ao meio, de largura FIXA
+ * — não estica com a janela — com o desenho e o nome por baixo, como as barras
+ * das apps do iPhone. O separador actual é uma pastilha clara, a cor do
+ * logótipo, com o desenho e o nome a preto.
  *
- * As medidas seguem as da barra do iPhone: a pastilha é mais larga do que o
- * passo entre separadores e passa um pouco por cima dos vizinhos. A 1.ª versão
- * (pastilhas com o nome ao lado, esticadas) media 410 num ecrã de 393: saía
- * pelos dois lados («o menu está gigante», 29 out 2026).
+ * A pastilha é mais larga do que o passo entre separadores e passa um pouco por
+ * cima dos vizinhos. A 1.ª versão (pastilhas com o nome ao lado, esticadas)
+ * media 410 num ecrã de 393: saía pelos dois lados («o menu está gigante»,
+ * 29 out 2026); a 2.ª, só com desenhos e a flutuar alto, era «grossa» (5 nov).
  */
 const FIO = 1;
-const ALTURA_DA_PASTILHA = 52;
-const LARGURA_DA_PASTILHA = 92;
-const PASSO = 84;
+const ALTURA_DA_PASTILHA = 46;
+const LARGURA_DA_PASTILHA = 96;
+const PASSO = 88;
 /** Do fio da cápsula à pastilha, em cima e em baixo. */
 const FOLGA = (ALTURA_DA_BARRA - 2 * FIO - ALTURA_DA_PASTILHA) / 2;
 /** Quanto a pastilha passa do seu passo, para cada lado. */
@@ -123,10 +123,23 @@ export function BotaoDoSeparador({
     >
       <Icone
         nome={icone}
-        tamanho={26}
+        tamanho={22}
         cor={actual ? cor.sobreClaro : cor.texto2}
-        espessura={actual ? 2.2 : 1.8}
+        espessura={actual ? 2.3 : 2}
       />
+      <Text
+        numberOfLines={1}
+        style={{
+          marginTop: 1,
+          fontFamily: actual ? letra.forte : letra.semi,
+          fontSize: 10.5,
+          lineHeight: 13,
+          letterSpacing: -0.1,
+          color: actual ? cor.sobreClaro : cor.texto2,
+        }}
+      >
+        {nome}
+      </Text>
     </Pressable>
   );
 }

@@ -39,5 +39,5 @@ export const CONTINUO: ViewStyle = { borderCurve: 'continuous' };
 export const LARGURA_MAXIMA = 560;
 export const MARGEM = 20;
 /** A cápsula da barra de baixo, sem a zona segura, e a distância dela ao fundo. */
-export const ALTURA_DA_BARRA = 62;
-export const AFASTAMENTO_DA_BARRA = 16;
+export const ALTURA_DA_BARRA = 56;
+export const AFASTAMENTO_DA_BARRA = 6;
