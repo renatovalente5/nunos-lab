@@ -6,7 +6,7 @@ import {
 } from '@nunos-lab/dominio';
 import { Link } from 'expo-router';
 import { useEffect } from 'react';
-import { Image, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { abrir, contar, definirTitulo, useDados } from '../../dados';
 import {
   Botao,
@@ -23,8 +23,6 @@ import {
   cor,
   raio,
 } from '@nunos-lab/ui';
-const palavra = require('../../../assets/marca/palavra.png');
-const lema = require('../../../assets/marca/lema.png');
 
 export default function Barbearia() {
   const { data, isPending, isError, refetch } = useDados();
@@ -33,21 +31,10 @@ export default function Barbearia() {
 
   return (
     <Ecra>
-      <View style={{ paddingHorizontal: MARGEM, paddingTop: 10, gap: 16 }}>
-        <Image
-          source={palavra}
-          style={{ width: 260, height: Math.round((260 * 227) / 1200) }}
-          resizeMode="contain"
-          accessibilityLabel="Nuno's Lab"
-          role="img"
-        />
-        <Image
-          source={lema}
-          style={{ width: 230, height: Math.round((230 * 46) / 900), opacity: 0.6 }}
-          resizeMode="contain"
-          accessibilityLabel="Cut, ink, coffee, style"
-          role="img"
-        />
+      <View style={{ paddingHorizontal: MARGEM, paddingTop: 10 }}>
+        <T v="titulo" role="heading" aria-level={1}>
+          Barbearia
+        </T>
       </View>
 
       {!data && isPending && <Esqueleto />}
@@ -55,8 +42,7 @@ export default function Barbearia() {
 
       {b && b.lojas.length > 0 && (
         <>
-          <Rotulo>Marcar</Rotulo>
-          <View style={{ gap: 12 }}>
+          <View style={{ gap: 12, marginTop: 20 }}>
             {b.lojas.map((l) => (
               <View
                 key={l.id}
