@@ -244,7 +244,8 @@ export async function abrirNaCarteira(qual: 'apple' | 'google'): Promise<void> {
 
 /** A morada a que a Apple devolve a entrada: a raiz desta app, nesta origem. */
 export function moradaDeRetornoDaApple(): string {
-  if (typeof window === 'undefined') return '';
+  // No telemóvel há «window» mas não há «window.location»: o botão nativo não precisa de morada.
+  if (Platform.OS !== 'web' || typeof location === 'undefined') return '';
   const base = (process.env.EXPO_BASE_URL ?? '').replace(/\/$/, '');
   return `${window.location.origin}${base}/`;
 }
