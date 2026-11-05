@@ -2,6 +2,7 @@ import { ligacaoDoInstagram, ligacaoDoTelefone } from '@nunos-lab/dominio';
 import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
+import { MapaDasCasas } from '../../componentes/mapa-das-casas';
 import { EscolherMapa, type DestinoNoMapa } from '../../componentes/mapas';
 import { abrir, contar, definirTitulo, useDados } from '../../dados';
 import {
@@ -39,7 +40,15 @@ export default function Barbearia() {
 
       {b && b.lojas.length > 0 && (
         <>
-          <View style={{ gap: 12, marginTop: 20 }}>
+          <View style={{ marginTop: 18 }}>
+            <MapaDasCasas
+              lojas={b.lojas}
+              aoTocar={(l) =>
+                setDestino({ nome: l.nome, morada: l.morada, procurar: "Nuno's Lab" })
+              }
+            />
+          </View>
+          <View style={{ gap: 12, marginTop: 16 }}>
             {b.lojas.map((l) => (
               <View
                 key={l.id}

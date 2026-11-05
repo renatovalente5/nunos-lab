@@ -14,6 +14,9 @@ export type Loja = {
   /** A ligação de marcação (Fresha, WhatsApp…). */
   marcar: string;
   ordem: number;
+  /** Onde fica, para o mapa e o passe da Wallet; null enquanto o backoffice não souber. */
+  lat: number | null;
+  lng: number | null;
 };
 
 export type PromocaoPublica = {

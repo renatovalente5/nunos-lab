@@ -51,7 +51,10 @@
     // código em si é segredo (REVISAO_CODIGO, em ~/Chaves/nunos-lab/).
     "REVISAO_CLIENTE": "JMP7ZT8A",
     "REVISAO_PESSOA": "905",
+    // O mapa das casas (Apple Maps Web Snapshots): o id da chave MapKit «Nunos Lab
+    // mapas» da conta do Renato (a chave é segredo, MAPKIT_CHAVE, em ~/Chaves/nunos-lab/).
+    "MAPKIT_KID": "N4V99P8Y3W",
   },
   // Os segredos (wrangler secret put): APPLE_CERTIFICADO, APPLE_CHAVE, APPLE_CADEIA,
-  // APNS_CHAVE, WALLET_SEGREDO, GOOGLE_WALLET_CONTA, REVISAO_CODIGO.
+  // APNS_CHAVE, WALLET_SEGREDO, GOOGLE_WALLET_CONTA, REVISAO_CODIGO, MAPKIT_CHAVE.
 }

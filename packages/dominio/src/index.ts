@@ -13,3 +13,4 @@ export * from './cartao.ts';
 export * from './fidelidade.ts';
 export * from './vales.ts';
 export * from './tipos.ts';
+export * from './mapa.ts';

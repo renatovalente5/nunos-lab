@@ -64,6 +64,8 @@ export type LinhaLoja = {
   telefone: string;
   marcar: string;
   ordem: number;
+  lat: number | null;
+  lng: number | null;
 };
 
 export function categoria(l: LinhaCategoria): Categoria {
@@ -79,6 +81,8 @@ export function loja(l: LinhaLoja): Loja {
     telefone: l.telefone,
     marcar: l.marcar,
     ordem: l.ordem,
+    lat: l.lat,
+    lng: l.lng,
   };
 }
 
