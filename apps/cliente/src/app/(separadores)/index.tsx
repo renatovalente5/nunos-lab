@@ -79,6 +79,8 @@ export default function Vantagens() {
   const lista = (data?.parceiros ?? []).filter(
     (p) => daCasa(p) && (escolhida === null || p.categoriaId === escolhida),
   );
+  // Sem parceiros nenhuns, o filtro das casas não tem nada para filtrar.
+  const haParceiros = (data?.parceiros.length ?? 0) > 0;
   const escolherCasa = (id: number | null) => {
     setCasa(id);
     guardarCasa(id);
@@ -162,7 +164,7 @@ export default function Vantagens() {
       {data && (
         <>
           <Rotulo>Parceiros</Rotulo>
-          {lojas.length > 1 && (
+          {haParceiros && lojas.length > 1 && (
             <View style={{ paddingHorizontal: MARGEM, marginBottom: 12, flexDirection: 'row' }}>
               <Pressable
                 onPress={() => setAEscolherCasa(true)}
