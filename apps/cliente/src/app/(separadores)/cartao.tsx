@@ -33,7 +33,6 @@ import {
   T,
   cor,
   raio,
-  EntradaDeDemonstracao,
 } from '@nunos-lab/ui';
 
 // Array.from: um emoji não se parte a meio.
@@ -409,7 +408,7 @@ function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
 
 /** Sem conta: um toque na Apple ou no Google e o cartão nasce. */
 function Entrar() {
-  const { entrarComGoogle, entrarComApple, entrarComDemonstracao } = useConta();
+  const { entrarComGoogle, entrarComApple } = useConta();
   const [erro, setErro] = useState<string | null>(null);
   const [aEntrar, setAEntrar] = useState(false);
   const correr = async (f: () => Promise<void>) => {
@@ -441,15 +440,6 @@ function Entrar() {
           aoEntrar={(c) => correr(() => entrarComGoogle(c))}
         />
       ) : null}
-      <EntradaDeDemonstracao
-        aoEnviar={async (codigo) => {
-          try {
-            await entrarComDemonstracao(codigo);
-          } catch (e) {
-            throw new Error(mensagemDe(e));
-          }
-        }}
-      />
       {aEntrar && (
         <T v="legenda" style={{ color: cor.texto2 }}>
           A entrar…

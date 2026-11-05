@@ -195,10 +195,6 @@ export function useConta() {
       ),
     entrarComApple: (dados: { token: string; nonce: string; nome: string | null }) =>
       pedir<{ sessao: string }>('/entrar/apple', { metodo: 'POST', corpo: dados }).then(entrou),
-    entrarComDemonstracao: (codigo: string) =>
-      pedir<{ sessao: string }>('/entrar/demonstracao', { metodo: 'POST', corpo: { codigo } }).then(
-        entrou,
-      ),
     perfil: (p: { nome?: string; aniversario?: string | null; lojaId?: number | null }) =>
       pedir<ClienteEu>('/perfil', { metodo: 'PATCH', corpo: p }).then(actualizar),
     juntarGoogle: (credencial: string) =>
