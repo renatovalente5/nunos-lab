@@ -4,7 +4,7 @@
     "slug": "nunos-lab-balcao",
     "owner": "renatovalente5",
     "scheme": "nunoslab-balcao",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "runtimeVersion": {
       "policy": "fingerprint"
     },
