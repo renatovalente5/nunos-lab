@@ -1,12 +1,8 @@
-import {
-  ligacaoDoInstagram,
-  ligacaoDoMapa,
-  ligacaoDoTelefone,
-  semPartir,
-} from '@nunos-lab/dominio';
+import { ligacaoDoInstagram, ligacaoDoTelefone } from '@nunos-lab/dominio';
 import { Link } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
+import { EscolherMapa, type DestinoNoMapa } from '../../componentes/mapas';
 import { abrir, contar, definirTitulo, useDados } from '../../dados';
 import {
   Botao,
@@ -28,6 +24,7 @@ export default function Barbearia() {
   const { data, isPending, isError, refetch } = useDados();
   useEffect(() => definirTitulo("Nuno's Lab · Barbearia"), []);
   const b = data?.barbearia;
+  const [destino, setDestino] = useState<DestinoNoMapa | null>(null);
 
   return (
     <Ecra>
@@ -56,11 +53,6 @@ export default function Barbearia() {
                 }}
               >
                 <T v="subtitulo">{l.nome}</T>
-                {!!l.morada && (
-                  <T v="corpo" style={{ color: cor.texto2 }}>
-                    {semPartir(l.morada)}
-                  </T>
-                )}
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
                   {!!l.marcar && (
                     <Botao
@@ -79,7 +71,9 @@ export default function Barbearia() {
                       icone="mapa"
                       secundario
                       rotulo={`Ir a ${l.nome}`}
-                      onPress={() => abrir(ligacaoDoMapa(l.morada, "Nuno's Lab"))}
+                      onPress={() =>
+                        setDestino({ nome: l.nome, morada: l.morada, procurar: "Nuno's Lab" })
+                      }
                     />
                   )}
                   {!!l.telefone && (
@@ -139,6 +133,8 @@ export default function Barbearia() {
           </Grupo>
         </>
       )}
+
+      <EscolherMapa destino={destino} fechar={() => setDestino(null)} />
 
       <View style={{ alignItems: 'center', marginTop: 34 }}>
         <Link href="/privacidade" style={{ padding: 12 }}>

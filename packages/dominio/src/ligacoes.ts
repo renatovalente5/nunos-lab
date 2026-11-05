@@ -62,10 +62,20 @@ export function ligacaoDoTelefone(telefone: string): string {
   return `tel:${telefone.replace(/[^\d+]/g, '')}`;
 }
 
-/** A morada no mapa (abre a app de mapas no telemóvel). */
-export function ligacaoDoMapa(morada: string, nome = ''): string {
-  const q = [nome, morada].filter(Boolean).join(', ');
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+/**
+ * A morada nas apps de mapas, para quem a abre escolher. Os endereços https abrem
+ * a app no telemóvel quando está instalada, e o mapa no browser quando não está.
+ */
+export function ligacoesDosMapas(
+  morada: string,
+  nome = '',
+): Record<'apple' | 'google' | 'waze', string> {
+  const q = encodeURIComponent([nome, morada].filter(Boolean).join(', '));
+  return {
+    apple: `https://maps.apple.com/?q=${q}`,
+    google: `https://www.google.com/maps/search/?api=1&query=${q}`,
+    waze: `https://waze.com/ul?q=${q}`,
+  };
 }
 
 /** Ligações que o backoffice deixa pôr (marcações, WhatsApp, TikTok): só https. */

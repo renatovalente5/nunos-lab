@@ -3,17 +3,17 @@ import {
   diaEmLisboa,
   inicioDoPeriodo,
   ligacaoDoInstagram,
-  ligacaoDoMapa,
   ligacaoDoTelefone,
   semPartir,
 } from '@nunos-lab/dominio';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, Pressable, View, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Capa } from '../../componentes/capa';
 import { CartaoDaPromocao, categoriaELocal, iconeDe } from '../../componentes/cartoes';
 import { Logotipo } from '../../componentes/logotipo';
+import { EscolherMapa } from '../../componentes/mapas';
 import { useEu, useTemSessao } from '../../conta';
 import { abrir, contar, definirTitulo, ligacaoParaPartilhar, useDados } from '../../dados';
 import {
@@ -76,6 +76,7 @@ export default function PaginaDoParceiro() {
   // Depois de um 401 a sessão vai-se, mas a consulta ainda tem o «eu» da conta que saiu.
   const eu = temSessao ? euGuardado : undefined;
   const margens = useSafeAreaInsets();
+  const [aEscolherMapa, setAEscolherMapa] = useState(false);
   const parceiro = data?.parceiros.find((p) => String(p.id) === id);
   // A lista guardada no aparelho pode ser de antes deste parceiro (uma ligação
   // partilhada de um parceiro novo): só se diz que não está depois de a rede responder.
@@ -134,7 +135,8 @@ export default function PaginaDoParceiro() {
       nome: 'Ir',
       rotulo: `Ir a ${p.nome}`,
       tipo: 'mapa' as const,
-      url: ligacaoDoMapa(p.morada, p.exemplo ? '' : p.nome),
+      // O «Ir» abre a folha para escolher o mapa: a contagem fica para quando se escolhe.
+      url: '',
     },
     p.telefone && {
       icone: 'ligar' as const,
@@ -207,6 +209,7 @@ export default function PaginaDoParceiro() {
               nome={a.nome}
               rotulo={a.rotulo}
               onPress={() => {
+                if (a.tipo === 'mapa') return setAEscolherMapa(true);
                 contar(a.tipo, p.id);
                 abrir(a.url);
               }}
@@ -280,10 +283,7 @@ export default function PaginaDoParceiro() {
           {!!p.horario && !!p.morada && <Separador recuo={50} />}
           {!!p.morada && (
             <Pressable
-              onPress={() => {
-                contar('mapa', p.id);
-                abrir(ligacaoDoMapa(p.morada, p.exemplo ? '' : p.nome));
-              }}
+              onPress={() => setAEscolherMapa(true)}
               role="link"
               aria-label={`Morada: ${p.morada}. Abrir no mapa.`}
               style={({ pressed }) => ({
@@ -303,6 +303,16 @@ export default function PaginaDoParceiro() {
           )}
         </Grupo>
       )}
+
+      <EscolherMapa
+        destino={
+          aEscolherMapa && p.morada
+            ? { nome: p.nome, morada: p.morada, procurar: p.exemplo ? '' : p.nome }
+            : null
+        }
+        fechar={() => setAEscolherMapa(false)}
+        aoEscolher={() => contar('mapa', p.id)}
+      />
     </Ecra>
   );
 }
