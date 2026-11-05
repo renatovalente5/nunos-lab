@@ -77,6 +77,11 @@ for (const f of ['manifest.webmanifest', 'apple-touch-icon.png', 'icone-192.png'
     throw new Error(`Falta ${f} no index ou no site`);
 if (!html.includes(`src="${BASE}/_expo/static/js/web/`))
   throw new Error('Os scripts do Expo não levam a base');
+// A faixa da App Store no Safari do iPhone: o número é o da app na loja.
+const naLoja = (app) =>
+  JSON.parse(readFileSync(join(raiz, `apps/${app}/eas.json`), 'utf8')).submit.producao.ios.ascAppId;
+if (!html.includes(`<meta name="apple-itunes-app" content="app-id=${naLoja('cliente')}"`))
+  throw new Error('A app saiu sem a faixa da App Store');
 writeFileSync(join(site, 'index.html'), html);
 // O 404.html da raiz é a app do cliente; as moradas da Balcão que não têm index
 // (a ficha, o vale) vão para a Balcão com o caminho em «?p=», e ela abre-o.
@@ -103,6 +108,8 @@ for (const f of ['manifest.webmanifest', 'apple-touch-icon.png', 'icone-192.png'
   balcao = balcao.replaceAll(`href="/${f}"`, `href="${BALCAO}/${f}"`);
 if (!balcao.includes(`src="${BALCAO}/_expo/static/js/web/`))
   throw new Error('Os scripts da Balcão não levam a base');
+if (!balcao.includes(`<meta name="apple-itunes-app" content="app-id=${naLoja('balcao')}"`))
+  throw new Error('A Balcão saiu sem a faixa da App Store');
 writeFileSync(join(site, 'balcao/index.html'), balcao);
 for (const rota of ['ler', 'novo', 'clientes', 'resumo', 'conta']) {
   mkdirSync(join(site, 'balcao', rota), { recursive: true });
