@@ -1,6 +1,6 @@
 import { enquadrar, projectar, semPartir, type Loja } from '@nunos-lab/dominio';
 import { CONTINUO, LARGURA_MAXIMA, MARGEM, T, cor, raio } from '@nunos-lab/ui';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, PixelRatio, Pressable, View, useWindowDimensions } from 'react-native';
 import { API, abrir, contar, useDados } from '../dados';
 // O «n» já em preto: pintar o branco com tintColor não funciona na web.
@@ -19,15 +19,35 @@ const SETA = 8;
 const FOLGA = 8;
 const FUNDO_DO_BALAO = '#1C1C1C';
 
+/**
+ * Um lado do mapa em degraus de 16 px, entre 112 e 640: a API guarda uma imagem
+ * por tamanho (e arredonda da mesma forma), por isso arrastar a janela no
+ * computador deixa de pedir uma imagem por píxel. Para baixo, para o mapa
+ * nunca sair da coluna.
+ */
+function degrau(px: number): number {
+  return Math.min(640, Math.max(112, Math.floor(px / 16) * 16));
+}
+
 /** O tamanho do mapa para esta janela e a morada da imagem: a mesma conta no mapa e no pré-carregamento. */
 function medidasDoMapa(lojas: Loja[], larguraDaJanela: number) {
   const comSitio = lojas.filter((l) => l.lat !== null && l.lng !== null);
-  const w = Math.min(Math.round(Math.min(larguraDaJanela, LARGURA_MAXIMA) - 2 * MARGEM), 640);
+  const w = degrau(Math.min(larguraDaJanela, LARGURA_MAXIMA) - 2 * MARGEM);
   // Ao alto: as casas estendem-se de norte a sul, e assim o mapa aproxima-se mais.
-  const h = Math.min(Math.round(w * 1.05), 640);
+  const h = degrau(w * 1.05);
   const e = enquadrar(comSitio as { lat: number; lng: number }[], w, h);
   const escala = Math.min(3, Math.max(1, Math.round(PixelRatio.get())));
   return { comSitio, w, h, e, uri: `${API}/api/mapa?w=${w}&h=${h}&s=${escala}&pinos=0` };
+}
+
+/** O valor só muda depois de ficar quieto `ms`: arrastar a janela muda a largura dezenas de vezes por segundo. */
+function useSossegado<V>(valor: V, ms: number): V {
+  const [sossegado, setSossegado] = useState(valor);
+  useEffect(() => {
+    const t = setTimeout(() => setSossegado(valor), ms);
+    return () => clearTimeout(t);
+  }, [valor, ms]);
+  return sossegado;
 }
 
 /**
@@ -60,11 +80,40 @@ export function PrecarregarMapa() {
  */
 export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja) => void }) {
   const { width } = useWindowDimensions();
+  // A largura só conta 300 ms depois de sossegar.
+  const larguraSossegada = useSossegado(width, 300);
+  const pedido = useMemo(() => medidasDoMapa(lojas, larguraSossegada), [lojas, larguraSossegada]);
+  // A imagem à vista: a primeira pede-se logo; uma de outro tamanho só entra
+  // depois de descarregada, para o mapa que já está à vista não piscar.
+  const [aVista, setAVista] = useState(pedido);
+  useEffect(() => {
+    if (pedido.uri === aVista.uri) {
+      if (pedido !== aVista) setAVista(pedido);
+      return;
+    }
+    let vivo = true;
+    Image.prefetch(pedido.uri)
+      .then(() => {
+        if (vivo) setAVista(pedido);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [pedido, aVista]);
   const [estado, setEstado] = useState<'a-carregar' | 'pronto' | 'falhou'>('a-carregar');
-  // Se a imagem falhar (rede, um soluço do servidor), tenta mais uma vez passados 2 s.
+  // Se a imagem falhar (rede, um soluço do servidor), tenta mais uma vez passados 2 s;
+  // se a Barbearia sair antes, o temporizador morre com ela.
   const [tentativa, setTentativa] = useState(0);
+  const novaTentativa = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (novaTentativa.current) clearTimeout(novaTentativa.current);
+    },
+    [],
+  );
   const [aberta, setAberta] = useState<number | null>(null);
-  const { comSitio, w, h, e, uri } = medidasDoMapa(lojas, width);
+  const { comSitio, w, h, e, uri } = aVista;
   if (!e || estado === 'falhou') return null;
   const posicoes = comSitio.map((l) => ({
     loja: l,
@@ -74,7 +123,8 @@ export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja
   return (
     <View
       style={{
-        marginHorizontal: MARGEM,
+        // Ao centro: com a largura em degraus de 16 sobram até 15 px, que se repartem pelos lados.
+        alignSelf: 'center',
         width: w,
         height: h,
         borderRadius: raio.grupo,
@@ -89,7 +139,7 @@ export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja
           style={{ width: w, height: h }}
           onLoad={() => setEstado('pronto')}
           onError={() => {
-            if (tentativa === 0) setTimeout(() => setTentativa(1), 2000);
+            if (tentativa === 0) novaTentativa.current = setTimeout(() => setTentativa(1), 2000);
             else setEstado('falhou');
           }}
           accessibilityLabel="Mapa com as casas"

@@ -1,6 +1,6 @@
 import { codigoCurto, dataCurta, diaEmLisboa, textoDoQr } from '@nunos-lab/dominio';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, Modal, Pressable, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCarimbosNovos } from '../../carimbos-novos';
@@ -55,15 +55,7 @@ function quandoFoi(instante: number): string {
 
 export default function Cartao() {
   const temSessao = useTemSessao();
-  const { data: eu, isError, dataUpdatedAt, refetch } = useEu(true);
-  const { width } = useWindowDimensions();
-  const largura = Math.min(width, LARGURA_MAXIMA) - MARGEM * 2;
-  const [qrAberto, setQrAberto] = useState(false);
-  useEffect(() => {
-    definirTitulo("Nuno's Lab · Cartão");
-    contar('cartao');
-  }, []);
-  // A cerimónia do carimbo novo só com este separador à frente.
+  // A cerimónia do carimbo novo, e os pedidos de 15 em 15 s, só com este separador à frente.
   const [focado, setFocado] = useState(false);
   useFocusEffect(
     useCallback(() => {
@@ -71,7 +63,17 @@ export default function Cartao() {
       return () => setFocado(false);
     }, []),
   );
+  const { data: eu, isError, isFetching, dataUpdatedAt, refetch } = useEu(focado);
+  const { width } = useWindowDimensions();
+  const largura = Math.min(width, LARGURA_MAXIMA) - MARGEM * 2;
+  const [qrAberto, setQrAberto] = useState(false);
+  useEffect(() => {
+    definirTitulo("Nuno's Lab · Cartão");
+    contar('cartao');
+  }, []);
   const { novasDesde, aoAcabar } = useCarimbosNovos(temSessao ? eu?.cartao : null, focado);
+  // Com sessão e ainda sem «eu»: o cartão diz que está a carregar ou sem ligação, em vez de um «0 de 10» a mentir.
+  const espera = !temSessao || eu ? null : isError && !isFetching ? 'sem-ligacao' : 'a-carregar';
 
   return (
     <Ecra>
@@ -121,6 +123,8 @@ export default function Cartao() {
           largura={largura}
           novasDesde={novasDesde}
           aoAcabar={aoAcabar}
+          espera={espera}
+          tentar={() => refetch()}
           rodape={
             temSessao && eu ? (
               <Carteiras apple={eu.wallet.apple} google={eu.wallet.google} />
@@ -339,13 +343,6 @@ export default function Cartao() {
           />
         </>
       )}
-      {temSessao && !eu && isError && (
-        <Pressable onPress={() => refetch()} style={{ alignItems: 'center', marginTop: 24 }}>
-          <T v="legenda" style={{ color: cor.texto2 }}>
-            Sem ligação. Tocar para tentar outra vez.
-          </T>
-        </Pressable>
-      )}
     </Ecra>
   );
 }
@@ -361,6 +358,14 @@ function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
   const daqui = carteirasDaqui();
   const [aAbrir, setAAbrir] = useState<'apple' | 'google' | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  // O «A preparar…» fica 1,5 s; se o ecrã sair antes, o temporizador morre com ele.
+  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (temporizador.current) clearTimeout(temporizador.current);
+    },
+    [],
+  );
   const mostrarApple = apple && daqui.apple;
   const mostrarGoogle = google && daqui.google;
   if (!mostrarApple && !mostrarGoogle) return null;
@@ -372,7 +377,7 @@ function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
     } catch (e) {
       setErro(mensagemDe(e));
     } finally {
-      setTimeout(() => setAAbrir(null), 1500);
+      temporizador.current = setTimeout(() => setAAbrir(null), 1500);
     }
   };
   return (
@@ -466,6 +471,10 @@ function Entrar() {
           aoEntrar={(c) => correr(() => entrarComGoogle(c))}
         />
       ) : null}
+      {/* O cartão feito ao balcão junta-se pelo email provado; com a Apple a esconder o email nascia um segundo cartão. */}
+      <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 4 }}>
+        Já tens cartão feito ao balcão? Entra com o mesmo email — na Apple, partilha o email.
+      </T>
       {aEntrar && (
         <T v="legenda" style={{ color: cor.texto2 }}>
           A entrar…

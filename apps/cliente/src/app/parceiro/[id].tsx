@@ -6,7 +6,7 @@ import {
   ligacaoDoTelefone,
   semPartir,
 } from '@nunos-lab/dominio';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, View, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -72,7 +72,9 @@ export default function PaginaDoParceiro() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isError, isFetching, dataUpdatedAt, refetch } = useDados();
   const temSessao = useTemSessao();
-  const { data: euGuardado } = useEu(true);
+  // Os pedidos de 15 em 15 s só com esta página à frente (por baixo, o Cartão pára de pedir).
+  const aFrente = useIsFocused();
+  const { data: euGuardado } = useEu(aFrente);
   // Depois de um 401 a sessão vai-se, mas a consulta ainda tem o «eu» da conta que saiu.
   const eu = temSessao ? euGuardado : undefined;
   const margens = useSafeAreaInsets();

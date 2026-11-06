@@ -5,10 +5,12 @@ import {
   type ClienteEu,
 } from '@nunos-lab/dominio';
 import type { ReactNode } from 'react';
-import { Image, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
 import { CONTINUO, Carimbos, T, cor, raio } from '@nunos-lab/ui';
 
 const palavra = require('../../assets/marca/palavra.png');
+/** As barras no lugar do número enquanto o cartão não chega: creme a 8 % sobre o cartão. */
+const ESBATIDO = 'rgba(244,241,236,0.08)';
 
 /** O cartão de cliente: o logótipo oficial, o nome, os carimbos, a conta. */
 export function CartaoDoCliente({
@@ -18,6 +20,8 @@ export function CartaoDoCliente({
   novasDesde = null,
   aoAcabar,
   rodape,
+  espera = null,
+  tentar,
 }: {
   eu: Pick<ClienteEu, 'nome' | 'criadoEm' | 'cortes' | 'cartao' | 'programa'> | null;
   /** Cartões cheios por entregar (eu.recompensas.length). */
@@ -28,15 +32,24 @@ export function CartaoDoCliente({
   aoAcabar?: () => void;
   /** Os selos das carteiras: à direita do «0 de 10» quando cabem, senão por baixo. */
   rodape?: ReactNode;
+  /**
+   * Com sessão mas ainda sem «eu»: a carregar (os círculos esbatidos e sem
+   * número, que um «0 de 10» mentia a quem tem carimbos) ou sem ligação (o
+   * aviso no lugar do nome, com toque para tentar outra vez).
+   */
+  espera?: 'a-carregar' | 'sem-ligacao' | null;
+  tentar?: () => void;
 }) {
   const carimbos = eu?.cartao.carimbos ?? 0;
   const objectivo = eu?.cartao.objectivo ?? eu?.programa.objectivo ?? 10;
-  const recompensa = eu?.cartao.recompensa ?? eu?.programa.recompensa ?? PROGRAMA_PREDEFINIDO.recompensa;
+  const recompensa =
+    eu?.cartao.recompensa ?? eu?.programa.recompensa ?? PROGRAMA_PREDEFINIDO.recompensa;
   const desde = eu ? new Date(eu.criadoEm * 1000).getFullYear() : null;
   // Cheio e sem nada por entregar: o carimbo que o completou já foi o corte da oferta.
   const entregue = carimbos >= objectivo && recompensas === 0;
   // Antes da primeira medição a largura pode vir a zero: nunca um círculo negativo.
   const tamanho = Math.max(28, Math.floor((largura - 44 - 4 * 12) / 5));
+  const aEsperar = espera !== null;
   return (
     <View
       style={{
@@ -48,6 +61,7 @@ export function CartaoDoCliente({
         overflow: 'hidden',
         ...CONTINUO,
       }}
+      aria-busy={espera === 'a-carregar'}
     >
       <View
         aria-hidden
@@ -68,15 +82,39 @@ export function CartaoDoCliente({
         accessibilityLabel="Nuno's Lab"
         role="img"
       />
-      <T v="subtitulo" style={{ marginTop: 24 }} numberOfLines={1}>
-        {eu?.nome || 'O teu cartão'}
-      </T>
-      <T v="legenda" style={{ color: cor.texto2, marginTop: 3 }}>
-        {eu
-          ? `Cliente desde ${desde} · ${eu.cortes} ${eu.cortes === 1 ? 'corte' : 'cortes'}${eu.cartao.numero > 1 ? ` · ${eu.cartao.numero}.º cartão` : ''}`
-          : 'Um carimbo por corte'}
-      </T>
-      <View style={{ marginTop: 22 }}>
+      {espera === 'sem-ligacao' ? (
+        <Pressable
+          onPress={tentar}
+          role="button"
+          aria-label="Sem ligação. Tentar outra vez"
+          hitSlop={8}
+          style={({ pressed }) => ({ marginTop: 24, opacity: pressed ? 0.6 : 1 })}
+        >
+          <T v="subtitulo" numberOfLines={1}>
+            Sem ligação
+          </T>
+          <T v="legenda" style={{ color: cor.texto2, marginTop: 3 }}>
+            Tocar para tentar outra vez.
+          </T>
+        </Pressable>
+      ) : (
+        <>
+          <T
+            v="subtitulo"
+            style={aEsperar ? { marginTop: 24, color: cor.texto2 } : { marginTop: 24 }}
+            numberOfLines={1}
+          >
+            {aEsperar ? 'A carregar…' : eu?.nome || 'O teu cartão'}
+          </T>
+          <T v="legenda" style={{ color: cor.texto2, marginTop: 3 }}>
+            {eu && !aEsperar
+              ? `Cliente desde ${desde} · ${eu.cortes} ${eu.cortes === 1 ? 'corte' : 'cortes'}${eu.cartao.numero > 1 ? ` · ${eu.cartao.numero}.º cartão` : ''}`
+              : 'Um carimbo por corte'}
+          </T>
+        </>
+      )}
+      {/* À espera, os círculos ficam esbatidos e fora do leitor de ecrã: ainda não se sabe quantos estão cheios. */}
+      <View style={{ marginTop: 22, opacity: aEsperar ? 0.35 : 1 }} aria-hidden={aEsperar}>
         <Carimbos
           carimbos={carimbos}
           objectivo={objectivo}
@@ -97,24 +135,32 @@ export function CartaoDoCliente({
           marginTop: 22,
         }}
       >
-        <View style={{ flexGrow: 1, flexBasis: 0, minWidth: 110 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-            <T v="destaque">{carimbos}</T>
-            <T v="forte" style={{ color: cor.texto2, fontSize: 18 }}>
-              de {objectivo}
-            </T>
+        {aEsperar ? (
+          // No lugar do «0 de 10» e da frase: duas barras sem número, porque ainda não se sabe.
+          <View style={{ flexGrow: 1, flexBasis: 0, minWidth: 110, gap: 10 }} aria-hidden>
+            <View style={{ width: 72, height: 28, borderRadius: 8, backgroundColor: ESBATIDO }} />
+            <View style={{ width: 150, height: 12, borderRadius: 6, backgroundColor: ESBATIDO }} />
           </View>
-          <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
-            {entregue
-              ? fraseDoCorteOferecido(recompensa)
-              : fraseDoCartao(carimbos, { objectivo, recompensa })}
-          </T>
-          {entregue && (
+        ) : (
+          <View style={{ flexGrow: 1, flexBasis: 0, minWidth: 110 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+              <T v="destaque">{carimbos}</T>
+              <T v="forte" style={{ color: cor.texto2, fontSize: 18 }}>
+                de {objectivo}
+              </T>
+            </View>
             <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
-              O próximo carimbo abre um cartão novo
+              {entregue
+                ? fraseDoCorteOferecido(recompensa)
+                : fraseDoCartao(carimbos, { objectivo, recompensa })}
             </T>
-          )}
-        </View>
+            {entregue && (
+              <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
+                O próximo carimbo abre um cartão novo
+              </T>
+            )}
+          </View>
+        )}
         {rodape}
       </View>
     </View>

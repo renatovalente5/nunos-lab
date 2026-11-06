@@ -19,12 +19,14 @@ import {
   BotaoDoGoogle,
   Campo,
   Ecra,
+  Esqueleto,
   Folha,
   Grupo,
   Icone,
   MARGEM,
   OpcaoDaFolha,
   Rotulo,
+  SemLigacao,
   Separador,
   T,
   cor,
@@ -90,9 +92,38 @@ function Linha({
   );
 }
 
+/** «Voltar» e o título: ficam sempre, mesmo sem o «eu» (um ecrã vazio não tinha saída). */
+function Cabecalho() {
+  return (
+    <View
+      style={{ paddingHorizontal: MARGEM, flexDirection: 'row', alignItems: 'center', gap: 14 }}
+    >
+      <Pressable
+        onPress={() => (router.canGoBack() ? router.back() : router.replace('/cartao'))}
+        role="button"
+        aria-label="Voltar"
+        hitSlop={8}
+        style={({ pressed }) => ({
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: pressed ? cor.linha : cor.superficieAlta,
+          alignItems: 'center',
+          justifyContent: 'center',
+        })}
+      >
+        <Icone nome="voltar" tamanho={21} espessura={2.2} />
+      </Pressable>
+      <T v="titulo" role="heading" aria-level={1}>
+        Conta
+      </T>
+    </View>
+  );
+}
+
 export default function Conta() {
   const temSessao = useTemSessao();
-  const { data: eu } = useEu();
+  const { data: eu, isError, isFetching, refetch } = useEu();
   const { data: dados } = useDados();
   const conta = useConta();
   const [aviso, setAviso] = useState<string | null>(null);
@@ -105,7 +136,15 @@ export default function Conta() {
   useEffect(() => {
     if (!temSessao) router.replace('/cartao');
   }, [temSessao]);
-  if (!eu) return <Ecra comBarra={false}>{null}</Ecra>;
+  // Com sessão mas sem «eu» (aparelho novo, rede fraca): o cabeçalho fica, e por baixo o esqueleto ou «Sem ligação».
+  if (!eu) {
+    return (
+      <Ecra comBarra={false}>
+        <Cabecalho />
+        {isError && !isFetching ? <SemLigacao tentar={() => refetch()} /> : <Esqueleto />}
+      </Ecra>
+    );
+  }
 
   const lojas: Loja[] = dados?.barbearia.lojas ?? [];
   const casa = lojas.find((l) => l.id === eu.lojaId)?.nome ?? 'Todas';
@@ -135,29 +174,7 @@ export default function Conta() {
 
   return (
     <Ecra comBarra={false}>
-      <View
-        style={{ paddingHorizontal: MARGEM, flexDirection: 'row', alignItems: 'center', gap: 14 }}
-      >
-        <Pressable
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/cartao'))}
-          role="button"
-          aria-label="Voltar"
-          hitSlop={8}
-          style={({ pressed }) => ({
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: pressed ? cor.linha : cor.superficieAlta,
-            alignItems: 'center',
-            justifyContent: 'center',
-          })}
-        >
-          <Icone nome="voltar" tamanho={21} espessura={2.2} />
-        </Pressable>
-        <T v="titulo" role="heading" aria-level={1}>
-          Conta
-        </T>
-      </View>
+      <Cabecalho />
 
       <Rotulo>Eu</Rotulo>
       <Grupo>

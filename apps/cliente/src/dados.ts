@@ -8,6 +8,8 @@ export const SITIO = process.env.EXPO_PUBLIC_SITIO ?? 'https://renatovalente5.gi
 export const API = (
   process.env.EXPO_PUBLIC_API ?? 'https://nunos-lab.renato-lima-valente-dcb.workers.dev'
 ).replace(/\/$/, '');
+/** Quanto tempo um pedido espera pela API: sem prazo, numa rede fraca ficava preso até ao limite do sistema (60 s no iOS). */
+export const PRAZO_DO_PEDIDO = 15_000;
 
 const CHAVE = 'nunoslab:dados:1';
 
@@ -26,11 +28,19 @@ function guardar(d: DadosDaApp) {
 }
 
 async function buscar(): Promise<DadosDaApp> {
-  const r = await fetch(`${API}/api/app`);
-  if (!r.ok) throw new Error(`A API respondeu ${r.status}`);
-  const d = (await r.json()) as DadosDaApp;
-  guardar(d);
-  return d;
+  const prazo = new AbortController();
+  const temporizador = setTimeout(() => prazo.abort(), PRAZO_DO_PEDIDO);
+  try {
+    const r = await fetch(`${API}/api/app`, { signal: prazo.signal });
+    if (!r.ok) throw new Error(`A API respondeu ${r.status}`);
+    const d = (await r.json()) as DadosDaApp;
+    guardar(d);
+    return d;
+  } catch (e) {
+    throw prazo.signal.aborted ? new Error('A API não respondeu a tempo') : e;
+  } finally {
+    clearTimeout(temporizador);
+  }
 }
 
 /**

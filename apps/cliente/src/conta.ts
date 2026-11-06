@@ -9,7 +9,7 @@ import { useSyncExternalStore } from 'react';
 import { Linking, Platform } from 'react-native';
 import { guardar as guardarNoArmazem, lerSincrono } from '@nunos-lab/ui';
 import { CHAVE_DO_CARTAO_VISTO } from './carimbos-novos';
-import { API } from './dados';
+import { API, PRAZO_DO_PEDIDO } from './dados';
 
 const CHAVE_DA_SESSAO = 'nunoslab:sessao';
 // A versão sobe quando a forma do «eu» muda: um guardado antigo sem os campos novos rebentava o Cartão.
@@ -23,6 +23,12 @@ export const APPLE_CLIENTE = process.env.EXPO_PUBLIC_APPLE_CLIENTE ?? '';
 const ouvintes = new Set<() => void>();
 function avisar() {
   for (const o of ouvintes) o();
+}
+
+/** O que a raiz quer feito quando a sessão cai num pedido: tirar o «eu» da cache das consultas. */
+let aoPerderSessao: (() => void) | null = null;
+export function registarAoPerderSessao(f: () => void) {
+  aoPerderSessao = f;
 }
 
 export function sessao(): string | null {
@@ -94,26 +100,39 @@ async function pedir<T = void>(
   const t = sessao();
   if (t) cabecalhos.Authorization = `Bearer ${t}`;
   if (corpo !== undefined) cabecalhos['Content-Type'] = 'application/json';
-  let r: Response;
+  const prazo = new AbortController();
+  const temporizador = setTimeout(() => prazo.abort(), PRAZO_DO_PEDIDO);
   try {
-    r = await fetch(`${API}/api/eu${caminho}`, {
-      method: metodo,
-      headers: cabecalhos,
-      body: corpo !== undefined ? JSON.stringify(corpo) : undefined,
-    });
-  } catch {
-    throw new ErroDaConta('rede');
+    let r: Response;
+    try {
+      r = await fetch(`${API}/api/eu${caminho}`, {
+        method: metodo,
+        headers: cabecalhos,
+        body: corpo !== undefined ? JSON.stringify(corpo) : undefined,
+        signal: prazo.signal,
+      });
+    } catch {
+      throw new ErroDaConta('rede');
+    }
+    if (r.status === 401 && !caminho.startsWith('/entrar')) {
+      // O «eu» de quem saiu sai da cache: senão ficava à vista quando a conta seguinte entrasse.
+      aoPerderSessao?.();
+      guardarSessao(null);
+      throw new ErroDaConta('sessao');
+    }
+    if (!r.ok) {
+      const j = (await r.json().catch(() => ({}))) as { erro?: string };
+      throw new ErroDaConta(j.erro ?? 'interno');
+    }
+    if (r.status === 204) return undefined as T;
+    try {
+      return (await r.json()) as T;
+    } catch {
+      throw new ErroDaConta(prazo.signal.aborted ? 'rede' : 'interno');
+    }
+  } finally {
+    clearTimeout(temporizador);
   }
-  if (r.status === 401 && !caminho.startsWith('/entrar')) {
-    guardarSessao(null);
-    throw new ErroDaConta('sessao');
-  }
-  if (!r.ok) {
-    const j = (await r.json().catch(() => ({}))) as { erro?: string };
-    throw new ErroDaConta(j.erro ?? 'interno');
-  }
-  if (r.status === 204) return undefined as T;
-  return (await r.json()) as T;
 }
 
 /** O «eu» guardado, só se tiver a forma de agora: um de uma versão antiga da app fica de fora. */
@@ -160,7 +179,11 @@ async function buscarEu(): Promise<ClienteEu> {
   return eu;
 }
 
-/** O cliente: o cartão, as visitas, a conta. Pede de 15 em 15 s enquanto está à vista. */
+/**
+ * O cliente: o cartão, as visitas, a conta. Com `aoVivo` pede de 15 em 15 s;
+ * cada ecrã passa «estou à frente» (os separadores ficam montados quando se
+ * muda para outro, e sem isso o Cartão pedia nas Vantagens e nas Barbearias).
+ */
 export function useEu(aoVivo = false) {
   const temSessao = useTemSessao();
   return useQuery({
@@ -173,16 +196,20 @@ export function useEu(aoVivo = false) {
     staleTime: 5_000,
     refetchInterval: aoVivo ? 15_000 : false,
     refetchOnWindowFocus: true,
-    retry: 1,
+    // Depois de um 401 não se repete: a sessão já foi, e repetia sem testemunho para mais um 401.
+    retry: (n, e) => n < 1 && !(e instanceof ErroDaConta && e.codigo === 'sessao'),
   });
 }
 
 /** Depois de entrar ou de mudar a conta, o «eu» volta a pedir-se. */
 export function useConta() {
   const consultas = useQueryClient();
-  const entrou = async (r: { sessao: string }) => {
+  // O «eu» de uma conta anterior sai da cache ANTES de haver sessão (senão o
+  // cartão dela aparecia até a rede responder). A consulta nova pede sozinha:
+  // um invalidateQueries aqui cancelava esse pedido e fazia outro.
+  const entrou = (r: { sessao: string }) => {
+    consultas.removeQueries({ queryKey: ['eu'] });
     guardarSessao(r.sessao);
-    await consultas.invalidateQueries({ queryKey: ['eu'] });
   };
   const actualizar = (eu: ClienteEu) => {
     consultas.setQueryData(['eu'], eu);
