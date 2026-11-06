@@ -87,6 +87,9 @@ const pedir = (caminho, { token, ...o } = {}) =>
     },
   });
 const json = (o) => JSON.stringify(o);
+/** A página da revisão: o código vai no formulário (POST), nunca na morada. */
+const revisao = (codigo) =>
+  pedir('/api/revisao', { method: 'POST', body: new URLSearchParams({ codigo }) });
 function novaLigacao(nome) {
   const saida = execFileSync('node', ['scripts/acesso.mjs', '--nome', nome], { encoding: 'utf8' });
   return saida.trim().split('#acesso=')[1];
@@ -1456,15 +1459,22 @@ await passo('apagar a conta deixa os carimbos sem dono, e a pessoa fora das list
 });
 
 await passo('a porta da revisão das lojas entra com o código de demonstração', async () => {
-  // Sem código, ou com o código errado, não existe nada.
-  assert.equal((await pedir('/api/revisao')).status, 404);
+  // Sem código, a página só pede o código; com o código errado, ou na morada, não mostra nada.
+  const porta = await pedir('/api/revisao');
+  assert.equal(porta.status, 200);
+  assert.ok((await porta.text()).includes('method="post"'), 'a página pede o código');
+  assert.equal((await revisao('nao-e-este')).status, 404);
+  assert.ok(
+    !(await (await pedir('/api/revisao?codigo=DEMOLOCAL2026')).text()).includes('<svg'),
+    'na morada o código não conta',
+  );
   const errado = await pedir('/api/eu/entrar/demonstracao', {
     method: 'POST',
     body: json({ codigo: 'nao-e-este' }),
   });
   assert.equal(errado.status, 401);
   // O .dev.vars tem REVISAO_CODIGO=DEMOLOCAL2026, REVISAO_CLIENTE=JMP7ZT8A e REVISAO_PESSOA=905.
-  const pagina = await pedir('/api/revisao?codigo=DEMOLOCAL2026');
+  const pagina = await revisao('DEMOLOCAL2026');
   assert.equal(pagina.status, 200);
   const html = await pagina.text();
   assert.ok(
@@ -1497,7 +1507,7 @@ await passo('a porta da revisão das lojas entra com o código de demonstração
     assert.equal(r.status, 403, `${method} ${caminho}`);
     assert.equal((await r.json()).erro, 'demonstracao');
   }
-  assert.equal((await pedir('/api/revisao?codigo=DEMOLOCAL2026')).status, 200, 'a porta continua');
+  assert.equal((await revisao('DEMOLOCAL2026')).status, 200, 'a porta continua');
   // A demonstração da Balcão só vê clientes de exemplo: nem a ficha, nem a procura, nem o dia.
   const real = await (
     await pedir('/api/eu/entrar/teste', {
@@ -1557,7 +1567,7 @@ await passo(
       equipa.filter((p) => p.nome.endsWith('(exemplo)')).map((p) => p.id),
       [905],
     );
-    assert.equal((await pedir('/api/revisao?codigo=DEMOLOCAL2026')).status, 200);
+    assert.equal((await revisao('DEMOLOCAL2026')).status, 200);
   },
 );
 
