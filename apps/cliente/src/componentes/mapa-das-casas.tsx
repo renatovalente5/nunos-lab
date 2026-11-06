@@ -88,6 +88,21 @@ export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja
               alignItems: 'center',
             }}
           >
+            {/* O pino com o balão aberto ganha um aro creme (o Renato escolheu o 5). */}
+            {aberta === l.id && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: -5,
+                  width: ICONE + 2 * ARO + 10,
+                  height: ALTURA_DO_PINO + 4,
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: cor.claro,
+                  ...CONTINUO,
+                }}
+              />
+            )}
             <View
               style={{
                 width: ICONE + 2 * ARO,
