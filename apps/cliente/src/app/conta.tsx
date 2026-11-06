@@ -162,7 +162,6 @@ export default function Conta() {
     setErro(null);
     setFolha(qual);
   };
-  const semProva = !eu.provaRecente;
   // Só a demonstração (os revisores das lojas) não tem formas de entrar: a API recusa-lhe o resto.
   const demonstracao = eu.demo ?? eu.formas.length === 0;
   // No Android não há Apple: a folha «Juntar» abria vazia.
@@ -395,49 +394,28 @@ export default function Conta() {
 
       <Folha aberta={folha === 'juntar'} fechar={() => setFolha(null)} titulo="Juntar outra forma">
         <View style={{ paddingHorizontal: MARGEM, paddingTop: 6, gap: 12, alignItems: 'center' }}>
-          {semProva ? (
-            <>
-              <T v="corpo" style={{ color: cor.texto2, textAlign: 'center' }}>
-                Entraste há mais de 15 minutos. Sai e entra outra vez para mudar as formas de
-                entrar.
-              </T>
-              <Botao
-                nome="Sair"
-                secundario
-                onPress={() =>
-                  correr(
-                    () => conta.sair(),
-                    () => router.replace('/cartao'),
-                  )
-                }
-              />
-            </>
-          ) : (
-            <>
-              {formasQueFaltam.includes('apple') && (
-                <BotaoDaApple
-                  clienteId={APPLE_CLIENTE}
-                  redirectURI={moradaDeRetornoDaApple()}
-                  aoEntrar={(d) =>
-                    correr(
-                      () => conta.juntarApple(d),
-                      () => setFolha(null),
-                    )
-                  }
-                />
-              )}
-              {formasQueFaltam.includes('google') && (
-                <BotaoDoGoogle
-                  clienteId={GOOGLE_CLIENTE}
-                  aoEntrar={(c) =>
-                    correr(
-                      () => conta.juntarGoogle(c),
-                      () => setFolha(null),
-                    )
-                  }
-                />
-              )}
-            </>
+          {formasQueFaltam.includes('apple') && (
+            <BotaoDaApple
+              clienteId={APPLE_CLIENTE}
+              redirectURI={moradaDeRetornoDaApple()}
+              aoEntrar={(d) =>
+                correr(
+                  () => conta.juntarApple(d),
+                  () => setFolha(null),
+                )
+              }
+            />
+          )}
+          {formasQueFaltam.includes('google') && (
+            <BotaoDoGoogle
+              clienteId={GOOGLE_CLIENTE}
+              aoEntrar={(c) =>
+                correr(
+                  () => conta.juntarGoogle(c),
+                  () => setFolha(null),
+                )
+              }
+            />
           )}
           {erro && (
             <T v="legenda" style={{ color: '#E07A72', textAlign: 'center' }}>
@@ -450,32 +428,17 @@ export default function Conta() {
       <Folha aberta={folha === 'apagar'} fechar={() => setFolha(null)} titulo="Apagar a conta">
         <View style={{ paddingHorizontal: MARGEM, paddingTop: 6, gap: 14 }}>
           <T v="corpo" style={{ color: cor.texto2 }}>
-            {semProva
-              ? 'Entraste há mais de 15 minutos. Sai e entra outra vez para apagar a conta.'
-              : 'O cartão, os carimbos e as recompensas perdem-se. Não se desfaz.'}
+            O cartão, os carimbos e as recompensas perdem-se. Não se desfaz.
           </T>
-          {semProva ? (
-            <Botao
-              nome="Sair"
-              secundario
-              onPress={() =>
-                correr(
-                  () => conta.sair(),
-                  () => router.replace('/cartao'),
-                )
-              }
-            />
-          ) : (
-            <Botao
-              nome="Apagar a conta"
-              onPress={() =>
-                correr(
-                  () => conta.apagar(),
-                  () => router.replace('/cartao'),
-                )
-              }
-            />
-          )}
+          <Botao
+            nome="Apagar a conta"
+            onPress={() =>
+              correr(
+                () => conta.apagar(),
+                () => router.replace('/cartao'),
+              )
+            }
+          />
           {erro && (
             <T v="legenda" style={{ color: '#E07A72' }}>
               {erro}

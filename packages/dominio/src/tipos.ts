@@ -247,7 +247,7 @@ export type ClienteEu = {
   visitas: VisitaDoCliente[];
   formas: FormaDeEntrar[];
   sessoes: SessaoDoCliente[];
-  /** Entrou há menos de 15 minutos: pode juntar e tirar formas, e apagar a conta. */
+  /** Sempre true: a regra dos 15 minutos saiu a 6 nov 2026. Fica pelas apps antigas, que sem o campo pediam para sair. */
   provaRecente: boolean;
   programa: { objectivo: number; recompensa: string };
   /** Corte no último ano: as vantagens dos parceiros valem. */

@@ -8,7 +8,6 @@ import {
   DIAS_A_EXPERIENCIA,
   DIAS_DE_CLIENTE_ACTIVO,
   LIMITES_DO_PROGRAMA,
-  MINUTOS_DE_PROVA_RECENTE,
   diaEmLisboa,
   eAniversarioValido,
   temPrendaHoje,
@@ -33,7 +32,7 @@ import {
 import { DIA, agora, corpo, idDaMorada, recusar } from '../util.ts';
 import { entrarComIdentidade, juntarIdentidade, type IdentidadeProvada } from './identidade.ts';
 import { apagarConta } from './apagar.ts';
-import { abrirSessaoDoCliente, provaRecente } from './sessao.ts';
+import { abrirSessaoDoCliente } from './sessao.ts';
 import { appleLigada, googleLigada, rodarPasse, tocarPasse } from '../wallet/servico.ts';
 
 const Google = z.object({ credencial: z.string().min(20).max(4096) });
@@ -151,7 +150,7 @@ type LinhaCliente = {
 };
 
 async function lerEu(c: C): Promise<ClienteEu> {
-  const { id, sessao, criadaEm } = c.get('cliente');
+  const { id, sessao } = c.get('cliente');
   const db = c.env.DB;
   const programa = await lerPrograma(db);
   const consultas = () =>
@@ -253,7 +252,9 @@ async function lerEu(c: C): Promise<ClienteEu> {
       actual: s.id === sessao,
     })),
     demo: c.get('cliente').demo,
-    provaRecente: criadaEm > agora() - MINUTOS_DE_PROVA_RECENTE * 60,
+    // Sempre true: a regra dos 15 minutos saiu a 6 nov 2026 (decisão do Renato). Fica pelas
+    // apps antigas, que sem o campo pediam para sair e entrar.
+    provaRecente: true,
     programa: { objectivo: programa.objectivo, recompensa: programa.recompensa },
     activo: r[8]!.results.length > 0,
     vales: r[7]!.results as ClienteEu['vales'],
@@ -323,10 +324,6 @@ rotasDaConta.patch('/perfil', async (c) => {
 
 // ——— as formas de entrar ———
 
-function exigirProvaRecente(c: C) {
-  if (!provaRecente(c)) recusar(403, 'prova_recente');
-}
-
 /**
  * A sessão de demonstração (os revisores das lojas) lê o cartão e pouco mais:
  * não roda o código, não apaga a conta, não junta nem tira formas de entrar
@@ -338,7 +335,6 @@ function exigirNaoDemo(c: C) {
 
 rotasDaConta.post('/formas/google', async (c) => {
   exigirNaoDemo(c);
-  exigirProvaRecente(c);
   const { credencial } = await corpo(c, Google);
   await juntarIdentidade(c.env.DB, c.get('cliente').id, await identidadeGoogle(c, credencial));
   return c.json(await lerEu(c));
@@ -346,7 +342,6 @@ rotasDaConta.post('/formas/google', async (c) => {
 
 rotasDaConta.post('/formas/teste', async (c) => {
   exigirNaoDemo(c);
-  exigirProvaRecente(c);
   await juntarIdentidade(
     c.env.DB,
     c.get('cliente').id,
@@ -357,7 +352,6 @@ rotasDaConta.post('/formas/teste', async (c) => {
 
 rotasDaConta.post('/formas/apple', async (c) => {
   exigirNaoDemo(c);
-  exigirProvaRecente(c);
   await juntarIdentidade(
     c.env.DB,
     c.get('cliente').id,
@@ -374,7 +368,6 @@ rotasDaConta.post('/formas/apple', async (c) => {
  */
 rotasDaConta.delete('/formas/:id', async (c) => {
   exigirNaoDemo(c);
-  exigirProvaRecente(c);
   const formaId = idDaMorada(c);
   const { id, identidadeId } = c.get('cliente');
   const db = c.env.DB;
@@ -460,7 +453,6 @@ rotasDaConta.post('/perdi-o-telemovel', async (c) => {
 /** Apagar a conta: sai tudo o que é pessoal; os carimbos ficam sem dono, para as contagens (apagar.ts). */
 rotasDaConta.delete('/', async (c) => {
   exigirNaoDemo(c);
-  exigirProvaRecente(c);
   await apagarConta(c, c.get('cliente').id);
   return c.body(null, 204);
 });

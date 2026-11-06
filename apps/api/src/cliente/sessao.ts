@@ -1,9 +1,5 @@
 import type { MiddlewareHandler } from 'hono';
-import {
-  DIAS_DA_SESSAO_DO_CLIENTE,
-  DIAS_MAXIMOS_DA_SESSAO,
-  MINUTOS_DE_PROVA_RECENTE,
-} from '@nunos-lab/dominio';
+import { DIAS_DA_SESSAO_DO_CLIENTE, DIAS_MAXIMOS_DA_SESSAO } from '@nunos-lab/dominio';
 import type { Ambiente, C } from '../ambiente.ts';
 import { DIA, agora, aleatorio, aparelhoDe, blob, recusar, sha256 } from '../util.ts';
 
@@ -78,9 +74,4 @@ export async function abrirSessaoDoCliente(
     )
     .run();
   return testemunho;
-}
-
-/** Entrou há pouco: pode juntar e tirar formas de entrar, e apagar a conta. */
-export function provaRecente(c: C): boolean {
-  return c.get('cliente').criadaEm > agora() - MINUTOS_DE_PROVA_RECENTE * 60;
 }

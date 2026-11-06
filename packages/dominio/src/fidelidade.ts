@@ -86,8 +86,6 @@ export const DIAS_DA_SESSAO_DO_CLIENTE = 365;
 export const DIAS_MAXIMOS_DA_SESSAO_DA_EQUIPA = 180;
 /** E o tecto de qualquer outra sessão (cliente, backoffice). */
 export const DIAS_MAXIMOS_DA_SESSAO = 365;
-/** Depois de entrar, quantos minutos conta como «prova recente» (juntar, tirar, apagar). */
-export const MINUTOS_DE_PROVA_RECENTE = 15;
 /** Uma forma de entrar nova fica «à experiência» estes dias: não pode ficar sozinha. */
 export const DIAS_A_EXPERIENCIA = 7;
 /** Quem carimbou pode anular nestes minutos; o dono anula sempre. */
