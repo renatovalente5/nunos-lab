@@ -1,17 +1,25 @@
-/** Os clientes no backoffice: a lista, a ficha, o CSV, e apagar os de exemplo. */
+/** Os clientes no backoffice: a lista, a ficha, editar, apagar, anular um carimbo, o CSV, e apagar os de exemplo. */
 import { Hono } from 'hono';
+import { z } from 'zod';
 import {
+  DIAS_PARA_A_PRENDA,
+  LIMITES_DO_PROGRAMA,
   MESES,
   diaEmLisboa,
+  eAniversarioValido,
   normalizarCodigo,
+  normalizarEmail,
   textoDeBusca,
   type ClienteDoBackoffice,
   type FichaDoCliente,
   type TipoDeEntrada,
 } from '@nunos-lab/dominio';
-import type { Ambiente } from '../ambiente.ts';
+import type { Ambiente, C } from '../ambiente.ts';
 import { emRisco } from '../balcao/rotas.ts';
-import { agora, idDaMorada, recusar, registar } from '../util.ts';
+import { anularCarimbo } from '../carimbos.ts';
+import { apagarConta } from '../cliente/apagar.ts';
+import { DIA, agora, corpo, idDaMorada, recusar, registar, traduzirErroDaBase } from '../util.ts';
+import { tocarPasse } from '../wallet/servico.ts';
 
 export const rotasDosClientes = new Hono<Ambiente>();
 
@@ -114,8 +122,7 @@ rotasDosClientes.get('/clientes', async (c) => {
   return c.json(lista.map(publico));
 });
 
-rotasDosClientes.get('/clientes/:id', async (c) => {
-  const id = idDaMorada(c);
+async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
   const db = c.env.DB;
   const [cliente, cartoes, carimbos] = await db.batch([
     db.prepare(`${LISTA} WHERE k.id = ?`).bind(id),
@@ -190,7 +197,121 @@ rotasDosClientes.get('/clientes/:id', async (c) => {
       semLeitura: x.sem_leitura === 1,
     })),
   };
-  return c.json(ficha);
+  return ficha;
+}
+
+rotasDosClientes.get('/clientes/:id', async (c) => c.json(await lerFicha(c, idDaMorada(c))));
+
+const ClientePedido = z.object({
+  nome: z.string().trim().min(1).max(LIMITES_DO_PROGRAMA.nomeDoCliente).optional(),
+  /** O email dado ao balcão (null: tirar): quem o provar na app fica com este cartão. */
+  email: z.string().trim().max(254).nullable().optional(),
+  aniversario: z
+    .string()
+    .nullable()
+    .refine((v) => v === null || eAniversarioValido(v))
+    .optional(),
+  lojaId: z.number().int().positive().nullable().optional(),
+});
+
+/** Corrigir um cliente: um nome mal escrito ao balcão, o email de quem veio sem app, a data, a casa. */
+rotasDosClientes.patch('/clientes/:id', async (c) => {
+  const id = idDaMorada(c);
+  const p = await corpo(c, ClientePedido);
+  const db = c.env.DB;
+  const cliente = await db
+    .prepare('SELECT nome, aniversario FROM clientes WHERE id = ? AND apagado_em IS NULL')
+    .bind(id)
+    .first<{ nome: string; aniversario: string | null }>();
+  if (!cliente) recusar(404, 'nao_existe');
+  if (p.lojaId && !(await db.prepare('SELECT 1 FROM lojas WHERE id = ?').bind(p.lojaId).first()))
+    recusar(400, 'referencia');
+  const email = p.email ? normalizarEmail(p.email) : p.email ? null : p.email;
+  if (p.email && !email) recusar(400, 'invalido');
+  const partes: string[] = [];
+  const valores: (string | number | null)[] = [];
+  const instrucoes: D1PreparedStatement[] = [];
+  const mudou: string[] = [];
+  if (p.nome !== undefined) {
+    partes.push('nome = ?', 'busca = ?');
+    valores.push(p.nome, textoDeBusca(p.nome));
+    mudou.push('nome');
+  }
+  if (email !== undefined) {
+    if (email) {
+      // Outro cliente já entra com este email: não se juntam contas por aqui.
+      const outro = await db
+        .prepare(
+          `SELECT 1 FROM identidades i JOIN clientes k ON k.id = i.cliente_id
+           WHERE i.email = ? AND i.cliente_id != ? AND k.apagado_em IS NULL LIMIT 1`,
+        )
+        .bind(email, id)
+        .first();
+      if (outro) recusar(409, 'email_ja_tem_cartao');
+      instrucoes.push(
+        db.prepare("DELETE FROM identidades WHERE cliente_id = ? AND tipo = 'email'").bind(id),
+        db
+          .prepare(
+            "INSERT INTO identidades (cliente_id, tipo, sujeito, email, dona) VALUES (?, 'email', ?, ?, 0)",
+          )
+          .bind(id, email, email),
+      );
+      partes.push('email = ?');
+      valores.push(email);
+    } else {
+      instrucoes.push(
+        db.prepare("DELETE FROM identidades WHERE cliente_id = ? AND tipo = 'email'").bind(id),
+      );
+      partes.push('email = NULL');
+    }
+    mudou.push('email');
+  }
+  if (p.aniversario !== undefined && p.aniversario !== cliente.aniversario) {
+    // Dada pelo Nuno, a data conta logo: a espera dos 30 dias é para quem a muda na app.
+    partes.push('aniversario = ?', 'aniversario_desde = ?');
+    valores.push(p.aniversario, p.aniversario === null ? null : agora() - DIAS_PARA_A_PRENDA * DIA);
+    mudou.push('aniversário');
+  }
+  if (p.lojaId !== undefined) {
+    partes.push('loja_id = ?');
+    valores.push(p.lojaId);
+    mudou.push('casa');
+  }
+  if (!mudou.length) recusar(400, 'nada_a_mudar');
+  if (partes.length)
+    instrucoes.push(
+      db.prepare(`UPDATE clientes SET ${partes.join(', ')} WHERE id = ?`).bind(...valores, id),
+    );
+  instrucoes.push(
+    registar(c, 'cliente.alterado', `${p.nome ?? cliente.nome} · ${mudou.join(', ')}`),
+  );
+  try {
+    await db.batch(instrucoes);
+  } catch (e) {
+    traduzirErroDaBase(e);
+  }
+  if (p.nome !== undefined) tocarPasse(c, id);
+  return c.json(await lerFicha(c, id));
+});
+
+/** Anular um carimbo de qualquer dia (um engano de ontem): a mesma regra da Balcão, pelo dono. */
+rotasDosClientes.post('/carimbos/:id/anular', async (c) => {
+  const id = idDaMorada(c);
+  const db = c.env.DB;
+  const { clienteId, criadoEm, instrucoes } = await anularCarimbo(db, id, {
+    pessoaId: null,
+    dono: true,
+  });
+  const cliente = await db
+    .prepare('SELECT nome FROM clientes WHERE id = ?')
+    .bind(clienteId)
+    .first<{ nome: string }>();
+  await db.batch([
+    ...instrucoes,
+    registar(c, 'carimbo.anulado', `${cliente?.nome ?? ''} · ${diaEmLisboa(criadoEm * 1000)}`),
+  ]);
+  tocarPasse(c, clienteId);
+  return c.json(await lerFicha(c, clienteId));
 });
 
 /** A lista em CSV (Excel/Numbers): o que o Nuno quer levar para fora. */
@@ -263,4 +384,18 @@ rotasDosClientes.delete('/clientes/exemplos', async (c) => {
     registar(c, 'clientes.exemplos_apagados'),
   ]);
   return c.json({ apagados: n?.n ?? 0 });
+});
+
+/** Apagar um cliente (um pedido de quem só tem cartão de balcão): a mesma limpeza da app. Depois de «/clientes/exemplos», para o «exemplos» não cair aqui. */
+rotasDosClientes.delete('/clientes/:id', async (c) => {
+  const id = idDaMorada(c);
+  const db = c.env.DB;
+  const cliente = await db
+    .prepare('SELECT nome FROM clientes WHERE id = ? AND apagado_em IS NULL')
+    .bind(id)
+    .first<{ nome: string }>();
+  if (!cliente) recusar(404, 'nao_existe');
+  await apagarConta(c, id);
+  await db.batch([registar(c, 'cliente.apagado', cliente.nome)]);
+  return c.body(null, 204);
 });

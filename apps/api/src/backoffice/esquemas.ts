@@ -142,6 +142,9 @@ export const Barbearia = z.object({
         morada: texto(LIMITES.morada),
         telefone: normalizado(LIMITES.telefone, normalizarTelefone),
         marcar: normalizado(500, normalizarLigacao),
+        /** Onde fica (mapa e passe da Wallet); ausentes: ficam como estão. */
+        lat: z.number().min(-90).max(90).nullable().optional(),
+        lng: z.number().min(-180).max(180).nullable().optional(),
       }),
     )
     .max(20),

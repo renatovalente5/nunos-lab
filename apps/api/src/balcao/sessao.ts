@@ -5,7 +5,12 @@
  */
 import { Hono, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
-import { DIAS_DA_SESSAO_DA_EQUIPA, eEmailDeRelay, type PapelDaEquipa } from '@nunos-lab/dominio';
+import {
+  DIAS_DA_SESSAO_DA_EQUIPA,
+  DIAS_MAXIMOS_DA_SESSAO_DA_EQUIPA,
+  eEmailDeRelay,
+  type PapelDaEquipa,
+} from '@nunos-lab/dominio';
 import type { Ambiente, C } from '../ambiente.ts';
 import { conferirCredencialGoogle } from '../backoffice/google.ts';
 import { conferirTokenDaApple } from '../entrada/apple.ts';
@@ -28,9 +33,11 @@ export const exigirPessoa: MiddlewareHandler<Ambiente> = async (c, next) => {
     `SELECT s.id AS sessao, s.vista_em, e.id, e.nome, e.papel, e.loja_id, e.parceiro_id, pa.activo AS parceiro_activo
      FROM sessoes_da_equipa s JOIN equipa e ON e.id = s.pessoa_id LEFT JOIN parceiros pa ON pa.id = e.parceiro_id
      WHERE s.resumo = ? AND s.revogada_em IS NULL AND s.expira_em > unixepoch()
+       AND s.criada_em > unixepoch() - ?
        AND e.removido_em IS NULL AND e.activo = 1`,
   )
-    .bind(blob(await sha256(testemunho)))
+    // O tecto: 180 dias desde que abriu, por mais que se use (um telemóvel perdido não vale para sempre).
+    .bind(blob(await sha256(testemunho)), DIAS_MAXIMOS_DA_SESSAO_DA_EQUIPA * DIA)
     .first<LinhaPessoa & { sessao: number; vista_em: number; parceiro_activo: number | null }>();
   if (!linha) recusar(401, 'sessao');
   // A pessoa de um parceiro desligado no backoffice não valida nada até ele voltar.
@@ -63,7 +70,7 @@ async function travar(c: C) {
     recusar(429, 'muitas_tentativas');
 }
 
-async function abrirSessao(c: C, pessoaId: number) {
+async function abrirSessao(c: C, pessoaId: number, dias = DIAS_DA_SESSAO_DA_EQUIPA) {
   const testemunho = aleatorio(32);
   await c.env.DB.prepare(
     'INSERT INTO sessoes_da_equipa (resumo, pessoa_id, aparelho, expira_em) VALUES (?, ?, ?, unixepoch() + ?)',
@@ -72,7 +79,7 @@ async function abrirSessao(c: C, pessoaId: number) {
       blob(await sha256(testemunho)),
       pessoaId,
       aparelhoDe(c.req.header('User-Agent') ?? ''),
-      DIAS_DA_SESSAO_DA_EQUIPA * DIA,
+      dias * DIA,
     )
     .run();
   return c.json({ sessao: testemunho });
@@ -110,7 +117,8 @@ rotasDeEntradaDaBalcao.post('/entrar/demonstracao', async (c) => {
   await travar(c);
   const { codigo } = await corpo(c, z.object({ codigo: z.string().min(4).max(64) }));
   if (!(await codigoDeRevisaoValido(c, codigo))) recusar(401, 'codigo_invalido');
-  return abrirSessao(c, await pessoaDeRevisao(c));
+  // Um dia: as sessões dos revisores não se acumulam durante um ano.
+  return abrirSessao(c, await pessoaDeRevisao(c), 1);
 });
 
 rotasDeEntradaDaBalcao.post('/entrar/google', async (c) => {

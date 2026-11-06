@@ -135,6 +135,7 @@ export function Fidelidade() {
             max={LIMITES_DO_PROGRAMA.recompensa}
             erro={erros.includes('recompensa')}
             placeholder="ex.: 50% de desconto"
+            ajuda="Vale também para os cartões em curso."
             obrigatorio
           />
         </div>

@@ -31,7 +31,7 @@ import {
   type UltimoCarimbo,
 } from '@nunos-lab/dominio';
 import type { Ambiente, C } from '../ambiente.ts';
-import { fazAnosHoje, textoDeBusca } from '@nunos-lab/dominio';
+import { emailCurto, fazAnosHoje, temPrendaHoje, textoDeBusca } from '@nunos-lab/dominio';
 import {
   cartaoActual,
   cartaoPublico,
@@ -42,6 +42,7 @@ import {
   novoCartao,
   type LinhaCartao,
 } from '../programa.ts';
+import { anularCarimbo } from '../carimbos.ts';
 import { DIA, agora, corpo, recusar, traduzirErroDaBase } from '../util.ts';
 import { tocarPasse } from '../wallet/servico.ts';
 import type { LinhaPromocao } from '../linhas.ts';
@@ -79,6 +80,7 @@ type LinhaCliente = {
   nome: string;
   criado_em: number;
   aniversario: string | null;
+  aniversario_desde: number | null;
 };
 
 async function clientePorCodigo(c: C, texto: string): Promise<LinhaCliente> {
@@ -86,7 +88,7 @@ async function clientePorCodigo(c: C, texto: string): Promise<LinhaCliente> {
   if (!codigoValido(codigo)) recusar(404, 'cartao_desconhecido');
   // A pessoa de demonstração (os revisores das lojas) só vê e carimba clientes de exemplo.
   const cliente = await c.env.DB.prepare(
-    `SELECT id, codigo, nome, criado_em, aniversario FROM clientes WHERE codigo = ? AND apagado_em IS NULL${soExemplos(c, '')}`,
+    `SELECT id, codigo, nome, criado_em, aniversario, aniversario_desde FROM clientes WHERE codigo = ? AND apagado_em IS NULL${soExemplos(c, '')}`,
   )
     .bind(codigo)
     .first<LinhaCliente>();
@@ -102,6 +104,15 @@ function soExemplos(c: C, alias: string): string {
     : ' AND exemplo = 1';
 }
 
+/**
+ * Nas contagens: a demonstração só vê exemplos, e o negócio só vê o que é a sério — sem os
+ * clientes de exemplo nem os carimbos dos revisores das lojas (que só carimbam exemplos).
+ */
+function semExemplos(c: C, alias: string): string {
+  if (c.get('pessoa').demo) return soExemplos(c, alias);
+  return ` AND ${alias}.cliente_id NOT IN (SELECT id FROM clientes WHERE exemplo = 1)`;
+}
+
 const VISITA = `SELECT x.id, x.criado_em AS quando, l.nome AS loja, e.nome AS pessoa
   FROM carimbos x LEFT JOIN lojas l ON l.id = x.loja_id LEFT JOIN equipa e ON e.id = x.pessoa_id`;
 
@@ -113,7 +124,7 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
     await novoCartao(db, cliente.id, 1, await lerPrograma(db)).run();
     cartao = (await cartaoActual(db, cliente.id))!;
   }
-  const [cortes, recompensas, ultima, deHoje, entregue] = await db.batch([
+  const [cortes, recompensas, ultima, deHoje, entregue, prendaDesteAno] = await db.batch([
     db
       .prepare('SELECT count(*) AS n FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL')
       .bind(cliente.id),
@@ -135,14 +146,29 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
          WHERE c.cliente_id = ? AND c.usado_em >= ? AND c.usado_em != c.completo_em ORDER BY c.usado_em DESC LIMIT 1`,
       )
       .bind(cliente.id, inicioDoDia(hoje)),
+    db
+      .prepare(
+        `SELECT p.quando, e.nome AS pessoa FROM prendas p LEFT JOIN equipa e ON e.id = p.pessoa_id
+         WHERE p.cliente_id = ? AND p.ano = ?`,
+      )
+      .bind(cliente.id, Number(hoje.slice(0, 4))),
   ]);
   const hojeLinhas = deHoje!.results as { quando: number; pessoa: string | null }[];
   const entregueHoje =
     (entregue!.results[0] as { quando: number; pessoa: string | null } | undefined) ?? null;
   const fazAnos = fazAnosHoje(cliente.aniversario, hoje);
   const programaDeHoje = await lerPrograma(db);
+  const prendaEntregue =
+    (prendaDesteAno!.results[0] as { quando: number; pessoa: string | null } | undefined) ?? null;
   return {
-    prenda: fazAnos && programaDeHoje.aniversario ? programaDeHoje.aniversario : null,
+    // A prenda só com a data dada há 30 dias ou mais (senão mudava-se na véspera), e uma vez por ano.
+    prenda:
+      temPrendaHoje(cliente.aniversario, cliente.aniversario_desde, hoje, agora()) &&
+      programaDeHoje.aniversario &&
+      !prendaEntregue
+        ? programaDeHoje.aniversario
+        : null,
+    prendaEntregue,
     cliente: {
       id: cliente.id,
       codigo: cliente.codigo,
@@ -212,6 +238,32 @@ rotasDaBalcao.post('/sair', async (c) => {
 rotasDaBalcao.get('/ficha/:codigo', async (c) => {
   exigirBarbearia(c);
   return c.json(await ficha(c, await clientePorCodigo(c, c.req.param('codigo'))));
+});
+
+/** Entregar a prenda de anos: uma por ano, registada com quem a deu e onde. */
+rotasDaBalcao.post('/prenda', async (c) => {
+  exigirBarbearia(c);
+  const { codigo, lojaId } = await corpo(
+    c,
+    z.object({ codigo: z.string().min(1).max(20), lojaId: z.number().int().positive().nullish() }),
+  );
+  const cliente = await clientePorCodigo(c, codigo);
+  const loja = lojaId ? await lojaDe(c, lojaId) : null;
+  const f = await ficha(c, cliente);
+  if (f.prendaEntregue) recusar(409, 'prenda_entregue');
+  if (!f.prenda) recusar(409, 'sem_prenda');
+  try {
+    await c.env.DB.prepare(
+      'INSERT INTO prendas (cliente_id, ano, loja_id, pessoa_id) VALUES (?, ?, ?, ?)',
+    )
+      .bind(cliente.id, Number(diaEmLisboa().slice(0, 4)), loja, c.get('pessoa').id)
+      .run();
+  } catch (e) {
+    // Duas entregas ao mesmo instante: a UNIQUE (cliente, ano) deixa passar uma.
+    if (!String(e).includes('UNIQUE constraint failed')) throw e;
+    recusar(409, 'prenda_entregue');
+  }
+  return c.json(await ficha(c, cliente));
 });
 
 const Carimbo = z.object({
@@ -350,6 +402,7 @@ async function carimbar(
   c: C,
   cliente: LinhaCliente,
   p: Omit<z.output<typeof Carimbo>, 'codigo'>,
+  segundaVez = false,
 ): Promise<ResultadoDoCarimbo> {
   const db = c.env.DB;
   const pessoa = c.get('pessoa');
@@ -411,12 +464,19 @@ async function carimbar(
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
       }),
     });
-  const completa = cartao.carimbos + 1 >= cartao.objectivo && !cartao.completo_em;
+  // As decisões com dinheiro tomam-se no SQL, dentro do mesmo batch, e não numa leitura de
+  // antes: dois carimbos ao mesmo instante no mesmo cliente (dois barbeiros, ou a fila sem
+  // rede a despejar enquanto se carimba ao vivo) não dão 11 carimbos nem dois prémios. O
+  // carimbo só entra se o cartão ainda estiver aberto e, sem «confirmar», se o limite do dia
+  // ainda não estiver feito; o cartão completa-se quando a contagem chega ao objectivo.
   const instrucoes = [
     db
       .prepare(
         `INSERT INTO carimbos (cartao_id, cliente_id, loja_id, pessoa_id, chave, dia, repetido, sem_leitura, criado_em)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, coalesce(?, unixepoch())) RETURNING id, criado_em`,
+         SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, coalesce(?9, unixepoch())
+         WHERE (SELECT completo_em FROM cartoes WHERE id = ?1) IS NULL
+           AND (?10 = 1 OR (SELECT count(*) FROM carimbos WHERE cliente_id = ?2 AND dia = ?6 AND anulado_em IS NULL) < ?11)
+         RETURNING id, criado_em`,
       )
       .bind(
         cartao.id,
@@ -428,20 +488,24 @@ async function carimbar(
         repetido || entregueHoje ? 1 : 0,
         p.semLeitura ? 1 : 0,
         quando,
+        p.confirmar ? 1 : 0,
+        programa.porDia,
       ),
     db.prepare('UPDATE clientes SET visto_em = unixepoch() WHERE id = ?').bind(cliente.id),
+    // O 10.º corte é a oferta: o carimbo que completa o cartão entrega o prémio nesse
+    // mesmo acto (completo e usado ao mesmo segundo). O cartão fica cheio à vista até
+    // ao carimbo seguinte, que abre o próximo.
+    db
+      .prepare(
+        `UPDATE cartoes SET completo_em = unixepoch(), usado_em = unixepoch(), usado_loja_id = ?1, usado_por = ?2
+         WHERE id = ?3 AND completo_em IS NULL
+           AND (SELECT count(*) FROM carimbos WHERE cartao_id = ?3 AND anulado_em IS NULL) >= objectivo`,
+      )
+      .bind(lojaId, pessoa.id, cartao.id),
+    db
+      .prepare('SELECT count(*) AS n FROM carimbos WHERE cartao_id = ? AND anulado_em IS NULL')
+      .bind(cartao.id),
   ];
-  // O 10.º corte é a oferta: o carimbo que completa o cartão entrega o prémio
-  // nesse mesmo acto (completo e usado ao mesmo segundo). O cartão fica cheio
-  // à vista até ao carimbo seguinte, que abre o próximo.
-  if (completa)
-    instrucoes.push(
-      db
-        .prepare(
-          'UPDATE cartoes SET completo_em = unixepoch(), usado_em = unixepoch(), usado_loja_id = ?, usado_por = ? WHERE id = ?',
-        )
-        .bind(lojaId, pessoa.id, cartao.id),
-    );
   let r: D1Result[];
   try {
     r = await db.batch(instrucoes);
@@ -454,7 +518,29 @@ async function carimbar(
     if (outra) return resultadoDe(c, outra.id);
     traduzirErroDaBase(e);
   }
-  const novo = r[0]!.results[0] as { id: number; criado_em: number };
+  const novo = r[0]!.results[0] as { id: number; criado_em: number } | undefined;
+  if (!novo) {
+    // O carimbo não entrou. Ou o cartão completou-se entretanto (outro carimbo ao mesmo
+    // instante) e este pertence ao cartão seguinte — repete-se uma vez, do cartão actual —,
+    // ou o limite do dia ficou feito entretanto.
+    const actual = await cartaoActual(db, cliente.id);
+    if (actual?.completo_em && !segundaVez) return carimbar(c, cliente, p, true);
+    const ultimo = await db
+      .prepare(
+        `SELECT x.criado_em AS quando, e.nome AS pessoa FROM carimbos x LEFT JOIN equipa e ON e.id = x.pessoa_id
+         WHERE x.cliente_id = ? AND x.dia = ? AND x.anulado_em IS NULL ORDER BY x.criado_em DESC LIMIT 1`,
+      )
+      .bind(cliente.id, hoje)
+      .first<{ quando: number; pessoa: string | null }>();
+    throw new HTTPException(409, {
+      res: new Response(JSON.stringify({ erro: 'limite_do_dia', ultimo }), {
+        status: 409,
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      }),
+    });
+  }
+  const completa = r[2]!.meta.changes === 1;
+  const carimbosAgora = (r[3]!.results[0] as { n: number }).n;
   tocarPasse(c, cliente.id);
   // O cupão é um extra: um erro no sorteio nunca falha um carimbo já gravado.
   const cupao = await sortearCupao(db, cliente.id, novo.id, hoje).catch((e) => {
@@ -463,10 +549,7 @@ async function carimbar(
   });
   return {
     carimboId: novo.id,
-    cartao: {
-      ...cartaoPublico(cartao),
-      carimbos: cartao.carimbos + 1,
-    },
+    cartao: { ...cartaoPublico(cartao), carimbos: carimbosAgora },
     completo: completa,
     recompensa: completa ? cartao.recompensa : null,
     anulavelAte: novo.criado_em + MINUTOS_PARA_ANULAR * 60,
@@ -481,83 +564,18 @@ rotasDaBalcao.post('/carimbar', async (c) => {
   return c.json(await carimbar(c, cliente, p));
 });
 
-/**
- * Anular: quem carimbou, nos 10 minutos seguintes; o dono sempre. Se o carimbo
- * completou um cartão cuja recompensa já foi entregue, já não se anula; e se o
- * cartão seguinte já tem carimbos, também não (ficavam dois cartões abertos).
- */
+/** Anular: a regra está em carimbos.ts (é a mesma do backoffice). */
 rotasDaBalcao.post('/anular', async (c) => {
   exigirBarbearia(c);
   const { carimboId } = await corpo(c, z.object({ carimboId: z.number().int().positive() }));
   const pessoa = c.get('pessoa');
   const db = c.env.DB;
-  const x = await db
-    .prepare(
-      `SELECT x.id, x.pessoa_id, x.criado_em, x.anulado_em, x.cartao_id, c.cliente_id, c.numero, c.objectivo,
-       c.completo_em, c.usado_em,
-       (SELECT count(*) FROM carimbos y WHERE y.cartao_id = c.id AND y.anulado_em IS NULL) AS carimbos,
-       (SELECT max(y.id) FROM carimbos y WHERE y.cartao_id = c.id AND y.anulado_em IS NULL) AS ultimo_id
-       FROM carimbos x JOIN cartoes c ON c.id = x.cartao_id WHERE x.id = ?`,
-    )
-    .bind(carimboId)
-    .first<{
-      id: number;
-      pessoa_id: number | null;
-      criado_em: number;
-      anulado_em: number | null;
-      cartao_id: number;
-      cliente_id: number;
-      numero: number;
-      objectivo: number;
-      completo_em: number | null;
-      usado_em: number | null;
-      carimbos: number;
-      ultimo_id: number | null;
-    }>();
-  if (!x) recusar(404, 'nao_existe');
-  if (x.anulado_em) recusar(409, 'ja_anulado');
-  if (pessoa.papel !== 'dono' || pessoa.demo) {
-    if (x.pessoa_id !== pessoa.id) recusar(403, 'de_outra_pessoa');
-    if (x.criado_em < agora() - MINUTOS_PARA_ANULAR * 60) recusar(409, 'tarde_para_anular');
-  }
-  const instrucoes = [
-    db
-      .prepare('UPDATE carimbos SET anulado_em = unixepoch(), anulado_por = ? WHERE id = ?')
-      .bind(pessoa.id, x.id),
-    // O cupão que saiu com este carimbo, se ainda não foi usado, volta ao saco.
-    db
-      .prepare(
-        `UPDATE promocoes SET surpresa_restantes = surpresa_restantes + 1
-         WHERE surpresa_restantes IS NOT NULL AND id IN (SELECT promocao_id FROM cupoes WHERE carimbo_id = ? AND usado_em IS NULL)`,
-      )
-      .bind(x.id),
-    db.prepare('DELETE FROM cupoes WHERE carimbo_id = ? AND usado_em IS NULL').bind(x.id),
-  ];
-  if (x.completo_em && x.carimbos - 1 < x.objectivo) {
-    // Entregue à parte («Entregar»), já não se anula; entregue pelo próprio 10.º carimbo, anula-se com ele.
-    if (x.usado_em && x.usado_em !== x.completo_em) recusar(409, 'recompensa_usada');
-    // E só o próprio 10.º: anular um carimbo anterior deixava o corte grátis dado
-    // e o cartão por completar outra vez — um segundo corte grátis por oito pagos.
-    if (x.usado_em && x.id !== x.ultimo_id) recusar(409, 'recompensa_usada');
-    const seguinte = await db
-      .prepare(
-        `SELECT c.id, (SELECT count(*) FROM carimbos y WHERE y.cartao_id = c.id AND y.anulado_em IS NULL) AS carimbos
-         FROM cartoes c WHERE c.cliente_id = ? AND c.numero = ?`,
-      )
-      .bind(x.cliente_id, x.numero + 1)
-      .first<{ id: number; carimbos: number }>();
-    if (seguinte && seguinte.carimbos > 0) recusar(409, 'cartao_seguinte');
-    instrucoes.push(
-      db
-        .prepare(
-          'UPDATE cartoes SET completo_em = NULL, usado_em = NULL, usado_loja_id = NULL, usado_por = NULL WHERE id = ?',
-        )
-        .bind(x.cartao_id),
-    );
-    if (seguinte) instrucoes.push(db.prepare('DELETE FROM cartoes WHERE id = ?').bind(seguinte.id));
-  }
+  const { clienteId, instrucoes } = await anularCarimbo(db, carimboId, {
+    pessoaId: pessoa.id,
+    dono: pessoa.papel === 'dono' && !pessoa.demo,
+  });
   await db.batch(instrucoes);
-  tocarPasse(c, x.cliente_id);
+  tocarPasse(c, clienteId);
   return c.body(null, 204);
 });
 
@@ -589,6 +607,27 @@ rotasDaBalcao.post('/usar-recompensa', async (c) => {
   return c.json(await ficha(c, cliente));
 });
 
+/**
+ * Esse email já tem cartão: a recusa traz o código, e a Balcão abre essa ficha em vez de
+ * deixar o barbeiro a procurar. A demonstração não recebe códigos de clientes a sério.
+ */
+async function recusarSeEmailTemCartao(c: C, email: string): Promise<void> {
+  const existe = await c.env.DB.prepare(
+    `SELECT k.codigo, k.exemplo FROM identidades i JOIN clientes k ON k.id = i.cliente_id
+     WHERE i.email = ? AND k.apagado_em IS NULL LIMIT 1`,
+  )
+    .bind(email)
+    .first<{ codigo: string; exemplo: number }>();
+  if (!existe) return;
+  const codigo = c.get('pessoa').demo && existe.exemplo !== 1 ? undefined : existe.codigo;
+  throw new HTTPException(409, {
+    res: new Response(JSON.stringify({ erro: 'email_ja_tem_cartao', codigo }), {
+      status: 409,
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    }),
+  });
+}
+
 /** Um cliente novo ao balcão: nome, email (para depois entrar na app), e o 1.º carimbo. */
 rotasDaBalcao.post('/clientes', async (c) => {
   exigirBarbearia(c);
@@ -610,16 +649,7 @@ rotasDaBalcao.post('/clientes', async (c) => {
       .first();
     if (proprio) recusar(403, 'proprio_cartao');
   }
-  if (email) {
-    const existe = await db
-      .prepare(
-        `SELECT 1 FROM identidades i JOIN clientes k ON k.id = i.cliente_id
-         WHERE i.email = ? AND k.apagado_em IS NULL`,
-      )
-      .bind(email)
-      .first();
-    if (existe) recusar(409, 'email_ja_tem_cartao');
-  }
+  if (email) await recusarSeEmailTemCartao(c, email);
   if (p.carimbo) {
     // A mesma submissão outra vez (dois toques, a rede a cair depois de gravar): a
     // ficha que já nasceu com essa chave, e não um segundo cliente.
@@ -630,7 +660,7 @@ rotasDaBalcao.post('/clientes', async (c) => {
     if (repetida) {
       const jaCriado = await db
         .prepare(
-          'SELECT id, codigo, nome, criado_em, aniversario FROM clientes WHERE id = ? AND apagado_em IS NULL',
+          'SELECT id, codigo, nome, criado_em, aniversario, aniversario_desde FROM clientes WHERE id = ? AND apagado_em IS NULL',
         )
         .bind(repetida.cliente_id)
         .first<LinhaCliente>();
@@ -647,7 +677,7 @@ rotasDaBalcao.post('/clientes', async (c) => {
   const codigo = await codigoNovo(db);
   const cliente = await db
     .prepare(
-      'INSERT INTO clientes (codigo, nome, email, busca, exemplo) VALUES (?, ?, ?, ?, ?) RETURNING id, codigo, nome, criado_em, aniversario',
+      'INSERT INTO clientes (codigo, nome, email, busca, exemplo) VALUES (?, ?, ?, ?, ?) RETURNING id, codigo, nome, criado_em, aniversario, aniversario_desde',
     )
     .bind(codigo, p.nome, email, textoDeBusca(p.nome), c.get('pessoa').demo ? 1 : 0)
     .first<LinhaCliente>();
@@ -671,6 +701,7 @@ rotasDaBalcao.post('/clientes', async (c) => {
     // como se o email já tivesse cartão (tem).
     if (!String(e).includes('UNIQUE constraint failed: identidades')) throw e;
     await db.prepare('DELETE FROM clientes WHERE id = ?').bind(cliente.id).run();
+    await recusarSeEmailTemCartao(c, email!);
     recusar(409, 'email_ja_tem_cartao');
   }
   let carimbo: ResultadoDoCarimbo | null = null;
@@ -688,7 +719,9 @@ rotasDaBalcao.post('/clientes', async (c) => {
       if (!outra || outra.cliente_id === cliente.id) throw e;
       await db.prepare('DELETE FROM clientes WHERE id = ?').bind(cliente.id).run();
       const primeiro = await db
-        .prepare('SELECT id, codigo, nome, criado_em, aniversario FROM clientes WHERE id = ?')
+        .prepare(
+          'SELECT id, codigo, nome, criado_em, aniversario, aniversario_desde FROM clientes WHERE id = ?',
+        )
         .bind(outra.cliente_id)
         .first<LinhaCliente>();
       if (!primeiro) throw e;
@@ -703,6 +736,10 @@ rotasDaBalcao.get('/clientes', async (c) => {
   // O D1 recusa padrões LIKE com mais de 50 caracteres: um nome tem no máximo 40.
   const q = (c.req.query('q') ?? '').trim().slice(0, 40);
   if (q.length < 2) return c.json([]);
+  // 30 procuras por minuto por sessão: uma sessão perdida não despeja a lista de clientes
+  // duas letras de cada vez.
+  if (!(await c.env.PROCURAR.limit({ key: `sessao:${c.get('pessoa').sessao}` }))?.success)
+    recusar(429, 'muitas_tentativas');
   const padrao = `%${q.replace(/[%_]/g, '')}%`;
   const busca = `%${textoDeBusca(q.replace(/[%_]/g, ''))}%`;
   const codigo = normalizarCodigo(q);
@@ -716,7 +753,10 @@ rotasDaBalcao.get('/clientes', async (c) => {
   )
     .bind(padrao, busca, padrao, codigo ? `${codigo}%` : '')
     .all<ClienteProcurado & { objectivo: number | null }>();
-  return c.json(linhas.results.map((l) => ({ ...l, objectivo: l.objectivo ?? 0 })));
+  // O email vai só começado («re…@gmail.com»): distingue homónimos sem dar a lista de emails.
+  return c.json(
+    linhas.results.map((l) => ({ ...l, email: emailCurto(l.email), objectivo: l.objectivo ?? 0 })),
+  );
 });
 
 /** As casas que esta pessoa vê: a dela, ou todas (o dono, ou um barbeiro sem casa fixa). */
@@ -762,7 +802,7 @@ rotasDaBalcao.get('/hoje', async (c) => {
   const db = c.env.DB;
   const hoje = diaEmLisboa();
   const loja = filtroDaCasa(c);
-  const casa = (loja ? 'AND x.loja_id = ?' : '') + soExemplos(c, 'x');
+  const casa = (loja ? 'AND x.loja_id = ?' : '') + semExemplos(c, 'x');
   const args = loja ? [hoje, loja] : [hoje];
   const [n, novos, recompensas, ultimos] = await db.batch([
     db
@@ -779,7 +819,7 @@ rotasDaBalcao.get('/hoje', async (c) => {
       .bind(...args),
     db
       .prepare(
-        `SELECT count(*) AS n FROM cartoes x WHERE x.usado_em >= ? ${loja ? 'AND x.usado_loja_id = ?' : ''}${soExemplos(c, 'x')}`,
+        `SELECT count(*) AS n FROM cartoes x WHERE x.usado_em >= ? ${loja ? 'AND x.usado_loja_id = ?' : ''}${semExemplos(c, 'x')}`,
       )
       .bind(inicioDoDia(hoje), ...(loja ? [loja] : [])),
     db
@@ -822,7 +862,7 @@ rotasDaBalcao.get('/resumo', async (c) => {
   const antesDe = somarDias(de, -dias);
   const antesAte = somarDias(de, -1);
   const loja = filtroDaCasa(c);
-  const casa = (loja ? 'AND x.loja_id = ?' : '') + soExemplos(c, 'x');
+  const casa = (loja ? 'AND x.loja_id = ?' : '') + semExemplos(c, 'x');
   const l = loja ? [loja] : [];
   const [n, anterior, novos, recompensas, porLoja, porPessoa, visitas] = await db.batch([
     db
@@ -844,13 +884,13 @@ rotasDaBalcao.get('/resumo', async (c) => {
       .bind(de, hoje, ...l),
     db
       .prepare(
-        `SELECT count(*) AS n FROM cartoes x WHERE x.usado_em >= ? ${loja ? 'AND x.usado_loja_id = ?' : ''}${soExemplos(c, 'x')}`,
+        `SELECT count(*) AS n FROM cartoes x WHERE x.usado_em >= ? ${loja ? 'AND x.usado_loja_id = ?' : ''}${semExemplos(c, 'x')}`,
       )
       .bind(inicioDoDia(de), ...l),
     db
       .prepare(
         `SELECT l.id, l.nome, count(x.id) AS n FROM lojas l
-         LEFT JOIN carimbos x ON x.loja_id = l.id AND x.dia BETWEEN ? AND ? AND x.anulado_em IS NULL${soExemplos(c, 'x')}
+         LEFT JOIN carimbos x ON x.loja_id = l.id AND x.dia BETWEEN ? AND ? AND x.anulado_em IS NULL${semExemplos(c, 'x')}
          GROUP BY l.id ORDER BY l.ordem, l.id`,
       )
       .bind(de, hoje),
@@ -863,7 +903,7 @@ rotasDaBalcao.get('/resumo', async (c) => {
       )
       .bind(de, hoje, ...l),
     db.prepare(
-      `SELECT count(*) AS n, min(x.criado_em) AS primeiro, max(x.criado_em) AS ultimo FROM carimbos x WHERE x.anulado_em IS NULL${soExemplos(c, 'x')} GROUP BY x.cliente_id`,
+      `SELECT count(*) AS n, min(x.criado_em) AS primeiro, max(x.criado_em) AS ultimo FROM carimbos x WHERE x.anulado_em IS NULL${semExemplos(c, 'x')} GROUP BY x.cliente_id`,
     ),
   ]);
   const r: ResumoDaBalcao = {

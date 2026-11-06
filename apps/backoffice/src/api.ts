@@ -43,6 +43,12 @@ const MENSAGENS: Record<string, string> = {
   medidas: 'Não consegui ler as medidas da imagem.',
   a_si_proprio: 'Não podes tirar o teu próprio acesso.',
   nao_existe: 'Isto já não existe. Recarrega a página.',
+  casa_com_historia:
+    'Essa casa tem carimbos, clientes, equipa ou parceiros: não se tira. Se fechou, muda-lhe o nome.',
+  ja_anulado: 'Esse carimbo já estava anulado.',
+  recompensa_usada: 'Esse carimbo deu um prémio já entregue: não se anula.',
+  cartao_seguinte: 'O cartão seguinte já tem carimbos: esse não se anula.',
+  email_ja_tem_cartao: 'Esse email já tem cartão noutro cliente.',
   nada_a_mudar: 'Não havia nada para gravar.',
   repetido: 'Isso já existe.',
   ultimo_admin: 'É o último admin: não se tira.',

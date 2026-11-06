@@ -180,6 +180,13 @@ img {
     padding: 8px 12px;
     font-size: 14px;
   }
+  .lateral .navegacao .sair-movel {
+    display: flex;
+    flex: none;
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 14px;
+  }
   .navegacao svg {
     display: none;
   }
@@ -1181,22 +1188,8 @@ body.a-arrastar-algo * {
 .lateral .sair:hover {
   color: #fff;
 }
-
-/* ——— sair, no rodapé da barra lateral ——— */
-.lateral .sair {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  padding: 8px 0;
-  border: 0;
-  background: none;
-  color: #bdb8b0;
-  font-weight: 600;
-  cursor: pointer;
-}
-.lateral .sair:hover {
-  color: #fff;
+.lateral .navegacao .sair-movel {
+  display: none;
 }
 
 /* ——— uma promoção numa linha: o grande à esquerda, o resto por baixo do título ——— */

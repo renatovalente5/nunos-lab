@@ -11,7 +11,7 @@ import {
   MINUTOS_DE_PROVA_RECENTE,
   diaEmLisboa,
   eAniversarioValido,
-  fazAnosHoje,
+  temPrendaHoje,
   textoDeBusca,
   type ClienteEu,
   type FormaDeEntrar,
@@ -32,14 +32,9 @@ import {
 } from '../programa.ts';
 import { DIA, agora, corpo, idDaMorada, recusar } from '../util.ts';
 import { entrarComIdentidade, juntarIdentidade, type IdentidadeProvada } from './identidade.ts';
+import { apagarConta } from './apagar.ts';
 import { abrirSessaoDoCliente, provaRecente } from './sessao.ts';
-import {
-  appleLigada,
-  desactivarPasseDaGoogle,
-  googleLigada,
-  rodarPasse,
-  tocarPasse,
-} from '../wallet/servico.ts';
+import { appleLigada, googleLigada, rodarPasse, tocarPasse } from '../wallet/servico.ts';
 
 const Google = z.object({ credencial: z.string().min(20).max(4096) });
 const Apple = z.object({
@@ -132,7 +127,8 @@ rotasDeEntradaDoCliente.post('/entrar/demonstracao', async (c) => {
   const { codigo } = await corpo(c, z.object({ codigo: z.string().min(4).max(64) }));
   if (!(await codigoDeRevisaoValido(c, codigo))) recusar(401, 'codigo_invalido');
   const cl = await clienteDeRevisao(c);
-  const sessao = await abrirSessaoDoCliente(c, cl.id, null);
+  // Um dia: as sessões dos revisores não se acumulam durante um ano.
+  const sessao = await abrirSessaoDoCliente(c, cl.id, null, 1);
   return c.json({ sessao, nova: false });
 });
 
@@ -149,6 +145,7 @@ type LinhaCliente = {
   codigo: string;
   nome: string;
   aniversario: string | null;
+  aniversario_desde: number | null;
   loja_id: number | null;
   criado_em: number;
 };
@@ -161,7 +158,7 @@ async function lerEu(c: C): Promise<ClienteEu> {
     db.batch([
       db
         .prepare(
-          'SELECT id, codigo, nome, aniversario, loja_id, criado_em FROM clientes WHERE id = ?',
+          'SELECT id, codigo, nome, aniversario, aniversario_desde, loja_id, criado_em FROM clientes WHERE id = ?',
         )
         .bind(id),
       consultaDoCartaoActual(db, id),
@@ -208,6 +205,9 @@ async function lerEu(c: C): Promise<ClienteEu> {
            ORDER BY k.usado_em IS NOT NULL, k.valido_ate, k.emitido_em DESC LIMIT 30`,
         )
         .bind(id, diaEmLisboa()),
+      db
+        .prepare('SELECT 1 FROM prendas WHERE cliente_id = ? AND ano = ?')
+        .bind(id, Number(diaEmLisboa().slice(0, 4))),
     ]);
   let r = await consultas();
   if (!r[1]!.results[0]) {
@@ -259,8 +259,11 @@ async function lerEu(c: C): Promise<ClienteEu> {
     vales: r[7]!.results as ClienteEu['vales'],
     wallet: { apple: appleLigada(c.env), google: googleLigada(c.env) },
     cupoes: r[9]!.results as ClienteEu['cupoes'],
+    // A prenda só com a data dada há 30 dias ou mais (senão mudava-se na véspera), e uma vez por ano.
     prenda:
-      fazAnosHoje(cliente.aniversario, diaEmLisboa()) && programa.aniversario
+      temPrendaHoje(cliente.aniversario, cliente.aniversario_desde, diaEmLisboa(), agora()) &&
+      programa.aniversario &&
+      r[10]!.results.length === 0
         ? programa.aniversario
         : null,
   };
@@ -279,6 +282,8 @@ const Perfil = z.object({
 });
 
 rotasDaConta.patch('/perfil', async (c) => {
+  // A demonstração (os revisores das lojas) não muda o cliente de exemplo para o revisor seguinte.
+  exigirNaoDemo(c);
   const p = await corpo(c, Perfil);
   const db = c.env.DB;
   const { id } = c.get('cliente');
@@ -290,9 +295,24 @@ rotasDaConta.patch('/perfil', async (c) => {
   const valores: (string | number | null)[] = [];
   if (p.nome !== undefined)
     (partes.push('nome = ?', 'busca = ?'), valores.push(p.nome, textoDeBusca(p.nome)));
-  if (p.aniversario !== undefined) (partes.push('aniversario = ?'), valores.push(p.aniversario));
+  if (p.aniversario !== undefined) {
+    // A data conta a partir de quando foi dada: a prenda só vale DIAS_PARA_A_PRENDA depois.
+    // Gravar a mesma data outra vez não reinicia a contagem.
+    const actual = await db
+      .prepare('SELECT aniversario FROM clientes WHERE id = ?')
+      .bind(id)
+      .first<{ aniversario: string | null }>();
+    if ((actual?.aniversario ?? null) !== p.aniversario) {
+      partes.push('aniversario = ?', 'aniversario_desde = ?');
+      valores.push(p.aniversario, p.aniversario === null ? null : agora());
+    }
+  }
   if (p.lojaId !== undefined) (partes.push('loja_id = ?'), valores.push(p.lojaId));
-  if (partes.length === 0) recusar(400, 'nada_a_mudar');
+  if (partes.length === 0) {
+    // A mesma data outra vez não é um erro: a roda voltou ao que estava.
+    if (p.aniversario !== undefined) return c.json(await lerEu(c));
+    recusar(400, 'nada_a_mudar');
+  }
   await db
     .prepare(`UPDATE clientes SET ${partes.join(', ')} WHERE id = ?`)
     .bind(...valores, id)
@@ -437,33 +457,10 @@ rotasDaConta.post('/perdi-o-telemovel', async (c) => {
   return c.json(await lerEu(c));
 });
 
-/** Apagar a conta: sai tudo o que é pessoal; os carimbos ficam sem dono, para as contagens. */
+/** Apagar a conta: sai tudo o que é pessoal; os carimbos ficam sem dono, para as contagens (apagar.ts). */
 rotasDaConta.delete('/', async (c) => {
   exigirNaoDemo(c);
   exigirProvaRecente(c);
-  const { id } = c.get('cliente');
-  const db = c.env.DB;
-  const codigo = await codigoNovo(db);
-  const passe = await db
-    .prepare('SELECT serie, google_em FROM passes WHERE cliente_id = ?')
-    .bind(id)
-    .first<{ serie: string; google_em: number | null }>();
-  await db.batch([
-    db.prepare('DELETE FROM identidades WHERE cliente_id = ?').bind(id),
-    // O passe sai também (e os registos da Apple com ele): a Wallet deixa de o actualizar.
-    db.prepare('DELETE FROM passes WHERE cliente_id = ?').bind(id),
-    db
-      .prepare(
-        'UPDATE sessoes_de_cliente SET revogada_em = unixepoch() WHERE cliente_id = ? AND revogada_em IS NULL',
-      )
-      .bind(id),
-    db
-      .prepare(
-        `UPDATE clientes SET nome = '', busca = '', email = NULL, aniversario = NULL, loja_id = NULL,
-         codigo = ?, codigo_versao = codigo_versao + 1, apagado_em = unixepoch() WHERE id = ?`,
-      )
-      .bind(codigo, id),
-  ]);
-  if (passe?.google_em) desactivarPasseDaGoogle(c, passe.serie);
+  await apagarConta(c, c.get('cliente').id);
   return c.body(null, 204);
 });

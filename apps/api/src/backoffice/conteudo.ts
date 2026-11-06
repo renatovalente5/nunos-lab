@@ -509,7 +509,7 @@ async function lerBarbearia(db: D1Database) {
 
 rotasDoConteudo.get('/barbearia', async (c) => c.json(await lerBarbearia(c.env.DB)));
 
-/** Grava tudo de uma vez: as lojas que não vierem na lista apagam-se. */
+/** Grava tudo de uma vez: as lojas que não vierem na lista apagam-se — só as sem história (409 casa_com_historia). */
 rotasDoConteudo.put('/barbearia', async (c) => {
   const b: z.output<typeof Barbearia> = await corpo(c, Barbearia);
   const db = c.env.DB;
@@ -520,24 +520,47 @@ rotasDoConteudo.put('/barbearia', async (c) => {
   if ([...ficam].some((id) => !existentes.includes(id))) recusar(400, 'referencia');
   const instrucoes: D1PreparedStatement[] = [];
   for (const id of existentes)
-    if (!ficam.has(id))
+    if (!ficam.has(id)) {
+      // Uma casa com história não se apaga: a cascata tirava a casa a carimbos, clientes,
+      // equipa e prémios, sem aviso e sem volta. Só sai uma casa que nunca serviu.
+      const historia = await db
+        .prepare(
+          `SELECT EXISTS (SELECT 1 FROM carimbos WHERE loja_id = ?1)
+            OR EXISTS (SELECT 1 FROM cartoes WHERE usado_loja_id = ?1)
+            OR EXISTS (SELECT 1 FROM clientes WHERE loja_id = ?1 AND apagado_em IS NULL)
+            OR EXISTS (SELECT 1 FROM equipa WHERE loja_id = ?1 AND removido_em IS NULL)
+            OR EXISTS (SELECT 1 FROM parceiros WHERE loja_id = ?1)
+            OR EXISTS (SELECT 1 FROM prendas WHERE loja_id = ?1) AS h`,
+        )
+        .bind(id)
+        .first<{ h: number }>();
+      if (historia?.h) recusar(409, 'casa_com_historia');
       instrucoes.push(
         db.prepare("DELETE FROM contagens WHERE tipo = 'marcar' AND ref = ?").bind(id),
         db.prepare('DELETE FROM lojas WHERE id = ?').bind(id),
       );
+    }
   b.lojas.forEach((l, i) => {
+    // As coordenadas (o mapa e o passe) só mudam quando o formulário as traz.
+    const comCoordenadas = l.lat !== undefined && l.lng !== undefined;
     instrucoes.push(
       l.id
-        ? db
-            .prepare(
-              'UPDATE lojas SET nome = ?, morada = ?, telefone = ?, marcar = ?, ordem = ? WHERE id = ?',
-            )
-            .bind(l.nome, l.morada, l.telefone, l.marcar, i + 1, l.id)
+        ? comCoordenadas
+          ? db
+              .prepare(
+                'UPDATE lojas SET nome = ?, morada = ?, telefone = ?, marcar = ?, ordem = ?, lat = ?, lng = ? WHERE id = ?',
+              )
+              .bind(l.nome, l.morada, l.telefone, l.marcar, i + 1, l.lat, l.lng, l.id)
+          : db
+              .prepare(
+                'UPDATE lojas SET nome = ?, morada = ?, telefone = ?, marcar = ?, ordem = ? WHERE id = ?',
+              )
+              .bind(l.nome, l.morada, l.telefone, l.marcar, i + 1, l.id)
         : db
             .prepare(
-              'INSERT INTO lojas (nome, morada, telefone, marcar, ordem) VALUES (?, ?, ?, ?, ?)',
+              'INSERT INTO lojas (nome, morada, telefone, marcar, ordem, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?)',
             )
-            .bind(l.nome, l.morada, l.telefone, l.marcar, i + 1),
+            .bind(l.nome, l.morada, l.telefone, l.marcar, i + 1, l.lat ?? null, l.lng ?? null),
     );
   });
   const valores: Record<(typeof CHAVES)[number], string> = {

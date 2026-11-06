@@ -21,17 +21,23 @@ const COR_DO_PINO = 'F4F1EC';
 /** Seis horas: «temporária e limitada», como os termos da Apple pedem, mas sem fazer o telemóvel ir buscar 400 KB a cada abertura. */
 const SEIS_HORAS = 6 * 3600;
 
+/** Os tamanhos numa grelha de 16 pontos: sem isso cada largura de janela era uma chave de cache e um pedido assinado à Apple. */
+const naGrelha = (n: number) => Math.min(640, Math.max(112, Math.round(n / 16) * 16));
+
 rotasDoMapa.get('/mapa', async (c) => {
-  const w = Number(c.req.query('w'));
-  const h = Number(c.req.query('h'));
+  const w0 = Number(c.req.query('w'));
+  const h0 = Number(c.req.query('h'));
   const s = Number(c.req.query('s') ?? 2);
   // A app desenha os pinos (o ícone da app) por cima da imagem e pede-a sem os balões da
   // Apple; as apps de antes, que não os desenham, continuam a receber os balões.
   const comBaloes = c.req.query('pinos') !== '0';
   // Os limites dos Snapshots: 50 a 640 pontos de lado, escala 1 a 3. A cache é por tamanho.
-  if (![w, h].every((n) => Number.isInteger(n) && n >= 100 && n <= 640) || ![1, 2, 3].includes(s))
+  if (![w0, h0].every((n) => Number.isInteger(n) && n >= 100 && n <= 640) || ![1, 2, 3].includes(s))
     recusar(400, 'invalido');
   if (!c.env.MAPKIT_CHAVE || !c.env.MAPKIT_KID) recusar(404, 'sem_mapa');
+  // A app já pede na grelha; um tamanho fora dela (uma app antiga) recebe o mais próximo.
+  const w = naGrelha(w0);
+  const h = naGrelha(h0);
 
   const cache = caches.default;
   const chaveDaCache = new Request(
@@ -39,6 +45,10 @@ rotasDoMapa.get('/mapa', async (c) => {
   );
   const guardada = await cache.match(chaveDaCache);
   if (guardada) return guardada;
+  // Cada falha da cache é um pedido assinado à Apple: por IP, não mais do que as contagens (60/min).
+  const ip = c.req.header('CF-Connecting-IP') ?? 'local';
+  if (!(await c.env.CONTAR.limit({ key: `mapa:${ip}` }))?.success)
+    recusar(429, 'muitas_tentativas');
 
   const lojas = (
     await c.env.DB.prepare(

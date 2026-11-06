@@ -1,5 +1,9 @@
 import type { MiddlewareHandler } from 'hono';
-import { DIAS_DA_SESSAO_DO_CLIENTE, MINUTOS_DE_PROVA_RECENTE } from '@nunos-lab/dominio';
+import {
+  DIAS_DA_SESSAO_DO_CLIENTE,
+  DIAS_MAXIMOS_DA_SESSAO,
+  MINUTOS_DE_PROVA_RECENTE,
+} from '@nunos-lab/dominio';
 import type { Ambiente, C } from '../ambiente.ts';
 import { DIA, agora, aleatorio, aparelhoDe, blob, recusar, sha256 } from '../util.ts';
 
@@ -11,9 +15,11 @@ export const exigirCliente: MiddlewareHandler<Ambiente> = async (c, next) => {
   const linha = await c.env.DB.prepare(
     `SELECT s.id, s.cliente_id, s.vista_em, s.criada_em, s.identidade_id, k.codigo
      FROM sessoes_de_cliente s JOIN clientes k ON k.id = s.cliente_id
-     WHERE s.resumo = ? AND s.revogada_em IS NULL AND s.expira_em > unixepoch() AND k.apagado_em IS NULL`,
+     WHERE s.resumo = ? AND s.revogada_em IS NULL AND s.expira_em > unixepoch()
+       AND s.criada_em > unixepoch() - ? AND k.apagado_em IS NULL`,
   )
-    .bind(blob(await sha256(testemunho)))
+    // O tecto: um ano desde que abriu, por mais que se use.
+    .bind(blob(await sha256(testemunho)), DIAS_MAXIMOS_DA_SESSAO * DIA)
     .first<{
       id: number;
       cliente_id: number;
@@ -56,6 +62,7 @@ export async function abrirSessaoDoCliente(
   c: C,
   clienteId: number,
   identidadeId: number | null,
+  dias = DIAS_DA_SESSAO_DO_CLIENTE,
 ): Promise<string> {
   const testemunho = aleatorio(32);
   await c.env.DB.prepare(
@@ -67,7 +74,7 @@ export async function abrirSessaoDoCliente(
       clienteId,
       identidadeId,
       aparelhoDe(c.req.header('User-Agent') ?? ''),
-      DIAS_DA_SESSAO_DO_CLIENTE * DIA,
+      dias * DIA,
     )
     .run();
   return testemunho;

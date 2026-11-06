@@ -82,6 +82,10 @@ export function fraseDoCartao(
 export const DIAS_DA_SESSAO_DA_EQUIPA = 365;
 /** E a de um cliente. */
 export const DIAS_DA_SESSAO_DO_CLIENTE = 365;
+/** O tecto de uma sessão da equipa desde que abriu, por mais que se use: um telemóvel perdido não vale para sempre. */
+export const DIAS_MAXIMOS_DA_SESSAO_DA_EQUIPA = 180;
+/** E o tecto de qualquer outra sessão (cliente, backoffice). */
+export const DIAS_MAXIMOS_DA_SESSAO = 365;
 /** Depois de entrar, quantos minutos conta como «prova recente» (juntar, tirar, apagar). */
 export const MINUTOS_DE_PROVA_RECENTE = 15;
 /** Uma forma de entrar nova fica «à experiência» estes dias: não pode ficar sozinha. */
@@ -111,6 +115,20 @@ export function donaDaCaixa(email: string): boolean {
 /** Um email de retransmissão da Apple («ocultar o meu email»): não identifica a pessoa. */
 export function eEmailDeRelay(email: string): boolean {
   return /@privaterelay\.appleid\.com$/i.test(email);
+}
+
+/** A prenda de anos só conta com a data dada há pelo menos estes dias: senão mudava-se a data na véspera. */
+export const DIAS_PARA_A_PRENDA = 30;
+
+/** Faz anos hoje E deu a data há 30 dias ou mais (`desde`: quando a deu, em segundos; null: nunca). */
+export function temPrendaHoje(
+  aniversario: string | null | undefined,
+  desde: number | null | undefined,
+  hoje: string,
+  agoraS: number,
+): boolean {
+  if (!fazAnosHoje(aniversario, hoje)) return false;
+  return typeof desde === 'number' && desde <= agoraS - DIAS_PARA_A_PRENDA * 86400;
 }
 
 /** Faz anos hoje? Quem nasceu a 29 de Fevereiro faz anos a 28 nos anos sem 29. */

@@ -19,6 +19,10 @@ import { agora } from '../util.ts';
 
 export const rotasDasMetricas = new Hono<Ambiente>();
 
+/** As contagens são do negócio: os clientes de exemplo (e os carimbos dos revisores das lojas, que só carimbam exemplos) ficam de fora. */
+const semExemplos = (alias: string) =>
+  `AND ${alias}.cliente_id NOT IN (SELECT id FROM clientes WHERE exemplo = 1)`;
+
 rotasDasMetricas.get('/metricas', async (c) => {
   const hoje = diaEmLisboa();
   const ateQ = c.req.query('ate');
@@ -29,10 +33,12 @@ rotasDasMetricas.get('/metricas', async (c) => {
   const antesDe = somarDias(de, -dias);
   const antesAte = somarDias(de, -1);
   const lojaId = Number(c.req.query('lojaId')) || null;
-  const casa = lojaId ? 'AND x.loja_id = ?' : '';
+  const casa = `${lojaId ? 'AND x.loja_id = ? ' : ''}${semExemplos('x')}`;
   const l = lojaId ? [lojaId] : [];
   const db = c.env.DB;
   const t = agora();
+  // A pessoa da porta da revisão das lojas não é da equipa: fica fora da tabela por pessoa.
+  const revisor = Number(c.env.REVISAO_PESSOA) || 0;
 
   const NOVOS = `SELECT count(DISTINCT p.cliente_id) AS n FROM (SELECT x.cliente_id, min(x.dia) AS primeiro FROM carimbos x WHERE x.anulado_em IS NULL GROUP BY x.cliente_id) p
     JOIN carimbos x ON x.cliente_id = p.cliente_id AND x.dia = p.primeiro AND x.anulado_em IS NULL
@@ -62,16 +68,16 @@ rotasDasMetricas.get('/metricas', async (c) => {
     // 5 recompensas ganhas · 6 usadas · 7 por usar
     db
       .prepare(
-        `SELECT count(*) AS n FROM cartoes c WHERE c.completo_em >= ? AND c.completo_em < ? ${lojaId ? `AND ${ULTIMA_CASA} = ?` : ''}`,
+        `SELECT count(*) AS n FROM cartoes c WHERE c.completo_em >= ? AND c.completo_em < ? ${semExemplos('c')} ${lojaId ? `AND ${ULTIMA_CASA} = ?` : ''}`,
       )
       .bind(inicioDoDia(de), inicioDoDia(somarDias(ate, 1)), ...l),
     db
       .prepare(
-        `SELECT count(*) AS n FROM cartoes c WHERE c.usado_em >= ? AND c.usado_em < ? ${lojaId ? 'AND c.usado_loja_id = ?' : ''}`,
+        `SELECT count(*) AS n FROM cartoes c WHERE c.usado_em >= ? AND c.usado_em < ? ${semExemplos('c')} ${lojaId ? 'AND c.usado_loja_id = ?' : ''}`,
       )
       .bind(inicioDoDia(de), inicioDoDia(somarDias(ate, 1)), ...l),
     db.prepare(
-      'SELECT count(*) AS n FROM cartoes c WHERE c.completo_em IS NOT NULL AND c.usado_em IS NULL',
+      `SELECT count(*) AS n FROM cartoes c WHERE c.completo_em IS NOT NULL AND c.usado_em IS NULL ${semExemplos('c')}`,
     ),
     // 8 anulados, repetidos, sem leitura
     db
@@ -91,9 +97,9 @@ rotasDasMetricas.get('/metricas', async (c) => {
     db
       .prepare(
         `SELECT lj.id, lj.nome,
-           (SELECT count(*) FROM carimbos x WHERE x.loja_id = lj.id AND x.dia BETWEEN ? AND ? AND x.anulado_em IS NULL) AS n,
-           (SELECT count(DISTINCT x.cliente_id) FROM carimbos x WHERE x.loja_id = lj.id AND x.dia BETWEEN ? AND ? AND x.anulado_em IS NULL) AS clientes,
-           (SELECT count(*) FROM carimbos x WHERE x.loja_id = lj.id AND x.dia BETWEEN ? AND ? AND x.anulado_em IS NULL) AS anterior
+           (SELECT count(*) FROM carimbos x WHERE x.loja_id = lj.id AND x.dia BETWEEN ? AND ? AND x.anulado_em IS NULL ${semExemplos('x')}) AS n,
+           (SELECT count(DISTINCT x.cliente_id) FROM carimbos x WHERE x.loja_id = lj.id AND x.dia BETWEEN ? AND ? AND x.anulado_em IS NULL ${semExemplos('x')}) AS clientes,
+           (SELECT count(*) FROM carimbos x WHERE x.loja_id = lj.id AND x.dia BETWEEN ? AND ? AND x.anulado_em IS NULL ${semExemplos('x')}) AS anterior
          FROM lojas lj ORDER BY lj.ordem, lj.id`,
       )
       .bind(de, ate, de, ate, antesDe, antesAte),
@@ -105,10 +111,10 @@ rotasDasMetricas.get('/metricas', async (c) => {
            sum(x.anulado_em IS NOT NULL) AS anulados,
            sum(x.repetido = 1 AND x.anulado_em IS NULL) AS repetidos,
            sum(x.sem_leitura = 1 AND x.anulado_em IS NULL) AS sem_leitura,
-           (SELECT count(*) FROM cartoes c WHERE c.usado_por = e.id AND c.usado_em >= ? AND c.usado_em < ? ${lojaId ? 'AND c.usado_loja_id = ?' : ''}) AS recompensas
+           (SELECT count(*) FROM cartoes c WHERE c.usado_por = e.id AND c.usado_em >= ? AND c.usado_em < ? ${semExemplos('c')} ${lojaId ? 'AND c.usado_loja_id = ?' : ''}) AS recompensas
          FROM equipa e LEFT JOIN lojas lj ON lj.id = e.loja_id
          LEFT JOIN carimbos x ON x.pessoa_id = e.id AND x.dia BETWEEN ? AND ? ${casa}
-         WHERE e.removido_em IS NULL AND e.papel != 'parceiro' GROUP BY e.id ORDER BY n DESC, e.nome`,
+         WHERE e.removido_em IS NULL AND e.papel != 'parceiro' AND e.id != ${revisor} GROUP BY e.id ORDER BY n DESC, e.nome`,
       )
       .bind(inicioDoDia(de), inicioDoDia(somarDias(ate, 1)), ...l, de, ate, ...l),
     // 12 os instantes, para o mapa de calor
@@ -122,52 +128,52 @@ rotasDasMetricas.get('/metricas', async (c) => {
       `SELECT x.cliente_id, k.nome, count(*) AS n, min(x.criado_em) AS primeiro, max(x.criado_em) AS ultimo,
            count(DISTINCT x.loja_id) AS lojas
          FROM carimbos x JOIN clientes k ON k.id = x.cliente_id
-         WHERE x.anulado_em IS NULL AND k.apagado_em IS NULL GROUP BY x.cliente_id`,
+         WHERE x.anulado_em IS NULL AND k.apagado_em IS NULL AND k.exemplo = 0 GROUP BY x.cliente_id`,
     ),
     // 14 a segunda visita de cada cliente (o retorno)
     db.prepare(
       `SELECT cliente_id, min(CASE WHEN rn = 1 THEN criado_em END) AS primeiro, min(CASE WHEN rn = 2 THEN criado_em END) AS segundo
        FROM (SELECT cliente_id, criado_em, row_number() OVER (PARTITION BY cliente_id ORDER BY criado_em) AS rn
-             FROM carimbos WHERE anulado_em IS NULL) WHERE rn <= 2 GROUP BY cliente_id`,
+             FROM carimbos WHERE anulado_em IS NULL AND cliente_id NOT IN (SELECT id FROM clientes WHERE exemplo = 1)) WHERE rn <= 2 GROUP BY cliente_id`,
     ),
     // 15 os meses em que cada cliente veio (as coortes)
     db.prepare(
-      `SELECT cliente_id, substr(dia, 1, 7) AS mes FROM carimbos WHERE anulado_em IS NULL GROUP BY cliente_id, mes`,
+      `SELECT cliente_id, substr(dia, 1, 7) AS mes FROM carimbos WHERE anulado_em IS NULL AND cliente_id NOT IN (SELECT id FROM clientes WHERE exemplo = 1) GROUP BY cliente_id, mes`,
     ),
     // 16 validações no período · 17 no anterior · 18 clientes únicos · 19 clientes com parcerias (sempre)
     db
       .prepare(
-        `SELECT count(*) AS n FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.dia BETWEEN ? AND ? AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?' : ''}`,
+        `SELECT count(*) AS n FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.dia BETWEEN ? AND ? AND v.anulado_em IS NULL AND k.exemplo = 0 ${lojaId ? 'AND k.loja_id = ?' : ''}`,
       )
       .bind(de, ate, ...l),
     db
       .prepare(
-        `SELECT count(*) AS n FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.dia BETWEEN ? AND ? AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?' : ''}`,
+        `SELECT count(*) AS n FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.dia BETWEEN ? AND ? AND v.anulado_em IS NULL AND k.exemplo = 0 ${lojaId ? 'AND k.loja_id = ?' : ''}`,
       )
       .bind(antesDe, antesAte, ...l),
     db
       .prepare(
-        `SELECT count(DISTINCT v.cliente_id) AS n FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.dia BETWEEN ? AND ? AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?' : ''}`,
+        `SELECT count(DISTINCT v.cliente_id) AS n FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.dia BETWEEN ? AND ? AND v.anulado_em IS NULL AND k.exemplo = 0 ${lojaId ? 'AND k.loja_id = ?' : ''}`,
       )
       .bind(de, ate, ...l),
     db.prepare(
-      'SELECT count(DISTINCT v.cliente_id) AS n FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.anulado_em IS NULL AND k.apagado_em IS NULL',
+      'SELECT count(DISTINCT v.cliente_id) AS n FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.anulado_em IS NULL AND k.apagado_em IS NULL AND k.exemplo = 0',
     ),
     // 20 por parceiro · 21 por promoção · 22 pela casa do cliente
     db
       .prepare(
         `SELECT pa.id, pa.nome,
-           (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.parceiro_id = pa.id AND v.dia BETWEEN ?1 AND ?2 AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?5' : ''}) AS n,
-           (SELECT count(DISTINCT v.cliente_id) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.parceiro_id = pa.id AND v.dia BETWEEN ?1 AND ?2 AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?5' : ''}) AS clientes,
-           (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.parceiro_id = pa.id AND v.dia BETWEEN ?3 AND ?4 AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?5' : ''}) AS anterior
+           (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.parceiro_id = pa.id AND v.dia BETWEEN ?1 AND ?2 AND v.anulado_em IS NULL AND k.exemplo = 0 ${lojaId ? 'AND k.loja_id = ?5' : ''}) AS n,
+           (SELECT count(DISTINCT v.cliente_id) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.parceiro_id = pa.id AND v.dia BETWEEN ?1 AND ?2 AND v.anulado_em IS NULL AND k.exemplo = 0 ${lojaId ? 'AND k.loja_id = ?5' : ''}) AS clientes,
+           (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.parceiro_id = pa.id AND v.dia BETWEEN ?3 AND ?4 AND v.anulado_em IS NULL AND k.exemplo = 0 ${lojaId ? 'AND k.loja_id = ?5' : ''}) AS anterior
          FROM parceiros pa ORDER BY n DESC, pa.ordem, pa.nome`,
       )
       .bind(de, ate, antesDe, antesAte, ...l),
     db
       .prepare(
         `SELECT p.id, pa.nome AS parceiro, p.destaque, p.titulo, p.limite_total AS limiteTotal,
-           (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.promocao_id = p.id AND v.dia BETWEEN ?1 AND ?2 AND v.anulado_em IS NULL ${lojaId ? 'AND k.loja_id = ?3' : ''}) AS n,
-           (SELECT count(*) FROM vales v WHERE v.promocao_id = p.id AND v.anulado_em IS NULL) AS total
+           (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.promocao_id = p.id AND v.dia BETWEEN ?1 AND ?2 AND v.anulado_em IS NULL AND k.exemplo = 0 ${lojaId ? 'AND k.loja_id = ?3' : ''}) AS n,
+           (SELECT count(*) FROM vales v WHERE v.promocao_id = p.id AND v.anulado_em IS NULL ${semExemplos('v')}) AS total
          FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
          WHERE p.validar = 1 OR EXISTS (SELECT 1 FROM vales v WHERE v.promocao_id = p.id)
          ORDER BY n DESC, total DESC, pa.nome LIMIT 40`,
@@ -176,7 +182,7 @@ rotasDasMetricas.get('/metricas', async (c) => {
     db
       .prepare(
         `SELECT lj.id, lj.nome,
-           (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE k.loja_id = lj.id AND v.dia BETWEEN ? AND ? AND v.anulado_em IS NULL) AS n
+           (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE k.loja_id = lj.id AND v.dia BETWEEN ? AND ? AND v.anulado_em IS NULL AND k.exemplo = 0) AS n
          FROM lojas lj ORDER BY lj.ordem, lj.id`,
       )
       .bind(de, ate),
@@ -184,7 +190,7 @@ rotasDasMetricas.get('/metricas', async (c) => {
     db
       .prepare(
         `SELECT sum(k.emitido_em >= ?1 AND k.emitido_em < ?2) AS saidos, sum(k.usado_em >= ?1 AND k.usado_em < ?2) AS usados
-         FROM cupoes k JOIN clientes c ON c.id = k.cliente_id ${lojaId ? 'WHERE c.loja_id = ?3' : ''}`,
+         FROM cupoes k JOIN clientes c ON c.id = k.cliente_id WHERE c.exemplo = 0 ${lojaId ? 'AND c.loja_id = ?3' : ''}`,
       )
       .bind(inicioDoDia(de), inicioDoDia(somarDias(ate, 1)), ...l),
     // 24 contas
@@ -194,7 +200,7 @@ rotasDasMetricas.get('/metricas', async (c) => {
          sum(EXISTS (SELECT 1 FROM identidades i WHERE i.cliente_id = k.id AND i.tipo = 'google')) AS google,
          sum(EXISTS (SELECT 1 FROM identidades i WHERE i.cliente_id = k.id AND i.tipo = 'email' AND i.dona = 1)) AS email,
          sum(NOT EXISTS (SELECT 1 FROM identidades i WHERE i.cliente_id = k.id AND (i.tipo != 'email' OR i.dona = 1))) AS so_balcao
-       FROM clientes k WHERE k.apagado_em IS NULL`,
+       FROM clientes k WHERE k.apagado_em IS NULL AND k.exemplo = 0`,
     ),
   ]);
   const n = (i: number) => Number((r[i]!.results[0] as { n: number | null }).n ?? 0);

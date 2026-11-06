@@ -10,6 +10,7 @@ import {
 } from '@nunos-lab/dominio';
 import type { Ambiente } from '../ambiente.ts';
 import { lerPrograma } from '../programa.ts';
+import { refrescarPasses } from '../wallet/servico.ts';
 import {
   DIA,
   aleatorio,
@@ -42,19 +43,54 @@ const ProgramaPedido = z.object({
 rotasDaFidelidade.put('/programa', async (c) => {
   const p = await corpo(c, ProgramaPedido);
   const db = c.env.DB;
+  const antes = await lerPrograma(db);
   const por = (chave: string, valor: string) =>
     db
       .prepare(
         'INSERT INTO definicoes (chave, valor) VALUES (?, ?) ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor',
       )
       .bind(chave, valor);
+  // A recompensa nova vale também para os cartões em curso (os completos ficam com a que
+  // ganharam): o Nuno muda a regra para toda a gente, e o passe da Wallet passa a dizer o
+  // mesmo que a app. O objectivo não: um cartão a 9 de 10 completa-se a 10.
+  const mudouRecompensa = p.recompensa !== antes.recompensa;
+  const emCurso = mudouRecompensa
+    ? ((
+        await db
+          .prepare(
+            'SELECT count(*) AS n FROM cartoes WHERE completo_em IS NULL AND recompensa != ?',
+          )
+          .bind(p.recompensa)
+          .first<{ n: number }>()
+      )?.n ?? 0)
+    : 0;
   await db.batch([
     por('fid.objectivo', String(p.objectivo)),
     por('fid.recompensa', p.recompensa),
     por('fid.por_dia', String(p.porDia)),
     por('fid.aniversario', p.aniversario),
-    registar(c, 'programa.alterado', `${p.objectivo} → ${p.recompensa}`),
+    ...(mudouRecompensa
+      ? [
+          db
+            .prepare(
+              'UPDATE cartoes SET recompensa = ? WHERE completo_em IS NULL AND recompensa != ?',
+            )
+            .bind(p.recompensa, p.recompensa),
+        ]
+      : []),
+    registar(
+      c,
+      'programa.alterado',
+      `${p.objectivo} → ${p.recompensa}${mudouRecompensa ? ` · ${emCurso} cartões em curso` : ''}`,
+    ),
   ]);
+  // Os passes dizem a recompensa: refazem-se todos (em fundo; são poucos aparelhos).
+  if (mudouRecompensa)
+    c.executionCtx.waitUntil(
+      refrescarPasses(c.env)
+        .then((feito) => console.log('passes refeitos (recompensa)', JSON.stringify(feito)))
+        .catch((e) => console.error('passes', e)),
+    );
   return c.json(await lerPrograma(db));
 });
 

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   DIAS_DA_LIGACAO,
   DIAS_DA_SESSAO,
+  DIAS_MAXIMOS_DA_SESSAO,
   LIMITES,
   normalizarEmail,
   type PessoaComAcesso,
@@ -40,9 +41,11 @@ export const exigirSessao: MiddlewareHandler<Ambiente> = async (c, next) => {
   const resumo = blob(await sha256(testemunho));
   const linha = await c.env.DB.prepare(
     `SELECT s.id, s.admin_id, s.vista_em, a.nome FROM sessoes s JOIN admins a ON a.id = s.admin_id
-     WHERE s.resumo = ? AND s.revogada_em IS NULL AND s.expira_em > unixepoch() AND a.removido_em IS NULL`,
+     WHERE s.resumo = ? AND s.revogada_em IS NULL AND s.expira_em > unixepoch()
+       AND s.criada_em > unixepoch() - ? AND a.removido_em IS NULL`,
   )
-    .bind(resumo)
+    // O tecto: um ano desde que abriu, por mais que se use.
+    .bind(resumo, DIAS_MAXIMOS_DA_SESSAO * DIA)
     .first<{ id: number; admin_id: number; vista_em: number; nome: string }>();
   if (!linha) recusar(401, 'sessao');
   // A sessão estica a cada uso, mas escreve-se no máximo uma vez por hora.

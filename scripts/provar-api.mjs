@@ -732,14 +732,15 @@ await passo('o resumo é só do dono', async () => {
     ).json()
   ).sessao;
   const resumo = await (await pedir('/api/balcao/resumo?periodo=mes', { token: tokenDono })).json();
-  assert.ok(resumo.carimbos > 10, `carimbos no mês: ${resumo.carimbos}`);
+  // Só os carimbos a sério (os dos clientes de exemplo ficam fora desde a Fase 1): os 10 da prova.
+  assert.ok(resumo.carimbos >= 10 && resumo.carimbos < 100, `carimbos no mês: ${resumo.carimbos}`);
   assert.equal(resumo.porLoja.length, 3);
   assert.ok(resumo.porPessoa.some((p) => p.nome === 'Prova Barbeiro' && p.n === 10));
   assert.equal(typeof resumo.emRisco, 'number');
   const casa = await (
     await pedir('/api/balcao/resumo?periodo=hoje&lojaId=1', { token: tokenDono })
   ).json();
-  assert.ok(casa.carimbos < resumo.carimbos);
+  assert.ok(casa.carimbos <= resumo.carimbos);
 });
 
 let tokenCliente;
@@ -1134,11 +1135,13 @@ await passo(
     assert.equal(terceira.status, 409);
     assert.equal((await terceira.json()).erro, 'limite_total');
     const m = await (await pedir('/api/bo/metricas', { token })).json();
-    assert.equal(m.parcerias.validacoes, 2);
-    assert.equal(m.parcerias.clientesUnicos, 2);
-    assert.ok(m.parcerias.porParceiro.find((x) => x.id === 1).n === 2);
+    // A validação do cliente de exemplo não entra nas métricas do negócio (Fase 1): só a do
+    // cliente da prova; a promoção, essa, conta as duas para o limite total.
+    assert.equal(m.parcerias.validacoes, 1);
+    assert.equal(m.parcerias.clientesUnicos, 1);
+    assert.ok(m.parcerias.porParceiro.find((x) => x.id === 1).n === 1);
     const pp = m.parcerias.porPromocao.find((x) => x.id === promocaoValidavel);
-    assert.equal(pp.total, 2);
+    assert.equal(pp.total, 1);
     assert.equal(pp.limiteTotal, 2);
     assert.ok(m.parcerias.semValidacoes.length >= 1);
     assert.equal(m.parcerias.porCasa.length, 3);
@@ -1422,7 +1425,8 @@ await passo('o backoffice vê os clientes, a ficha, o CSV e as métricas', async
       (p) => p.nome === 'Prova Barbeiro' && p.n === 13 && p.anulados === 1 && p.recompensas === 1,
     ),
   );
-  assert.ok(m.clientes.total >= 62);
+  // Os clientes de exemplo ficam fora das métricas (Fase 1): só os da prova.
+  assert.ok(m.clientes.total >= 2 && m.clientes.total < 60, `clientes: ${m.clientes.total}`);
   assert.ok(m.clientes.distribuicao.length === 4);
   assert.equal(typeof m.contas.google, 'number');
   const tudo = await (

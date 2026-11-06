@@ -25,6 +25,8 @@
     { "name": "CONTAR", "namespace_id": "7102", "simple": { "limit": 60, "period": 60 } },
     // Carimbos por sessão da Balcão (uma fila sem rede a despejar cabe aqui).
     { "name": "CARIMBAR", "namespace_id": "7103", "simple": { "limit": 60, "period": 60 } },
+    // Procuras de clientes por sessão da Balcão (30 por minuto): uma sessão perdida não despeja a lista.
+    { "name": "PROCURAR", "namespace_id": "7104", "simple": { "limit": 30, "period": 60 } },
   ],
   // A limpeza da madrugada: ligações e sessões caducadas, imagens sem dono.
   "triggers": { "crons": ["23 3 * * *"] },

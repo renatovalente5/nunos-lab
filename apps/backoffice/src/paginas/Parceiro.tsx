@@ -7,6 +7,7 @@ import {
   type ParceiroComPromocoes,
   type Promocao,
 } from '@nunos-lab/dominio';
+import { normalizarInstagram, normalizarSite, normalizarTelefone } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
@@ -31,6 +32,13 @@ import {
 import { ListaArrastavel } from '../arrastar';
 import { ir, parametro, useAvisoAoSair } from '../util';
 import { ConteudoDaPromocao, EditorDePromocao } from './Promocoes';
+
+/** Porque um contacto não serve, dito como ao Nuno: a API só diz qual é o campo. */
+const RAZOES = {
+  instagram: 'Põe só a conta (ex.: @tasca), não a ligação de uma publicação.',
+  telefone: 'Um telefone com 9 a 15 algarismos (ex.: 912 345 678).',
+  site: 'Uma morada de site, como tasca.pt.',
+};
 
 /** A app do cliente (para «Ver na app»). */
 const APP = (import.meta.env.VITE_APP as string).replace(/\/$/, '');
@@ -145,6 +153,17 @@ export function Parceiro({ id }: { id: string }) {
     if (!f.nome.trim()) {
       setErros(['nome']);
       avisar('Falta o nome.', true);
+      return;
+    }
+    // Os contactos conferem-se aqui, com as regras da API, para dizer o quê antes de enviar.
+    const errados = [
+      normalizarInstagram(f.instagram) === null && 'instagram',
+      normalizarTelefone(f.telefone) === null && 'telefone',
+      normalizarSite(f.site) === null && 'site',
+    ].filter((x): x is string => typeof x === 'string');
+    if (errados.length) {
+      setErros(errados);
+      avisar('Revê os campos marcados.', true);
       return;
     }
     try {
@@ -333,6 +352,7 @@ export function Parceiro({ id }: { id: string }) {
                 mudar={mudar('telefone')}
                 max={LIMITES.telefone}
                 erro={erros.includes('telefone')}
+                erroTexto={RAZOES.telefone}
               />
               <Campo
                 rotulo="Instagram"
@@ -340,6 +360,7 @@ export function Parceiro({ id }: { id: string }) {
                 mudar={mudar('instagram')}
                 max={200}
                 erro={erros.includes('instagram')}
+                erroTexto={RAZOES.instagram}
                 placeholder="@conta"
               />
             </div>
@@ -350,6 +371,7 @@ export function Parceiro({ id }: { id: string }) {
               mudar={mudar('site')}
               max={LIMITES.site}
               erro={erros.includes('site')}
+              erroTexto={RAZOES.site}
               placeholder="exemplo.pt"
             />
             <Campo

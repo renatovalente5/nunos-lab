@@ -161,6 +161,7 @@ export function Campo({
   max,
   ajuda,
   erro,
+  erroTexto,
   tipo = 'text',
   obrigatorio,
   placeholder,
@@ -176,6 +177,8 @@ export function Campo({
   max?: number;
   ajuda?: ReactNode;
   erro?: boolean;
+  /** Porque está mal («Põe só a conta…»); sem isto, «Revê este campo.». */
+  erroTexto?: string;
   tipo?: 'text' | 'date' | 'url' | 'tel' | 'number';
   obrigatorio?: boolean;
   placeholder?: string;
@@ -212,7 +215,7 @@ export function Campo({
       />
       {erro ? (
         <div className="mensagem-erro" id={`${id}-a`}>
-          Revê este campo.
+          {erroTexto ?? 'Revê este campo.'}
         </div>
       ) : (
         ajuda && (

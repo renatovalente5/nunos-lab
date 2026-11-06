@@ -147,6 +147,15 @@ function Casca() {
   }, [actual, rota[1]]);
   if (eu.error instanceof ErroDaApi && eu.error.codigo === 'sessao') return null;
 
+  // Sair: no rodapé da barra lateral e, no telemóvel, no fim do menu.
+  const sair = async () => {
+    try {
+      await pedir('/api/bo/sair', { metodo: 'POST' });
+    } finally {
+      guardarSessao(null);
+    }
+  };
+
   let pagina;
   if (actual === 'metricas') pagina = <Metricas />;
   else if (actual === 'clientes' && rota[1]) pagina = <Cliente key={rota[1]} id={rota[1]} />;
@@ -179,6 +188,9 @@ function Casca() {
               {s.nome}
             </a>
           ))}
+          <button type="button" className="sair sair-movel" onClick={sair}>
+            <Icone nome="sair" tamanho={16} /> Sair
+          </button>
         </nav>
         <div className="rodape-lateral">
           {eu.data && (
@@ -186,17 +198,7 @@ function Casca() {
               Entraste como <strong>{eu.data.nome}</strong>
             </>
           )}
-          <button
-            type="button"
-            className="sair"
-            onClick={async () => {
-              try {
-                await pedir('/api/bo/sair', { metodo: 'POST' });
-              } finally {
-                guardarSessao(null);
-              }
-            }}
-          >
+          <button type="button" className="sair" onClick={sair}>
             <Icone nome="sair" tamanho={16} /> Sair
           </button>
         </div>

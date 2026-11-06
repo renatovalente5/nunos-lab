@@ -258,7 +258,7 @@ export type ClienteEu = {
   wallet: { apple: boolean; google: boolean };
   /** Os cupões surpresa por usar (válidos) e os usados há pouco. */
   cupoes: CupaoDoCliente[];
-  /** Faz anos hoje: a prenda do programa, se houver. */
+  /** A prenda de anos do programa: faz anos hoje, deu a data há 30 dias ou mais, e ainda não a levou este ano. */
   prenda: string | null;
 };
 
@@ -336,8 +336,10 @@ export type FichaDoBalcao = {
     /** O prémio entregue hoje (o corte grátis não leva carimbo). */
     entregue: { quando: number; pessoa: string | null } | null;
   };
-  /** A prenda de anos do programa, quando faz anos. */
+  /** A prenda de anos do programa: faz anos hoje, deu a data há 30 dias ou mais, e ainda não a levou este ano. */
   prenda: string | null;
+  /** A prenda deste ano já foi entregue: quando e por quem. */
+  prendaEntregue: { quando: number; pessoa: string | null } | null;
 };
 
 export type ResultadoDoCarimbo = {
@@ -401,6 +403,7 @@ export type ClienteProcurado = {
   id: number;
   codigo: string;
   nome: string;
+  /** Só o início e o domínio («re…@gmail.com»): distingue homónimos sem dar a lista de emails. */
   email: string | null;
   carimbos: number;
   objectivo: number;

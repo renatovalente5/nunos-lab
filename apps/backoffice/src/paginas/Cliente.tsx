@@ -1,12 +1,25 @@
 import {
+  LIMITES_DO_PROGRAMA,
   dataCurta,
   diaEmLisboa,
   type DefinicoesDaBarbearia,
   type FichaDoCliente,
 } from '@nunos-lab/dominio';
-import { useQuery } from '@tanstack/react-query';
-import { mensagemDe, pedir } from '../api';
-import { Esqueleto, Etiqueta, Icone, Vazio } from '../pecas';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
+import {
+  Campo,
+  Esqueleto,
+  Etiqueta,
+  Folha,
+  Icone,
+  Seletor,
+  Vazio,
+  useAccao,
+  useAvisar,
+  useConfirmar,
+} from '../pecas';
 import { Formas } from './Clientes';
 
 /** «12 out» de um instante. */
@@ -23,8 +36,22 @@ function horaDe(segundos: number): string {
   });
 }
 
-/** A ficha de um cliente: quem é, os cartões, e cada carimbo. */
+/** A data escreve-se como se diz («25/06»); a API guarda «MM-DD». */
+const aniversarioEmTexto = (a: string | null) => (a ? `${a.slice(3, 5)}/${a.slice(0, 2)}` : '');
+/** «25/06» → «06-25»; vazio → null; outra coisa → undefined. */
+function aniversarioDoTexto(t: string): string | null | undefined {
+  const s = t.trim();
+  if (!s) return null;
+  const m = /^(\d{1,2})\s*[/.-]\s*(\d{1,2})$/.exec(s);
+  if (!m) return undefined;
+  return `${m[2]!.padStart(2, '0')}-${m[1]!.padStart(2, '0')}`;
+}
+
+type Edicao = { nome: string; email: string; aniversario: string; lojaId: number | null };
+
+/** A ficha de um cliente: quem é, os cartões, e cada carimbo; editar, apagar e anular um carimbo. */
 export function Cliente({ id }: { id: string }) {
+  const consultas = useQueryClient();
   const ficha = useQuery({
     queryKey: ['cliente', id],
     queryFn: () => pedir<FichaDoCliente>(`/api/bo/clientes/${id}`),
@@ -34,6 +61,11 @@ export function Cliente({ id }: { id: string }) {
     queryFn: () => pedir<DefinicoesDaBarbearia>('/api/bo/barbearia'),
   });
   const hoje = diaEmLisboa();
+  const avisar = useAvisar();
+  const { correr, aCorrer } = useAccao();
+  const { confirmar, dialogo } = useConfirmar();
+  const [edicao, setEdicao] = useState<Edicao | null>(null);
+  const [erros, setErros] = useState<string[]>([]);
   const voltar = (
     <a className="voltar" href="#/clientes">
       <Icone nome="voltar" tamanho={16} /> Clientes
@@ -57,16 +89,79 @@ export function Cliente({ id }: { id: string }) {
       </>
     );
   const casa = barbearia.data?.lojas.find((l) => l.id === c.lojaId)?.nome;
-  const aniversario = c.aniversario
-    ? `${c.aniversario.slice(3, 5)}/${c.aniversario.slice(0, 2)}`
-    : null;
+  const guardarFicha = (f: FichaDoCliente) => consultas.setQueryData(['cliente', id], f);
+
+  async function guardar() {
+    if (!edicao || !c) return;
+    const aniversario = aniversarioDoTexto(edicao.aniversario);
+    if (aniversario === undefined) {
+      setErros(['aniversario']);
+      avisar('Aniversário: dia e mês, como «25/06».', true);
+      return;
+    }
+    // Só vai o que mudou: a API regista o quê.
+    const corpo: Record<string, unknown> = {};
+    if (edicao.nome.trim() !== c.nome) corpo.nome = edicao.nome.trim();
+    if ((edicao.email.trim() || null) !== c.email) corpo.email = edicao.email.trim() || null;
+    if (aniversario !== c.aniversario) corpo.aniversario = aniversario;
+    if (edicao.lojaId !== c.lojaId) corpo.lojaId = edicao.lojaId;
+    if (!Object.keys(corpo).length) {
+      setEdicao(null);
+      return;
+    }
+    try {
+      const f = await pedir<FichaDoCliente>(`/api/bo/clientes/${id}`, { metodo: 'PATCH', corpo });
+      guardarFicha(f);
+      setEdicao(null);
+      setErros([]);
+      await refrescar();
+      avisar('Guardado');
+    } catch (e) {
+      if (e instanceof ErroDaApi) setErros(e.campos);
+      avisar(mensagemDe(e), true);
+    }
+  }
+
+  async function apagar() {
+    if (!c) return;
+    if (
+      !(await confirmar(
+        `Apagar a conta de ${c.nome || 'este cliente'}?`,
+        'Saem o nome, o email, as formas de entrar e o passe da Wallet; os carimbos ficam sem nome, para as contas. Não se desfaz.',
+        'Apagar',
+      ))
+    )
+      return;
+    await correr(async () => {
+      await pedir(`/api/bo/clientes/${id}`, { metodo: 'DELETE' });
+      await refrescar();
+      location.hash = '#/clientes';
+    }, 'Conta apagada');
+  }
+
+  async function anular(h: FichaDoCliente['historico'][number]) {
+    if (
+      !(await confirmar(
+        `Anular o carimbo de ${diaDe(h.quando, hoje)} às ${horaDe(h.quando)}?`,
+        'O cliente fica com menos um carimbo. Se este completou o cartão, o cartão volta a ficar por completar.',
+        'Anular',
+      ))
+    )
+      return;
+    await correr(async () => {
+      guardarFicha(
+        await pedir<FichaDoCliente>(`/api/bo/carimbos/${h.id}/anular`, { metodo: 'POST' }),
+      );
+      await refrescar();
+    }, 'Carimbo anulado');
+  }
 
   return (
     <>
       {voltar}
       <div className="cabecalho">
         <div>
-          <h1>{c.apagado ? 'Conta apagada' : c.nome}</h1>
+          <h1>{c.apagado ? 'Conta apagada' : c.nome || 'Sem nome'}</h1>
           <p className="subtitulo">
             <code className="codigo">{c.codigo}</code>
             {c.apagado && (
@@ -85,6 +180,28 @@ export function Cliente({ id }: { id: string }) {
             )}
           </p>
         </div>
+        {!c.apagado && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="botao secundario"
+              onClick={() => {
+                setErros([]);
+                setEdicao({
+                  nome: c.nome,
+                  email: c.email ?? '',
+                  aniversario: aniversarioEmTexto(c.aniversario),
+                  lojaId: c.lojaId,
+                });
+              }}
+            >
+              Editar
+            </button>
+            <button type="button" className="botao perigo" disabled={aCorrer} onClick={apagar}>
+              Apagar a conta
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="cartao recheado">
@@ -95,7 +212,7 @@ export function Cliente({ id }: { id: string }) {
           </div>
           <div>
             <dt>Aniversário</dt>
-            <dd>{aniversario ?? '—'}</dd>
+            <dd>{aniversarioEmTexto(c.aniversario) || '—'}</dd>
           </div>
           <div>
             <dt>Casa</dt>
@@ -179,15 +296,23 @@ export function Cliente({ id }: { id: string }) {
                       {[h.loja, h.pessoa, `Cartão ${h.cartaoNumero}`].filter(Boolean).join(' · ')}
                     </div>
                   </div>
-                  {(h.anuladoEm !== null || h.repetido || h.semLeitura) && (
-                    <div className="lado">
-                      {h.anuladoEm !== null && (
-                        <Etiqueta tom="mau">{`Anulado${h.anuladoPor ? ` por ${h.anuladoPor}` : ''}`}</Etiqueta>
-                      )}
-                      {h.repetido && <Etiqueta tom="atencao">Repetido</Etiqueta>}
-                      {h.semLeitura && <Etiqueta>Sem leitura</Etiqueta>}
-                    </div>
-                  )}
+                  <div className="lado">
+                    {h.anuladoEm !== null && (
+                      <Etiqueta tom="mau">{`Anulado${h.anuladoPor ? ` por ${h.anuladoPor}` : ''}`}</Etiqueta>
+                    )}
+                    {h.repetido && <Etiqueta tom="atencao">Repetido</Etiqueta>}
+                    {h.semLeitura && <Etiqueta>Sem leitura</Etiqueta>}
+                    {h.anuladoEm === null && !c.apagado && (
+                      <button
+                        type="button"
+                        className="botao secundario pequeno"
+                        disabled={aCorrer}
+                        onClick={() => anular(h)}
+                      >
+                        Anular
+                      </button>
+                    )}
+                  </div>
                 </div>
               </li>
             ))}
@@ -196,6 +321,65 @@ export function Cliente({ id }: { id: string }) {
           <Vazio titulo="Ainda sem carimbos" />
         )}
       </div>
+
+      <Folha
+        aberta={!!edicao}
+        fechar={() => setEdicao(null)}
+        titulo="Editar cliente"
+        pe={
+          <button
+            type="button"
+            className="botao"
+            disabled={!edicao?.nome.trim() || aCorrer}
+            onClick={() => correr(guardar)}
+          >
+            Guardar
+          </button>
+        }
+      >
+        {edicao && (
+          <div className="formulario">
+            <Campo
+              rotulo="Nome"
+              valor={edicao.nome}
+              mudar={(nome) => setEdicao({ ...edicao, nome })}
+              max={LIMITES_DO_PROGRAMA.nomeDoCliente}
+              erro={erros.includes('nome')}
+              obrigatorio
+              autoFocus
+            />
+            <Campo
+              rotulo="Email"
+              valor={edicao.email}
+              mudar={(email) => setEdicao({ ...edicao, email })}
+              max={254}
+              erro={erros.includes('email')}
+              placeholder="nome@gmail.com"
+              ajuda="Quem entrar na app com este email fica com este cartão."
+            />
+            <div className="duas-colunas">
+              <Campo
+                rotulo="Aniversário"
+                valor={edicao.aniversario}
+                mudar={(aniversario) => setEdicao({ ...edicao, aniversario })}
+                max={5}
+                erro={erros.includes('aniversario')}
+                erroTexto="Dia e mês, como «25/06»."
+                placeholder="25/06"
+                ajuda="Vazio: sem prenda de anos."
+              />
+              <Seletor
+                rotulo="Casa"
+                valor={edicao.lojaId}
+                mudar={(lojaId) => setEdicao({ ...edicao, lojaId })}
+                opcoes={(barbearia.data?.lojas ?? []).map((l) => ({ valor: l.id, nome: l.nome }))}
+                vazio="Sem casa"
+              />
+            </div>
+          </div>
+        )}
+      </Folha>
+      {dialogo}
     </>
   );
 }

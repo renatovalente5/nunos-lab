@@ -13,6 +13,8 @@ type LojaNoFormulario = {
   morada: string;
   telefone: string;
   marcar: string;
+  /** «40.884, -8.452»: latitude e longitude, como o Google Maps as dá. */
+  coordenadas: string;
 };
 type Formulario = Omit<DefinicoesDaBarbearia, 'lojas' | 'avisoAte'> & {
   lojas: LojaNoFormulario[];
@@ -30,8 +32,20 @@ function formularioDe(d: DefinicoesDaBarbearia): Formulario {
       morada: l.morada,
       telefone: l.telefone,
       marcar: l.marcar,
+      coordenadas: l.lat !== null && l.lng !== null ? `${l.lat}, ${l.lng}` : '',
     })),
   };
+}
+
+/** «40.884, -8.452» → { lat, lng }; vazio → sem coordenadas; outra coisa → null. */
+function coordenadasDe(texto: string): { lat: number | null; lng: number | null } | null {
+  const t = texto.trim();
+  if (!t) return { lat: null, lng: null };
+  const m = /^(-?\d{1,2}(?:\.\d+)?)[\s,;]+(-?\d{1,3}(?:\.\d+)?)$/.exec(t);
+  if (!m) return null;
+  const lat = Number(m[1]);
+  const lng = Number(m[2]);
+  return Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null;
 }
 
 export function Barbearia() {
@@ -66,6 +80,12 @@ export function Barbearia() {
       avisar('Cada loja precisa de um nome.', true);
       return;
     }
+    const malEscritas = f.lojas.map((l, i) => (coordenadasDe(l.coordenadas) ? null : i));
+    if (malEscritas.some((i) => i !== null)) {
+      setErros(malEscritas.filter((i) => i !== null).map((i) => `lojas.${i}.coordenadas`));
+      avisar('Coordenadas: latitude e longitude, como «40.884, -8.452».', true);
+      return;
+    }
     const enviado = f;
     try {
       const guardado = await pedir<DefinicoesDaBarbearia>('/api/bo/barbearia', {
@@ -73,12 +93,13 @@ export function Barbearia() {
         corpo: {
           ...f,
           avisoAte: f.avisoAte || null,
-          lojas: f.lojas.map(({ id, nome, morada, telefone, marcar }) => ({
+          lojas: f.lojas.map(({ id, nome, morada, telefone, marcar, coordenadas }) => ({
             ...(id ? { id } : {}),
             nome,
             morada,
             telefone,
             marcar,
+            ...coordenadasDe(coordenadas),
           })),
         },
       });
@@ -158,7 +179,7 @@ export function Barbearia() {
                         l.id &&
                         !(await confirmar(
                           `Tirar ${l.nome || 'a loja'}?`,
-                          'Os carimbos dados nesta casa ficam sem casa, os clientes e a equipa desta casa passam a «sem casa», e as coordenadas perdem-se. Não se desfaz.',
+                          'Só sai uma casa que nunca teve carimbos, clientes, equipa nem parceiros. Não se desfaz.',
                           'Tirar',
                         ))
                       )
@@ -187,6 +208,7 @@ export function Barbearia() {
                     mudar={(v) => mudarLoja(l.chave, 'telefone', v)}
                     max={LIMITES.telefone}
                     erro={errado('telefone')}
+                    erroTexto="Um telefone com 9 a 15 algarismos (ex.: 912 345 678)."
                   />
                 </div>
                 <Campo
@@ -197,12 +219,26 @@ export function Barbearia() {
                   erro={errado('morada')}
                 />
                 <Campo
+                  rotulo="Coordenadas"
+                  valor={l.coordenadas}
+                  mudar={(v) => mudarLoja(l.chave, 'coordenadas', v)}
+                  max={40}
+                  erro={errado('coordenadas')}
+                  placeholder="40.884, -8.452"
+                  ajuda={
+                    i === 0
+                      ? 'Latitude e longitude: o mapa da app, e o passe da Wallet acorda ao chegar à casa.'
+                      : undefined
+                  }
+                />
+                <Campo
                   rotulo="Ligação de marcação"
                   tipo="url"
                   valor={l.marcar}
                   mudar={(v) => mudarLoja(l.chave, 'marcar', v)}
                   max={500}
                   erro={errado('marcar')}
+                  erroTexto="Uma ligação https://… (a página da Fresha desta loja)."
                   ajuda={
                     i === 0
                       ? 'A página da Fresha de cada loja. O botão «Marcar» abre-a.'
@@ -222,7 +258,14 @@ export function Barbearia() {
                 ...f,
                 lojas: [
                   ...f.lojas,
-                  { chave: `nova-${Date.now()}`, nome: '', morada: '', telefone: '', marcar: '' },
+                  {
+                    chave: `nova-${Date.now()}`,
+                    nome: '',
+                    morada: '',
+                    telefone: '',
+                    marcar: '',
+                    coordenadas: '',
+                  },
                 ],
               })
             }
@@ -241,6 +284,7 @@ export function Barbearia() {
             mudar={(instagram) => setF({ ...f, instagram })}
             max={200}
             erro={erros.includes('instagram')}
+            erroTexto="Põe só a conta (ex.: @nunoslab), não a ligação de uma publicação."
             placeholder="@conta"
           />
           <Campo
@@ -250,6 +294,7 @@ export function Barbearia() {
             mudar={(tiktok) => setF({ ...f, tiktok })}
             max={200}
             erro={erros.includes('tiktok')}
+            erroTexto="Uma ligação https://www.tiktok.com/@…"
             placeholder="https://www.tiktok.com/@…"
           />
         </div>
@@ -261,6 +306,7 @@ export function Barbearia() {
             mudar={(whatsapp) => setF({ ...f, whatsapp })}
             max={200}
             erro={erros.includes('whatsapp')}
+            erroTexto="Uma ligação https://wa.link/… ou https://wa.me/…"
             placeholder="https://wa.link/…"
           />
           <Campo
@@ -270,6 +316,7 @@ export function Barbearia() {
             mudar={(site) => setF({ ...f, site })}
             max={LIMITES.site}
             erro={erros.includes('site')}
+            erroTexto="Uma morada de site, como nunoslab.com."
           />
         </div>
       </div>

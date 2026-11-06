@@ -113,3 +113,11 @@ export function normalizarEmail(entrada: string): string | null {
   if (t.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) return null;
   return t;
 }
+
+/** «re…@gmail.com»: chega para distinguir homónimos ao balcão, não para escrever a ninguém. */
+export function emailCurto(email: string | null | undefined): string | null {
+  if (!email) return null;
+  const arroba = email.indexOf('@');
+  if (arroba < 0) return `${email.slice(0, 2)}…`;
+  return `${email.slice(0, Math.min(2, arroba))}…@${email.slice(arroba + 1)}`;
+}
