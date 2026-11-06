@@ -1,7 +1,7 @@
 import { codigoCurto, dataCurta, diaEmLisboa, textoDoQr } from '@nunos-lab/dominio';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Modal, Pressable, useWindowDimensions, View } from 'react-native';
+import { Image, Modal, Pressable, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCarimbosNovos } from '../../carimbos-novos';
 import { CartaoDoCliente } from '../../componentes/cartao';
@@ -34,6 +34,9 @@ import {
   cor,
   raio,
 } from '@nunos-lab/ui';
+// Os selos oficiais, tal como a Apple e a Google os entregam (a 3x): não se redesenham nem se recolorem.
+const seloApple = require('../../../assets/selos/adicionar-a-carteira-apple.png');
+const seloGoogle = require('../../../assets/selos/adicionar-a-carteira-google.png');
 
 // Array.from: um emoji não se parte a meio.
 const primeiraLetra = (palavra?: string) => Array.from(palavra ?? '')[0] ?? '';
@@ -344,7 +347,13 @@ export default function Cartao() {
   );
 }
 
-/** «Adicionar à Apple Wallet» / «Adicionar à Google Wallet»: o passe actualiza-se a cada carimbo. */
+/**
+ * Os selos oficiais «Adicionar à Carteira Apple» e «Adicionar a Carteira do
+ * Google»: 48 pt de altura (o mínimo que a Google pede, com 8 de folga à volta;
+ * a Apple pede um décimo da altura) e a proporção de cada um. O passe
+ * actualiza-se a cada carimbo.
+ */
+const ALTURA_DO_SELO = 48;
 function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
   const daqui = carteirasDaqui();
   const [aAbrir, setAAbrir] = useState<'apple' | 'google' | null>(null);
@@ -363,40 +372,37 @@ function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
       setTimeout(() => setAAbrir(null), 1500);
     }
   };
-  const Botao = ({ qual, nome }: { qual: 'apple' | 'google'; nome: string }) => (
+  const Selo = ({ qual, nome }: { qual: 'apple' | 'google'; nome: string }) => (
     <Pressable
       onPress={() => abrir(qual)}
       role="button"
       aria-label={nome}
       aria-disabled={aAbrir !== null}
-      style={({ pressed }) => ({
-        height: 50,
-        borderRadius: 999,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 9,
-        backgroundColor: qual === 'apple' ? '#000000' : '#FFFFFF',
-        borderWidth: 1,
-        borderColor: qual === 'apple' ? '#3A3A3A' : '#E0DED8',
-        opacity: pressed || aAbrir ? 0.8 : 1,
-      })}
+      aria-busy={aAbrir === qual}
+      hitSlop={8}
+      style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
     >
-      <Icone
-        nome="cartao"
-        tamanho={18}
-        cor={qual === 'apple' ? '#FFFFFF' : '#0A0A0A'}
-        espessura={2.2}
+      {/* A largura segue a proporção do PNG (491×144 e 628×144). */}
+      <Image
+        source={qual === 'apple' ? seloApple : seloGoogle}
+        style={{
+          width: (ALTURA_DO_SELO * (qual === 'apple' ? 491 : 628)) / 144,
+          height: ALTURA_DO_SELO,
+        }}
+        resizeMode="contain"
+        accessibilityIgnoresInvertColors
       />
-      <T v="forte" style={{ color: qual === 'apple' ? '#FFFFFF' : '#0A0A0A', fontSize: 15 }}>
-        {aAbrir === qual ? 'A preparar…' : nome}
-      </T>
     </Pressable>
   );
   return (
-    <View style={{ paddingHorizontal: MARGEM, marginTop: 14, gap: 10 }}>
-      {mostrarApple && <Botao qual="apple" nome="Adicionar à Apple Wallet" />}
-      {mostrarGoogle && <Botao qual="google" nome="Adicionar à Google Wallet" />}
+    <View style={{ paddingHorizontal: MARGEM, marginTop: 14, gap: 12, alignItems: 'center' }}>
+      {mostrarApple && <Selo qual="apple" nome="Adicionar à Carteira Apple" />}
+      {mostrarGoogle && <Selo qual="google" nome="Adicionar à Carteira do Google" />}
+      {aAbrir && (
+        <T v="legenda" style={{ color: cor.texto2 }}>
+          A preparar…
+        </T>
+      )}
       {erro && (
         <T v="legenda" role="alert" style={{ color: '#E07A72', textAlign: 'center' }}>
           {erro}
