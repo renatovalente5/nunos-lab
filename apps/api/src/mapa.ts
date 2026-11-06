@@ -24,13 +24,18 @@ rotasDoMapa.get('/mapa', async (c) => {
   const w = Number(c.req.query('w'));
   const h = Number(c.req.query('h'));
   const s = Number(c.req.query('s') ?? 2);
+  // A app desenha os pinos (o ícone da app) por cima da imagem e pede-a sem os balões da
+  // Apple; as apps de antes, que não os desenham, continuam a receber os balões.
+  const comBaloes = c.req.query('pinos') !== '0';
   // Os limites dos Snapshots: 50 a 640 pontos de lado, escala 1 a 3. A cache é por tamanho.
   if (![w, h].every((n) => Number.isInteger(n) && n >= 100 && n <= 640) || ![1, 2, 3].includes(s))
     recusar(400, 'invalido');
   if (!c.env.MAPKIT_CHAVE || !c.env.MAPKIT_KID) recusar(404, 'sem_mapa');
 
   const cache = caches.default;
-  const chaveDaCache = new Request(new URL(`/api/mapa?w=${w}&h=${h}&s=${s}`, c.req.url));
+  const chaveDaCache = new Request(
+    new URL(`/api/mapa?w=${w}&h=${h}&s=${s}&pinos=${comBaloes ? 1 : 0}`, c.req.url),
+  );
   const guardada = await cache.match(chaveDaCache);
   if (guardada) return guardada;
 
@@ -50,13 +55,17 @@ rotasDoMapa.get('/mapa', async (c) => {
     colorScheme: 'dark',
     poi: '0',
     lang: 'pt-PT',
-    annotations: JSON.stringify(
-      lojas.map((l) => ({
-        point: `${l.lat},${l.lng}`,
-        color: COR_DO_PINO,
-        markerStyle: 'balloon',
-      })),
-    ),
+    ...(comBaloes
+      ? {
+          annotations: JSON.stringify(
+            lojas.map((l) => ({
+              point: `${l.lat},${l.lng}`,
+              color: COR_DO_PINO,
+              markerStyle: 'balloon',
+            })),
+          ),
+        }
+      : {}),
     teamId: c.env.APPLE_EQUIPA,
     keyId: c.env.MAPKIT_KID,
   });
