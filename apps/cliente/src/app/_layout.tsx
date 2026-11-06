@@ -46,14 +46,25 @@ if (Platform.OS !== 'web') {
  * arranque a frio seguinte — que no iPhone pode levar dias. Aqui, a que já
  * está descarregada entra quando a app volta ao primeiro plano, e ao voltar do
  * fundo passadas mais de duas horas pede-se uma nova (entra na volta seguinte).
+ * E a que acaba de descarregar nos primeiros segundos depois do arranque entra
+ * logo: um reinício de um segundo antes de a pessoa se instalar no ecrã, em vez
+ * de um segundo arranque a frio que pode nunca vir.
  * Só num build instalado: em desenvolvimento e na web o módulo lança erros.
  */
 const COM_ACTUALIZACOES = !__DEV__ && Platform.OS !== 'web' && Updates.isEnabled;
 const DUAS_HORAS = 2 * 60 * 60_000;
+/** Até quando, depois do arranque, uma actualização acabada de descarregar entra logo. */
+const INICIO = 15_000;
 
 function Actualizacoes() {
   const { isUpdatePending } = Updates.useUpdates();
   const emFundoDesde = useRef(0);
+  const arrancouEm = useRef(Date.now());
+  useEffect(() => {
+    if (!isUpdatePending || AppState.currentState !== 'active') return;
+    if (Date.now() - arrancouEm.current > INICIO) return;
+    void Updates.reloadAsync().catch(() => {});
+  }, [isUpdatePending]);
   useEffect(() => {
     const ouvinte = AppState.addEventListener('change', (estado) => {
       if (estado === 'background') emFundoDesde.current = Date.now();
