@@ -108,33 +108,43 @@ function Roda({
 }) {
   const ref = useRef<ComponentRef<typeof ScrollView>>(null);
   const [aVer, setAVer] = useState(indice);
-  // Ao abrir, a roda põe-se na linha guardada (sem animação); se a lista encolher (Fevereiro), acompanha.
+  // A linha de abertura vai na própria ScrollView: um scrollTo na montagem, dentro de um Modal,
+  // pode chegar antes da medida.
+  const inicial = useRef(indice * LINHA).current;
+  // O que esta roda já disse ao pai. Quando o `indice` volta igual, a roda já lá está (ou a
+  // encostar): mexê-la aqui era saltar debaixo do dedo. Só se mexe quando é o pai a mudar
+  // (ao abrir, ou o dia a encolher em Fevereiro).
+  const dito = useRef<number | null>(null);
   useEffect(() => {
+    if (indice === dito.current) return;
+    dito.current = indice;
     ref.current?.scrollTo({ y: indice * LINHA, animated: false });
     setAVer(indice);
   }, [indice, itens.length]);
+  const escolher = (i: number) => {
+    dito.current = i;
+    aoEscolher(i);
+  };
+  const linhaDe = (ev: NativeSyntheticEvent<NativeScrollEvent>) =>
+    Math.min(itens.length - 1, Math.max(0, Math.round(ev.nativeEvent.contentOffset.y / LINHA)));
   // Na web (roda do rato) os eventos de «parou» não vêm: a escolha fixa-se quando o rolar sossega.
   const sossego = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => clearTimeout(sossego.current ?? undefined), []);
   const aoRolar = (ev: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const i = Math.min(
-      itens.length - 1,
-      Math.max(0, Math.round(ev.nativeEvent.contentOffset.y / LINHA)),
-    );
+    const i = linhaDe(ev);
     setAVer(i);
     if (sossego.current) clearTimeout(sossego.current);
-    sossego.current = setTimeout(() => aoEscolher(i), 160);
+    sossego.current = setTimeout(() => escolher(i), 160);
   };
   const aoParar = (ev: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const i = Math.min(
-      itens.length - 1,
-      Math.max(0, Math.round(ev.nativeEvent.contentOffset.y / LINHA)),
-    );
+    const i = linhaDe(ev);
     setAVer(i);
-    if (i !== indice) aoEscolher(i);
+    if (i !== indice) escolher(i);
   };
   return (
     <ScrollView
       ref={ref}
+      contentOffset={{ x: 0, y: inicial }}
       style={{ width: largura, height: LINHA * A_VISTA }}
       contentContainerStyle={{ paddingVertical: LINHA * 2 }}
       showsVerticalScrollIndicator={false}

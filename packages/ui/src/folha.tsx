@@ -25,18 +25,23 @@ export function Folha({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
-        <Pressable
-          onPress={fechar}
-          aria-label="Fechar"
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            justifyContent: 'flex-end',
-            alignItems: 'center',
-          }}
-        >
+        <View style={{ flex: 1, justifyContent: 'flex-end', alignItems: 'center' }}>
+          {/* O fundo escuro fecha ao toque. É irmão da folha, não pai: no iPhone um ScrollView
+              não rola enquanto um antepassado for o «responder» de JavaScript, e um Pressable à
+              volta do conteúdo travava as rodas do aniversário. */}
           <Pressable
-            onPress={() => {}}
+            onPress={fechar}
+            aria-label="Fechar"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.6)',
+            }}
+          />
+          <View
             role="dialog"
             aria-modal
             aria-label={titulo}
@@ -88,8 +93,8 @@ export function Folha({
               </Pressable>
             </View>
             {children}
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
