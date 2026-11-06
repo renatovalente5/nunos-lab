@@ -19,7 +19,6 @@ import {
 import type { Ambiente, C } from '../ambiente.ts';
 import { conferirCredencialGoogle } from '../backoffice/google.ts';
 import { conferirTokenDaApple } from '../entrada/apple.ts';
-import { clienteDeRevisao, codigoDeRevisaoValido } from '../revisao.ts';
 import {
   cartaoPublico,
   codigoNovo,
@@ -121,16 +120,6 @@ function identidadeDeTeste(c: C, t: z.output<typeof Teste>): IdentidadeProvada {
     nome: t.nome ?? '',
   };
 }
-rotasDeEntradaDoCliente.post('/entrar/demonstracao', async (c) => {
-  await travar(c);
-  const { codigo } = await corpo(c, z.object({ codigo: z.string().min(4).max(64) }));
-  if (!(await codigoDeRevisaoValido(c, codigo))) recusar(401, 'codigo_invalido');
-  const cl = await clienteDeRevisao(c);
-  // Um dia: as sessões dos revisores não se acumulam durante um ano.
-  const sessao = await abrirSessaoDoCliente(c, cl.id, null, 1);
-  return c.json({ sessao, nova: false });
-});
-
 rotasDeEntradaDoCliente.post('/entrar/teste', async (c) =>
   entrar(c, identidadeDeTeste(c, await corpo(c, Teste))),
 );

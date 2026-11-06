@@ -19,7 +19,7 @@ import { agora } from '../util.ts';
 
 export const rotasDasMetricas = new Hono<Ambiente>();
 
-/** As contagens são do negócio: os clientes de exemplo (e os carimbos dos revisores das lojas, que só carimbam exemplos) ficam de fora. */
+/** As contagens são do negócio: os clientes de exemplo ficam de fora. */
 const semExemplos = (alias: string) =>
   `AND ${alias}.cliente_id NOT IN (SELECT id FROM clientes WHERE exemplo = 1)`;
 
@@ -37,8 +37,6 @@ rotasDasMetricas.get('/metricas', async (c) => {
   const l = lojaId ? [lojaId] : [];
   const db = c.env.DB;
   const t = agora();
-  // A pessoa da porta da revisão das lojas não é da equipa: fica fora da tabela por pessoa.
-  const revisor = Number(c.env.REVISAO_PESSOA) || 0;
 
   const NOVOS = `SELECT count(DISTINCT p.cliente_id) AS n FROM (SELECT x.cliente_id, min(x.dia) AS primeiro FROM carimbos x WHERE x.anulado_em IS NULL GROUP BY x.cliente_id) p
     JOIN carimbos x ON x.cliente_id = p.cliente_id AND x.dia = p.primeiro AND x.anulado_em IS NULL
@@ -114,7 +112,7 @@ rotasDasMetricas.get('/metricas', async (c) => {
            (SELECT count(*) FROM cartoes c WHERE c.usado_por = e.id AND c.usado_em >= ? AND c.usado_em < ? ${semExemplos('c')} ${lojaId ? 'AND c.usado_loja_id = ?' : ''}) AS recompensas
          FROM equipa e LEFT JOIN lojas lj ON lj.id = e.loja_id
          LEFT JOIN carimbos x ON x.pessoa_id = e.id AND x.dia BETWEEN ? AND ? ${casa}
-         WHERE e.removido_em IS NULL AND e.papel != 'parceiro' AND e.id != ${revisor} GROUP BY e.id ORDER BY n DESC, e.nome`,
+         WHERE e.removido_em IS NULL AND e.papel != 'parceiro' GROUP BY e.id ORDER BY n DESC, e.nome`,
       )
       .bind(inicioDoDia(de), inicioDoDia(somarDias(ate, 1)), ...l, de, ate, ...l),
     // 12 os instantes, para o mapa de calor

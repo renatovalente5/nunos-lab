@@ -12,7 +12,6 @@ import { rotasDosNumeros } from './backoffice/numeros.ts';
 import { exigirSessao, rotasDaSessao, rotasDosAcessos } from './backoffice/sessao.ts';
 import { rotasDaConta, rotasDeEntradaDoCliente } from './cliente/conta.ts';
 import { exigirCliente } from './cliente/sessao.ts';
-import { rotasDaRevisao } from './revisao.ts';
 import { limpar } from './limpeza.ts';
 import { rotasDoMapa } from './mapa.ts';
 import { rotasPublicas } from './publico.ts';
@@ -47,7 +46,6 @@ app.use('/api/*', async (c, next) => {
 
 app.route('/api', rotasPublicas);
 app.route('/api', rotasDoMapa);
-app.route('/api/revisao', rotasDaRevisao);
 app.route('/api/bo', rotasDaSessao);
 app.use('/api/bo/*', exigirSessao);
 app.route('/api/bo', rotasDosAcessos);

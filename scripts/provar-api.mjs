@@ -87,9 +87,6 @@ const pedir = (caminho, { token, ...o } = {}) =>
     },
   });
 const json = (o) => JSON.stringify(o);
-/** A página da revisão: o código vai no formulário (POST), nunca na morada. */
-const revisao = (codigo) =>
-  pedir('/api/revisao', { method: 'POST', body: new URLSearchParams({ codigo }) });
 function novaLigacao(nome) {
   const saida = execFileSync('node', ['scripts/acesso.mjs', '--nome', nome], { encoding: 'utf8' });
   return saida.trim().split('#acesso=')[1];
@@ -1458,97 +1455,23 @@ await passo('apagar a conta deixa os carimbos sem dono, e a pessoa fora das list
   assert.equal(renascido.cortes, 0, 'entrar outra vez é uma conta nova, vazia');
 });
 
-await passo('a porta da revisão das lojas entra com o código de demonstração', async () => {
-  // Sem código, a página só pede o código; com o código errado, ou na morada, não mostra nada.
-  const porta = await pedir('/api/revisao');
-  assert.equal(porta.status, 200);
-  assert.ok((await porta.text()).includes('method="post"'), 'a página pede o código');
-  assert.equal((await revisao('nao-e-este')).status, 404);
-  assert.ok(
-    !(await (await pedir('/api/revisao?codigo=DEMOLOCAL2026')).text()).includes('<svg'),
-    'na morada o código não conta',
-  );
-  const errado = await pedir('/api/eu/entrar/demonstracao', {
-    method: 'POST',
-    body: json({ codigo: 'nao-e-este' }),
-  });
-  assert.equal(errado.status, 401);
-  // O .dev.vars tem REVISAO_CODIGO=DEMOLOCAL2026, REVISAO_CLIENTE=JMP7ZT8A e REVISAO_PESSOA=905.
-  const pagina = await revisao('DEMOLOCAL2026');
-  assert.equal(pagina.status, 200);
-  const html = await pagina.text();
-  assert.ok(
-    html.includes('<svg') && html.includes('JMP7') && html.includes('ZT8A'),
-    'a página traz o QR e o código',
-  );
-  const cliente = await (
-    await pedir('/api/eu/entrar/demonstracao', {
+await passo(
+  'a porta de demonstração já não existe: nem a página do QR, nem as entradas',
+  async () => {
+    for (const caminho of ['/api/eu/entrar/demonstracao', '/api/balcao/entrar/demonstracao']) {
+      const r = await pedir(caminho, { method: 'POST', body: json({ codigo: 'DEMOLOCAL2026' }) });
+      assert.ok([401, 404].includes(r.status), `${caminho}: ${r.status}`);
+      const corpo = await r.json().catch(() => ({}));
+      assert.equal(corpo.sessao, undefined, `${caminho} não abre sessão`);
+    }
+    assert.equal((await pedir('/api/revisao')).status, 404);
+    const pagina = await pedir('/api/revisao', {
       method: 'POST',
-      body: json({ codigo: 'DEMOLOCAL2026' }),
-    })
-  ).json();
-  const eu = await (await pedir('/api/eu', { token: cliente.sessao })).json();
-  assert.equal(eu.codigo, 'JMP7ZT8A');
-  const balcao = await (
-    await pedir('/api/balcao/entrar/demonstracao', {
-      method: 'POST',
-      body: json({ codigo: 'DEMOLOCAL2026' }),
-    })
-  ).json();
-  const pessoa = await (await pedir('/api/balcao/eu', { token: balcao.sessao })).json();
-  assert.equal(pessoa.pessoa.id, 905);
-  // A demonstração do cliente não roda o código, não apaga a conta, não junta formas.
-  for (const [caminho, method] of [
-    ['/api/eu/perdi-o-telemovel', 'POST'],
-    ['/api/eu', 'DELETE'],
-    ['/api/eu/sair-das-outras', 'POST'],
-  ]) {
-    const r = await pedir(caminho, { method, token: cliente.sessao });
-    assert.equal(r.status, 403, `${method} ${caminho}`);
-    assert.equal((await r.json()).erro, 'demonstracao');
-  }
-  assert.equal((await revisao('DEMOLOCAL2026')).status, 200, 'a porta continua');
-  // A demonstração da Balcão só vê clientes de exemplo: nem a ficha, nem a procura, nem o dia.
-  const real = await (
-    await pedir('/api/eu/entrar/teste', {
-      method: 'POST',
-      body: json({ tipo: 'google', sujeito: 'revisao-real', email: 'revisao.real@gmail.com' }),
-    })
-  ).json();
-  const codigoReal = (await (await pedir('/api/eu', { token: real.sessao })).json()).codigo;
-  assert.equal(
-    (await pedir(`/api/balcao/ficha/${codigoReal}`, { token: balcao.sessao })).status,
-    404,
-  );
-  assert.equal(
-    (await pedir(`/api/balcao/ficha/JMP7ZT8A`, { token: balcao.sessao })).status,
-    200,
-    'o cliente de demonstração abre',
-  );
-  const procura = await (
-    await pedir('/api/balcao/clientes?q=Pessoa%20Real', { token: balcao.sessao })
-  ).json();
-  assert.equal(procura.length, 0);
-  const nascido = await (
-    await pedir('/api/balcao/clientes', {
-      method: 'POST',
-      token: balcao.sessao,
-      body: json({ nome: 'Nascido Na Demo' }),
-    })
-  ).json();
-  const lista = await (await pedir('/api/bo/clientes', { token })).json();
-  assert.equal(
-    lista.find((k) => k.codigo === nascido.ficha.cliente.codigo)?.exemplo,
-    true,
-    'um cliente criado pela demonstração é um exemplo',
-  );
-  assert.equal((await pedir('/api/balcao/resumo', { token: balcao.sessao })).status, 200);
-  assert.equal(
-    (await pedir('/api/balcao/sair', { method: 'POST', token: balcao.sessao })).status,
-    204,
-  );
-  assert.equal((await pedir('/api/balcao/eu', { token: balcao.sessao })).status, 401);
-});
+      body: new URLSearchParams({ codigo: 'DEMOLOCAL2026' }),
+    });
+    assert.equal(pagina.status, 404);
+  },
+);
 
 await passo(
   'tirar alguém da equipa termina a sessão dele; apagar os exemplos limpa tudo',
@@ -1559,15 +1482,15 @@ await passo(
     );
     assert.equal((await pedir('/api/balcao/eu', { token: tokenBalcao })).status, 401);
     const r = await (await pedir('/api/bo/clientes/exemplos', { method: 'DELETE', token })).json();
-    // Ficam o cliente (JMP7ZT8A) e a pessoa (905) da porta da revisão das lojas; os 59 das
-    // sementes mais os que a demonstração criou (nascem como exemplos).
+    // Saem todos os das sementes, também os que eram da revisão das lojas (JMP7ZT8A e 905).
     assert.ok(r.apagados >= 59, `apagados: ${r.apagados}`);
     const equipa = await (await pedir('/api/bo/equipa', { token })).json();
     assert.deepEqual(
       equipa.filter((p) => p.nome.endsWith('(exemplo)')).map((p) => p.id),
-      [905],
+      [],
     );
-    assert.equal((await revisao('DEMOLOCAL2026')).status, 200);
+    const clientes = await (await pedir('/api/bo/clientes', { token })).json();
+    assert.equal(clientes.filter((k) => k.exemplo).length, 0, 'nenhum cliente de exemplo fica');
   },
 );
 

@@ -14,7 +14,6 @@ import {
 import type { Ambiente, C } from '../ambiente.ts';
 import { conferirCredencialGoogle } from '../backoffice/google.ts';
 import { conferirTokenDaApple } from '../entrada/apple.ts';
-import { codigoDeRevisaoValido, pessoaDeRevisao } from '../revisao.ts';
 import { DIA, agora, aleatorio, aparelhoDe, blob, corpo, recusar, sha256 } from '../util.ts';
 
 type LinhaPessoa = {
@@ -111,14 +110,6 @@ rotasDeEntradaDaBalcao.post('/entrar', async (c) => {
     .first<{ pessoa_id: number }>();
   if (!gasta) recusar(401, 'ligacao_invalida');
   return abrirSessao(c, gasta.pessoa_id);
-});
-
-rotasDeEntradaDaBalcao.post('/entrar/demonstracao', async (c) => {
-  await travar(c);
-  const { codigo } = await corpo(c, z.object({ codigo: z.string().min(4).max(64) }));
-  if (!(await codigoDeRevisaoValido(c, codigo))) recusar(401, 'codigo_invalido');
-  // Um dia: as sessões dos revisores não se acumulam durante um ano.
-  return abrirSessao(c, await pessoaDeRevisao(c), 1);
 });
 
 rotasDeEntradaDaBalcao.post('/entrar/google', async (c) => {
