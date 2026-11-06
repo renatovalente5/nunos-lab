@@ -1,11 +1,13 @@
 import {
   codigoCurto,
+  codigoValido,
   dataCurta,
   diaEmLisboa,
   diasEntre,
   fraseDesteCorte,
   fraseDoCartao,
   fraseDoCorteOferecido,
+  normalizarCodigo,
 } from '@nunos-lab/dominio';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -15,6 +17,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   carimbar,
   chaveNova,
+  entregarPrenda,
+  fichaVista,
+  guardarNaFila,
   lerFila,
   mensagemDe,
   pedir,
@@ -59,6 +64,9 @@ type Feito = {
   completo: boolean;
   recompensa: string | null;
   cupao?: { parceiro: string; destaque: string; titulo: string; validoAte: string } | null;
+  /** Sem ficha nem nada guardado (sem rede), o título é o código: «1 de 10» seria inventado. */
+  titulo?: string;
+  nome?: string;
 };
 
 export default function Ficha() {
@@ -86,9 +94,13 @@ export default function Ficha() {
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => clearTimeout(temporizador.current ?? undefined), []);
 
+  // Sem rede a ficha não abre, mas o código lido chega para carimbar: a letra de controlo diz se é um cartão.
+  const codigoLimpo = normalizarCodigo(codigo ?? '');
+  const codigoOk = codigoValido(codigoLimpo);
+  const vista = !ficha && codigoOk ? fichaVista(codigoLimpo) : null;
   // Os carimbos deste cartão ainda na fila sem rede contam como dados: nos círculos, no número e no «já hoje».
   const naFila =
-    ficha && filaTexto ? lerFila().filter((p) => p.codigo === ficha.cliente.codigo).length : 0;
+    filaTexto && codigoOk ? lerFila().filter((p) => p.codigo === codigoLimpo).length : 0;
   const carimbos = (ficha?.cartao.carimbos ?? 0) + naFila;
   // Os 10 círculos numa linha cabem nas margens em qualquer largura (a 320 px eram 334 px).
   const tamanho = Math.min(
@@ -169,6 +181,52 @@ export default function Ficha() {
     }
   };
 
+  /** A ficha não abriu por falta de rede: o carimbo vai para a fila só com o código, a chave e a casa. */
+  const guardarSemRede = () => {
+    if (!codigoOk || !casa || estado === 'na-fila') return;
+    guardarNaFila({
+      codigo: codigoLimpo,
+      chave: chave.current,
+      lojaId: casa,
+      confirmar: false,
+      semLeitura: semLeitura === '1',
+      pessoaId: eu?.pessoa.id,
+    });
+    setEstado('na-fila');
+    setFeito({
+      carimbos: (vista?.carimbos ?? 0) + naFila + 1,
+      objectivo: vista?.objectivo ?? eu?.programa.objectivo ?? 10,
+      completo: false,
+      recompensa: null,
+      titulo: vista ? undefined : codigoCurto(codigoLimpo),
+      nome: vista?.nome || undefined,
+    });
+    Animated.spring(escala, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
+    concluir();
+  };
+
+  /** A prenda de anos: a API devolve a ficha já com «entregue às…», e o botão desaparece. */
+  const entregar = async () => {
+    if (!ficha || !casa || estado === 'a-enviar') return;
+    setEstado('a-enviar');
+    setErro(null);
+    try {
+      const nova = await entregarPrenda({ codigo: ficha.cliente.codigo, lojaId: casa });
+      consultas.setQueryData(['balcao', 'ficha', codigo], nova);
+      vibrar('feito');
+      setEstado('pronto');
+    } catch (e) {
+      setEstado('pronto');
+      setErro(mensagemDe(e));
+      // Alguém a entregou entretanto, ou a prenda já não é de hoje: a ficha fresca diz o que se passa.
+      if (
+        e instanceof ErroDaBalcao &&
+        (e.codigo === 'sem_prenda' || e.codigo === 'prenda_entregue')
+      )
+        refetch();
+    }
+  };
+
   const usar = async (cartaoId: number) => {
     if (!ficha || !casa || estado === 'a-enviar') return;
     setEstado('a-enviar');
@@ -238,7 +296,7 @@ export default function Ficha() {
           </T>
         </View>
       )}
-      {!ficha && error && (
+      {!ficha && error && estado !== 'na-fila' && (
         <View
           style={{
             flex: 1,
@@ -251,15 +309,27 @@ export default function Ficha() {
           <T v="subtitulo" style={{ textAlign: 'center' }}>
             {mensagemDe(error)}
           </T>
+          {/* O que se sabe do cartão sem rede: o nome da última vez, ou só o código. */}
+          {error instanceof ErroDaBalcao && error.codigo === 'rede' && codigoOk && (
+            <T v="legenda" style={{ color: cor.texto2, textAlign: 'center', marginTop: -6 }}>
+              {[vista?.nome, codigoCurto(codigoLimpo)].filter(Boolean).join(' · ')}
+            </T>
+          )}
           {semRemedio(error) ? (
             <Botao nome="Fechar" secundario onPress={sair} />
           ) : (
-            <Botao nome="Tentar outra vez" secundario onPress={() => refetch()} />
+            <>
+              {/* Sem rede carimba-se na mesma: a fila leva o código, a chave e a casa, e envia depois. */}
+              {error instanceof ErroDaBalcao && error.codigo === 'rede' && codigoOk && !!casa && (
+                <Botao nome="Carimbar sem rede" onPress={guardarSemRede} />
+              )}
+              <Botao nome="Tentar outra vez" secundario onPress={() => refetch()} />
+            </>
           )}
         </View>
       )}
 
-      {ficha && (estado === 'feito' || estado === 'na-fila') && feito && (
+      {(estado === 'feito' || estado === 'na-fila') && feito && (
         <View
           style={{
             flex: 1,
@@ -287,12 +357,18 @@ export default function Ficha() {
             />
           </Animated.View>
           <T v="titulo" style={{ marginTop: 28, textAlign: 'center' }}>
-            {feito.recompensa && !feito.completo
-              ? feito.recompensa
-              : feito.completo
-                ? 'Cartão completo'
-                : `${feito.carimbos} de ${feito.objectivo}`}
+            {feito.titulo ??
+              (feito.recompensa && !feito.completo
+                ? feito.recompensa
+                : feito.completo
+                  ? 'Cartão completo'
+                  : `${feito.carimbos} de ${feito.objectivo}`)}
           </T>
+          {!!feito.nome && (
+            <T v="subtitulo" style={{ color: cor.texto2, marginTop: 8, textAlign: 'center' }}>
+              {feito.nome}
+            </T>
+          )}
           {feito.completo && feito.recompensa && (
             <T v="subtitulo" style={{ color: cor.texto2, marginTop: 8, textAlign: 'center' }}>
               {fraseDoCorteOferecido(feito.recompensa)}
@@ -433,15 +509,53 @@ export default function Ficha() {
                   backgroundColor: cor.claro,
                   borderRadius: 16,
                   padding: 12,
-                  flexDirection: 'row',
                   gap: 10,
-                  alignItems: 'center',
                   ...CONTINUO,
                 }}
               >
-                <Icone nome="bolo" tamanho={18} cor={cor.sobreClaro} espessura={2.2} />
-                <T v="forte" style={{ flex: 1, color: cor.sobreClaro }}>
-                  Prenda de anos: {ficha.prenda}
+                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                  <Icone nome="bolo" tamanho={18} cor={cor.sobreClaro} espessura={2.2} />
+                  <T v="forte" style={{ flex: 1, color: cor.sobreClaro }}>
+                    Prenda de anos: {ficha.prenda}
+                  </T>
+                </View>
+                {/* Entregar fica registado (quem e quando): a prenda é uma por ano. */}
+                <Pressable
+                  onPress={entregar}
+                  role="button"
+                  aria-disabled={estado === 'a-enviar'}
+                  style={({ pressed }) => ({
+                    height: 44,
+                    borderRadius: 999,
+                    backgroundColor: pressed ? cor.superficieAlta : cor.sobreClaro,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: estado === 'a-enviar' ? 0.6 : 1,
+                  })}
+                >
+                  <T v="forte" style={{ color: cor.claro, fontSize: 15 }}>
+                    Entregar a prenda
+                  </T>
+                </Pressable>
+              </View>
+            )}
+            {!ficha.prenda && ficha.prendaEntregue && (
+              <View
+                style={{
+                  paddingHorizontal: MARGEM,
+                  marginTop: 14,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <Icone nome="bolo" tamanho={16} cor={cor.texto2} espessura={2} />
+                <T v="legenda" style={{ color: cor.texto2, flex: 1 }}>
+                  {`Prenda de anos entregue ${
+                    diaEmLisboa(ficha.prendaEntregue.quando * 1000) === diaEmLisboa()
+                      ? `às ${hora(ficha.prendaEntregue.quando)}`
+                      : `a ${dataCurta(diaEmLisboa(ficha.prendaEntregue.quando * 1000), diaEmLisboa())}`
+                  }${ficha.prendaEntregue.pessoa ? ` por ${ficha.prendaEntregue.pessoa}` : ''}`}
                 </T>
               </View>
             )}
@@ -487,7 +601,7 @@ export default function Ficha() {
                   {ultimoDeHoje
                     ? `Já carimbado hoje às ${hora(ultimoDeHoje.quando)}${ultimoDeHoje.pessoa ? ` por ${ultimoDeHoje.pessoa}` : ''}.`
                     : entregue
-                      ? `${eu?.programa.recompensa ?? 'Prémio'} entregue hoje às ${hora(entregue.quando)}${entregue.pessoa ? ` por ${entregue.pessoa}` : ''}. Não leva carimbo.`
+                      ? `${ficha.cartao.recompensa || 'Prémio'} entregue hoje às ${hora(entregue.quando)}${entregue.pessoa ? ` por ${entregue.pessoa}` : ''}. Não leva carimbo.`
                       : 'Já carimbado hoje.'}
                 </T>
               </View>

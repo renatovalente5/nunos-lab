@@ -12,11 +12,17 @@ export function Leitor({
   aoLer,
   activo,
   aoSemCamara,
+  lanterna = false,
+  aoAbrir,
 }: {
   aoLer: (texto: string) => void;
   activo: boolean;
   /** Chamado quando não há câmara: o ecrã pede o código escrito sem o «Ou». */
   aoSemCamara?: () => void;
+  /** A lanterna acesa (só quando a câmara diz que a tem). */
+  lanterna?: boolean;
+  /** A câmara abriu: o ecrã fica a saber se pode mostrar o botão da lanterna. */
+  aoAbrir?: (capacidades: { lanterna: boolean }) => void;
 }) {
   const caixa = useRef<ComponentRef<typeof View>>(null);
   const [estado, setEstado] = useState<'a-abrir' | 'aberta' | 'sem-camara'>('a-abrir');
@@ -24,9 +30,19 @@ export function Leitor({
   ultimo.current = aoLer;
   const avisarSemCamara = useRef(aoSemCamara);
   avisarSemCamara.current = aoSemCamara;
+  const avisarAbriu = useRef(aoAbrir);
+  avisarAbriu.current = aoAbrir;
+  // A faixa de vídeo com lanterna (null: a câmara não a tem), para a acender e apagar.
+  const faixaComLanterna = useRef<MediaStreamTrack | null>(null);
   useEffect(() => {
     if (estado === 'sem-camara') avisarSemCamara.current?.();
   }, [estado]);
+  useEffect(() => {
+    // A restrição «torch» não está nos tipos do DOM, mas o Chrome do Android aceita-a.
+    faixaComLanterna.current
+      ?.applyConstraints({ advanced: [{ torch: lanterna } as MediaTrackConstraintSet] })
+      .catch(() => {});
+  }, [lanterna]);
   useEffect(() => {
     if (!activo) return;
     const onde = caixa.current as unknown as HTMLElement | null;
@@ -78,8 +94,12 @@ export function Leitor({
         }
         fluxo = f;
         video.srcObject = f;
+        const faixa = f.getVideoTracks()[0] ?? null;
+        const capacidades = faixa?.getCapabilities?.() as { torch?: boolean } | undefined;
+        faixaComLanterna.current = capacidades?.torch ? faixa : null;
         return video.play().then(() => {
           setEstado('aberta');
+          avisarAbriu.current?.({ lanterna: !!faixaComLanterna.current });
           ler();
         });
       })
@@ -87,6 +107,7 @@ export function Leitor({
     return () => {
       vivo = false;
       clearTimeout(temporizador);
+      faixaComLanterna.current = null;
       fluxo?.getTracks().forEach((t) => t.stop());
       video.remove();
     };

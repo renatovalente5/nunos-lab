@@ -3,17 +3,20 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { IconeDaLanterna } from '../componentes/lanterna';
 import { Leitor } from '../componentes/leitor';
 import { useEu } from '../sessao';
 import { Botao, Campo, Icone, LARGURA_MAXIMA, MARGEM, T, cor } from '@nunos-lab/ui';
 
-/** A câmara a ecrã inteiro; por baixo, o código escrito à mão. */
+/** A câmara a ecrã inteiro (com a lanterna para o fim do dia); por baixo, o código escrito à mão. */
 export default function Ler() {
   const margens = useSafeAreaInsets();
   const [texto, setTexto] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [activo, setActivo] = useState(true);
   const [semCamara, setSemCamara] = useState(false);
+  const [lanterna, setLanterna] = useState(false);
+  const [podeLanterna, setPodeLanterna] = useState(false);
   const { data: eu } = useEu();
   const abrir = (lido: string) => {
     const codigo = codigoLido(lido);
@@ -26,7 +29,13 @@ export default function Ler() {
   };
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
-      <Leitor activo={activo} aoLer={abrir} aoSemCamara={() => setSemCamara(true)} />
+      <Leitor
+        activo={activo}
+        aoLer={abrir}
+        aoSemCamara={() => setSemCamara(true)}
+        lanterna={lanterna}
+        aoAbrir={(c) => setPodeLanterna(c.lanterna)}
+      />
       <View
         pointerEvents="none"
         style={{ position: 'absolute', left: 0, right: 0, top: '22%', alignItems: 'center' }}
@@ -75,6 +84,33 @@ export default function Ler() {
       >
         <Icone nome="fechar" tamanho={20} espessura={2.4} />
       </Pressable>
+      {podeLanterna && (
+        <Pressable
+          onPress={() => setLanterna((v) => !v)}
+          role="button"
+          aria-label="Lanterna"
+          aria-pressed={lanterna}
+          style={({ pressed }) => ({
+            position: 'absolute',
+            top: margens.top + 12,
+            right: MARGEM,
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: lanterna
+              ? pressed
+                ? cor.claroPremido
+                : cor.claro
+              : pressed
+                ? 'rgba(10,10,10,0.7)'
+                : 'rgba(10,10,10,0.5)',
+            alignItems: 'center',
+            justifyContent: 'center',
+          })}
+        >
+          <IconeDaLanterna tamanho={20} cor={lanterna ? cor.sobreClaro : cor.texto} />
+        </Pressable>
+      )}
       <View
         style={{
           position: 'absolute',

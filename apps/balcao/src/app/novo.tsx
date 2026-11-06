@@ -1,10 +1,19 @@
-import { normalizarEmail, type FichaDoBalcao, type ResultadoDoCarimbo } from '@nunos-lab/dominio';
+import {
+  codigoCurto,
+  codigoValido,
+  normalizarEmail,
+  type FichaDoBalcao,
+  type ResultadoDoCarimbo,
+} from '@nunos-lab/dominio';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Platform, Pressable, Share, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
-import { chaveNova, mensagemDe, pedir, useCasa, useEu } from '../sessao';
+import { ErroDaBalcao, chaveNova, mensagemDe, pedir, useCasa, useEu } from '../sessao';
 import { Botao, Campo, Ecra, Icone, Interruptor, MARGEM, T, cor } from '@nunos-lab/ui';
+
+/** A app do cliente, para ir na mensagem com o código. */
+const LIGACAO_DA_APP = 'https://renatovalente5.github.io/nunos-lab/';
 
 /** Um cliente novo ao balcão: o nome, o email para entrar na app depois, e o 1.º carimbo. */
 export default function Novo() {
@@ -17,6 +26,10 @@ export default function Novo() {
   const [erro, setErro] = useState<{ nome?: string; email?: string; geral?: string }>({});
   const [aEnviar, setAEnviar] = useState(false);
   const [feito, setFeito] = useState<FichaDoBalcao | null>(null);
+  const [copiado, setCopiado] = useState(false);
+  // Uma chave por formulário, não por toque: dois «Guardar» (ou a resposta perdida) devolvem
+  // o cliente que já nasceu com ela, em vez de criarem um segundo.
+  const chave = useRef(chaveNova());
 
   const criar = async () => {
     if (aEnviar) return;
@@ -37,7 +50,7 @@ export default function Novo() {
             email: emailLimpo,
             carimbo: carimbarJa
               ? {
-                  chave: chaveNova(),
+                  chave: chave.current,
                   lojaId: casa,
                 }
               : null,
@@ -47,6 +60,17 @@ export default function Novo() {
       consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
       setFeito(r.ficha);
     } catch (x) {
+      // O email já tem cartão: a API diz qual, e abre-se logo essa ficha em vez de mandar procurar.
+      const codigo = x instanceof ErroDaBalcao ? x.dados.codigo : null;
+      if (
+        x instanceof ErroDaBalcao &&
+        x.codigo === 'email_ja_tem_cartao' &&
+        typeof codigo === 'string' &&
+        codigoValido(codigo)
+      ) {
+        router.replace({ pathname: '/ficha/[codigo]', params: { codigo, semLeitura: '1' } });
+        return;
+      }
       setErro({ geral: mensagemDe(x) });
     } finally {
       setAEnviar(false);
@@ -54,6 +78,23 @@ export default function Novo() {
   };
 
   const voltar = () => (router.canGoBack() ? router.back() : router.replace('/'));
+
+  /** O código para o cliente levar: a folha de partilha, ou copiado quando o browser não a tem. */
+  const partilhar = async (codigo: string) => {
+    const texto = `O teu cartão Nuno's Lab: ${codigoCurto(codigo)}. A app: ${LIGACAO_DA_APP}`;
+    try {
+      if (Platform.OS !== 'web') {
+        await Share.share({ message: texto });
+      } else if (typeof navigator.share === 'function') {
+        await navigator.share({ text: texto });
+      } else {
+        await navigator.clipboard.writeText(texto);
+        setCopiado(true);
+      }
+    } catch {
+      // Fechou a folha de partilha, ou o browser não deixou copiar.
+    }
+  };
 
   return (
     <Ecra comBarra={false}>
@@ -97,6 +138,10 @@ export default function Novo() {
           <T v="subtitulo" style={{ textAlign: 'center' }}>
             {feito.cliente.nome}
           </T>
+          {/* O código em grande: é com ele que o cliente sem app volta (e puxa o cartão na app). */}
+          <T v="titulo" style={{ letterSpacing: 2, textAlign: 'center' }} selectable>
+            {codigoCurto(feito.cliente.codigo)}
+          </T>
           <T v="corpo" style={{ color: cor.texto2, textAlign: 'center' }}>
             {feito.cartao.carimbos > 0
               ? `${feito.cartao.carimbos} de ${feito.cartao.objectivo}. `
@@ -105,7 +150,13 @@ export default function Novo() {
               ? 'Entra na app com esse email e encontra o cartão.'
               : 'Para ter o cartão na app, entra com a Apple ou a Google.'}
           </T>
-          <View style={{ marginTop: 10 }}>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+            <Botao
+              nome={copiado ? 'Copiado' : 'Partilhar'}
+              icone="partilhar"
+              secundario
+              onPress={() => partilhar(feito.cliente.codigo)}
+            />
             <Botao nome="Concluir" onPress={voltar} />
           </View>
         </View>

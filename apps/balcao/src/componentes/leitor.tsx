@@ -7,11 +7,17 @@ import { Botao, T, cor } from '@nunos-lab/ui';
 export function Leitor({
   aoLer,
   activo,
+  lanterna = false,
+  aoAbrir,
 }: {
   aoLer: (texto: string) => void;
   activo: boolean;
   /** Só a web fica sem câmara; no telemóvel pede-se a permissão. */
   aoSemCamara?: () => void;
+  /** A lanterna acesa (a câmara de trás do telemóvel tem sempre uma). */
+  lanterna?: boolean;
+  /** A câmara abriu: o ecrã fica a saber se pode mostrar o botão da lanterna. */
+  aoAbrir?: (capacidades: { lanterna: boolean }) => void;
 }) {
   const [permissao, pedir] = useCameraPermissions();
   const ultimo = useRef<string>('');
@@ -39,6 +45,8 @@ export function Leitor({
     <CameraView
       style={{ flex: 1 }}
       facing="back"
+      enableTorch={lanterna}
+      onCameraReady={() => aoAbrir?.({ lanterna: true })}
       barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
       onBarcodeScanned={(r) => {
         if (!activo || r.data === ultimo.current) return;

@@ -1,7 +1,9 @@
 /**
  * A sessão da Balcão fica no aparelho (um ano sem uso), e o «eu» (a pessoa, as
  * casas, o programa) em cache. Os carimbos sem rede ficam numa
- * fila com a chave de idempotência, e seguem quando houver rede.
+ * fila com a chave de idempotência, e seguem quando houver rede; os que a API
+ * recusa de vez ficam à vista («Não entraram») até alguém os dispensar. As
+ * últimas fichas vistas ficam guardadas para a ficha ter um nome sem rede.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
@@ -29,6 +31,8 @@ const CHAVE_DA_SESSAO = 'nunoslab:balcao:sessao';
 const CHAVE_DO_EU = 'nunoslab:balcao:eu:1';
 const CHAVE_DA_CASA = 'nunoslab:balcao:casa';
 const CHAVE_DA_FILA = 'nunoslab:balcao:fila';
+const CHAVE_DAS_RECUSAS = 'nunoslab:balcao:recusas';
+const CHAVE_DAS_FICHAS = 'nunoslab:balcao:fichas:1';
 
 const ouvintes = new Set<() => void>();
 const avisar = () => {
@@ -38,7 +42,13 @@ const ler = (chave: string) => lerSincrono(chave);
 const escrever = (chave: string, valor: string | null) => guardarNoArmazem(chave, valor);
 
 /** As chaves que a app guarda no aparelho (o telemóvel carrega-as ao arrancar). */
-export const CHAVES_DO_ARMAZEM = [CHAVE_DO_EU, CHAVE_DA_CASA, CHAVE_DA_FILA];
+export const CHAVES_DO_ARMAZEM = [
+  CHAVE_DO_EU,
+  CHAVE_DA_CASA,
+  CHAVE_DA_FILA,
+  CHAVE_DAS_RECUSAS,
+  CHAVE_DAS_FICHAS,
+];
 export const CHAVES_SECRETAS = [CHAVE_DA_SESSAO];
 
 export const sessao = () => ler(CHAVE_DA_SESSAO);
@@ -113,6 +123,12 @@ const MENSAGENS: Record<string, string> = {
   recompensa_usada: 'A recompensa deste cartão já foi entregue.',
   cartao_seguinte: 'O cartão seguinte já tem carimbos.',
   email_ja_tem_cartao: 'Esse email já tem cartão. Procura o cliente.',
+  limite_do_dia: 'Já tinha o carimbo de hoje.',
+  repetido: 'Esse carimbo já tinha entrado.',
+  nao_existe: 'Isso não existe.',
+  json: 'O pedido chegou mal formado. Tenta outra vez.',
+  sem_prenda: 'Hoje não há prenda para este cliente.',
+  prenda_entregue: 'A prenda deste ano já foi entregue.',
   invalido: 'Há algo por corrigir.',
   grande: 'O pedido é demasiado grande.',
   referencia: 'Isso já não existe. Recarrega.',
@@ -139,6 +155,9 @@ export const mensagemDe = (e: unknown) =>
 export const motivoCurto = (codigo: string) =>
   (MENSAGENS[codigo] ?? MENSAGENS.interno ?? '').split('.')[0] ?? '';
 
+/** Com rede fraca o sistema só desiste ao fim de ~60 s; 8 s chegam para a API e deixam o balcão seguir. */
+const TEMPO_LIMITE = 8000;
+
 export async function pedir<T = void>(
   caminho: string,
   { metodo = 'GET', corpo }: { metodo?: 'GET' | 'POST' | 'DELETE'; corpo?: unknown } = {},
@@ -153,8 +172,11 @@ export async function pedir<T = void>(
       method: metodo,
       headers: cabecalhos,
       body: corpo !== undefined ? JSON.stringify(corpo) : undefined,
+      signal: AbortSignal.timeout(TEMPO_LIMITE),
     });
   } catch {
+    // Sem rede, ou o tempo esgotado: para a app é o mesmo («rede»). Um carimbo vai para a
+    // fila com a mesma chave; se o pedido tiver chegado, a API devolve-o sem contar outra vez.
     throw new ErroDaBalcao('rede');
   }
   if (r.status === 401 && !caminho.startsWith('/entrar')) {
@@ -232,7 +254,11 @@ export function useResumo(
 export const useFicha = (codigo: string) =>
   useQuery({
     queryKey: ['balcao', 'ficha', codigo],
-    queryFn: () => pedir<FichaDoBalcao>(`/ficha/${encodeURIComponent(codigo)}`),
+    queryFn: async () => {
+      const ficha = await pedir<FichaDoBalcao>(`/ficha/${encodeURIComponent(codigo)}`);
+      guardarFichaVista(ficha);
+      return ficha;
+    },
     networkMode: 'always',
     staleTime: 0,
     retry: (n, e) => !(e instanceof ErroDaBalcao && e.codigo === 'cartao_desconhecido') && n < 1,
@@ -267,6 +293,10 @@ export const validar = (corpo: {
   chave: string;
   cupaoId?: number;
 }) => pedir<{ vale: Vale; ficha: FichaDoParceiro }>('/validar', { metodo: 'POST', corpo });
+
+/** Entregar a prenda de anos: a API devolve a ficha já com a prenda marcada como entregue. */
+export const entregarPrenda = (corpo: { codigo: string; lojaId: number }) =>
+  pedir<FichaDoBalcao>('/prenda', { metodo: 'POST', corpo });
 
 export function chaveNova(): string {
   const b = getRandomBytes(12);
@@ -308,6 +338,90 @@ export const useFila = () =>
     () => '',
   );
 
+/** Mete um carimbo na fila sem o tentar enviar (a ficha que não abriu por falta de rede). */
+export function guardarNaFila(pedido: Omit<CarimboNaFila, 'quando' | 'erro'>) {
+  guardarFila([...lerFila(), { ...pedido, quando: Date.now() }]);
+}
+
+// ——— as últimas fichas vistas ———
+
+/** O pouco que a ficha mostra sem rede: o nome e onde o cartão ia quando se viu. */
+export type FichaVista = { nome: string; carimbos: number; objectivo: number; vistaEm: number };
+const FICHAS_GUARDADAS = 50;
+const lerFichasVistas = (): Record<string, FichaVista> => {
+  try {
+    return JSON.parse(ler(CHAVE_DAS_FICHAS) ?? '{}') as Record<string, FichaVista>;
+  } catch {
+    return {};
+  }
+};
+export const fichaVista = (codigo: string): FichaVista | null => lerFichasVistas()[codigo] ?? null;
+function guardarFichaVista(ficha: FichaDoBalcao) {
+  const todas = lerFichasVistas();
+  todas[ficha.cliente.codigo] = {
+    nome: ficha.cliente.nome,
+    carimbos: ficha.cartao.carimbos,
+    objectivo: ficha.cartao.objectivo,
+    vistaEm: Date.now(),
+  };
+  // Só as últimas: o armazém do balcão não é um registo de clientes.
+  const recentes = Object.entries(todas)
+    .sort((a, b) => b[1].vistaEm - a[1].vistaEm)
+    .slice(0, FICHAS_GUARDADAS);
+  escrever(CHAVE_DAS_FICHAS, JSON.stringify(Object.fromEntries(recentes)));
+}
+/** Um carimbo entrou: o cartão guardado avança com ele, senão a ficha sem rede contava a partir da última vista. */
+function avancarFichaVista(codigo: string, cartao: { carimbos: number; objectivo: number }) {
+  const todas = lerFichasVistas();
+  const vista = todas[codigo];
+  if (!vista) return;
+  todas[codigo] = { ...vista, carimbos: cartao.carimbos, objectivo: cartao.objectivo };
+  escrever(CHAVE_DAS_FICHAS, JSON.stringify(todas));
+}
+
+// ——— os carimbos que não entraram ———
+
+/** Um carimbo da fila que a API recusou de vez: fica à vista até alguém decidir. */
+export type CarimboRecusado = {
+  codigo: string;
+  chave: string;
+  nome?: string;
+  lojaId: number;
+  pessoaId?: number;
+  /** O instante do toque (ms). */
+  quando: number;
+  /** O código da recusa (o dicionário diz o motivo). */
+  motivo: string;
+};
+const RECUSAS_GUARDADAS = 20;
+export const lerRecusas = (): CarimboRecusado[] => {
+  try {
+    return JSON.parse(ler(CHAVE_DAS_RECUSAS) ?? '[]') as CarimboRecusado[];
+  } catch {
+    return [];
+  }
+};
+const guardarRecusas = (recusas: CarimboRecusado[]) => {
+  escrever(CHAVE_DAS_RECUSAS, recusas.length ? JSON.stringify(recusas) : null);
+  avisar();
+};
+export const useRecusas = () =>
+  useSyncExternalStore(
+    (o) => {
+      ouvintes.add(o);
+      return () => ouvintes.delete(o);
+    },
+    () => ler(CHAVE_DAS_RECUSAS) ?? '',
+    () => '',
+  );
+export const dispensarRecusa = (chave: string) =>
+  guardarRecusas(lerRecusas().filter((r) => r.chave !== chave));
+/** Um carimbo deste cartão entrou (de uma ficha aberta): o que não entrou já está decidido. */
+const resolverRecusasDe = (codigo: string) => {
+  if (lerRecusas().some((r) => r.codigo === codigo))
+    guardarRecusas(lerRecusas().filter((r) => r.codigo !== codigo));
+};
+
 /** O corpo que a API espera: a pessoa e o erro ficam só no aparelho. */
 const corpoDoCarimbo = (p: Omit<CarimboNaFila, 'quando' | 'erro'>, quando?: number) => ({
   codigo: p.codigo,
@@ -330,17 +444,19 @@ export async function carimbar(
       metodo: 'POST',
       corpo: corpoDoCarimbo(pedido),
     });
+    resolverRecusasDe(pedido.codigo);
+    avancarFichaVista(pedido.codigo, resultado.cartao);
     return { resultado };
   } catch (e) {
     if (e instanceof ErroDaBalcao && e.codigo === 'rede') {
-      guardarFila([...lerFila(), { ...pedido, quando: Date.now() }]);
+      guardarNaFila(pedido);
       return { naFila: true };
     }
     throw e;
   }
 }
 
-/** As recusas que voltar a enviar não resolve: o item sai da fila. */
+/** As recusas que voltar a enviar não resolve: o item sai da fila e fica em «Não entraram». */
 const RECUSAS_DEFINITIVAS = [
   'cartao_desconhecido',
   'repetido',
@@ -355,27 +471,43 @@ const RECUSAS_DEFINITIVAS = [
 /**
  * Despeja a fila desta pessoa (os itens sem pessoa, da fila antiga, vão também):
  * um a um, pela ordem, com o que foi decidido ao tocar e o instante do toque.
- * Sai da fila com sucesso ou com uma recusa definitiva; outra falha (rede,
- * sessão, limite, servidor) pára o ciclo e fica guardada no item.
+ * Sai da fila com sucesso, ou com uma recusa definitiva (passa para «Não
+ * entraram», com o motivo); outra falha (rede, sessão, limite, servidor) pára
+ * o ciclo e fica guardada no item.
  */
 export async function despejarFila(pessoaId?: number): Promise<number> {
   let feitos = 0;
   for (const p of lerFila()) {
     if (p.pessoaId !== undefined && p.pessoaId !== pessoaId) continue;
     try {
-      await pedir<ResultadoDoCarimbo>('/carimbar', {
+      const r = await pedir<ResultadoDoCarimbo>('/carimbar', {
         metodo: 'POST',
         corpo: corpoDoCarimbo(p, Math.floor(p.quando / 1000)),
       });
+      resolverRecusasDe(p.codigo);
+      avancarFichaVista(p.codigo, r.cartao);
+      feitos++;
     } catch (e) {
       const codigo = e instanceof ErroDaBalcao ? e.codigo : 'interno';
       if (!RECUSAS_DEFINITIVAS.includes(codigo)) {
         guardarFila(lerFila().map((x) => (x.chave === p.chave ? { ...x, erro: codigo } : x)));
         break;
       }
+      // Apagar em silêncio deixava o cliente sem carimbo sem ninguém saber: fica à vista no início.
+      const recusa: CarimboRecusado = {
+        codigo: p.codigo,
+        chave: p.chave,
+        nome: fichaVista(p.codigo)?.nome,
+        lojaId: p.lojaId,
+        pessoaId: p.pessoaId,
+        quando: p.quando,
+        motivo: codigo,
+      };
+      guardarRecusas(
+        [...lerRecusas().filter((r) => r.chave !== p.chave), recusa].slice(-RECUSAS_GUARDADAS),
+      );
     }
     guardarFila(lerFila().filter((x) => x.chave !== p.chave));
-    feitos++;
   }
   return feitos;
 }

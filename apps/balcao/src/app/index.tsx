@@ -1,12 +1,15 @@
-import { dataCurta, diaEmLisboa } from '@nunos-lab/dominio';
+import { codigoCurto, dataCurta, diaEmLisboa, type UltimoCarimbo } from '@nunos-lab/dominio';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
+import { useConfirmacao } from '../componentes/confirmar';
 import {
   APPLE_CLIENTE,
   GOOGLE_CLIENTE,
+  dispensarRecusa,
   guardarSessao,
   lerFila,
+  lerRecusas,
   mensagemDe,
   motivoCurto,
   pedir,
@@ -16,6 +19,7 @@ import {
   useFila,
   useHoje,
   useHojeParceiro,
+  useRecusas,
   useTemSessao,
 } from '../sessao';
 import {
@@ -347,18 +351,33 @@ function hora(unix: number): string {
   return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+/** «15:12» hoje; «ontem 15:12» ou «3 nov 15:12» quando o toque foi noutro dia. */
+function quandoCurto(ms: number): string {
+  const dia = diaEmLisboa(ms);
+  const h = hora(Math.floor(ms / 1000));
+  return dia === diaEmLisboa() ? h : `${dataCurta(dia, diaEmLisboa())} ${h}`;
+}
+
 function Hoje() {
   const { data: eu } = useEu();
   const casa = useCasa(eu);
   const { data: hoje, refetch } = useHoje(casa, !!eu);
   const fila = useFila();
+  const recusasTexto = useRecusas();
   useDespejarFila(eu?.pessoa.id);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [confirmar, folhaDeConfirmacao] = useConfirmacao();
   const nomeDaCasa = eu?.lojas.find((l) => l.id === casa)?.nome ?? '';
-  const anular = async (id: number) => {
+  const anular = async (u: UltimoCarimbo) => {
+    // Uma pastilha pequena, com pressa e uma mão: a pergunta antes custa menos do que o engano.
+    const sim = await confirmar({
+      titulo: `Anular o carimbo de ${u.cliente || 'sem nome'} das ${hora(u.quando)}?`,
+      accao: 'Anular',
+    });
+    if (!sim) return;
     setAviso(null);
     try {
-      await pedir('/anular', { metodo: 'POST', corpo: { carimboId: id } });
+      await pedir('/anular', { metodo: 'POST', corpo: { carimboId: u.id } });
       await refetch();
     } catch (e) {
       setAviso(mensagemDe(e));
@@ -370,6 +389,10 @@ function Hoje() {
     : [];
   const naFila = itensNaFila.length;
   const motivo = itensNaFila.find((p) => p.erro)?.erro;
+  // Os carimbos da fila que a API recusou de vez: ficam à vista até esta pessoa decidir.
+  const recusas = recusasTexto
+    ? lerRecusas().filter((r) => r.pessoaId === undefined || r.pessoaId === eu?.pessoa.id)
+    : [];
   return (
     <Ecra comBarra={false}>
       <View
@@ -491,6 +514,60 @@ function Hoje() {
         </T>
       )}
 
+      {recusas.length > 0 && (
+        <>
+          <Rotulo>Não entraram</Rotulo>
+          <Grupo>
+            {recusas.map((r, i) => (
+              <View key={r.chave}>
+                {i > 0 && <Separador />}
+                {/* Um toque abre a ficha: lá decide-se «Carimbar na mesma» ou deixar. */}
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: '/ficha/[codigo]',
+                      params: { codigo: r.codigo, semLeitura: '1' },
+                    })
+                  }
+                  role="link"
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    backgroundColor: pressed ? cor.superficieAlta : 'transparent',
+                  })}
+                >
+                  <View style={{ flex: 1 }}>
+                    <T v="forte" numberOfLines={1}>
+                      {r.nome || codigoCurto(r.codigo)}
+                    </T>
+                    <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }} numberOfLines={1}>
+                      {quandoCurto(r.quando)} · {motivoCurto(r.motivo)}
+                    </T>
+                  </View>
+                  <Pressable
+                    onPress={() => dispensarRecusa(r.chave)}
+                    role="button"
+                    aria-label={`Dispensar ${r.nome || codigoCurto(r.codigo)}`}
+                    hitSlop={8}
+                    style={({ pressed }) => ({
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 999,
+                      backgroundColor: pressed ? cor.linha : cor.superficieAlta,
+                    })}
+                  >
+                    <T v="legenda">Dispensar</T>
+                  </Pressable>
+                </Pressable>
+              </View>
+            ))}
+          </Grupo>
+        </>
+      )}
+
       {hoje && hoje.ultimos.length > 0 && (
         <>
           <Rotulo>Hoje</Rotulo>
@@ -543,7 +620,7 @@ function Hoje() {
                     </T>
                     {podeAnular && !u.anulado && (
                       <Pressable
-                        onPress={() => anular(u.id)}
+                        onPress={() => anular(u)}
                         role="button"
                         aria-label="Anular"
                         hitSlop={8}
@@ -569,6 +646,7 @@ function Hoje() {
           {dataCurta(hoje.dia, diaEmLisboa())} · ainda sem carimbos
         </T>
       )}
+      {folhaDeConfirmacao}
     </Ecra>
   );
 }

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { useConfirmacao } from '../componentes/confirmar';
 import {
   despejarFila,
   guardarCasa,
@@ -21,7 +22,21 @@ export default function Conta() {
   const consultas = useQueryClient();
   const podeMudar =
     !!eu && eu.lojas.length > 1 && !(eu.pessoa.papel === 'barbeiro' && eu.pessoa.lojaId);
+  const [confirmar, folhaDeConfirmacao] = useConfirmacao();
   const sair = async () => {
+    // Sair ao primeiro toque custava: quem entra por ligação precisa de outra, e os carimbos
+    // guardados sem rede ficam presos até esta pessoa voltar a entrar aqui.
+    const porEnviar = lerFila().filter(
+      (p) => p.pessoaId === undefined || p.pessoaId === eu?.pessoa.id,
+    ).length;
+    const sim = await confirmar({
+      titulo: 'Sair deste aparelho?',
+      detalhe: porEnviar
+        ? `Há ${porEnviar} ${porEnviar === 1 ? 'carimbo' : 'carimbos'} por enviar.`
+        : undefined,
+      accao: 'Sair',
+    });
+    if (!sim) return;
     try {
       // Os carimbos guardados sem rede vão antes; os que ficarem esperam que esta pessoa volte a entrar.
       if (lerFila().length) await despejarFila(eu?.pessoa.id);
@@ -106,6 +121,7 @@ export default function Conta() {
           <T v="forte">Sair deste aparelho</T>
         </Pressable>
       </Grupo>
+      {folhaDeConfirmacao}
     </Ecra>
   );
 }
