@@ -50,11 +50,13 @@ export async function avisarApns(
   } catch {
     // sem corpo
   }
+  // A resposta da Apple fica nos registos (sem o token): sem isto, um aparelho dado como morto ou
+  // um bilhete recusado não deixavam rasto, e um passe parado não se explicava (6 nov 2026).
+  console.log('apns', r.status, motivo);
   if (r.status === 410 || motivo === 'Unregistered' || motivo === 'BadDeviceToken')
     return 'aparelho_morto';
   if (r.status === 403 && (motivo === 'ExpiredProviderToken' || motivo === 'InvalidProviderToken'))
     return 'bilhete_recusado';
   if (r.status === 429 || r.status >= 500) return 'repetir';
-  console.error('apns', r.status, motivo);
   return 'recusado';
 }

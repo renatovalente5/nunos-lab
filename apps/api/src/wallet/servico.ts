@@ -341,6 +341,7 @@ async function avisarApple(env: Env, serie: string) {
       bilhete = await bilheteApns(env);
       resposta = await avisarApns(r.push_token, bilhete, env.APPLE_PASS_TIPO, agora());
     }
+    if (resposta === 'entregue') console.log('apns', 200, 'entregue');
     if (resposta === 'aparelho_morto')
       await db
         .prepare('DELETE FROM registos_apple WHERE aparelho = ? AND serie = ?')
