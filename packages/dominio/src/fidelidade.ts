@@ -3,7 +3,7 @@
 export type Programa = {
   /** Carimbos para a recompensa (1 a 50). */
   objectivo: number;
-  /** O que se ganha: «Corte grátis», «−50 % na barba»… */
+  /** O que se ganha: «50% de desconto», «Corte grátis», «−50 % na barba»… */
   recompensa: string;
   /** Carimbos por cliente por dia; acima disto a Balcão avisa e marca «repetido». */
   porDia: number;
@@ -13,7 +13,7 @@ export type Programa = {
 
 export const PROGRAMA_PREDEFINIDO: Programa = {
   objectivo: 10,
-  recompensa: 'Corte grátis',
+  recompensa: '50% de desconto',
   porDia: 1,
   aniversario: '',
 };
@@ -34,25 +34,33 @@ export function estadoDoCartao(carimbos: number, objectivo: number) {
 }
 
 const eCorteGratis = (recompensa: string) => /^corte gr[áa]tis$/i.test(recompensa.trim());
+/** «50% de desconto», «−50 %», «metade do preço»: um desconto nesse corte, não uma coisa à parte. */
+const eDesconto = (recompensa: string) => /desconto|%|metade/i.test(recompensa);
 const minuscula = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
-/** Quando falta um: «O próximo corte é grátis» (a oferta é o último corte), ou «O próximo é −50 % na barba». */
+/** Quando falta um: «O próximo corte é grátis», «O próximo corte tem 50% de desconto», ou «O próximo é barba grátis». */
 export function fraseDoProximo(recompensa: string): string {
   const r = recompensa.trim();
   if (!r) return 'Falta 1';
-  return eCorteGratis(r) ? 'O próximo corte é grátis' : `O próximo é ${minuscula(r)}`;
+  if (eCorteGratis(r)) return 'O próximo corte é grátis';
+  if (eDesconto(r)) return `O próximo corte tem ${minuscula(r)}`;
+  return `O próximo é ${minuscula(r)}`;
 }
 
-/** O que a ficha diz ao barbeiro no corte da oferta: «Este corte é grátis». */
+/** O que a ficha diz ao barbeiro no corte da oferta: «Este corte é grátis», «Este corte tem 50% de desconto». */
 export function fraseDesteCorte(recompensa: string): string {
   const r = recompensa.trim();
-  return eCorteGratis(r) ? 'Este corte é grátis' : `Este corte: ${minuscula(r)}`;
+  if (eCorteGratis(r)) return 'Este corte é grátis';
+  if (eDesconto(r)) return `Este corte tem ${minuscula(r)}`;
+  return `Este corte: ${minuscula(r)}`;
 }
 
-/** Depois do carimbo que completa o cartão: «Este corte foi grátis». */
+/** Depois do carimbo que completa o cartão: «Este corte foi grátis», «Este corte teve 50% de desconto». */
 export function fraseDoCorteOferecido(recompensa: string): string {
   const r = recompensa.trim();
-  return eCorteGratis(r) ? 'Este corte foi grátis' : `${r} · entregue`;
+  if (eCorteGratis(r)) return 'Este corte foi grátis';
+  if (eDesconto(r)) return `Este corte teve ${minuscula(r)}`;
+  return `${r} · entregue`;
 }
 
 /** «Faltam 3 para o corte grátis», «O próximo corte é grátis», ou «Cartão completo». */

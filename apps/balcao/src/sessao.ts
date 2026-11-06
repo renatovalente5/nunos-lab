@@ -98,7 +98,7 @@ const MENSAGENS: Record<string, string> = {
   outra_casa: 'Este cartão não se carimba nesta casa com a tua conta.',
   so_barbearia: 'A tua conta não carimba.',
   proprio_cartao: 'É o teu cartão. Pede a outro barbeiro.',
-  entregue_hoje: 'O prémio foi entregue hoje: o corte grátis não leva carimbo.',
+  entregue_hoje: 'O prémio foi entregue hoje: o corte do prémio não leva carimbo.',
   so_parceiro: 'A tua conta não valida vantagens.',
   parceiro_desligado: "Este parceiro está desligado no Nuno's Lab. Fala com a barbearia.",
   ja_usou: 'Já usou hoje.',

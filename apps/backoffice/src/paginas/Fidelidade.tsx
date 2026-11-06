@@ -134,7 +134,7 @@ export function Fidelidade() {
             mudar={mudar('recompensa')}
             max={LIMITES_DO_PROGRAMA.recompensa}
             erro={erros.includes('recompensa')}
-            placeholder="ex.: Corte grátis"
+            placeholder="ex.: 50% de desconto"
             obrigatorio
           />
         </div>

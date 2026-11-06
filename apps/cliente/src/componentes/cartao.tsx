@@ -1,4 +1,9 @@
-import { fraseDoCartao, fraseDoCorteOferecido, type ClienteEu } from '@nunos-lab/dominio';
+import {
+  PROGRAMA_PREDEFINIDO,
+  fraseDoCartao,
+  fraseDoCorteOferecido,
+  type ClienteEu,
+} from '@nunos-lab/dominio';
 import type { ReactNode } from 'react';
 import { Image, View } from 'react-native';
 import { CONTINUO, Carimbos, T, cor, raio } from '@nunos-lab/ui';
@@ -21,12 +26,12 @@ export function CartaoDoCliente({
   /** As casas novas desde a última vez que o cliente viu o cartão (ver useCarimbosNovos). */
   novasDesde?: number | null;
   aoAcabar?: () => void;
-  /** O que fica no fundo do cartão: os selos das carteiras. */
+  /** Os selos das carteiras: à direita do «0 de 10» quando cabem, senão por baixo. */
   rodape?: ReactNode;
 }) {
   const carimbos = eu?.cartao.carimbos ?? 0;
   const objectivo = eu?.cartao.objectivo ?? eu?.programa.objectivo ?? 10;
-  const recompensa = eu?.cartao.recompensa ?? eu?.programa.recompensa ?? 'Corte grátis';
+  const recompensa = eu?.cartao.recompensa ?? eu?.programa.recompensa ?? PROGRAMA_PREDEFINIDO.recompensa;
   const desde = eu ? new Date(eu.criadoEm * 1000).getFullYear() : null;
   // Cheio e sem nada por entregar: o carimbo que o completou já foi o corte da oferta.
   const entregue = carimbos >= objectivo && recompensas === 0;
@@ -81,23 +86,37 @@ export function CartaoDoCliente({
           aoAcabar={aoAcabar}
         />
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 22 }}>
-        <T v="destaque">{carimbos}</T>
-        <T v="forte" style={{ color: cor.texto2, fontSize: 18 }}>
-          de {objectivo}
-        </T>
+      {/* O «0 de 10» e a frase à esquerda; o selo da carteira à direita quando cabe, senão por baixo. */}
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          columnGap: 12,
+          rowGap: 16,
+          marginTop: 22,
+        }}
+      >
+        <View style={{ flexGrow: 1, flexBasis: 0, minWidth: 110 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+            <T v="destaque">{carimbos}</T>
+            <T v="forte" style={{ color: cor.texto2, fontSize: 18 }}>
+              de {objectivo}
+            </T>
+          </View>
+          <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
+            {entregue
+              ? fraseDoCorteOferecido(recompensa)
+              : fraseDoCartao(carimbos, { objectivo, recompensa })}
+          </T>
+          {entregue && (
+            <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
+              O próximo carimbo abre um cartão novo
+            </T>
+          )}
+        </View>
+        {rodape}
       </View>
-      <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
-        {entregue
-          ? fraseDoCorteOferecido(recompensa)
-          : fraseDoCartao(carimbos, { objectivo, recompensa })}
-      </T>
-      {entregue && (
-        <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
-          O próximo carimbo abre um cartão novo
-        </T>
-      )}
-      {rodape}
     </View>
   );
 }

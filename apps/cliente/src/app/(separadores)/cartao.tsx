@@ -376,7 +376,7 @@ function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
     }
   };
   return (
-    <View style={{ marginTop: 20, gap: 10, alignItems: 'flex-start' }}>
+    <View style={{ gap: 10, alignItems: 'flex-start' }}>
       {mostrarApple && (
         <Selo qual="apple" nome="Adicionar à Carteira Apple" aAbrir={aAbrir} abrir={abrir} />
       )}
