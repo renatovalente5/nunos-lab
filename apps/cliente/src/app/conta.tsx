@@ -1,4 +1,4 @@
-import { eAniversarioValido, type FormaDeEntrar, type Loja } from '@nunos-lab/dominio';
+import { type FormaDeEntrar, type Loja } from '@nunos-lab/dominio';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
@@ -11,6 +11,7 @@ import {
   useEu,
   useTemSessao,
 } from '../conta';
+import { RodaDeData } from '../componentes/roda-de-data';
 import { definirTitulo, useDados } from '../dados';
 import {
   Botao,
@@ -38,14 +39,6 @@ const NOME_DA_FORMA: Record<FormaDeEntrar['tipo'], string> = {
 
 /** «DD/MM» ↔ «MM-DD». */
 const paraEcra = (a: string | null) => (a ? `${a.slice(3)}/${a.slice(0, 2)}` : '');
-const paraApi = (texto: string): string | null | false => {
-  const t = texto.trim();
-  if (!t) return null;
-  const m = /^(\d{1,2})[/\-.](\d{1,2})$/.exec(t);
-  if (!m) return false;
-  const v = `${m[2]!.padStart(2, '0')}-${m[1]!.padStart(2, '0')}`;
-  return eAniversarioValido(v) ? v : false;
-};
 
 function Linha({
   icone,
@@ -103,9 +96,9 @@ export default function Conta() {
   const { data: dados } = useDados();
   const conta = useConta();
   const [aviso, setAviso] = useState<string | null>(null);
-  const [folha, setFolha] = useState<
-    'nome' | 'aniversario' | 'casa' | 'juntar' | 'perdi' | 'apagar' | null
-  >(null);
+  const [folha, setFolha] = useState<'nome' | 'aniversario' | 'casa' | 'juntar' | 'apagar' | null>(
+    null,
+  );
   const [texto, setTexto] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   useEffect(() => definirTitulo("Nuno's Lab · Conta"), []);
@@ -133,7 +126,6 @@ export default function Conta() {
   const semProva = !eu.provaRecente;
   // Só a demonstração (os revisores das lojas) não tem formas de entrar: a API recusa-lhe o resto.
   const demonstracao = eu.demo ?? eu.formas.length === 0;
-  const naCarteira = eu.wallet.apple || eu.wallet.google;
   // No Android não há Apple: a folha «Juntar» abria vazia.
   const formasQueFaltam = (['apple', 'google'] as const).filter(
     (t) =>
@@ -180,7 +172,7 @@ export default function Conta() {
           icone="bolo"
           nome="Aniversário"
           valor={paraEcra(eu.aniversario) || '—'}
-          onPress={() => abrir('aniversario', paraEcra(eu.aniversario))}
+          onPress={() => abrir('aniversario', eu.aniversario ?? '')}
         />
         <Separador recuo={48} />
         <Linha icone="loja" nome="A minha casa" valor={casa} onPress={() => abrir('casa')} />
@@ -250,12 +242,6 @@ export default function Conta() {
               : undefined
           }
         />
-        {!demonstracao && (
-          <>
-            <Separador recuo={48} />
-            <Linha icone="escudo" nome="Perdi o telemóvel" onPress={() => abrir('perdi')} />
-          </>
-        )}
         <Separador recuo={48} />
         <Linha
           icone="sair"
@@ -321,26 +307,38 @@ export default function Conta() {
       </Folha>
 
       <Folha aberta={folha === 'aniversario'} fechar={() => setFolha(null)} titulo="Aniversário">
-        <View style={{ paddingHorizontal: MARGEM, paddingTop: 6, gap: 14 }}>
-          <Campo
-            value={texto}
-            onChangeText={setTexto}
-            autoFocus
-            placeholder="DD/MM"
-            keyboardType="numbers-and-punctuation"
-            erro={erro}
-          />
+        <View style={{ paddingHorizontal: MARGEM, paddingTop: 6, gap: 18 }}>
+          {folha === 'aniversario' && <RodaDeData valor={eu.aniversario} aoMudar={setTexto} />}
           <Botao
             nome="Guardar"
-            onPress={() => {
-              const v = paraApi(texto);
-              if (v === false) return setErro('Escreve o dia e o mês: 24/03.');
+            onPress={() =>
               correr(
-                () => conta.perfil({ aniversario: v }),
+                () => conta.perfil({ aniversario: texto || null }),
                 () => setFolha(null),
-              );
-            }}
+              )
+            }
           />
+          {!!eu.aniversario && (
+            <Pressable
+              onPress={() =>
+                correr(
+                  () => conta.perfil({ aniversario: null }),
+                  () => setFolha(null),
+                )
+              }
+              role="button"
+              style={{ alignSelf: 'center', padding: 8 }}
+            >
+              <T v="legenda" style={{ color: cor.texto3 }}>
+                Tirar o aniversário
+              </T>
+            </Pressable>
+          )}
+          {erro && (
+            <T v="legenda" style={{ color: '#E07A72' }}>
+              {erro}
+            </T>
+          )}
         </View>
       </Folha>
 
@@ -424,36 +422,6 @@ export default function Conta() {
           )}
           {erro && (
             <T v="legenda" style={{ color: '#E07A72', textAlign: 'center' }}>
-              {erro}
-            </T>
-          )}
-        </View>
-      </Folha>
-
-      <Folha aberta={folha === 'perdi'} fechar={() => setFolha(null)} titulo="Perdi o telemóvel">
-        <View style={{ paddingHorizontal: MARGEM, paddingTop: 6, gap: 14 }}>
-          <T v="corpo" style={{ color: cor.texto2 }}>
-            As outras sessões terminam e o código do cartão muda. Os carimbos ficam.
-            {naCarteira && ' Se tens o cartão na Wallet, volta a adicioná-lo depois.'}
-          </T>
-          <Botao
-            nome="Terminar e mudar o código"
-            onPress={() =>
-              correr(
-                () => conta.perdiOTelemovel(),
-                () => {
-                  setFolha(null);
-                  setAviso(
-                    naCarteira
-                      ? 'Feito: código novo. Se tinhas o cartão na carteira, volta a adicioná-lo.'
-                      : 'Feito: código novo.',
-                  );
-                },
-              )
-            }
-          />
-          {erro && (
-            <T v="legenda" style={{ color: '#E07A72' }}>
               {erro}
             </T>
           )}
