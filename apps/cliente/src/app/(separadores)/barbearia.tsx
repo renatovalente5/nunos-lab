@@ -1,5 +1,4 @@
 import { ligacaoDoInstagram } from '@nunos-lab/dominio';
-import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { MapaDasCasas } from '../../componentes/mapa-das-casas';
@@ -78,14 +77,6 @@ export default function Barbearia() {
       )}
 
       <EscolherMapa destino={destino} fechar={() => setDestino(null)} />
-
-      <View style={{ alignItems: 'center', marginTop: 34 }}>
-        <Link href="/privacidade" style={{ padding: 12 }}>
-          <T v="legenda" style={{ color: cor.texto3 }}>
-            Privacidade
-          </T>
-        </Link>
-      </View>
     </Ecra>
   );
 }
