@@ -4,11 +4,14 @@ import {
   fraseDoCorteOferecido,
   type ClienteEu,
 } from '@nunos-lab/dominio';
-import type { ReactNode } from 'react';
-import { Image, Pressable, View } from 'react-native';
+import { useId, type ReactNode } from 'react';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { CONTINUO, Carimbos, T, cor, raio } from '@nunos-lab/ui';
 
 const palavra = require('../../assets/marca/palavra.png');
+const simbolo = require('../../assets/marca/simbolo.png');
+
 /** As barras no lugar do número enquanto o cartão não chega: creme a 8 % sobre o cartão. */
 const ESBATIDO = 'rgba(244,241,236,0.08)';
 
@@ -40,6 +43,7 @@ export function CartaoDoCliente({
   espera?: 'a-carregar' | 'sem-ligacao' | null;
   tentar?: () => void;
 }) {
+  const id = useId();
   const carimbos = eu?.cartao.carimbos ?? 0;
   const objectivo = eu?.cartao.objectivo ?? eu?.programa.objectivo ?? 10;
   const recompensa =
@@ -63,16 +67,31 @@ export function CartaoDoCliente({
       }}
       aria-busy={espera === 'a-carregar'}
     >
-      <View
+      {/* O fundo (escolha do Renato, 6 nov 2026): grafite em gradiente e o «n» da marca, a imagem
+          oficial, grande e quase apagado no canto. O SVG vai dentro de uma caixa sem margem: com o
+          «100%» directo no cartão, media só o interior (sem os 22 da margem) e parava antes da borda. */}
+      <View style={StyleSheet.absoluteFill} aria-hidden>
+        <Svg width="100%" height="100%" viewBox="0 0 1 1" preserveAspectRatio="none">
+          <Defs>
+            <LinearGradient id={`${id}g`} x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor="#2B2824" />
+              <Stop offset="1" stopColor="#0E0E0E" />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="1" height="1" fill={`url(#${id}g)`} />
+        </Svg>
+      </View>
+      <Image
+        source={simbolo}
         aria-hidden
+        resizeMode="contain"
         style={{
           position: 'absolute',
-          top: -90,
-          right: -70,
-          width: 240,
+          top: -24,
+          right: -36,
+          width: 228,
           height: 240,
-          borderRadius: 120,
-          backgroundColor: 'rgba(244,241,236,0.05)',
+          opacity: 0.07,
         }}
       />
       <Image
@@ -108,7 +127,9 @@ export function CartaoDoCliente({
           </T>
           <T v="legenda" style={{ color: cor.texto2, marginTop: 3 }}>
             {eu && !aEsperar
-              ? `Cliente desde ${desde} · ${eu.cortes} ${eu.cortes === 1 ? 'corte' : 'cortes'}${eu.cartao.numero > 1 ? ` · ${eu.cartao.numero}.º cartão` : ''}`
+              ? eu.cartao.numero > 1
+                ? `Cliente desde ${desde} · ${eu.cartao.numero}.º cartão · ${eu.cortes} ${eu.cortes === 1 ? 'corte' : 'cortes'}`
+                : `Cliente desde ${desde}`
               : 'Um carimbo por corte'}
           </T>
         </>
