@@ -375,32 +375,14 @@ function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
       setTimeout(() => setAAbrir(null), 1500);
     }
   };
-  const Selo = ({ qual, nome }: { qual: 'apple' | 'google'; nome: string }) => (
-    <Pressable
-      onPress={() => abrir(qual)}
-      role="button"
-      aria-label={nome}
-      aria-disabled={aAbrir !== null}
-      aria-busy={aAbrir === qual}
-      hitSlop={8}
-      style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
-    >
-      {/* A largura segue a proporção do PNG (491×144 e 628×144). */}
-      <Image
-        source={qual === 'apple' ? seloApple : seloGoogle}
-        style={{
-          width: (ALTURA_DO_SELO * (qual === 'apple' ? 491 : 628)) / 144,
-          height: ALTURA_DO_SELO,
-        }}
-        resizeMode="contain"
-        accessibilityIgnoresInvertColors
-      />
-    </Pressable>
-  );
   return (
     <View style={{ marginTop: 20, gap: 10, alignItems: 'flex-start' }}>
-      {mostrarApple && <Selo qual="apple" nome="Adicionar à Carteira Apple" />}
-      {mostrarGoogle && <Selo qual="google" nome="Adicionar à Carteira do Google" />}
+      {mostrarApple && (
+        <Selo qual="apple" nome="Adicionar à Carteira Apple" aAbrir={aAbrir} abrir={abrir} />
+      )}
+      {mostrarGoogle && (
+        <Selo qual="google" nome="Adicionar à Carteira do Google" aAbrir={aAbrir} abrir={abrir} />
+      )}
       {aAbrir && (
         <T v="legenda" style={{ color: cor.texto2 }}>
           A preparar…
@@ -412,6 +394,41 @@ function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
         </T>
       )}
     </View>
+  );
+}
+
+/** Um selo: a imagem oficial, com a largura na proporção do PNG (491×144 e 628×144). */
+function Selo({
+  qual,
+  nome,
+  aAbrir,
+  abrir,
+}: {
+  qual: 'apple' | 'google';
+  nome: string;
+  aAbrir: 'apple' | 'google' | null;
+  abrir: (qual: 'apple' | 'google') => void;
+}) {
+  return (
+    <Pressable
+      onPress={() => abrir(qual)}
+      role="button"
+      aria-label={nome}
+      aria-disabled={aAbrir !== null}
+      aria-busy={aAbrir === qual}
+      hitSlop={8}
+      style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+    >
+      <Image
+        source={qual === 'apple' ? seloApple : seloGoogle}
+        style={{
+          width: (ALTURA_DO_SELO * (qual === 'apple' ? 491 : 628)) / 144,
+          height: ALTURA_DO_SELO,
+        }}
+        resizeMode="contain"
+        accessibilityIgnoresInvertColors
+      />
+    </Pressable>
   );
 }
 

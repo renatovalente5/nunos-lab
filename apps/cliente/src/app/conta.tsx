@@ -309,8 +309,10 @@ export default function Conta() {
       <Folha aberta={folha === 'aniversario'} fechar={() => setFolha(null)} titulo="Aniversário">
         <View style={{ paddingHorizontal: MARGEM, paddingTop: 6, gap: 18 }}>
           {folha === 'aniversario' && <RodaDeData valor={eu.aniversario} aoMudar={setTexto} />}
+          {/* Só depois de rodar: o que a roda mostra ao abrir não é uma escolha. */}
           <Botao
             nome="Guardar"
+            inactivo={!texto}
             onPress={() =>
               correr(
                 () => conta.perfil({ aniversario: texto || null }),

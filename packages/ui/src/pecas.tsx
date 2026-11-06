@@ -157,6 +157,7 @@ export function Botao({
   largo = false,
   rotulo,
   ocupado = false,
+  inactivo = false,
 }: {
   nome: string;
   onPress: () => void;
@@ -166,15 +167,19 @@ export function Botao({
   rotulo?: string;
   /** A enviar: ignora os toques (sem `disabled`, que na web perde o foco e o aria-disabled). */
   ocupado?: boolean;
+  /** Ainda não há o que guardar: esbatido, ignora os toques. */
+  inactivo?: boolean;
 }) {
   const tinta = secundario ? cor.texto : cor.sobreClaro;
   return (
     <Pressable
-      onPress={ocupado ? undefined : onPress}
+      onPress={ocupado || inactivo ? undefined : onPress}
       role="button"
       aria-label={rotulo ?? nome}
       aria-busy={ocupado}
+      aria-disabled={inactivo}
       style={({ pressed }) => ({
+        opacity: inactivo ? 0.4 : 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',

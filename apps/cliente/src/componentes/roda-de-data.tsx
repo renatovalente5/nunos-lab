@@ -28,7 +28,8 @@ export const paraAniversario = (dia: number, mes: number) =>
 /**
  * O aniversário escolhe-se em duas rodas, dia e mês, como nas do iPhone: sem
  * teclado, sem formato para acertar, e Fevereiro só vai até 29. Funciona com
- * o dedo no telemóvel e com a roda do rato na web.
+ * o dedo no telemóvel e com a roda do rato na web. Só chama `aoMudar` quando
+ * o cliente roda: o que a roda mostra ao abrir não é uma escolha.
  */
 export function RodaDeData({
   valor,
@@ -43,10 +44,15 @@ export function RodaDeData({
   const [dia, setDia] = useState(valor ? Number(valor.slice(3)) : hoje.getDate());
   const dias = DIAS_DO_MES[mes - 1]!;
   const diaValido = Math.min(dia, dias);
-  useEffect(() => {
-    aoMudar(paraAniversario(diaValido, mes));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diaValido, mes]);
+  // Só o que o cliente roda conta. Ao abrir, a roda mostra hoje (ou o guardado) sem o dar
+  // como escolhido: senão um «Guardar» distraído fazia anos hoje. (O rolar de arranque
+  // também chega aqui, com os mesmos valores, e não conta.)
+  const escolher = (d: number, m: number) => {
+    if (d === dia && m === mes) return;
+    setDia(d);
+    setMes(m);
+    aoMudar(paraAniversario(Math.min(d, DIAS_DO_MES[m - 1]!), m));
+  };
   return (
     <View
       style={{ height: LINHA * A_VISTA, flexDirection: 'row', justifyContent: 'center', gap: 8 }}
@@ -68,7 +74,7 @@ export function RodaDeData({
       <Roda
         itens={Array.from({ length: dias }, (_, i) => String(i + 1))}
         indice={diaValido - 1}
-        aoEscolher={(i) => setDia(i + 1)}
+        aoEscolher={(i) => escolher(i + 1, mes)}
         largura={96}
         alinhar="flex-end"
         rotulo="Dia"
@@ -76,7 +82,7 @@ export function RodaDeData({
       <Roda
         itens={MESES_POR_EXTENSO}
         indice={mes - 1}
-        aoEscolher={(i) => setMes(i + 1)}
+        aoEscolher={(i) => escolher(dia, i + 1)}
         largura={168}
         alinhar="flex-start"
         rotulo="Mês"

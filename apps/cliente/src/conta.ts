@@ -206,8 +206,6 @@ export function useConta() {
     tirarForma: (id: number) =>
       pedir<ClienteEu>(`/formas/${id}`, { metodo: 'DELETE' }).then(actualizar),
     sairDasOutras: () => pedir<ClienteEu>('/sair-das-outras', { metodo: 'POST' }).then(actualizar),
-    perdiOTelemovel: () =>
-      pedir<ClienteEu>('/perdi-o-telemovel', { metodo: 'POST' }).then(actualizar),
     sair: async () => {
       try {
         await pedir('/sair', { metodo: 'POST' });
