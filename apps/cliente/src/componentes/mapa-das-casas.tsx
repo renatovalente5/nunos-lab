@@ -3,7 +3,8 @@ import { CONTINUO, LARGURA_MAXIMA, MARGEM, T, cor, raio } from '@nunos-lab/ui';
 import { useState } from 'react';
 import { Image, PixelRatio, Pressable, View, useWindowDimensions } from 'react-native';
 import { API } from '../dados';
-const simbolo = require('../../assets/marca/simbolo.png');
+// O «n» já em preto: pintar o branco com tintColor não funciona na web.
+const simboloPreto = require('../../assets/marca/simbolo-preto.png');
 
 /** O pino é o ícone da app em branco (o Renato escolheu o D2): o quadrado branco com o «n» preto, aro preto e uma ponta até ao sítio. */
 const ICONE = 24;
@@ -96,8 +97,8 @@ export function MapaDasCasas({ lojas, aoTocar }: { lojas: Loja[]; aoTocar: (loja
                   }}
                 >
                   <Image
-                    source={simbolo}
-                    style={{ width: 12.4, height: 13, tintColor: cor.sobreClaro }}
+                    source={simboloPreto}
+                    style={{ width: 12.4, height: 13 }}
                     resizeMode="contain"
                     accessibilityIgnoresInvertColors
                   />
