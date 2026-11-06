@@ -93,6 +93,27 @@ const DESENHOS = {
   aparelho: ['M8 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'M11 18h2'],
   grafico: ['M4 20V10', 'M10 20V4', 'M16 20v-8', 'M22 20H2'],
   seta: ['M5 12h14', 'M13 6l6 6-6 6'],
+  /** Os três da barra de baixo na web e no Android, a condizer com os símbolos do iPhone. */
+  bilhete: [
+    'M5.5 6h13a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V8a2 2 0 0 1 2-2z',
+    'M14.5 8v1',
+    'M14.5 11.5v1',
+    'M14.5 15v1',
+  ],
+  qr: [
+    'M4 4h6v6H4z',
+    'M14 4h6v6h-6z',
+    'M4 14h6v6H4z',
+    'M7 7h.01',
+    'M17 7h.01',
+    'M7 17h.01',
+    'M14 14h.01',
+    'M17.5 14h2.5',
+    'M14 17.5V20',
+    'M17.5 17.5h.01',
+    'M20 17.5V20',
+  ],
+  mapaDobrado: ['M3.5 6.5L9 4l6 2.5L20.5 4v13.5L15 20l-6-2.5L3.5 20z', 'M9 4v13.5', 'M15 6.5V20'],
   ...DESENHOS_DAS_CATEGORIAS,
 } satisfies Record<string, readonly string[]> & Record<IconeDaCategoria, readonly string[]>;
 

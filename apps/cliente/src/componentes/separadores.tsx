@@ -16,13 +16,13 @@ export default function Separadores() {
       <TabList asChild>
         <BarraDeBaixo>
           <TabTrigger name="vantagens" href="/" asChild>
-            <BotaoDoSeparador icone="etiqueta" nome="Vantagens" />
+            <BotaoDoSeparador icone="bilhete" nome="Vantagens" />
           </TabTrigger>
           <TabTrigger name="cartao" href="/cartao" asChild>
-            <BotaoDoSeparador icone="cartao" nome="Cartão" />
+            <BotaoDoSeparador icone="qr" nome="Cartão" />
           </TabTrigger>
           <TabTrigger name="barbearia" href="/barbearia" asChild>
-            <BotaoDoSeparador icone="tesoura" nome="Barbearia" />
+            <BotaoDoSeparador icone="mapaDobrado" nome="Barbearia" />
           </TabTrigger>
         </BarraDeBaixo>
       </TabList>

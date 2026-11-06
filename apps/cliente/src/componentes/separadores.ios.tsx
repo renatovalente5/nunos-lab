@@ -25,15 +25,15 @@ export default function Separadores() {
         }}
       >
         <NativeTabs.Trigger name="index">
-          <NativeTabs.Trigger.Icon sf={{ default: 'tag', selected: 'tag.fill' }} />
+          <NativeTabs.Trigger.Icon sf={{ default: 'ticket', selected: 'ticket.fill' }} />
           <NativeTabs.Trigger.Label>Vantagens</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="cartao">
-          <NativeTabs.Trigger.Icon sf={{ default: 'creditcard', selected: 'creditcard.fill' }} />
+          <NativeTabs.Trigger.Icon sf="qrcode" />
           <NativeTabs.Trigger.Label>Cartão</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="barbearia">
-          <NativeTabs.Trigger.Icon sf="scissors" />
+          <NativeTabs.Trigger.Icon sf={{ default: 'map', selected: 'map.fill' }} />
           <NativeTabs.Trigger.Label>Barbearia</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
       </NativeTabs>
