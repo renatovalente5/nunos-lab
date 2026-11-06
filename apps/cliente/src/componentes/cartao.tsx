@@ -124,7 +124,7 @@ export function CartaoDoCliente({
           aoAcabar={aoAcabar}
         />
       </View>
-      {/* O «0 de 10» e a frase à esquerda; o selo da carteira à direita quando cabe, senão por baixo. */}
+      {/* O «0 de 10» à esquerda e o selo da carteira à direita quando cabe (senão por baixo). */}
       <View
         style={{
           flexDirection: 'row',
@@ -136,33 +136,55 @@ export function CartaoDoCliente({
         }}
       >
         {aEsperar ? (
-          // No lugar do «0 de 10» e da frase: duas barras sem número, porque ainda não se sabe.
-          <View style={{ flexGrow: 1, flexBasis: 0, minWidth: 110, gap: 10 }} aria-hidden>
+          // No lugar do «0 de 10»: uma barra sem número, porque ainda não se sabe.
+          <View style={{ flexGrow: 1, flexBasis: 0, minWidth: 110 }} aria-hidden>
             <View style={{ width: 72, height: 28, borderRadius: 8, backgroundColor: ESBATIDO }} />
-            <View style={{ width: 150, height: 12, borderRadius: 6, backgroundColor: ESBATIDO }} />
           </View>
         ) : (
-          <View style={{ flexGrow: 1, flexBasis: 0, minWidth: 110 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-              <T v="destaque">{carimbos}</T>
-              <T v="forte" style={{ color: cor.texto2, fontSize: 18 }}>
-                de {objectivo}
-              </T>
-            </View>
-            <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
-              {entregue
-                ? fraseDoCorteOferecido(recompensa)
-                : fraseDoCartao(carimbos, { objectivo, recompensa })}
+          <View
+            style={{
+              flexGrow: 1,
+              flexBasis: 0,
+              minWidth: 110,
+              flexDirection: 'row',
+              alignItems: 'baseline',
+              gap: 6,
+            }}
+          >
+            <T v="destaque">{carimbos}</T>
+            <T v="forte" style={{ color: cor.texto2, fontSize: 18 }}>
+              de {objectivo}
             </T>
-            {entregue && (
-              <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
-                O próximo carimbo abre um cartão novo
-              </T>
-            )}
           </View>
         )}
         {rodape}
       </View>
+      {/* A frase por baixo, a toda a largura: ao lado do selo partia-se em duas linhas. */}
+      {aEsperar ? (
+        <View
+          style={{
+            width: 150,
+            height: 12,
+            borderRadius: 6,
+            backgroundColor: ESBATIDO,
+            marginTop: 12,
+          }}
+          aria-hidden
+        />
+      ) : (
+        <>
+          <T v="legenda" style={{ color: cor.texto2, marginTop: 8 }}>
+            {entregue
+              ? fraseDoCorteOferecido(recompensa)
+              : fraseDoCartao(carimbos, { objectivo, recompensa })}
+          </T>
+          {entregue && (
+            <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
+              O próximo carimbo abre um cartão novo
+            </T>
+          )}
+        </>
+      )}
     </View>
   );
 }
