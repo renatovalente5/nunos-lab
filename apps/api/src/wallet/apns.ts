@@ -32,7 +32,10 @@ export async function avisarApns(
       authorization: `bearer ${bilhete}`,
       'apns-topic': topico,
       'apns-push-type': 'alert',
-      'apns-priority': '5',
+      // 10, NUNCA 5: com 5 a Apple agrupa os avisos, atrasa-os e às vezes não os entrega, e o passe
+      // fica parado na Carteira (visto no Carimbo a 3 nov e na Nuno's Lab a 6 nov). Com 10 o
+      // iPhone vem buscar o passe no mesmo segundo.
+      'apns-priority': '10',
       // Nunca zero: «0» diz à APNs para não guardar, e quem está sem rede fica com o passe parado.
       'apns-expiration': String(Math.floor(agora) + UMA_SEMANA),
       'content-type': 'application/json',
