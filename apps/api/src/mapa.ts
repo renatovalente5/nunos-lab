@@ -1,7 +1,7 @@
 /**
  * O mapa das casas da Barbearia: uma imagem dos Mapas da Apple (Web Snapshots)
  * com um pino por casa. É pedida daqui, assinada com a chave MapKit (segredo
- * MAPKIT_CHAVE, id MAPKIT_KID) e guardada em cache uma hora: os termos da Apple
+ * MAPKIT_CHAVE, id MAPKIT_KID) e guardada em cache seis horas: os termos da Apple
  * só deixam guardar o mapa «de forma temporária e limitada», e o logótipo da
  * Apple fica na imagem. O aparelho nunca fala com a Apple, só com esta API. A
  * app calcula o mesmo enquadramento (packages/dominio, mapa.ts) para pôr os
@@ -18,7 +18,8 @@ export const rotasDoMapa = new Hono<Ambiente>();
 
 /** A cor do logótipo, sem «#»: a Apple recusa o pedido com ele. */
 const COR_DO_PINO = 'F4F1EC';
-const UMA_HORA = 3600;
+/** Seis horas: «temporária e limitada», como os termos da Apple pedem, mas sem fazer o telemóvel ir buscar 400 KB a cada abertura. */
+const SEIS_HORAS = 6 * 3600;
 
 rotasDoMapa.get('/mapa', async (c) => {
   const w = Number(c.req.query('w'));
@@ -95,7 +96,7 @@ rotasDoMapa.get('/mapa', async (c) => {
   const resposta = new Response(await r.arrayBuffer(), {
     headers: {
       'Content-Type': r.headers.get('Content-Type') ?? 'image/png',
-      'Cache-Control': `public, max-age=${UMA_HORA}`,
+      'Cache-Control': `public, max-age=${SEIS_HORAS}, stale-while-revalidate=86400`,
     },
   });
   c.executionCtx.waitUntil(cache.put(chaveDaCache, resposta.clone()));

@@ -1,8 +1,8 @@
 import { enquadrar, projectar, semPartir, type Loja } from '@nunos-lab/dominio';
 import { CONTINUO, LARGURA_MAXIMA, MARGEM, T, cor, raio } from '@nunos-lab/ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, PixelRatio, Pressable, View, useWindowDimensions } from 'react-native';
-import { API, abrir, contar } from '../dados';
+import { API, abrir, contar, useDados } from '../dados';
 // O «n» já em preto: pintar o branco com tintColor não funciona na web.
 const simboloPreto = require('../../assets/marca/simbolo-preto.png');
 
@@ -19,6 +19,36 @@ const SETA = 8;
 const FOLGA = 8;
 const FUNDO_DO_BALAO = '#1C1C1C';
 
+/** O tamanho do mapa para esta janela e a morada da imagem: a mesma conta no mapa e no pré-carregamento. */
+function medidasDoMapa(lojas: Loja[], larguraDaJanela: number) {
+  const comSitio = lojas.filter((l) => l.lat !== null && l.lng !== null);
+  const w = Math.min(Math.round(Math.min(larguraDaJanela, LARGURA_MAXIMA) - 2 * MARGEM), 640);
+  // Ao alto: as casas estendem-se de norte a sul, e assim o mapa aproxima-se mais.
+  const h = Math.min(Math.round(w * 1.05), 640);
+  const e = enquadrar(comSitio as { lat: number; lng: number }[], w, h);
+  const escala = Math.min(3, Math.max(1, Math.round(PixelRatio.get())));
+  return { comSitio, w, h, e, uri: `${API}/api/mapa?w=${w}&h=${h}&s=${escala}&pinos=0` };
+}
+
+/**
+ * Pede o mapa logo que a app tem as lojas, dois segundos depois (para não
+ * atrasar o que a app mostra primeiro): quando se entra na Barbearia, a imagem
+ * já está no aparelho. Vive na barra de separadores, que está sempre montada.
+ */
+export function PrecarregarMapa() {
+  const { data } = useDados();
+  const { width } = useWindowDimensions();
+  const lojas = data?.barbearia.lojas;
+  useEffect(() => {
+    if (!lojas?.length) return;
+    const { e, uri } = medidasDoMapa(lojas, width);
+    if (!e) return;
+    const t = setTimeout(() => void Image.prefetch(uri).catch(() => {}), 2000);
+    return () => clearTimeout(t);
+  }, [lojas, width]);
+  return null;
+}
+
 /**
  * O mapa das casas: a imagem vem da API (os Mapas da Apple, pedidos pelo
  * servidor, sem os balões da Apple) e a app desenha por cima um pino por casa,
@@ -34,13 +64,8 @@ export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja
   // Se a imagem falhar (rede, um soluço do servidor), tenta mais uma vez passados 2 s.
   const [tentativa, setTentativa] = useState(0);
   const [aberta, setAberta] = useState<number | null>(null);
-  const comSitio = lojas.filter((l) => l.lat !== null && l.lng !== null);
-  const w = Math.min(Math.round(Math.min(width, LARGURA_MAXIMA) - 2 * MARGEM), 640);
-  // Ao alto: as casas estendem-se de norte a sul, e assim o mapa aproxima-se mais.
-  const h = Math.min(Math.round(w * 1.05), 640);
-  const e = enquadrar(comSitio as { lat: number; lng: number }[], w, h);
+  const { comSitio, w, h, e, uri } = medidasDoMapa(lojas, width);
   if (!e || estado === 'falhou') return null;
-  const escala = Math.min(3, Math.max(1, Math.round(PixelRatio.get())));
   const posicoes = comSitio.map((l) => ({
     loja: l,
     ...projectar({ lat: l.lat!, lng: l.lng! }, e, w, h),
@@ -60,9 +85,7 @@ export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja
     >
       <Pressable onPress={() => setAberta(null)} disabled={aberta === null} aria-hidden>
         <Image
-          source={{
-            uri: `${API}/api/mapa?w=${w}&h=${h}&s=${escala}&pinos=0${tentativa ? `&t=${tentativa}` : ''}`,
-          }}
+          source={{ uri: `${uri}${tentativa ? `&t=${tentativa}` : ''}` }}
           style={{ width: w, height: h }}
           onLoad={() => setEstado('pronto')}
           onError={() => {

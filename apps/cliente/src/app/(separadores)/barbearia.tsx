@@ -20,7 +20,7 @@ import {
 
 export default function Barbearia() {
   const { data, isPending, isError, refetch } = useDados();
-  useEffect(() => definirTitulo("Nuno's Lab · Barbearia"), []);
+  useEffect(() => definirTitulo("Nuno's Lab · Barbearias"), []);
   const b = data?.barbearia;
   const [destino, setDestino] = useState<DestinoNoMapa | null>(null);
 
@@ -28,7 +28,7 @@ export default function Barbearia() {
     <Ecra>
       <View style={{ paddingHorizontal: MARGEM, paddingTop: 10 }}>
         <T v="titulo" role="heading" aria-level={1}>
-          Barbearia
+          Barbearias
         </T>
       </View>
 
@@ -44,7 +44,7 @@ export default function Barbearia() {
         </View>
       )}
 
-      {b && (!!b.whatsapp || !!b.instagram || !!b.tiktok || !!b.site) && (
+      {b && (!!b.whatsapp || !!b.instagram || !!b.tiktok) && (
         <>
           <Rotulo>Mais</Rotulo>
           <Grupo>
@@ -71,15 +71,6 @@ export default function Barbearia() {
                 nome="TikTok"
                 onPress={() => abrir(b.tiktok)}
                 separador={!!(b.whatsapp || b.instagram)}
-              />
-            )}
-            {!!b.site && (
-              <Linha
-                icone="site"
-                nome="Site"
-                detalhe={b.site.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
-                onPress={() => abrir(b.site)}
-                separador={!!(b.whatsapp || b.instagram || b.tiktok)}
               />
             )}
           </Grupo>

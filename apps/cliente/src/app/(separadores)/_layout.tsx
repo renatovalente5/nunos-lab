@@ -1,9 +1,11 @@
 import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui';
 import { BarraDeBaixo, BotaoDoSeparador } from '@nunos-lab/ui';
+import { PrecarregarMapa } from '../../componentes/mapa-das-casas';
 
 export default function Separadores() {
   return (
     <Tabs style={{ flex: 1 }}>
+      <PrecarregarMapa />
       <TabSlot style={{ flex: 1 }} />
       <TabList asChild>
         <BarraDeBaixo>
