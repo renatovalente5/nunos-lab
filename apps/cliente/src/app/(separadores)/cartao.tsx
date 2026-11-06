@@ -127,7 +127,10 @@ export default function Cartao() {
           tentar={() => refetch()}
           rodape={
             temSessao && eu ? (
-              <Carteiras apple={eu.wallet.apple} google={eu.wallet.google} />
+              <Carteiras
+                apple={eu.wallet.apple && !eu.wallet.appleNaCarteira}
+                google={eu.wallet.google}
+              />
             ) : undefined
           }
         />

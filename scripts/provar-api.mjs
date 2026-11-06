@@ -863,6 +863,9 @@ await passo(
     const serie = passe.serialNumber;
     const auth = { Authorization: `ApplePass ${passe.authenticationToken}` };
     const base = `/api/wallet/apple/v1/devices/aparelho-de-prova-1/registrations/${tipo}`;
+    const naCarteira = async () =>
+      (await (await pedir('/api/eu', { token: tokenCliente })).json()).wallet.appleNaCarteira;
+    assert.equal(await naCarteira(), false, 'antes de um iPhone o juntar, o selo aparece');
     assert.equal(
       (
         await pedir(`${base}/${serie}`, {
@@ -894,6 +897,7 @@ await passo(
       200,
       'o mesmo registo outra vez dá 200',
     );
+    assert.equal(await naCarteira(), true, 'com um iPhone registado, o selo sai');
     const lista = await pedir(`${base}?passesUpdatedSince=0`);
     assert.equal(lista.status, 200);
     const l = await lista.json();
@@ -943,6 +947,7 @@ await passo(
       204,
       'sem registos, nada a dizer',
     );
+    assert.equal(await naCarteira(), false, 'tirado do iPhone, o selo volta');
     assert.equal(
       (await pedir('/api/wallet/apple/v1/log', { method: 'POST', body: json({ logs: ['prova'] }) }))
         .status,

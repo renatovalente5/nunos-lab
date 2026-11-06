@@ -196,6 +196,12 @@ async function lerEu(c: C): Promise<ClienteEu> {
       db
         .prepare('SELECT 1 FROM prendas WHERE cliente_id = ? AND ano = ?')
         .bind(id, Number(diaEmLisboa().slice(0, 4))),
+      // O passe da Apple está nalgum iPhone: a Apple regista o aparelho ao juntá-lo e apaga ao tirá-lo.
+      db
+        .prepare(
+          'SELECT 1 FROM registos_apple r JOIN passes p ON p.serie = r.serie WHERE p.cliente_id = ? LIMIT 1',
+        )
+        .bind(id),
     ]);
   let r = await consultas();
   if (!r[1]!.results[0]) {
@@ -247,7 +253,11 @@ async function lerEu(c: C): Promise<ClienteEu> {
     programa: { objectivo: programa.objectivo, recompensa: programa.recompensa },
     activo: r[8]!.results.length > 0,
     vales: r[7]!.results as ClienteEu['vales'],
-    wallet: { apple: appleLigada(c.env), google: googleLigada(c.env) },
+    wallet: {
+      apple: appleLigada(c.env),
+      google: googleLigada(c.env),
+      appleNaCarteira: r[11]!.results.length > 0,
+    },
     cupoes: r[9]!.results as ClienteEu['cupoes'],
     // A prenda só com a data dada há 30 dias ou mais (senão mudava-se na véspera), e uma vez por ano.
     prenda:

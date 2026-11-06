@@ -254,8 +254,11 @@ export type ClienteEu = {
   activo: boolean;
   /** As vantagens validadas nos parceiros, da mais recente para a mais antiga. */
   vales: ValeDoCliente[];
-  /** Que carteiras estão ligadas no servidor (os botões da app). */
-  wallet: { apple: boolean; google: boolean };
+  /**
+   * Que carteiras estão ligadas no servidor (os botões da app), e se o passe da
+   * Apple já está nalgum iPhone (há aparelhos registados): aí o selo sai.
+   */
+  wallet: { apple: boolean; google: boolean; appleNaCarteira: boolean };
   /** Os cupões surpresa por usar (válidos) e os usados há pouco. */
   cupoes: CupaoDoCliente[];
   /** A prenda de anos do programa: faz anos hoje, deu a data há 30 dias ou mais, e ainda não a levou este ano. */
