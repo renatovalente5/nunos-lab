@@ -1,15 +1,15 @@
-import { ligacaoDoInstagram, ligacaoDoTelefone } from '@nunos-lab/dominio';
+import { ligacaoDoInstagram, ligacaoDoTelefone, semPartir, type Loja } from '@nunos-lab/dominio';
 import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { MapaDasCasas } from '../../componentes/mapa-das-casas';
-import { EscolherMapa, type DestinoNoMapa } from '../../componentes/mapas';
+import { LinhaDaFolha, OpcoesDeMapa } from '../../componentes/mapas';
 import { abrir, contar, definirTitulo, useDados } from '../../dados';
 import {
   Botao,
-  CONTINUO,
   Ecra,
   Esqueleto,
+  Folha,
   Grupo,
   Icone,
   MARGEM,
@@ -18,14 +18,13 @@ import {
   Separador,
   T,
   cor,
-  raio,
 } from '@nunos-lab/ui';
 
 export default function Barbearia() {
   const { data, isPending, isError, refetch } = useDados();
   useEffect(() => definirTitulo("Nuno's Lab · Barbearia"), []);
   const b = data?.barbearia;
-  const [destino, setDestino] = useState<DestinoNoMapa | null>(null);
+  const [casa, setCasa] = useState<Loja | null>(null);
 
   return (
     <Ecra>
@@ -39,66 +38,9 @@ export default function Barbearia() {
       {!data && isError && <SemLigacao tentar={() => refetch()} />}
 
       {b && b.lojas.length > 0 && (
-        <>
-          <View style={{ marginTop: 18 }}>
-            <MapaDasCasas
-              lojas={b.lojas}
-              aoTocar={(l) =>
-                setDestino({ nome: l.nome, morada: l.morada, procurar: "Nuno's Lab" })
-              }
-            />
-          </View>
-          <View style={{ gap: 12, marginTop: 16 }}>
-            {b.lojas.map((l) => (
-              <View
-                key={l.id}
-                style={{
-                  marginHorizontal: MARGEM,
-                  backgroundColor: cor.superficie,
-                  borderRadius: raio.grupo,
-                  padding: 18,
-                  gap: 4,
-                  ...CONTINUO,
-                }}
-              >
-                <T v="subtitulo">{l.nome}</T>
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-                  {!!l.marcar && (
-                    <Botao
-                      nome="Marcar"
-                      icone="calendario"
-                      rotulo={`Marcar em ${l.nome}`}
-                      onPress={() => {
-                        contar('marcar', l.id);
-                        abrir(l.marcar);
-                      }}
-                    />
-                  )}
-                  {!!l.morada && (
-                    <Botao
-                      nome="Ir"
-                      icone="mapa"
-                      secundario
-                      rotulo={`Ir a ${l.nome}`}
-                      onPress={() =>
-                        setDestino({ nome: l.nome, morada: l.morada, procurar: "Nuno's Lab" })
-                      }
-                    />
-                  )}
-                  {!!l.telefone && (
-                    <Botao
-                      nome="Ligar"
-                      icone="ligar"
-                      secundario
-                      rotulo={`Ligar para ${l.nome}`}
-                      onPress={() => abrir(ligacaoDoTelefone(l.telefone))}
-                    />
-                  )}
-                </View>
-              </View>
-            ))}
-          </View>
-        </>
+        <View style={{ marginTop: 18 }}>
+          <MapaDasCasas lojas={b.lojas} aoTocar={setCasa} />
+        </View>
       )}
 
       {b && (!!b.whatsapp || !!b.instagram || !!b.tiktok || !!b.site) && (
@@ -143,7 +85,7 @@ export default function Barbearia() {
         </>
       )}
 
-      <EscolherMapa destino={destino} fechar={() => setDestino(null)} />
+      <FolhaDaCasa casa={casa} fechar={() => setCasa(null)} />
 
       <View style={{ alignItems: 'center', marginTop: 34 }}>
         <Link href="/privacidade" style={{ padding: 12 }}>
@@ -153,6 +95,70 @@ export default function Barbearia() {
         </Link>
       </View>
     </Ecra>
+  );
+}
+
+/** Ao tocar num pino do mapa: a morada, «Marcar», o «Ir» com o mapa à escolha, e «Ligar». */
+function FolhaDaCasa({ casa, fechar }: { casa: Loja | null; fechar: () => void }) {
+  return (
+    <Folha aberta={!!casa} fechar={fechar} titulo={casa?.nome ?? ''}>
+      {casa && (
+        <>
+          {!!casa.morada && (
+            <T v="legenda" style={{ color: cor.texto2, paddingHorizontal: MARGEM, marginTop: -4 }}>
+              {semPartir(casa.morada)}
+            </T>
+          )}
+          {!!casa.marcar && (
+            <View style={{ paddingHorizontal: MARGEM, marginTop: 18 }}>
+              <Botao
+                nome="Marcar"
+                icone="calendario"
+                rotulo={`Marcar em ${casa.nome}`}
+                onPress={() => {
+                  contar('marcar', casa.id);
+                  fechar();
+                  abrir(casa.marcar);
+                }}
+              />
+            </View>
+          )}
+          {!!casa.morada && (
+            <>
+              <T
+                v="legenda"
+                style={{
+                  color: cor.texto3,
+                  paddingHorizontal: MARGEM,
+                  marginTop: 22,
+                  marginBottom: 2,
+                  fontSize: 11.5,
+                  letterSpacing: 1.2,
+                  textTransform: 'uppercase',
+                }}
+              >
+                Ir
+              </T>
+              <OpcoesDeMapa
+                destino={{ nome: casa.nome, morada: casa.morada, procurar: "Nuno's Lab" }}
+                aoEscolher={fechar}
+              />
+            </>
+          )}
+          {!!casa.telefone && (
+            <LinhaDaFolha
+              icone="ligar"
+              nome="Ligar"
+              separador
+              onPress={() => {
+                fechar();
+                abrir(ligacaoDoTelefone(casa.telefone));
+              }}
+            />
+          )}
+        </>
+      )}
+    </Folha>
   );
 }
 

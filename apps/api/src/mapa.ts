@@ -68,11 +68,16 @@ rotasDoMapa.get('/mapa', async (c) => {
     ),
   );
   const morada = `https://snapshot.apple-mapkit.com${caminho}&signature=${assinatura}`;
-  let r = await fetch(morada);
+  // Um pedido sem User-Agent leva um «403 Forbidden» genérico da Apple (visto no wrangler dev).
+  const cabecalhos = {
+    'User-Agent': 'NunosLab/1.0 (+https://nunoslab.com)',
+    Accept: 'image/png,image/*',
+  };
+  let r = await fetch(morada, { headers: cabecalhos });
   if (!r.ok) {
     // A Apple recusa de vez em quando um pedido bom (um 403 passageiro): segunda tentativa.
     await new Promise((fim) => setTimeout(fim, 400));
-    r = await fetch(morada);
+    r = await fetch(morada, { headers: cabecalhos });
   }
   if (!r.ok) {
     console.error('mapa: a Apple respondeu', r.status);
