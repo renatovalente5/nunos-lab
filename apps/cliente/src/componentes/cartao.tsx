@@ -1,4 +1,5 @@
 import { fraseDoCartao, fraseDoCorteOferecido, type ClienteEu } from '@nunos-lab/dominio';
+import type { ReactNode } from 'react';
 import { Image, View } from 'react-native';
 import { CONTINUO, Carimbos, T, cor, raio } from '@nunos-lab/ui';
 
@@ -11,6 +12,7 @@ export function CartaoDoCliente({
   largura,
   novasDesde = null,
   aoAcabar,
+  rodape,
 }: {
   eu: Pick<ClienteEu, 'nome' | 'criadoEm' | 'cortes' | 'cartao' | 'programa'> | null;
   /** Cartões cheios por entregar (eu.recompensas.length). */
@@ -19,6 +21,8 @@ export function CartaoDoCliente({
   /** As casas novas desde a última vez que o cliente viu o cartão (ver useCarimbosNovos). */
   novasDesde?: number | null;
   aoAcabar?: () => void;
+  /** O que fica no fundo do cartão: os selos das carteiras. */
+  rodape?: ReactNode;
 }) {
   const carimbos = eu?.cartao.carimbos ?? 0;
   const objectivo = eu?.cartao.objectivo ?? eu?.programa.objectivo ?? 10;
@@ -93,6 +97,7 @@ export function CartaoDoCliente({
           O próximo carimbo abre um cartão novo
         </T>
       )}
+      {rodape}
     </View>
   );
 }

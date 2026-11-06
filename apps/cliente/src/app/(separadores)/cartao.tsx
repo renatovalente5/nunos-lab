@@ -121,6 +121,11 @@ export default function Cartao() {
           largura={largura}
           novasDesde={novasDesde}
           aoAcabar={aoAcabar}
+          rodape={
+            temSessao && eu ? (
+              <Carteiras apple={eu.wallet.apple} google={eu.wallet.google} />
+            ) : undefined
+          }
         />
       </View>
 
@@ -206,8 +211,6 @@ export default function Cartao() {
               </View>
             </View>
           )}
-
-          <Carteiras apple={eu.wallet.apple} google={eu.wallet.google} />
 
           {eu.cupoes.length > 0 && (
             <>
@@ -349,9 +352,9 @@ export default function Cartao() {
 
 /**
  * Os selos oficiais «Adicionar à Carteira Apple» e «Adicionar a Carteira do
- * Google»: 48 pt de altura (o mínimo que a Google pede, com 8 de folga à volta;
- * a Apple pede um décimo da altura) e a proporção de cada um. O passe
- * actualiza-se a cada carimbo.
+ * Google», no fundo do cartão (o Renato quis os selos dentro do cartão): 48 pt
+ * de altura (o mínimo que a Google pede, com 8 de folga à volta; a Apple pede um
+ * décimo da altura) e a proporção de cada um. O passe actualiza-se a cada carimbo.
  */
 const ALTURA_DO_SELO = 48;
 function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
@@ -395,7 +398,7 @@ function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
     </Pressable>
   );
   return (
-    <View style={{ paddingHorizontal: MARGEM, marginTop: 14, gap: 12, alignItems: 'center' }}>
+    <View style={{ marginTop: 20, gap: 10, alignItems: 'flex-start' }}>
       {mostrarApple && <Selo qual="apple" nome="Adicionar à Carteira Apple" />}
       {mostrarGoogle && <Selo qual="google" nome="Adicionar à Carteira do Google" />}
       {aAbrir && (
@@ -404,7 +407,7 @@ function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
         </T>
       )}
       {erro && (
-        <T v="legenda" role="alert" style={{ color: '#E07A72', textAlign: 'center' }}>
+        <T v="legenda" role="alert" style={{ color: '#E07A72' }}>
           {erro}
         </T>
       )}
