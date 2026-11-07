@@ -127,7 +127,13 @@ export function BotaoDoGoogle({
             d="M24 48c6.2 0 11.5-2 15.4-5.5l-7.5-5.8c-2.1 1.4-4.8 2.2-7.9 2.2-6.3 0-11.7-4.2-13.6-10l-7.8 6C6.5 42.6 14.6 48 24 48z"
           />
         </Svg>
-        <T style={{ color: '#FFFFFF', fontFamily: letra.forte, fontSize: 15 }}>
+        {/* Não cresce com a letra grande, como o botão da Apple ao lado (do sistema): com 44 pt de
+            altura fixa, o texto saía do botão e empurrava o «G» para fora. */}
+        <T
+          maxFontSizeMultiplier={1}
+          numberOfLines={1}
+          style={{ color: '#FFFFFF', fontFamily: letra.forte, fontSize: 15 }}
+        >
           Continuar com o Google
         </T>
       </Pressable>

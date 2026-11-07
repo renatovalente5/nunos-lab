@@ -272,9 +272,17 @@ export default function Vantagens() {
               ))}
             </Grupo>
           ) : (
-            <View style={{ alignItems: 'center', paddingVertical: 48, gap: 10 }}>
+            <View
+              style={{
+                alignItems: 'center',
+                paddingVertical: 48,
+                paddingHorizontal: MARGEM,
+                gap: 10,
+              }}
+            >
               <Icone nome="etiqueta" tamanho={30} cor={cor.texto3} />
-              <T v="forte" style={{ color: cor.texto2 }}>
+              {/* Com a margem e ao centro: com a letra grande do iPhone partia-se encostada à borda. */}
+              <T v="forte" style={{ color: cor.texto2, textAlign: 'center' }}>
                 Novas vantagens em breve
               </T>
             </View>
