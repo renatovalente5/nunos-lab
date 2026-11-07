@@ -44,7 +44,7 @@ if (Platform.OS !== 'web') {
 /**
  * As actualizações OTA descarregam em fundo e, por omissão, só entravam no
  * arranque a frio seguinte — que no iPhone pode levar dias. Aqui, a que já
- * está descarregada entra quando a app volta ao primeiro plano, e ao voltar do
+ * está descarregada entra quando a app volta depois de um minuto no fundo, e ao voltar do
  * fundo passadas mais de duas horas pede-se uma nova (entra na volta seguinte).
  * E a que acaba de descarregar nos primeiros segundos depois do arranque entra
  * logo: um reinício de um segundo antes de a pessoa se instalar no ecrã, em vez
@@ -55,26 +55,36 @@ const COM_ACTUALIZACOES = !__DEV__ && Platform.OS !== 'web' && Updates.isEnabled
 const DUAS_HORAS = 2 * 60 * 60_000;
 /** Até quando, depois do arranque, uma actualização acabada de descarregar entra logo. */
 const INICIO = 15_000;
+/** Quanto tempo no fundo conta como «saiu da app» (e não uma folha do sistema por cima dela). */
+const UM_MINUTO = 60_000;
 
 function Actualizacoes() {
   const { isUpdatePending } = Updates.useUpdates();
   const emFundoDesde = useRef(0);
   const arrancouEm = useRef(Date.now());
+  // Entrar com a Apple ou a Google, o Face ID, um aviso de permissão ou o Centro de Controlo
+  // põem a app em «inactive» e devolvem-na a «active». Reiniciar aí perdia a entrada a meio
+  // e o texto de uma folha (achado da revisão de 7 nov). Depois de uma destas, nunca logo.
+  const houveFolhaDoSistema = useRef(false);
   useEffect(() => {
     if (!isUpdatePending || AppState.currentState !== 'active') return;
-    if (Date.now() - arrancouEm.current > INICIO) return;
+    if (houveFolhaDoSistema.current || Date.now() - arrancouEm.current > INICIO) return;
     void Updates.reloadAsync().catch(() => {});
   }, [isUpdatePending]);
   useEffect(() => {
     const ouvinte = AppState.addEventListener('change', (estado) => {
-      if (estado === 'background') emFundoDesde.current = Date.now();
-      if (estado !== 'active') return;
-      if (isUpdatePending) {
-        void Updates.reloadAsync().catch(() => {});
+      if (estado !== 'active') {
+        houveFolhaDoSistema.current = true;
+        if (estado === 'background' && !emFundoDesde.current) emFundoDesde.current = Date.now();
         return;
       }
       const haQuanto = emFundoDesde.current ? Date.now() - emFundoDesde.current : 0;
       emFundoDesde.current = 0;
+      // A pendente entra só quando a pessoa saiu mesmo da app (um minuto ou mais no fundo).
+      if (isUpdatePending) {
+        if (haQuanto >= UM_MINUTO) void Updates.reloadAsync().catch(() => {});
+        return;
+      }
       if (haQuanto < DUAS_HORAS) return;
       void Updates.checkForUpdateAsync()
         .then((r) => (r.isAvailable ? Updates.fetchUpdateAsync() : null))
