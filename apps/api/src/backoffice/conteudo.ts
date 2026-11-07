@@ -8,6 +8,7 @@ import {
 } from '@nunos-lab/dominio';
 import type { z } from 'zod';
 import type { Ambiente, C } from '../ambiente.ts';
+import { refrescarPasses } from '../wallet/servico.ts';
 import {
   categoria,
   loja,
@@ -581,6 +582,14 @@ rotasDoConteudo.put('/barbearia', async (c) => {
     );
   instrucoes.push(registar(c, 'barbearia.alterada'));
   await db.batch(instrucoes);
+  // O passe leva as casas (os sítios que o acordam no ecrã bloqueado, os nomes e telefones nas
+  // costas), o WhatsApp, o site e o Instagram: refaz-se para toda a gente, como ao mudar o
+  // programa. Sem isto ficava com os de antes até ao carimbo seguinte de cada cliente.
+  c.executionCtx.waitUntil(
+    refrescarPasses(c.env)
+      .then((feito) => console.log('passes refeitos (barbearia)', JSON.stringify(feito)))
+      .catch((e) => console.error('passes', e)),
+  );
   // Devolve o que ficou gravado (as lojas novas já com o id): o formulário fica com isto.
   return c.json(await lerBarbearia(db));
 });

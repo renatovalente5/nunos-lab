@@ -8,7 +8,7 @@
  * toques sobre os pinos.
  */
 import { Hono } from 'hono';
-import { enquadrar } from '@nunos-lab/dominio';
+import { enquadrar, versaoDasCasas } from '@nunos-lab/dominio';
 import type { Ambiente } from './ambiente.ts';
 import { recusar } from './util.ts';
 import { buffer, paraBase64url, utf8 } from './wallet/bytes.ts';
@@ -39,9 +39,19 @@ rotasDoMapa.get('/mapa', async (c) => {
   const w = naGrelha(w0);
   const h = naGrelha(h0);
 
+  // As casas lêem-se antes da cache: a impressão das coordenadas entra na chave, e uma casa que
+  // muda de sítio dá outra imagem (a da app vem no «v», só para as caches do caminho).
+  const lojas = (
+    await c.env.DB.prepare(
+      'SELECT lat, lng FROM lojas WHERE lat IS NOT NULL AND lng IS NOT NULL ORDER BY ordem, id',
+    ).all<{ lat: number; lng: number }>()
+  ).results;
   const cache = caches.default;
   const chaveDaCache = new Request(
-    new URL(`/api/mapa?w=${w}&h=${h}&s=${s}&pinos=${comBaloes ? 1 : 0}`, c.req.url),
+    new URL(
+      `/api/mapa?w=${w}&h=${h}&s=${s}&pinos=${comBaloes ? 1 : 0}&v=${versaoDasCasas(lojas)}`,
+      c.req.url,
+    ),
   );
   const guardada = await cache.match(chaveDaCache);
   if (guardada) return guardada;
@@ -50,11 +60,6 @@ rotasDoMapa.get('/mapa', async (c) => {
   if (!(await c.env.CONTAR.limit({ key: `mapa:${ip}` }))?.success)
     recusar(429, 'muitas_tentativas');
 
-  const lojas = (
-    await c.env.DB.prepare(
-      'SELECT lat, lng FROM lojas WHERE lat IS NOT NULL AND lng IS NOT NULL ORDER BY ordem, id',
-    ).all<{ lat: number; lng: number }>()
-  ).results;
   const e = enquadrar(lojas, w, h);
   if (!e) recusar(404, 'sem_mapa');
 

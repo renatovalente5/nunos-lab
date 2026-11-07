@@ -1,4 +1,4 @@
-import { enquadrar, projectar, semPartir, type Loja } from '@nunos-lab/dominio';
+import { enquadrar, projectar, semPartir, versaoDasCasas, type Loja } from '@nunos-lab/dominio';
 import { CONTINUO, Grupo, LARGURA_MAXIMA, MARGEM, Separador, T, cor, raio } from '@nunos-lab/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, PixelRatio, Pressable, View, useWindowDimensions } from 'react-native';
@@ -37,7 +37,8 @@ function medidasDoMapa(lojas: Loja[], larguraDaJanela: number) {
   const h = degrau(w * 1.05);
   const e = enquadrar(comSitio as { lat: number; lng: number }[], w, h);
   const escala = Math.min(3, Math.max(1, Math.round(PixelRatio.get())));
-  return { comSitio, w, h, e, uri: `${API}/api/mapa?w=${w}&h=${h}&s=${escala}&pinos=0` };
+  const v = versaoDasCasas(comSitio);
+  return { comSitio, w, h, e, uri: `${API}/api/mapa?w=${w}&h=${h}&s=${escala}&pinos=0&v=${v}` };
 }
 
 /** O valor só muda depois de ficar quieto `ms`: arrastar a janela muda a largura dezenas de vezes por segundo. */

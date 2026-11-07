@@ -64,3 +64,19 @@ export function projectar(
     y: altura / 2 - (mercator(ponto.lat) - mercator(e.lat)) * pixeisPorMercator(e.z),
   };
 }
+
+/**
+ * Uma impressão das coordenadas das casas (na ordem em que a API as dá): muda quando uma casa
+ * muda de sítio ou entra uma nova, e com ela a morada e a chave de cache da imagem do mapa.
+ * Sem ela, a imagem antiga ficava até 30 h em cache e os pinos, desenhados com as coordenadas
+ * novas, caíam no sítio errado (achado da revisão de 7 nov).
+ */
+export function versaoDasCasas(lojas: { lat: number | null; lng: number | null }[]): string {
+  let h = 5381;
+  for (const l of lojas) {
+    if (l.lat === null || l.lng === null) continue;
+    for (const letra of `${l.lat.toFixed(5)},${l.lng.toFixed(5)};`)
+      h = (Math.imul(h, 33) ^ letra.charCodeAt(0)) >>> 0;
+  }
+  return h.toString(36);
+}

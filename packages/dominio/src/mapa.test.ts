@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { FOLGAS_DO_MAPA, enquadrar, projectar } from './mapa.ts';
+import { FOLGAS_DO_MAPA, enquadrar, projectar, versaoDasCasas } from './mapa.ts';
 
 const casas = [
   { lat: 40.8840641, lng: -8.4517073 },
@@ -46,4 +46,21 @@ test('enquadrar: uma casa só fica ao centro, à escala da vila; sem casas não 
   assert.ok(Math.abs(p.x - 179) < 0.5);
   assert.ok(Math.abs(p.y - (280 / 2 + (FOLGAS_DO_MAPA.cima - FOLGAS_DO_MAPA.baixo) / 2)) < 0.5);
   assert.equal(enquadrar([], 358, 280), null);
+});
+
+test('a impressão das casas muda quando uma casa muda de sítio, e só aí', () => {
+  const casas = [
+    { lat: 40.8551, lng: -8.4512 },
+    { lat: 40.926, lng: -8.5413 },
+    { lat: null, lng: null },
+  ];
+  const v = versaoDasCasas(casas);
+  assert.equal(
+    versaoDasCasas(casas.map((c) => ({ ...c }))),
+    v,
+    'as mesmas casas, a mesma impressão',
+  );
+  assert.equal(versaoDasCasas(casas.slice(0, 2)), v, 'uma casa sem sítio não conta');
+  assert.notEqual(versaoDasCasas([{ lat: 40.8552, lng: -8.4512 }, casas[1]!]), v);
+  assert.notEqual(versaoDasCasas([...casas, { lat: 40.64, lng: -8.65 }]), v, 'uma casa nova');
 });
