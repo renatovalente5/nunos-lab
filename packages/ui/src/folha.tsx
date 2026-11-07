@@ -11,7 +11,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CONTINUO, cor, LARGURA_MAXIMA, MARGEM, raio } from './tema';
 import { Icone } from './icone';
 import { T } from './texto';
@@ -24,7 +24,8 @@ const MS_A_ABRIR = 450;
 const MS_A_FECHAR = 300;
 
 /**
- * Uma folha que sobe de baixo, como no iOS: um título, o fechar, e o que lá vai dentro.
+ * Uma folha que sobe de baixo, como no iOS: um título (e, se houver, uma linha por baixo dele),
+ * o fechar, e o que lá vai dentro.
  *
  * A sombra acende-se no sítio enquanto a folha sobe, as duas no mesmo passo, e apagam-se
  * juntas ao fechar. (Com o «slide» do próprio Modal, a sombra subia agarrada à folha, como
@@ -35,14 +36,19 @@ export function Folha({
   aberta,
   fechar,
   titulo,
+  subtitulo,
   children,
 }: {
   aberta: boolean;
   fechar: () => void;
   titulo: string;
+  subtitulo?: string;
   children: ReactNode;
 }) {
   const margens = useSafeAreaInsets();
+  // A folha cobre a janela toda: por baixo conta só a margem da janela. A do ecrã que a abre, num
+  // separador do iPhone, inclui a barra de separadores, e sobrava uma faixa vazia de ~50 pt (7 nov).
+  const fundo = initialWindowMetrics?.insets.bottom ?? margens.bottom;
   const { height: alturaDoEcra } = useWindowDimensions();
   // 0: em baixo e sem sombra; 1: aberta e com a sombra toda.
   const [progresso] = useState(() => new Animated.Value(0));
@@ -50,15 +56,18 @@ export function Folha({
   const [altura, setAltura] = useState(0);
   const [antes, setAntes] = useState(aberta);
   const [aFechar, setAFechar] = useState(false);
-  const [ultima, setUltima] = useState({ titulo, children });
+  const [ultima, setUltima] = useState({ titulo, subtitulo, children });
   if (aberta !== antes) {
     setAntes(aberta);
     setAFechar(!aberta);
   }
-  if (aberta && (ultima.titulo !== titulo || ultima.children !== children)) {
-    setUltima({ titulo, children });
+  if (
+    aberta &&
+    (ultima.titulo !== titulo || ultima.subtitulo !== subtitulo || ultima.children !== children)
+  ) {
+    setUltima({ titulo, subtitulo, children });
   }
-  const mostrada = aberta ? { titulo, children } : ultima;
+  const mostrada = aberta ? { titulo, subtitulo, children } : ultima;
 
   useEffect(() => {
     if (aberta) {
@@ -133,7 +142,7 @@ export function Folha({
               backgroundColor: cor.superficie,
               borderTopLeftRadius: raio.cartao,
               borderTopRightRadius: raio.cartao,
-              paddingBottom: margens.bottom + 16,
+              paddingBottom: fundo + 16,
               ...CONTINUO,
               transform: [{ translateY: deslocamento }],
             }}
@@ -151,14 +160,23 @@ export function Folha({
             <View
               style={{
                 flexDirection: 'row',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 justifyContent: 'space-between',
+                gap: 12,
                 paddingHorizontal: MARGEM,
                 paddingTop: 14,
                 paddingBottom: 8,
               }}
             >
-              <T v="seccao">{mostrada.titulo}</T>
+              {/* O título ao meio da altura do fechar (40): a linha dele tem 28. */}
+              <View style={{ flex: 1, paddingTop: 6 }}>
+                <T v="seccao">{mostrada.titulo}</T>
+                {!!mostrada.subtitulo && (
+                  <T v="legenda" style={{ color: cor.texto2, marginTop: 3 }}>
+                    {mostrada.subtitulo}
+                  </T>
+                )}
+              </View>
               <Pressable
                 onPress={fechar}
                 role="button"

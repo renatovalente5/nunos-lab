@@ -109,6 +109,8 @@ const DESENHOS = {
     'M20 17.5V20',
   ],
   mapaDobrado: ['M3.5 6.5L9 4l6 2.5L20.5 4v13.5L15 20l-6-2.5L3.5 20z', 'M9 4v13.5', 'M15 6.5V20'],
+  /** A seta de navegar (o Waze, na folha do «Ir»). */
+  navegar: ['M19.5 4.5L4 11.3l7.2 1.5 1.5 7.2z'],
   ...DESENHOS_DAS_CATEGORIAS,
 } satisfies Record<string, readonly string[]> & Record<IconeDaCategoria, readonly string[]>;
 

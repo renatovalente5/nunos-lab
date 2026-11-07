@@ -1,5 +1,5 @@
-import { ligacoesDosMapas } from '@nunos-lab/dominio';
-import { Folha, Icone, MARGEM, T, cor, type NomeDoIcone } from '@nunos-lab/ui';
+import { ligacoesDosMapas, semPartir } from '@nunos-lab/dominio';
+import { Folha, Grupo, Icone, Separador, T, cor, type NomeDoIcone } from '@nunos-lab/ui';
 import { Platform, Pressable, View } from 'react-native';
 import { abrir } from '../dados';
 
@@ -11,7 +11,7 @@ export type DestinoNoMapa = {
   procurar: string;
 };
 
-/** Uma linha de uma folha: o nome, um desenho à esquerda se houver, e a seta. */
+/** Uma linha do cartão de uma folha: o desenho, o nome e a seta, como as linhas do «Mais». */
 export function LinhaDaFolha({
   nome,
   icone,
@@ -19,13 +19,13 @@ export function LinhaDaFolha({
   onPress,
 }: {
   nome: string;
-  icone?: NomeDoIcone;
+  icone: NomeDoIcone;
   separador?: boolean;
   onPress: () => void;
 }) {
   return (
     <View>
-      {separador && <View style={{ height: 1, backgroundColor: cor.linha, marginLeft: MARGEM }} />}
+      {separador && <Separador recuo={56} />}
       <Pressable
         onPress={onPress}
         role="link"
@@ -33,14 +33,13 @@ export function LinhaDaFolha({
         style={({ pressed }) => ({
           flexDirection: 'row',
           alignItems: 'center',
-          gap: 14,
+          paddingHorizontal: 16,
           minHeight: 56,
-          paddingHorizontal: MARGEM,
-          backgroundColor: pressed ? cor.superficieAlta : 'transparent',
+          backgroundColor: pressed ? cor.linha : 'transparent',
         })}
       >
-        {icone && <Icone nome={icone} tamanho={20} cor={cor.texto2} />}
-        <T v="forte" style={{ flex: 1 }}>
+        <Icone nome={icone} tamanho={22} />
+        <T v="forte" style={{ marginLeft: 18, flex: 1 }}>
           {nome}
         </T>
         <Icone nome="seguinte" tamanho={18} cor={cor.texto3} />
@@ -50,7 +49,7 @@ export function LinhaDaFolha({
 }
 
 /**
- * As apps de mapas em que a morada pode abrir, em linhas. Os Mapas da Apple
+ * As apps de mapas em que a morada pode abrir, num cartão. Os Mapas da Apple
  * não aparecem no Android.
  */
 export function OpcoesDeMapa({
@@ -61,17 +60,21 @@ export function OpcoesDeMapa({
   aoEscolher?: () => void;
 }) {
   const ligacoes = ligacoesDosMapas(destino.morada, destino.procurar);
-  const mapas = [
-    ...(Platform.OS === 'android' ? [] : [{ nome: 'Mapas da Apple', url: ligacoes.apple }]),
-    { nome: 'Google Maps', url: ligacoes.google },
-    { nome: 'Waze', url: ligacoes.waze },
+  const mapas: { nome: string; icone: NomeDoIcone; url: string }[] = [
+    ...(Platform.OS === 'android'
+      ? []
+      : [{ nome: 'Mapas da Apple', icone: 'mapaDobrado' as const, url: ligacoes.apple }]),
+    { nome: 'Google Maps', icone: 'mapa', url: ligacoes.google },
+    { nome: 'Waze', icone: 'navegar', url: ligacoes.waze },
   ];
+  // O cartão destaca-se da folha, que é da cor dos outros cartões.
   return (
-    <>
+    <Grupo style={{ marginTop: 10, backgroundColor: cor.superficieAlta }}>
       {mapas.map((m, i) => (
         <LinhaDaFolha
           key={m.nome}
           nome={m.nome}
+          icone={m.icone}
           separador={i > 0}
           onPress={() => {
             aoEscolher?.();
@@ -79,11 +82,11 @@ export function OpcoesDeMapa({
           }}
         />
       ))}
-    </>
+    </Grupo>
   );
 }
 
-/** O «Ir» de um parceiro: a folha só com a escolha do mapa. */
+/** O «Ir» de uma casa ou de um parceiro: o nome, a morada e a escolha do mapa. */
 export function EscolherMapa({
   destino,
   fechar,
@@ -94,7 +97,12 @@ export function EscolherMapa({
   aoEscolher?: () => void;
 }) {
   return (
-    <Folha aberta={!!destino} fechar={fechar} titulo={destino?.nome ?? ''}>
+    <Folha
+      aberta={!!destino}
+      fechar={fechar}
+      titulo={destino?.nome ?? ''}
+      subtitulo={destino?.morada ? semPartir(destino.morada) : undefined}
+    >
       {destino && (
         <OpcoesDeMapa
           destino={destino}
