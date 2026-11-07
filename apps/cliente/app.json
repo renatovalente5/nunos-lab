@@ -4,7 +4,7 @@
     "slug": "nunos-lab",
     "owner": "renatovalente5",
     "scheme": "nunoslab",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "runtimeVersion": {
       "policy": "fingerprint"
     },

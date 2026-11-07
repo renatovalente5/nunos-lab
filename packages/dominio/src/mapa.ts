@@ -9,8 +9,14 @@
 export type PontoNoMapa = { lat: number; lng: number };
 export type Enquadramento = { lat: number; lng: number; z: number };
 
+export type Folgas = { cima: number; baixo: number; lados: number };
 /** As folgas, em pontos: mais por cima, porque o balão do pino desenha-se acima do ponto. */
-export const FOLGAS_DO_MAPA = { cima: 64, baixo: 40, lados: 44 } as const;
+export const FOLGAS_DO_MAPA: Folgas = { cima: 64, baixo: 40, lados: 44 };
+/**
+ * Nos mapas vivos o logótipo e o «Legal» da Apple ficam no canto de baixo e não se podem
+ * tapar: o nome do pino mais a sul tem de ficar acima deles.
+ */
+export const FOLGAS_DO_MAPA_VIVO: Folgas = { cima: 64, baixo: 64, lados: 44 };
 /** Uma casa só (ou todas no mesmo sítio): à escala da vila, não da rua. */
 const ZOOM_MAXIMO = 13;
 const ZOOM_MINIMO = 3;
@@ -26,6 +32,7 @@ export function enquadrar(
   pontos: readonly PontoNoMapa[],
   largura: number,
   altura: number,
+  folgas: Folgas = FOLGAS_DO_MAPA,
 ): Enquadramento | null {
   if (pontos.length === 0) return null;
   const lngs = pontos.map((p) => p.lng);
@@ -34,8 +41,8 @@ export function enquadrar(
   const lngMax = Math.max(...lngs);
   const yMin = Math.min(...ys);
   const yMax = Math.max(...ys);
-  const larguraUtil = largura - 2 * FOLGAS_DO_MAPA.lados;
-  const alturaUtil = altura - FOLGAS_DO_MAPA.cima - FOLGAS_DO_MAPA.baixo;
+  const larguraUtil = largura - 2 * folgas.lados;
+  const alturaUtil = altura - folgas.cima - folgas.baixo;
   const zLng =
     lngMax > lngMin ? Math.log2((larguraUtil * 360) / (256 * (lngMax - lngMin))) : Infinity;
   const zLat =
@@ -43,12 +50,30 @@ export function enquadrar(
   // Com duas casas decimais: é assim que vai no pedido, e a app tem de calcular o mesmo.
   const z = Math.round(Math.max(ZOOM_MINIMO, Math.min(ZOOM_MAXIMO, zLng, zLat)) * 100) / 100;
   // O meio da caixa dos pontos, deslocado para norte: a caixa fica entre a folga de cima e a de baixo.
-  const yCentro =
-    (yMax + yMin) / 2 + (FOLGAS_DO_MAPA.cima - FOLGAS_DO_MAPA.baixo) / 2 / pixeisPorMercator(z);
+  const yCentro = (yMax + yMin) / 2 + (folgas.cima - folgas.baixo) / 2 / pixeisPorMercator(z);
   return {
     lat: Math.round(deMercator(yCentro) * 1e6) / 1e6,
     lng: Math.round(((lngMax + lngMin) / 2) * 1e6) / 1e6,
     z,
+  };
+}
+
+/**
+ * O mesmo enquadramento como região, em graus (o centro e o que cabe de alto a baixo e de lado a
+ * lado): os mapas vivos, o do iPhone e o do site, abrem com ela, como a imagem.
+ */
+export function regiaoDoEnquadramento(
+  e: Enquadramento,
+  largura: number,
+  altura: number,
+): { lat: number; lng: number; latDelta: number; lngDelta: number } {
+  const meiaAltura = altura / 2 / pixeisPorMercator(e.z);
+  const y = mercator(e.lat);
+  return {
+    lat: e.lat,
+    lng: e.lng,
+    latDelta: deMercator(y + meiaAltura) - deMercator(y - meiaAltura),
+    lngDelta: largura / pixeisPorGrau(e.z),
   };
 }
 

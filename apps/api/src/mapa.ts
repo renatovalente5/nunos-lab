@@ -1,17 +1,19 @@
 /**
- * O mapa das casas da Barbearia: uma imagem dos Mapas da Apple (Web Snapshots)
- * com um pino por casa. É pedida daqui, assinada com a chave MapKit (segredo
- * MAPKIT_CHAVE, id MAPKIT_KID) e guardada em cache seis horas: os termos da Apple
- * só deixam guardar o mapa «de forma temporária e limitada», e o logótipo da
- * Apple fica na imagem. O aparelho nunca fala com a Apple, só com esta API. A
- * app calcula o mesmo enquadramento (packages/dominio, mapa.ts) para pôr os
- * toques sobre os pinos.
+ * O mapa das casas da Barbearia. O site mostra o mapa vivo da Apple (MapKit JS),
+ * com a autorização que /mapa/token assina aqui; o iPhone usa o mapa do próprio
+ * sistema. Quando o mapa vivo não pode vir (o Android sem a chave da Google), fica
+ * uma imagem dos Mapas da Apple (Web Snapshots), pedida daqui, assinada com a chave
+ * MapKit (segredo MAPKIT_CHAVE, id MAPKIT_KID) e guardada em cache seis horas: os
+ * termos da Apple só deixam guardar o mapa «de forma temporária e limitada», e o
+ * logótipo da Apple fica na imagem. A app calcula o mesmo enquadramento
+ * (packages/dominio, mapa.ts) para pôr os toques sobre os pinos.
  */
 import { Hono } from 'hono';
 import { enquadrar, versaoDasCasas } from '@nunos-lab/dominio';
 import type { Ambiente } from './ambiente.ts';
 import { recusar } from './util.ts';
 import { buffer, paraBase64url, utf8 } from './wallet/bytes.ts';
+import { assinarJwt } from './wallet/jwt.ts';
 import { chaveDeAssinatura } from './wallet/pem.ts';
 
 export const rotasDoMapa = new Hono<Ambiente>();
@@ -116,4 +118,29 @@ rotasDoMapa.get('/mapa', async (c) => {
   });
   c.executionCtx.waitUntil(cache.put(chaveDaCache, resposta.clone()));
   return resposta;
+});
+
+/** A validade da autorização do mapa vivo: quando acaba, o MapKit JS pede outra. */
+const MEIA_HORA = 30 * 60;
+
+/**
+ * A autorização do mapa vivo do site (MapKit JS): um JWT de meia hora, assinado com a
+ * chave MapKit e preso à origem que o pede, que tem de ser uma das da API.
+ */
+rotasDoMapa.get('/mapa/token', async (c) => {
+  if (!c.env.MAPKIT_CHAVE || !c.env.MAPKIT_KID) recusar(404, 'sem_mapa');
+  const origem = c.req.header('Origin') ?? '';
+  if (!c.env.ORIGENS.split(',').some((o) => o.trim() === origem)) recusar(403, 'origem');
+  const ip = c.req.header('CF-Connecting-IP') ?? 'local';
+  if (!(await c.env.CONTAR.limit({ key: `mapa:${ip}` }))?.success)
+    recusar(429, 'muitas_tentativas');
+  const agora = Math.floor(Date.now() / 1000);
+  const token = await assinarJwt(
+    'ES256',
+    c.env.MAPKIT_CHAVE,
+    'MAPKIT_CHAVE',
+    { kid: c.env.MAPKIT_KID },
+    { iss: c.env.APPLE_EQUIPA, iat: agora, exp: agora + MEIA_HORA, origin: origem },
+  );
+  return c.text(token, 200, { 'Cache-Control': 'no-store' });
 });

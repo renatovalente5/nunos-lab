@@ -12,7 +12,7 @@ const PARAGRAFOS = [
   'Para o Nuno saber o que interessa, a app conta, sem saber quem és, quantas vezes é aberta e quantas vezes cada parceiro é visto ou contactado. Fica só o dia e o número.',
   'A app guarda neste aparelho a última lista de vantagens, para a mostrar quando a rede falha, e o teu cartão, para abrir sem rede.',
   'A app é servida pelo GitHub Pages e os dados vêm de um servidor da Cloudflare, com a base de dados na União Europeia. Como em qualquer site, estes serviços recebem o endereço do teu aparelho para te entregar a página.',
-  'O mapa das casas é uma imagem dos Mapas da Apple que o nosso servidor pede e guarda por pouco tempo. O teu aparelho não fala com a Apple por causa dele.',
+  'O mapa das casas é dos Mapas da Apple: para o mostrar, o teu aparelho liga-se à Apple, que recebe o endereço dele, como qualquer site. No Android é uma imagem que o nosso servidor pede à Apple e guarda por pouco tempo.',
 ];
 
 export default function Privacidade() {

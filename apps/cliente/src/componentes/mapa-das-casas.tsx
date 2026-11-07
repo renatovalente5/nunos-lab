@@ -3,15 +3,17 @@ import { CONTINUO, Grupo, LARGURA_MAXIMA, MARGEM, Separador, T, cor, raio } from
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, PixelRatio, Pressable, View, useWindowDimensions } from 'react-native';
 import { API, abrir, contar, lerCasa, useDados } from '../dados';
-// O «n» já em preto: pintar o branco com tintColor não funciona na web.
-const simboloPreto = require('../../assets/marca/simbolo-preto.png');
+import { HA_MAPA_VIVO, MapaVivo } from './mapa-vivo';
+import { ALTURA_DO_PINO, LARGURA_DO_PINO, PinoDaCasa } from './pino-da-casa';
 
-/** O pino é o ícone da app em branco (o Renato escolheu o D2): o quadrado branco com o «n» preto, aro preto e uma ponta até ao sítio. */
-const ICONE = 24;
-const ARO = 1;
-const PONTA = 5;
-const ALTURA_DO_PINO = ICONE + 2 * ARO + PONTA;
-const LARGURA_DO_TOQUE = 150;
+/** A moldura dos dois mapas: cantos redondos, à largura da coluna. */
+const MOLDURA = {
+  alignSelf: 'center',
+  borderRadius: raio.grupo,
+  overflow: 'hidden',
+  backgroundColor: cor.superficie,
+  ...CONTINUO,
+} as const;
 
 /**
  * Um lado do mapa em degraus de 16 px, entre 112 e 640: a API guarda uma imagem
@@ -46,16 +48,17 @@ function useSossegado<V>(valor: V, ms: number): V {
 }
 
 /**
- * Pede o mapa logo que a app tem as lojas, dois segundos depois (para não
+ * Pede a imagem do mapa logo que a app tem as lojas, dois segundos depois (para não
  * atrasar o que a app mostra primeiro): quando se entra na Barbearia, a imagem
- * já está no aparelho. Vive na barra de separadores, que está sempre montada.
+ * já está no aparelho. Vive na barra de separadores, que está sempre montada. Com
+ * o mapa vivo não há imagem a pedir.
  */
 export function PrecarregarMapa() {
   const { data } = useDados();
   const { width } = useWindowDimensions();
   const lojas = data?.barbearia.lojas;
   useEffect(() => {
-    if (!lojas?.length) return;
+    if (HA_MAPA_VIVO || !lojas?.length) return;
     const { e, uri } = medidasDoMapa(lojas, width);
     if (!e) return;
     const t = setTimeout(() => void Image.prefetch(uri).catch(() => {}), 2000);
@@ -65,18 +68,72 @@ export function PrecarregarMapa() {
 }
 
 /**
- * O mapa das casas: a imagem vem da API (os Mapas da Apple, pedidos pelo
- * servidor, sem os balões da Apple) e a app desenha por cima um pino por casa,
- * com o nome por baixo. Ao tocar num pino, a casa aparece por baixo do mapa,
- * com a morada, «Marcar» e «Ir»; tocar no mapa, ou outra vez no pino, tira-a.
- * Abre já com a casa do cliente, se escolheu uma nas Vantagens. (Até 7 nov era
- * um balão por cima do pino: tapava o mapa e cortava-se na borda de cima.)
- * O enquadramento é o mesmo do servidor (packages/dominio, mapa.ts), por isso
- * os pinos caem no sítio certo. Se a imagem não vier (a Apple, a rede,
- * o travão), não fica rectângulo nenhum: as casas aparecem em lista, com a morada,
- * «Marcar» e «Ir». Uma casa ainda sem coordenadas vai para a lista por baixo do mapa.
+ * O mapa das casas. No iPhone e no site é o mapa vivo dos Mapas da Apple (arrastar,
+ * aproximar); no Android, até haver a chave da Google, e quando o mapa vivo não vem, é
+ * uma imagem dos Mapas da Apple pedida pela API, com os pinos desenhados por cima. Ao
+ * tocar num pino, a casa aparece por baixo do mapa, com a morada, «Marcar» e «Ir»;
+ * tocar no mapa tira-a. Abre já com a casa do cliente, se escolheu uma nas Vantagens.
+ * (Até 7 nov era um balão por cima do pino: tapava o mapa e cortava-se na borda de
+ * cima.) Sem mapa nenhum (a Apple, a rede, o travão), as casas aparecem em lista, com
+ * a morada, «Marcar» e «Ir». Uma casa ainda sem coordenadas vai para a lista por baixo
+ * do mapa.
  */
 export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja) => void }) {
+  const { width } = useWindowDimensions();
+  const [aberta, setAberta] = useState<number | null>(lerCasa);
+  const [vivoFalhou, setVivoFalhou] = useState(false);
+  const [imagemFalhou, setImagemFalhou] = useState(false);
+  const comSitio = useMemo(() => lojas.filter((l) => l.lat !== null && l.lng !== null), [lojas]);
+  const vivo = HA_MAPA_VIVO && !vivoFalhou;
+  if (comSitio.length === 0 || (!vivo && imagemFalhou))
+    return <ListaDasCasas lojas={lojas} aoIr={aoIr} />;
+  const semSitio = lojas.filter((l) => l.lat === null || l.lng === null);
+  const escolhida = comSitio.find((l) => l.id === aberta) ?? null;
+  const w = Math.min(width, LARGURA_MAXIMA) - 2 * MARGEM;
+  const h = Math.round(w * 1.05);
+  return (
+    <>
+      {vivo ? (
+        <View style={{ ...MOLDURA, width: w, height: h }}>
+          <MapaVivo
+            lojas={comSitio}
+            largura={w}
+            altura={h}
+            aberta={aberta}
+            escolher={setAberta}
+            falhou={() => setVivoFalhou(true)}
+          />
+        </View>
+      ) : (
+        <MapaEstatico
+          lojas={comSitio}
+          aberta={aberta}
+          escolher={setAberta}
+          falhou={() => setImagemFalhou(true)}
+        />
+      )}
+      {escolhida && <ListaDasCasas lojas={[escolhida]} aoIr={aoIr} depoisDoMapa />}
+      {semSitio.length > 0 && <ListaDasCasas lojas={semSitio} aoIr={aoIr} depoisDoMapa />}
+    </>
+  );
+}
+
+/**
+ * A imagem do mapa (os Mapas da Apple, pedidos pelo servidor, sem os balões da Apple)
+ * com um pino por casa desenhado por cima. O enquadramento é o mesmo do servidor
+ * (packages/dominio, mapa.ts), por isso os pinos caem no sítio certo.
+ */
+function MapaEstatico({
+  lojas,
+  aberta,
+  escolher,
+  falhou,
+}: {
+  lojas: Loja[];
+  aberta: number | null;
+  escolher: (id: number | null) => void;
+  falhou: () => void;
+}) {
   const { width } = useWindowDimensions();
   // A largura só conta 300 ms depois de sossegar.
   const larguraSossegada = useSossegado(width, 300);
@@ -99,7 +156,7 @@ export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja
       vivo = false;
     };
   }, [pedido, aVista]);
-  const [estado, setEstado] = useState<'a-carregar' | 'pronto' | 'falhou'>('a-carregar');
+  const [pronta, setPronta] = useState(false);
   // Se a imagem falhar (rede, um soluço do servidor), tenta mais uma vez passados 2 s;
   // se a Barbearia sair antes, o temporizador morre com ela.
   const [tentativa, setTentativa] = useState(0);
@@ -110,136 +167,44 @@ export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja
     },
     [],
   );
-  const [aberta, setAberta] = useState<number | null>(lerCasa);
   const { comSitio, w, h, e, uri } = aVista;
-  if (!e || estado === 'falhou') return <ListaDasCasas lojas={lojas} aoIr={aoIr} />;
-  const semSitio = lojas.filter((l) => l.lat === null || l.lng === null);
+  if (!e) return null;
   const posicoes = comSitio.map((l) => ({
     loja: l,
     ...projectar({ lat: l.lat!, lng: l.lng! }, e, w, h),
   }));
-  const escolhida = posicoes.find((p) => p.loja.id === aberta) ?? null;
   return (
-    <>
-      <View
-        style={{
-          // Ao centro: com a largura em degraus de 16 sobram até 15 px, que se repartem pelos lados.
-          alignSelf: 'center',
-          width: w,
-          height: h,
-          borderRadius: raio.grupo,
-          overflow: 'hidden',
-          backgroundColor: cor.superficie,
-          ...CONTINUO,
-        }}
-      >
-        <Pressable onPress={() => setAberta(null)} disabled={aberta === null} aria-hidden>
-          <Image
-            source={{ uri: `${uri}${tentativa ? `&t=${tentativa}` : ''}` }}
-            style={{ width: w, height: h }}
-            onLoad={() => setEstado('pronto')}
-            onError={() => {
-              if (tentativa === 0) novaTentativa.current = setTimeout(() => setTentativa(1), 2000);
-              else setEstado('falhou');
+    <View style={{ ...MOLDURA, width: w, height: h }}>
+      <Pressable onPress={() => escolher(null)} disabled={aberta === null} aria-hidden>
+        <Image
+          source={{ uri: `${uri}${tentativa ? `&t=${tentativa}` : ''}` }}
+          style={{ width: w, height: h }}
+          onLoad={() => setPronta(true)}
+          onError={() => {
+            if (tentativa === 0) novaTentativa.current = setTimeout(() => setTentativa(1), 2000);
+            else falhou();
+          }}
+          accessibilityLabel="Mapa com as casas"
+        />
+      </Pressable>
+      {pronta &&
+        posicoes.map(({ loja: l, x, y }) => (
+          <Pressable
+            key={l.id}
+            onPress={() => escolher(aberta === l.id ? null : l.id)}
+            role="button"
+            aria-label={l.nome}
+            aria-expanded={aberta === l.id}
+            style={{
+              position: 'absolute',
+              left: x - LARGURA_DO_PINO / 2,
+              top: y - ALTURA_DO_PINO,
             }}
-            accessibilityLabel="Mapa com as casas"
-          />
-        </Pressable>
-        {estado === 'pronto' &&
-          posicoes.map(({ loja: l, x, y }) => (
-            <Pressable
-              key={l.id}
-              onPress={() => setAberta(aberta === l.id ? null : l.id)}
-              role="button"
-              aria-label={l.nome}
-              aria-expanded={aberta === l.id}
-              style={{
-                position: 'absolute',
-                left: x - LARGURA_DO_TOQUE / 2,
-                top: y - ALTURA_DO_PINO,
-                width: LARGURA_DO_TOQUE,
-                alignItems: 'center',
-              }}
-            >
-              {/* O pino escolhido ganha um aro creme (o Renato escolheu o 5). */}
-              {aberta === l.id && (
-                <View
-                  style={{
-                    position: 'absolute',
-                    top: -5,
-                    width: ICONE + 2 * ARO + 10,
-                    height: ALTURA_DO_PINO + 4,
-                    borderRadius: 12,
-                    borderWidth: 2,
-                    borderColor: cor.claro,
-                    ...CONTINUO,
-                  }}
-                />
-              )}
-              <View
-                style={{
-                  width: ICONE + 2 * ARO,
-                  height: ICONE + 2 * ARO,
-                  borderRadius: 7,
-                  backgroundColor: cor.sobreClaro,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 4px 10px rgba(0,0,0,0.55)',
-                  ...CONTINUO,
-                }}
-              >
-                <View
-                  style={{
-                    width: ICONE,
-                    height: ICONE,
-                    borderRadius: 6,
-                    backgroundColor: '#FFFFFF',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    ...CONTINUO,
-                  }}
-                >
-                  <Image
-                    source={simboloPreto}
-                    style={{ width: 12.4, height: 13 }}
-                    resizeMode="contain"
-                    accessibilityIgnoresInvertColors
-                  />
-                </View>
-              </View>
-              <View
-                style={{
-                  width: 0,
-                  height: 0,
-                  marginTop: -1,
-                  borderLeftWidth: 4,
-                  borderRightWidth: 4,
-                  borderTopWidth: PONTA + 1,
-                  borderLeftColor: 'transparent',
-                  borderRightColor: 'transparent',
-                  borderTopColor: cor.sobreClaro,
-                }}
-              />
-              {/* O nome numa pastilha escura, para se ler por cima das etiquetas do mapa. */}
-              <View
-                style={{
-                  marginTop: 3,
-                  paddingHorizontal: 9,
-                  paddingVertical: 3,
-                  borderRadius: 999,
-                  backgroundColor: 'rgba(10,10,10,0.78)',
-                }}
-              >
-                <T v="legenda" numberOfLines={1} style={{ fontSize: 12, lineHeight: 16 }}>
-                  {l.nome}
-                </T>
-              </View>
-            </Pressable>
-          ))}
-      </View>
-      {escolhida && <ListaDasCasas lojas={[escolhida.loja]} aoIr={aoIr} depoisDoMapa />}
-      {semSitio.length > 0 && <ListaDasCasas lojas={semSitio} aoIr={aoIr} depoisDoMapa />}
-    </>
+          >
+            <PinoDaCasa nome={l.nome} escolhido={aberta === l.id} />
+          </Pressable>
+        ))}
+    </View>
   );
 }
 

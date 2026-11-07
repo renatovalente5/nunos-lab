@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { FOLGAS_DO_MAPA, enquadrar, projectar, versaoDasCasas } from './mapa.ts';
+import {
+  FOLGAS_DO_MAPA,
+  FOLGAS_DO_MAPA_VIVO,
+  enquadrar,
+  projectar,
+  regiaoDoEnquadramento,
+  versaoDasCasas,
+} from './mapa.ts';
 
 const casas = [
   { lat: 40.8840641, lng: -8.4517073 },
@@ -9,31 +16,26 @@ const casas = [
 ];
 
 test('enquadrar: as casas ficam todas dentro das folgas, e a caixa toca uma delas', () => {
-  const tamanhos: [number, number][] = [
-    [358, 280],
-    [520, 400],
-    [320, 320],
+  const tamanhos: [number, number, typeof FOLGAS_DO_MAPA][] = [
+    [358, 280, FOLGAS_DO_MAPA],
+    [520, 400, FOLGAS_DO_MAPA],
+    [320, 320, FOLGAS_DO_MAPA],
+    [335, 352, FOLGAS_DO_MAPA_VIVO],
   ];
-  for (const [w, h] of tamanhos) {
-    const e = enquadrar(casas, w, h)!;
+  for (const [w, h, FOLGAS] of tamanhos) {
+    const e = enquadrar(casas, w, h, FOLGAS)!;
     const ps = casas.map((c) => projectar(c, e, w, h));
     for (const p of ps) {
-      assert.ok(
-        p.x >= FOLGAS_DO_MAPA.lados - 0.5 && p.x <= w - FOLGAS_DO_MAPA.lados + 0.5,
-        `x ${p.x} em ${w}`,
-      );
-      assert.ok(
-        p.y >= FOLGAS_DO_MAPA.cima - 0.5 && p.y <= h - FOLGAS_DO_MAPA.baixo + 0.5,
-        `y ${p.y} em ${h}`,
-      );
+      assert.ok(p.x >= FOLGAS.lados - 0.5 && p.x <= w - FOLGAS.lados + 0.5, `x ${p.x} em ${w}`);
+      assert.ok(p.y >= FOLGAS.cima - 0.5 && p.y <= h - FOLGAS.baixo + 0.5, `y ${p.y} em ${h}`);
     }
     const xs = ps.map((p) => p.x);
     const ys = ps.map((p) => p.y);
     const largura = Math.max(...xs) - Math.min(...xs);
     const altura = Math.max(...ys) - Math.min(...ys);
     const encosta =
-      Math.abs(largura - (w - 2 * FOLGAS_DO_MAPA.lados)) < 1.5 ||
-      Math.abs(altura - (h - FOLGAS_DO_MAPA.cima - FOLGAS_DO_MAPA.baixo)) < 1.5;
+      Math.abs(largura - (w - 2 * FOLGAS.lados)) < 1.5 ||
+      Math.abs(altura - (h - FOLGAS.cima - FOLGAS.baixo)) < 1.5;
     assert.ok(encosta, `a caixa não encosta às folgas em ${w}×${h}`);
     assert.equal(e.z, Math.round(e.z * 100) / 100);
   }
@@ -63,4 +65,17 @@ test('a impressão das casas muda quando uma casa muda de sítio, e só aí', ()
   assert.equal(versaoDasCasas(casas.slice(0, 2)), v, 'uma casa sem sítio não conta');
   assert.notEqual(versaoDasCasas([{ lat: 40.8552, lng: -8.4512 }, casas[1]!]), v);
   assert.notEqual(versaoDasCasas([...casas, { lat: 40.64, lng: -8.65 }]), v, 'uma casa nova');
+});
+
+test('a região do enquadramento é a imagem em graus: as casas dentro, as bordas onde a imagem acaba', () => {
+  const [w, h] = [358, 376];
+  const e = enquadrar(casas, w, h)!;
+  const r = regiaoDoEnquadramento(e, w, h);
+  for (const c of casas) {
+    assert.ok(Math.abs(c.lat - r.lat) < r.latDelta / 2, `lat ${c.lat}`);
+    assert.ok(Math.abs(c.lng - r.lng) < r.lngDelta / 2, `lng ${c.lng}`);
+  }
+  // O canto de cima à esquerda da região cai no canto da imagem.
+  const canto = projectar({ lat: r.lat + r.latDelta / 2, lng: r.lng - r.lngDelta / 2 }, e, w, h);
+  assert.ok(Math.abs(canto.x) < 0.5 && Math.abs(canto.y) < 1, `canto em ${canto.x}, ${canto.y}`);
 });
