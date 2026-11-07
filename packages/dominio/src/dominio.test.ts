@@ -195,7 +195,7 @@ test('o estado do cartão e a frase', () => {
   assert.deepEqual(estadoDoCartao(10, 10), { faltam: 0, completo: true });
   assert.deepEqual(estadoDoCartao(12, 10), { faltam: 0, completo: true });
   const programa = { objectivo: 10, recompensa: 'Corte grátis' };
-  assert.equal(fraseDoCartao(7, programa), 'Faltam 3 para corte grátis');
+  assert.equal(fraseDoCartao(7, programa), 'Prémio: corte grátis');
   assert.equal(fraseDoCartao(9, programa), 'O próximo corte é grátis');
   assert.equal(
     fraseDoCartao(9, { objectivo: 10, recompensa: '−50 % na barba' }),
@@ -205,7 +205,7 @@ test('o estado do cartão e a frase', () => {
   assert.equal(fraseDoCartao(3, { objectivo: 5, recompensa: '' }), 'Faltam 2');
   // Um desconto é nesse corte («tem», «teve»); outra coisa qualquer entrega-se à parte.
   const desconto = { objectivo: 10, recompensa: '50% de desconto' };
-  assert.equal(fraseDoCartao(0, desconto), 'Faltam 10 para 50% de desconto');
+  assert.equal(fraseDoCartao(0, desconto), 'Prémio: 50% de desconto');
   assert.equal(fraseDoCartao(9, desconto), 'O próximo corte tem 50% de desconto');
   assert.equal(fraseDesteCorte('50% de desconto'), 'Este corte tem 50% de desconto');
   assert.equal(fraseDoCorteOferecido('50% de desconto'), 'Este corte teve 50% de desconto');

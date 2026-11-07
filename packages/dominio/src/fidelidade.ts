@@ -63,7 +63,10 @@ export function fraseDoCorteOferecido(recompensa: string): string {
   return `${r} · entregue`;
 }
 
-/** «Faltam 3 para o corte grátis», «O próximo corte é grátis», ou «Cartão completo». */
+/**
+ * «Prémio: corte grátis», «O próximo corte é grátis», ou «Cartão completo»; sem prémio, «Faltam 3».
+ * O «3 de 10» ao lado já diz quantos faltam: era «Faltam 7 para corte grátis» até 7 nov (o Renato).
+ */
 export function fraseDoCartao(
   carimbos: number,
   programa: Pick<Programa, 'objectivo' | 'recompensa'>,
@@ -71,11 +74,8 @@ export function fraseDoCartao(
   const { faltam, completo } = estadoDoCartao(carimbos, programa.objectivo);
   if (completo) return 'Cartão completo';
   const recompensa = programa.recompensa.trim();
-  const alvo = recompensa
-    ? ` para ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`
-    : '';
   if (faltam === 1) return fraseDoProximo(recompensa);
-  return `Faltam ${faltam}${alvo}`;
+  return recompensa ? `Prémio: ${minuscula(recompensa)}` : `Faltam ${faltam}`;
 }
 
 /** Quanto tempo vale uma sessão da Balcão parada (um barbeiro não volta a entrar). */

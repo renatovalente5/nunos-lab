@@ -14,7 +14,10 @@ const simbolo = require('../../assets/marca/simbolo.png');
 /** As barras no lugar do número enquanto o cartão não chega: creme a 8 % sobre o cartão. */
 const ESBATIDO = 'rgba(244,241,236,0.08)';
 
-/** O cartão de cliente: o logótipo oficial, o nome, os carimbos, a conta. */
+/**
+ * O cartão de cliente: o logótipo oficial, os carimbos, a conta e o prémio. Sem o nome nem a
+ * frase por baixo dele («O teu cartão», «Cliente desde…»): o Renato tirou-os a 7 nov.
+ */
 export function CartaoDoCliente({
   eu,
   recompensas,
@@ -26,7 +29,7 @@ export function CartaoDoCliente({
   tentar,
   programa = null,
 }: {
-  eu: Pick<ClienteEu, 'nome' | 'criadoEm' | 'cortes' | 'cartao' | 'programa'> | null;
+  eu: Pick<ClienteEu, 'cartao' | 'programa'> | null;
   /** Cartões cheios por entregar (eu.recompensas.length). */
   recompensas: number;
   largura: number;
@@ -38,7 +41,7 @@ export function CartaoDoCliente({
   /**
    * Com sessão mas ainda sem «eu»: a carregar (os círculos esbatidos e sem
    * número, que um «0 de 10» mentia a quem tem carimbos) ou sem ligação (o
-   * aviso no lugar do nome, com toque para tentar outra vez).
+   * aviso por baixo do logótipo, com toque para tentar outra vez).
    */
   espera?: 'a-carregar' | 'sem-ligacao' | null;
   tentar?: () => void;
@@ -56,7 +59,6 @@ export function CartaoDoCliente({
     eu?.programa.recompensa ??
     programa?.recompensa ??
     PROGRAMA_PREDEFINIDO.recompensa;
-  const desde = eu ? new Date(eu.criadoEm * 1000).getFullYear() : null;
   // Cheio e sem nada por entregar: o carimbo que o completou já foi o corte da oferta.
   const entregue = carimbos >= objectivo && recompensas === 0;
   // Antes da primeira medição a largura pode vir a zero: nunca um círculo negativo.
@@ -97,7 +99,7 @@ export function CartaoDoCliente({
         accessibilityLabel="Nuno's Lab"
         role="img"
       />
-      {espera === 'sem-ligacao' ? (
+      {espera === 'sem-ligacao' && (
         <Pressable
           onPress={tentar}
           role="button"
@@ -112,23 +114,6 @@ export function CartaoDoCliente({
             Tocar para tentar outra vez.
           </T>
         </Pressable>
-      ) : (
-        <>
-          <T
-            v="subtitulo"
-            style={aEsperar ? { marginTop: 24, color: cor.texto2 } : { marginTop: 24 }}
-            numberOfLines={1}
-          >
-            {aEsperar ? 'A carregar…' : eu?.nome || 'O teu cartão'}
-          </T>
-          <T v="legenda" style={{ color: cor.texto2, marginTop: 3 }}>
-            {eu && !aEsperar
-              ? eu.cartao.numero > 1
-                ? `Cliente desde ${desde} · ${eu.cartao.numero}.º cartão · ${eu.cortes} ${eu.cortes === 1 ? 'corte' : 'cortes'}`
-                : `Cliente desde ${desde}`
-              : 'Um carimbo por corte'}
-          </T>
-        </>
       )}
       {/* À espera, os círculos ficam esbatidos e fora do leitor de ecrã: ainda não se sabe quantos estão cheios. */}
       <View style={{ marginTop: 22, opacity: aEsperar ? 0.35 : 1 }} aria-hidden={aEsperar}>
