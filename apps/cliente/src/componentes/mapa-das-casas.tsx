@@ -1,5 +1,5 @@
 import { enquadrar, projectar, semPartir, type Loja } from '@nunos-lab/dominio';
-import { CONTINUO, LARGURA_MAXIMA, MARGEM, T, cor, raio } from '@nunos-lab/ui';
+import { CONTINUO, Grupo, LARGURA_MAXIMA, MARGEM, Separador, T, cor, raio } from '@nunos-lab/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, PixelRatio, Pressable, View, useWindowDimensions } from 'react-native';
 import { API, abrir, contar, useDados } from '../dados';
@@ -75,8 +75,9 @@ export function PrecarregarMapa() {
  * com o nome por baixo. Ao tocar num pino abre um balão, como nos Mapas da
  * Apple, com a morada e «Marcar» e «Ir»; tocar no mapa, ou outra vez no pino,
  * fecha-o. O enquadramento é o mesmo do servidor (packages/dominio, mapa.ts),
- * por isso os pinos caem no sítio certo. Se a imagem não vier, não fica
- * rectângulo nenhum.
+ * por isso os pinos caem no sítio certo. Se a imagem não vier (a Apple, a rede,
+ * o travão), não fica rectângulo nenhum: as casas aparecem em lista, com a morada,
+ * «Marcar» e «Ir». Uma casa ainda sem coordenadas vai para a lista por baixo do mapa.
  */
 export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja) => void }) {
   const { width } = useWindowDimensions();
@@ -114,143 +115,200 @@ export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja
   );
   const [aberta, setAberta] = useState<number | null>(null);
   const { comSitio, w, h, e, uri } = aVista;
-  if (!e || estado === 'falhou') return null;
+  if (!e || estado === 'falhou') return <ListaDasCasas lojas={lojas} aoIr={aoIr} />;
+  const semSitio = lojas.filter((l) => l.lat === null || l.lng === null);
   const posicoes = comSitio.map((l) => ({
     loja: l,
     ...projectar({ lat: l.lat!, lng: l.lng! }, e, w, h),
   }));
   const escolhida = posicoes.find((p) => p.loja.id === aberta) ?? null;
   return (
-    <View
-      style={{
-        // Ao centro: com a largura em degraus de 16 sobram até 15 px, que se repartem pelos lados.
-        alignSelf: 'center',
-        width: w,
-        height: h,
-        borderRadius: raio.grupo,
-        overflow: 'hidden',
-        backgroundColor: cor.superficie,
-        ...CONTINUO,
-      }}
-    >
-      <Pressable onPress={() => setAberta(null)} disabled={aberta === null} aria-hidden>
-        <Image
-          source={{ uri: `${uri}${tentativa ? `&t=${tentativa}` : ''}` }}
-          style={{ width: w, height: h }}
-          onLoad={() => setEstado('pronto')}
-          onError={() => {
-            if (tentativa === 0) novaTentativa.current = setTimeout(() => setTentativa(1), 2000);
-            else setEstado('falhou');
-          }}
-          accessibilityLabel="Mapa com as casas"
-        />
-      </Pressable>
-      {estado === 'pronto' &&
-        posicoes.map(({ loja: l, x, y }) => (
-          <Pressable
-            key={l.id}
-            onPress={() => setAberta(aberta === l.id ? null : l.id)}
-            role="button"
-            aria-label={l.nome}
-            aria-expanded={aberta === l.id}
-            style={{
-              position: 'absolute',
-              left: x - LARGURA_DO_TOQUE / 2,
-              top: y - ALTURA_DO_PINO,
-              width: LARGURA_DO_TOQUE,
-              alignItems: 'center',
+    <>
+      <View
+        style={{
+          // Ao centro: com a largura em degraus de 16 sobram até 15 px, que se repartem pelos lados.
+          alignSelf: 'center',
+          width: w,
+          height: h,
+          borderRadius: raio.grupo,
+          overflow: 'hidden',
+          backgroundColor: cor.superficie,
+          ...CONTINUO,
+        }}
+      >
+        <Pressable onPress={() => setAberta(null)} disabled={aberta === null} aria-hidden>
+          <Image
+            source={{ uri: `${uri}${tentativa ? `&t=${tentativa}` : ''}` }}
+            style={{ width: w, height: h }}
+            onLoad={() => setEstado('pronto')}
+            onError={() => {
+              if (tentativa === 0) novaTentativa.current = setTimeout(() => setTentativa(1), 2000);
+              else setEstado('falhou');
             }}
-          >
-            {/* O pino com o balão aberto ganha um aro creme (o Renato escolheu o 5). */}
-            {aberta === l.id && (
-              <View
-                style={{
-                  position: 'absolute',
-                  top: -5,
-                  width: ICONE + 2 * ARO + 10,
-                  height: ALTURA_DO_PINO + 4,
-                  borderRadius: 12,
-                  borderWidth: 2,
-                  borderColor: cor.claro,
-                  ...CONTINUO,
-                }}
-              />
-            )}
-            <View
+            accessibilityLabel="Mapa com as casas"
+          />
+        </Pressable>
+        {estado === 'pronto' &&
+          posicoes.map(({ loja: l, x, y }) => (
+            <Pressable
+              key={l.id}
+              onPress={() => setAberta(aberta === l.id ? null : l.id)}
+              role="button"
+              aria-label={l.nome}
+              aria-expanded={aberta === l.id}
               style={{
-                width: ICONE + 2 * ARO,
-                height: ICONE + 2 * ARO,
-                borderRadius: 7,
-                backgroundColor: cor.sobreClaro,
+                position: 'absolute',
+                left: x - LARGURA_DO_TOQUE / 2,
+                top: y - ALTURA_DO_PINO,
+                width: LARGURA_DO_TOQUE,
                 alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 10px rgba(0,0,0,0.55)',
-                ...CONTINUO,
               }}
             >
+              {/* O pino com o balão aberto ganha um aro creme (o Renato escolheu o 5). */}
+              {aberta === l.id && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -5,
+                    width: ICONE + 2 * ARO + 10,
+                    height: ALTURA_DO_PINO + 4,
+                    borderRadius: 12,
+                    borderWidth: 2,
+                    borderColor: cor.claro,
+                    ...CONTINUO,
+                  }}
+                />
+              )}
               <View
                 style={{
-                  width: ICONE,
-                  height: ICONE,
-                  borderRadius: 6,
-                  backgroundColor: '#FFFFFF',
+                  width: ICONE + 2 * ARO,
+                  height: ICONE + 2 * ARO,
+                  borderRadius: 7,
+                  backgroundColor: cor.sobreClaro,
                   alignItems: 'center',
                   justifyContent: 'center',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.55)',
                   ...CONTINUO,
                 }}
               >
-                <Image
-                  source={simboloPreto}
-                  style={{ width: 12.4, height: 13 }}
-                  resizeMode="contain"
-                  accessibilityIgnoresInvertColors
-                />
+                <View
+                  style={{
+                    width: ICONE,
+                    height: ICONE,
+                    borderRadius: 6,
+                    backgroundColor: '#FFFFFF',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    ...CONTINUO,
+                  }}
+                >
+                  <Image
+                    source={simboloPreto}
+                    style={{ width: 12.4, height: 13 }}
+                    resizeMode="contain"
+                    accessibilityIgnoresInvertColors
+                  />
+                </View>
               </View>
-            </View>
-            <View
-              style={{
-                width: 0,
-                height: 0,
-                marginTop: -1,
-                borderLeftWidth: 4,
-                borderRightWidth: 4,
-                borderTopWidth: PONTA + 1,
-                borderLeftColor: 'transparent',
-                borderRightColor: 'transparent',
-                borderTopColor: cor.sobreClaro,
-              }}
-            />
-            {/* O nome numa pastilha escura, para se ler por cima das etiquetas do mapa. */}
-            <View
-              style={{
-                marginTop: 3,
-                paddingHorizontal: 9,
-                paddingVertical: 3,
-                borderRadius: 999,
-                backgroundColor: 'rgba(10,10,10,0.78)',
-              }}
-            >
-              <T v="legenda" numberOfLines={1} style={{ fontSize: 12, lineHeight: 16 }}>
-                {l.nome}
+              <View
+                style={{
+                  width: 0,
+                  height: 0,
+                  marginTop: -1,
+                  borderLeftWidth: 4,
+                  borderRightWidth: 4,
+                  borderTopWidth: PONTA + 1,
+                  borderLeftColor: 'transparent',
+                  borderRightColor: 'transparent',
+                  borderTopColor: cor.sobreClaro,
+                }}
+              />
+              {/* O nome numa pastilha escura, para se ler por cima das etiquetas do mapa. */}
+              <View
+                style={{
+                  marginTop: 3,
+                  paddingHorizontal: 9,
+                  paddingVertical: 3,
+                  borderRadius: 999,
+                  backgroundColor: 'rgba(10,10,10,0.78)',
+                }}
+              >
+                <T v="legenda" numberOfLines={1} style={{ fontSize: 12, lineHeight: 16 }}>
+                  {l.nome}
+                </T>
+              </View>
+            </Pressable>
+          ))}
+        {escolhida && (
+          <Balao
+            loja={escolhida.loja}
+            x={escolhida.x}
+            y={escolhida.y}
+            largura={w}
+            altura={h}
+            fechar={() => setAberta(null)}
+            aoIr={() => {
+              setAberta(null);
+              aoIr(escolhida.loja);
+            }}
+          />
+        )}
+      </View>
+      {semSitio.length > 0 && <ListaDasCasas lojas={semSitio} aoIr={aoIr} depoisDoMapa />}
+    </>
+  );
+}
+
+/**
+ * As casas em lista, quando o mapa não as pode mostrar: sem ela, um mapa que não
+ * veio deixava a Barbearia sem moradas nem «Marcar» (visto a 7 nov, com a Apple a
+ * responder 403 no servidor local). As acções são as do balão.
+ */
+function ListaDasCasas({
+  lojas,
+  aoIr,
+  depoisDoMapa = false,
+}: {
+  lojas: Loja[];
+  aoIr: (loja: Loja) => void;
+  depoisDoMapa?: boolean;
+}) {
+  return (
+    <Grupo style={depoisDoMapa ? { marginTop: 14 } : undefined}>
+      {lojas.map((l, i) => (
+        <View key={l.id}>
+          {i > 0 && <Separador recuo={16} />}
+          <View style={{ padding: 16, gap: 4 }}>
+            <T v="forte" numberOfLines={1}>
+              {l.nome}
+            </T>
+            {!!l.morada && (
+              <T v="legenda" style={{ color: cor.texto2 }}>
+                {semPartir(l.morada)}
               </T>
-            </View>
-          </Pressable>
-        ))}
-      {escolhida && (
-        <Balao
-          loja={escolhida.loja}
-          x={escolhida.x}
-          y={escolhida.y}
-          largura={w}
-          altura={h}
-          fechar={() => setAberta(null)}
-          aoIr={() => {
-            setAberta(null);
-            aoIr(escolhida.loja);
-          }}
-        />
-      )}
-    </View>
+            )}
+            {(!!l.marcar || !!l.morada) && (
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                {!!l.marcar && (
+                  <Pilula
+                    nome="Marcar"
+                    rotulo={`Marcar em ${l.nome}`}
+                    principal
+                    onPress={() => {
+                      contar('marcar', l.id);
+                      abrir(l.marcar);
+                    }}
+                  />
+                )}
+                {!!l.morada && (
+                  <Pilula nome="Ir" rotulo={`Ir a ${l.nome}`} onPress={() => aoIr(l)} />
+                )}
+              </View>
+            )}
+          </View>
+        </View>
+      ))}
+    </Grupo>
   );
 }
 
