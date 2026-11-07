@@ -26,9 +26,10 @@ const DESENHOS = {
   relogio: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 7v5l3.2 2'],
   /** Um ponto de atenção («já carimbado hoje»): círculo com exclamação. O «aviso» é o altifalante dos anúncios. */
   atencao: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 7.5v5.5', 'M12 16.5h.01'],
+  /** As vantagens. Virada como o `tag` do iPhone (o furo em cima, à direita), o da barra de baixo. */
   etiqueta: [
-    'M3.5 12.4V4.5a1 1 0 0 1 1-1h7.9l8.6 8.6a1.4 1.4 0 0 1 0 2l-6.4 6.4a1.4 1.4 0 0 1-2 0z',
-    'M8 8h.01',
+    'M20.5 12.4V4.5a1 1 0 0 0-1-1h-7.9l-8.6 8.6a1.4 1.4 0 0 0 0 2l6.4 6.4a1.4 1.4 0 0 0 2 0z',
+    'M16 8h.01',
   ],
   tesoura: [
     'M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
@@ -93,13 +94,7 @@ const DESENHOS = {
   aparelho: ['M8 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'M11 18h2'],
   grafico: ['M4 20V10', 'M10 20V4', 'M16 20v-8', 'M22 20H2'],
   seta: ['M5 12h14', 'M13 6l6 6-6 6'],
-  /** Os três da barra de baixo na web e no Android, a condizer com os símbolos do iPhone. */
-  bilhete: [
-    'M5.5 6h13a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V8a2 2 0 0 1 2-2z',
-    'M14.5 8v1',
-    'M14.5 11.5v1',
-    'M14.5 15v1',
-  ],
+  /** Da barra de baixo na web e no Android (com a etiqueta), a condizer com os símbolos do iPhone. */
   qr: [
     'M4 4h6v6H4z',
     'M14 4h6v6h-6z',

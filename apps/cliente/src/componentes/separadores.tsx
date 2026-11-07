@@ -16,7 +16,7 @@ export default function Separadores() {
       <TabList asChild>
         <BarraDeBaixo>
           <TabTrigger name="vantagens" href="/" asChild>
-            <BotaoDoSeparador icone="bilhete" nome="Vantagens" />
+            <BotaoDoSeparador icone="etiqueta" nome="Vantagens" />
           </TabTrigger>
           <TabTrigger name="cartao" href="/cartao" asChild>
             <BotaoDoSeparador icone="qr" nome="Cartão" />
