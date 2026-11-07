@@ -1,4 +1,5 @@
 import { diaDaSemana, somarDias } from './datas.ts';
+import type { Lingua } from './lingua.ts';
 
 /**
  * As vantagens que o parceiro valida ao ler o cartão: quantas vezes cada
@@ -61,9 +62,18 @@ export function motivoDaVantagem(
 }
 
 /** «1 por dia», «2 por semana», «3 no total», ou nada. */
+const NOME_DO_PERIODO_EN: Record<PeriodoDoLimite, string> = {
+  dia: 'per day',
+  semana: 'per week',
+  mes: 'per month',
+  sempre: 'in total',
+};
+
 export function limiteEmTexto(
   regras: Pick<RegrasDaVantagem, 'limitePorCliente' | 'periodoDoLimite'>,
+  lingua: Lingua = 'pt',
 ) {
   if (regras.limitePorCliente === null) return null;
-  return `${regras.limitePorCliente} ${NOME_DO_PERIODO[regras.periodoDoLimite]}`;
+  const nomes = lingua === 'en' ? NOME_DO_PERIODO_EN : NOME_DO_PERIODO;
+  return `${regras.limitePorCliente} ${nomes[regras.periodoDoLimite]}`;
 }

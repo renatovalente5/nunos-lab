@@ -2,6 +2,7 @@ import { ligacoesDosMapas, semPartir } from '@nunos-lab/dominio';
 import { CartaoDaFolha, Folha, Icone, Separador, T, cor, type NomeDoIcone } from '@nunos-lab/ui';
 import { Platform, Pressable, View } from 'react-native';
 import { abrir } from '../dados';
+import { useTextos } from '../textos';
 
 export type DestinoNoMapa = {
   /** O título da folha: a casa ou o parceiro. */
@@ -59,11 +60,12 @@ export function OpcoesDeMapa({
   destino: DestinoNoMapa;
   aoEscolher?: () => void;
 }) {
+  const t = useTextos();
   const ligacoes = ligacoesDosMapas(destino.morada, destino.procurar);
   const mapas: { nome: string; icone: NomeDoIcone; url: string }[] = [
     ...(Platform.OS === 'android'
       ? []
-      : [{ nome: 'Mapas da Apple', icone: 'mapaDobrado' as const, url: ligacoes.apple }]),
+      : [{ nome: t.mapa.mapasDaApple, icone: 'mapaDobrado' as const, url: ligacoes.apple }]),
     { nome: 'Google Maps', icone: 'mapa', url: ligacoes.google },
     { nome: 'Waze', icone: 'navegar', url: ligacoes.waze },
   ];

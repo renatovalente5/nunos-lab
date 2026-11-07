@@ -1,5 +1,7 @@
 /** O programa de carimbos e as leituras do cartão que a app, a Balcão e o backoffice partilham. */
 import {
+  naLingua,
+  type Lingua,
   LIMITES_DO_PROGRAMA,
   PROGRAMA_PREDEFINIDO,
   gerarCodigo,
@@ -29,6 +31,8 @@ export function programaDasDefinicoes(d: Map<string, string>): Programa {
     recompensa: d.get('fid.recompensa') ?? PROGRAMA_PREDEFINIDO.recompensa,
     porDia: inteiro('fid.por_dia', LIMITES_DO_PROGRAMA.porDia, PROGRAMA_PREDEFINIDO.porDia),
     aniversario: d.get('fid.aniversario') ?? '',
+    recompensaEn: d.get('fid.recompensa_en') ?? '',
+    aniversarioEn: d.get('fid.aniversario_en') ?? '',
   };
 }
 
@@ -38,13 +42,14 @@ export type LinhaCartao = {
   numero: number;
   objectivo: number;
   recompensa: string;
+  recompensa_en: string;
   iniciado_em: number;
   completo_em: number | null;
   usado_em: number | null;
   carimbos: number;
 };
 
-const COLUNAS_DO_CARTAO = `c.id, c.cliente_id, c.numero, c.objectivo, c.recompensa, c.iniciado_em,
+const COLUNAS_DO_CARTAO = `c.id, c.cliente_id, c.numero, c.objectivo, c.recompensa, c.recompensa_en, c.iniciado_em,
   c.completo_em, c.usado_em,
   (SELECT count(*) FROM carimbos x WHERE x.cartao_id = c.id AND x.anulado_em IS NULL) AS carimbos`;
 
@@ -61,12 +66,12 @@ export async function cartaoActual(db: D1Database, clienteId: number): Promise<L
   return consultaDoCartaoActual(db, clienteId).first<LinhaCartao>();
 }
 
-export function cartaoPublico(l: LinhaCartao): CartaoDoCliente {
+export function cartaoPublico(l: LinhaCartao, lingua: Lingua = 'pt'): CartaoDoCliente {
   return {
     id: l.id,
     numero: l.numero,
     objectivo: l.objectivo,
-    recompensa: l.recompensa,
+    recompensa: naLingua(lingua, l.recompensa, l.recompensa_en),
     carimbos: l.carimbos,
   };
 }
@@ -79,15 +84,17 @@ export function novoCartao(
   programa: Programa,
 ): D1PreparedStatement {
   return db
-    .prepare('INSERT INTO cartoes (cliente_id, numero, objectivo, recompensa) VALUES (?, ?, ?, ?)')
-    .bind(clienteId, numero, programa.objectivo, programa.recompensa);
+    .prepare(
+      'INSERT INTO cartoes (cliente_id, numero, objectivo, recompensa, recompensa_en) VALUES (?, ?, ?, ?, ?)',
+    )
+    .bind(clienteId, numero, programa.objectivo, programa.recompensa, programa.recompensaEn ?? '');
 }
 
 /** As recompensas por usar: cartões completos que ninguém entregou. */
 export function consultaDasRecompensas(db: D1Database, clienteId: number): D1PreparedStatement {
   return db
     .prepare(
-      `SELECT id AS cartaoId, recompensa, completo_em AS ganhaEm FROM cartoes
+      `SELECT id AS cartaoId, recompensa, recompensa_en, completo_em AS ganhaEm FROM cartoes
        WHERE cliente_id = ? AND completo_em IS NOT NULL AND usado_em IS NULL ORDER BY completo_em`,
     )
     .bind(clienteId);

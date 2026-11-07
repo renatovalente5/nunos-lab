@@ -16,10 +16,12 @@ import {
   T,
   cor,
 } from '@nunos-lab/ui';
+import { useTextos } from '../../textos';
 
 export default function Barbearia() {
   const { data, isPending, isError, refetch } = useDados();
-  useEffect(() => definirTitulo("Nuno's Lab · Barbearias"), []);
+  const t = useTextos();
+  useEffect(() => definirTitulo(t.titulos.barbearias), [t]);
   const b = data?.barbearia;
   const [destino, setDestino] = useState<DestinoNoMapa | null>(null);
 
@@ -27,7 +29,7 @@ export default function Barbearia() {
     <Ecra>
       <View style={{ paddingHorizontal: MARGEM, paddingTop: 10 }}>
         <T v="titulo" role="heading" aria-level={1}>
-          Barbearias
+          {t.barbearia.titulo}
         </T>
       </View>
 
@@ -45,12 +47,12 @@ export default function Barbearia() {
 
       {b && (!!b.whatsapp || !!b.instagram || !!b.tiktok) && (
         <>
-          <Rotulo>Mais</Rotulo>
+          <Rotulo>{t.barbearia.mais}</Rotulo>
           <Grupo>
             {!!b.whatsapp && (
               <Linha
                 icone="conversa"
-                nome="Tatuagens"
+                nome={t.barbearia.tatuagens}
                 detalhe="WhatsApp"
                 onPress={() => abrir(b.whatsapp)}
               />

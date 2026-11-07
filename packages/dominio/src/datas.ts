@@ -10,6 +10,8 @@ const FORMATO_DO_DIA = new Intl.DateTimeFormat('en-CA', {
   day: '2-digit',
 });
 
+import type { Lingua } from './lingua.ts';
+
 export const MESES = [
   'jan',
   'fev',
@@ -23,6 +25,20 @@ export const MESES = [
   'out',
   'nov',
   'dez',
+] as const;
+const MESES_EN = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ] as const;
 export const DIAS_DA_SEMANA = [
   'domingo',
@@ -75,9 +91,24 @@ export function diaDaSemana(dia: string): number {
 }
 
 /** «31 dez», ou «31 dez 2027» quando não é o ano de `hoje` (com espaços que não partem). */
-export function dataCurta(dia: string, hoje: string): string {
+const DIAS_DA_SEMANA_EN = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+] as const;
+
+/** O nome de um dia da semana (0 = domingo) na língua pedida. */
+export function nomeDoDia(n: number, lingua: Lingua = 'pt'): string {
+  return (lingua === 'en' ? DIAS_DA_SEMANA_EN : DIAS_DA_SEMANA)[n] as string;
+}
+
+export function dataCurta(dia: string, hoje: string, lingua: Lingua = 'pt'): string {
   const d = emUTC(dia);
   // O espaço que não parte: «31 dez» lê-se de uma vez e nunca fica partido.
-  const texto = `${d.getUTCDate()}\u00A0${MESES[d.getUTCMonth()]}`;
+  const texto = `${d.getUTCDate()}\u00A0${(lingua === 'en' ? MESES_EN : MESES)[d.getUTCMonth()]}`;
   return dia.slice(0, 4) === hoje.slice(0, 4) ? texto : `${texto}\u00A0${dia.slice(0, 4)}`;
 }

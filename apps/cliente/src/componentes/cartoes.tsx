@@ -6,11 +6,11 @@ import {
   type Categoria,
   type IconeDaCategoria,
   type ParceiroPublico,
-  type PeriodoDoLimite,
   type PromocaoPublica,
 } from '@nunos-lab/dominio';
 import { useState } from 'react';
 import { Platform, Pressable, View, type TextStyle } from 'react-native';
+import { useTextos } from '../textos';
 import { Capa } from './capa';
 import { Logotipo } from './logotipo';
 import {
@@ -23,6 +23,7 @@ import {
   cor,
   letra,
   raio,
+  useLingua,
 } from '@nunos-lab/ui';
 
 export function iconeDe(parceiro: ParceiroPublico, categorias: Categoria[]): IconeDaCategoria {
@@ -68,7 +69,7 @@ export function CartaoDestaque({
   largura: number;
   onPress: () => void;
 }) {
-  const validade = validadeEmTexto(promocao, hoje);
+  const validade = validadeEmTexto(promocao, hoje, useLingua());
   return (
     <Pressable
       onPress={onPress}
@@ -203,14 +204,6 @@ export function horaDe(unix: number): string {
   return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-/** O cliente já gastou o limite da vantagem no período. */
-const JA_USASTE: Record<PeriodoDoLimite, string> = {
-  dia: 'Já usaste hoje',
-  semana: 'Já usaste esta semana',
-  mes: 'Já usaste este mês',
-  sempre: 'Já usaste',
-};
-
 /**
  * Uma vantagem na página do parceiro. As condições longas abrem com um toque.
  * Com validação, diz que o cartão se mostra ao balcão — só quando o parceiro
@@ -238,12 +231,14 @@ export function CartaoDaPromocao({
   /** O instante em que o parceiro a validou hoje, se validou. */
   usadaHoje?: number | null;
 }) {
+  const t = useTextos();
+  const lingua = useLingua();
   const [aberta, setAberta] = useState(false);
   const inactivo = promocao.soClientesActivos && !activo;
   const esgotada = promocao.limitePorCliente !== null && usadas >= promocao.limitePorCliente;
   const usada = !inactivo && (esgotada || !!usadaHoje);
-  const validade = validadeEmTexto(promocao, hoje);
-  const limite = promocao.validar ? limiteEmTexto(promocao) : null;
+  const validade = validadeEmTexto(promocao, hoje, lingua);
+  const limite = promocao.validar ? limiteEmTexto(promocao, lingua) : null;
   const longo = promocao.detalhe.length > 90;
   const conteudo = (
     <>
@@ -293,7 +288,7 @@ export function CartaoDaPromocao({
       {longo && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
           <T v="legenda" style={{ color: cor.texto3 }}>
-            {aberta ? 'Menos' : 'Ver tudo'}
+            {aberta ? t.promocao.menos : t.promocao.verTudo}
           </T>
           <View style={{ transform: [{ rotate: aberta ? '-90deg' : '90deg' }] }}>
             <Icone nome="seguinte" tamanho={14} cor={cor.texto3} />
@@ -320,14 +315,14 @@ export function CartaoDaPromocao({
           />
           <T v="legenda" style={{ color: usada ? cor.texto : cor.texto2 }}>
             {inactivo
-              ? 'Só para clientes com corte no último ano'
+              ? t.promocao.soActivos
               : usadaHoje
-                ? `Usada hoje às ${horaDe(usadaHoje)}`
+                ? t.promocao.usadaHoje(horaDe(usadaHoje))
                 : esgotada
-                  ? JA_USASTE[promocao.periodoDoLimite]
+                  ? t.promocao.jaUsaste[promocao.periodoDoLimite]
                   : temCartao
-                    ? 'Mostra o cartão ao balcão'
-                    : 'Com o cartão Nuno’s Lab'}
+                    ? t.promocao.mostraOCartao
+                    : t.promocao.comOCartao}
           </T>
         </View>
       )}

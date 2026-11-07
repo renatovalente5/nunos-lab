@@ -3,12 +3,16 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState, useRef, type ComponentRef } from 'react';
 import { Image, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { CartaoDestaque, iconeDe, LinhaDoParceiro } from '../../componentes/cartoes';
+import { guardarLinguaNaConta } from '../../conta';
 import { definirTitulo, guardarCasa, lerCasa, useDados } from '../../dados';
+import { useTextos } from '../../textos';
 import {
+  BotaoDaLingua,
   CONTINUO,
   Ecra,
   Esqueleto,
   Folha,
+  FolhaDaLingua,
   Grupo,
   Icone,
   LARGURA_MAXIMA,
@@ -44,14 +48,16 @@ function FadeDireita() {
 const palavra = require('../../../assets/marca/palavra.png');
 
 export default function Vantagens() {
+  const t = useTextos();
   const { data, isPending, isError, refetch } = useDados();
   const [categoria, setCategoria] = useState<number | null>(null);
   // A casa do cliente (Nogueira do Cravo, Feira, Aveiro): fica guardada no aparelho.
   const [casa, setCasa] = useState<number | null>(lerCasa);
   const [aEscolherCasa, setAEscolherCasa] = useState(false);
+  const [aEscolherLingua, setAEscolherLingua] = useState(false);
   const { width } = useWindowDimensions();
   const largura = Math.min(300, Math.round(Math.min(width, LARGURA_MAXIMA) * 0.76));
-  useEffect(() => definirTitulo("Nuno's Lab · Vantagens"), []);
+  useEffect(() => definirTitulo(t.titulos.vantagens), [t]);
   // Uma ligação partilhada (/?parceiro=N) abre o parceiro; o «Voltar» de lá vem
   // para aqui, já sem o parâmetro.
   const { parceiro } = useLocalSearchParams<{ parceiro?: string }>();
@@ -87,7 +93,7 @@ export default function Vantagens() {
     guardarCasa(id);
     setAEscolherCasa(false);
   };
-  const nomeDaCasa = lojas.find((l) => l.id === casaEscolhida)?.nome ?? 'Todas as casas';
+  const nomeDaCasa = lojas.find((l) => l.id === casaEscolhida)?.nome ?? t.vantagens.todasAsCasas;
   const abrir = (p: ParceiroPublico, pr?: PromocaoPublica) =>
     router.push({
       pathname: '/parceiro/[id]',
@@ -96,7 +102,17 @@ export default function Vantagens() {
 
   return (
     <Ecra>
-      <View style={{ paddingHorizontal: MARGEM, minHeight: 44, justifyContent: 'center' }}>
+      {/* A língua à vista no primeiro ecrã, também para quem ainda não entrou (o Renato, 7 nov). */}
+      <View
+        style={{
+          paddingHorizontal: MARGEM,
+          minHeight: 44,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+        }}
+      >
         <Image
           source={palavra}
           style={{ width: 200, height: Math.round((200 * 227) / 1200) }}
@@ -104,7 +120,13 @@ export default function Vantagens() {
           accessibilityLabel="Nuno's Lab"
           role="img"
         />
+        <BotaoDaLingua onPress={() => setAEscolherLingua(true)} />
       </View>
+      <FolhaDaLingua
+        aberta={aEscolherLingua}
+        fechar={() => setAEscolherLingua(false)}
+        aoEscolher={guardarLinguaNaConta}
+      />
 
       {!!data?.aviso && (
         <View
@@ -134,7 +156,7 @@ export default function Vantagens() {
 
       {data && destaques.length > 0 && (
         <>
-          <Rotulo style={{ marginTop: 28 }}>Em destaque</Rotulo>
+          <Rotulo style={{ marginTop: 28 }}>{t.vantagens.emDestaque}</Rotulo>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -164,13 +186,13 @@ export default function Vantagens() {
 
       {data && (
         <>
-          <Rotulo>Parceiros</Rotulo>
+          <Rotulo>{t.vantagens.parceiros}</Rotulo>
           {haParceiros && lojas.length > 1 && (
             <View style={{ paddingHorizontal: MARGEM, marginBottom: 12, flexDirection: 'row' }}>
               <Pressable
                 onPress={() => setAEscolherCasa(true)}
                 role="button"
-                aria-label={`A tua casa: ${nomeDaCasa}. Mudar.`}
+                aria-label={t.vantagens.mudarDeCasa(nomeDaCasa)}
                 style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -205,46 +227,52 @@ export default function Vantagens() {
                   gap: 8,
                 }}
                 role="radiogroup"
-                aria-label="Categorias"
+                aria-label={t.vantagens.categorias}
               >
-                {[{ id: null as number | null, nome: 'Tudo' }, ...data.categorias].map((k) => {
-                  const activa = escolhida === k.id;
-                  return (
-                    <Pressable
-                      key={k.id ?? 'tudo'}
-                      onPress={() => setCategoria(k.id)}
-                      role="radio"
-                      aria-checked={activa}
-                      style={({ pressed }) => ({
-                        paddingHorizontal: 16,
-                        height: 40,
-                        justifyContent: 'center',
-                        borderRadius: raio.pilula,
-                        backgroundColor: activa ? cor.claro : cor.superficie,
-                        opacity: pressed ? 0.8 : 1,
-                      })}
-                    >
-                      <T
-                        v="forte"
-                        style={{
-                          fontSize: 14,
-                          lineHeight: 18,
-                          color: activa ? cor.sobreClaro : cor.texto,
-                        }}
+                {[{ id: null as number | null, nome: t.vantagens.tudo }, ...data.categorias].map(
+                  (k) => {
+                    const activa = escolhida === k.id;
+                    return (
+                      <Pressable
+                        key={k.id ?? 'tudo'}
+                        onPress={() => setCategoria(k.id)}
+                        role="radio"
+                        aria-checked={activa}
+                        style={({ pressed }) => ({
+                          paddingHorizontal: 16,
+                          height: 40,
+                          justifyContent: 'center',
+                          borderRadius: raio.pilula,
+                          backgroundColor: activa ? cor.claro : cor.superficie,
+                          opacity: pressed ? 0.8 : 1,
+                        })}
                       >
-                        {k.nome}
-                      </T>
-                    </Pressable>
-                  );
-                })}
+                        <T
+                          v="forte"
+                          style={{
+                            fontSize: 14,
+                            lineHeight: 18,
+                            color: activa ? cor.sobreClaro : cor.texto,
+                          }}
+                        >
+                          {k.nome}
+                        </T>
+                      </Pressable>
+                    );
+                  },
+                )}
               </ScrollView>
               <FadeDireita />
             </View>
           )}
-          <Folha aberta={aEscolherCasa} fechar={() => setAEscolherCasa(false)} titulo="A tua casa">
-            <CartaoDaFolha role="radiogroup" aria-label="A tua casa">
+          <Folha
+            aberta={aEscolherCasa}
+            fechar={() => setAEscolherCasa(false)}
+            titulo={t.vantagens.aTuaCasa}
+          >
+            <CartaoDaFolha role="radiogroup" aria-label={t.vantagens.aTuaCasa}>
               <OpcaoDaFolha
-                nome="Todas as casas"
+                nome={t.vantagens.todasAsCasas}
                 escolhida={casaEscolhida === null}
                 onPress={() => escolherCasa(null)}
               />
@@ -284,7 +312,7 @@ export default function Vantagens() {
               <Icone nome="etiqueta" tamanho={30} cor={cor.texto3} />
               {/* Com a margem e ao centro: com a letra grande do iPhone partia-se encostada à borda. */}
               <T v="forte" style={{ color: cor.texto2, textAlign: 'center' }}>
-                Novas vantagens em breve
+                {t.vantagens.emBreve}
               </T>
             </View>
           )}

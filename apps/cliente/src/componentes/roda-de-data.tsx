@@ -1,24 +1,11 @@
 import { CONTINUO, T, cor } from '@nunos-lab/ui';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { ScrollView, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { useTextos } from '../textos';
 
 /** Uma linha da roda, em pontos; cinco linhas à vista, a do meio escolhida. */
 const LINHA = 44;
 const A_VISTA = 5;
-const MESES_POR_EXTENSO = [
-  'Janeiro',
-  'Fevereiro',
-  'Março',
-  'Abril',
-  'Maio',
-  'Junho',
-  'Julho',
-  'Agosto',
-  'Setembro',
-  'Outubro',
-  'Novembro',
-  'Dezembro',
-];
 const DIAS_DO_MES = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 /** O dia e o mês do aniversário, como a API os guarda: «MM-DD». */
@@ -39,6 +26,7 @@ export function RodaDeData({
   valor: string | null;
   aoMudar: (valor: string) => void;
 }) {
+  const t = useTextos();
   const hoje = new Date();
   const [mes, setMes] = useState(valor ? Number(valor.slice(0, 2)) : hoje.getMonth() + 1);
   const [dia, setDia] = useState(valor ? Number(valor.slice(3)) : hoje.getDate());
@@ -77,15 +65,15 @@ export function RodaDeData({
         aoEscolher={(i) => escolher(i + 1, mes)}
         largura={96}
         alinhar="flex-end"
-        rotulo="Dia"
+        rotulo={t.conta.dia}
       />
       <Roda
-        itens={MESES_POR_EXTENSO}
+        itens={t.conta.meses}
         indice={mes - 1}
         aoEscolher={(i) => escolher(dia, i + 1)}
         largura={168}
         alinhar="flex-start"
-        rotulo="Mês"
+        rotulo={t.conta.mes}
       />
     </View>
   );

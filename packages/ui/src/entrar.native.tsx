@@ -6,6 +6,7 @@ import { Platform, Pressable, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { cor, letra } from './tema';
 import { T } from './texto';
+import { useTextosDaUi } from './textos';
 
 /**
  * Os botões de entrar no telemóvel: o botão nativo da Apple (só no iPhone) e o
@@ -64,6 +65,7 @@ export function BotaoDoGoogle({
   aoEntrar: (credencial: string) => void;
   texto?: 'continue_with' | 'signin_with';
 }) {
+  const t = useTextosDaUi();
   const [erro, setErro] = useState<string | null>(null);
   const entrar = async () => {
     setErro(null);
@@ -85,8 +87,8 @@ export function BotaoDoGoogle({
       if (codigo === statusCodes.SIGN_IN_CANCELLED) return;
       setErro(
         codigo === statusCodes.PLAY_SERVICES_NOT_AVAILABLE
-          ? 'Este telemóvel não tem os serviços do Google.'
-          : 'O Google não abriu. Tenta outra vez.',
+          ? t.semServicosDoGoogle
+          : t.googleNaoAbriu,
       );
     }
   };
@@ -95,7 +97,7 @@ export function BotaoDoGoogle({
       <Pressable
         onPress={entrar}
         role="button"
-        aria-label="Continuar com o Google"
+        aria-label={t.continuarComGoogle}
         style={({ pressed }) => ({
           width: LARGURA_DO_BOTAO,
           height: 44,
@@ -134,7 +136,7 @@ export function BotaoDoGoogle({
           numberOfLines={1}
           style={{ color: '#FFFFFF', fontFamily: letra.forte, fontSize: 15 }}
         >
-          Continuar com o Google
+          {t.continuarComGoogle}
         </T>
       </Pressable>
       {erro && (

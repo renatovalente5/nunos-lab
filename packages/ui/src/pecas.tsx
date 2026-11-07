@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ALTURA_DA_BARRA, CONTINUO, cor, LARGURA_MAXIMA, MARGEM, raio } from './tema';
 import { Icone, type NomeDoIcone } from './icone';
 import { T } from './texto';
+import { useTextosDaUi } from './textos';
 
 /** Um ecrã que rola, numa coluna com a largura de um telemóvel. */
 export function Ecra({
@@ -86,21 +87,23 @@ function Pilula({ children, fundo, tinta }: { children: ReactNode; fundo: string
 
 /** A etiqueta dos parceiros inventados para a demonstração. */
 export function EtiquetaExemplo({ sobreFoto = false }: { sobreFoto?: boolean }) {
+  const t = useTextosDaUi();
   return (
     <Pilula
       fundo={sobreFoto ? 'rgba(0,0,0,0.42)' : cor.superficieAlta}
       tinta={sobreFoto ? '#FFFFFF' : cor.texto2}
     >
-      Exemplo
+      {t.exemplo}
     </Pilula>
   );
 }
 
 /** «Novo»: um parceiro que entrou há pouco. */
 export function EtiquetaNovo() {
+  const t = useTextosDaUi();
   return (
     <Pilula fundo={cor.claro} tinta={cor.sobreClaro}>
-      Novo
+      {t.novo}
     </Pilula>
   );
 }

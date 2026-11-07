@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { Animated, Platform, View } from 'react-native';
 import { cor } from './tema';
 import { Icone } from './icone';
+import { useTextosDaUi } from './textos';
 
 /**
  * Os círculos do cartão: os carimbos dados a cheio com a tesoura, os que
@@ -30,6 +31,7 @@ export function Carimbos({
   novasDesde?: number | null;
   aoAcabar?: () => void;
 }) {
+  const t = useTextosDaUi();
   const animar = novasDesde !== null && novasDesde >= 0 && novasDesde < carimbos;
   // Cada animação tem os seus valores, criados já a zero para as casas novas:
   // nascem a zero antes da primeira pintura (um setValue num efeito chegava
@@ -69,7 +71,7 @@ export function Carimbos({
   for (let i = 0; i < objectivo; i += porLinha)
     linhas.push(Array.from({ length: Math.min(porLinha, objectivo - i) }, (_, k) => i + k));
   return (
-    <View style={{ gap: folga }} aria-label={`${carimbos} de ${objectivo} carimbos`} role="img">
+    <View style={{ gap: folga }} aria-label={t.carimbosDe(carimbos, objectivo)} role="img">
       {linhas.map((linha, li) => (
         <View key={li} style={{ flexDirection: 'row', gap: folga }}>
           {linha.map((i) => {

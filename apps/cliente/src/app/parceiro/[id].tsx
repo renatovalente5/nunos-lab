@@ -32,7 +32,9 @@ import {
   SemLigacao,
   Separador,
   T,
+  useLingua,
 } from '@nunos-lab/ui';
+import { useTextos } from '../../textos';
 
 function voltar() {
   if (router.canGoBack()) router.back();
@@ -69,6 +71,8 @@ function BotaoSobreACapa({
 }
 
 export default function PaginaDoParceiro() {
+  const t = useTextos();
+  const lingua = useLingua();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isError, isFetching, dataUpdatedAt, refetch } = useDados();
   const temSessao = useTemSessao();
@@ -85,8 +89,8 @@ export default function PaginaDoParceiro() {
   const aEsperar = !data || (!parceiro && !dataUpdatedAt);
 
   useEffect(() => {
-    if (parceiro) definirTitulo(`${parceiro.nome} · Nuno's Lab`);
-  }, [parceiro]);
+    if (parceiro) definirTitulo(t.titulos.parceiro(parceiro.nome));
+  }, [parceiro, t]);
   useEffect(() => {
     if (id && /^\d+$/.test(id)) contar('parceiro', Number(id));
   }, [id]);
@@ -95,7 +99,7 @@ export default function PaginaDoParceiro() {
     return (
       <Ecra comBarra={false}>
         <View style={{ paddingHorizontal: MARGEM }}>
-          <BotaoSobreACapa icone="voltar" rotulo="Voltar" onPress={voltar} />
+          <BotaoSobreACapa icone="voltar" rotulo={t.parceiro.voltar} onPress={voltar} />
         </View>
         {isError && !isFetching ? <SemLigacao tentar={() => refetch()} /> : <Esqueleto />}
       </Ecra>
@@ -108,9 +112,9 @@ export default function PaginaDoParceiro() {
         <View style={{ paddingHorizontal: MARGEM, paddingTop: 80, alignItems: 'center', gap: 16 }}>
           <Icone nome="etiqueta" tamanho={34} cor={cor.texto3} />
           <T v="subtitulo" style={{ textAlign: 'center' }}>
-            Esta vantagem já não está na app
+            {t.parceiro.jaNaoEsta}
           </T>
-          <Botao nome="Ver as vantagens" onPress={() => router.replace('/')} />
+          <Botao nome={t.naoEncontrado.verAsVantagens} onPress={() => router.replace('/')} />
         </View>
       </Ecra>
     );
@@ -134,30 +138,30 @@ export default function PaginaDoParceiro() {
   const accoes = [
     p.morada && {
       icone: 'mapa' as const,
-      nome: 'Ir',
-      rotulo: `Ir a ${p.nome}`,
+      nome: t.mapa.ir,
+      rotulo: t.mapa.irA(p.nome),
       tipo: 'mapa' as const,
       // O «Ir» abre a folha para escolher o mapa: a contagem fica para quando se escolhe.
       url: '',
     },
     p.telefone && {
       icone: 'ligar' as const,
-      nome: 'Ligar',
-      rotulo: `Ligar para ${p.nome}`,
+      nome: t.parceiro.ligar,
+      rotulo: t.parceiro.ligarPara(p.nome),
       tipo: 'ligar' as const,
       url: ligacaoDoTelefone(p.telefone),
     },
     p.instagram && {
       icone: 'instagram' as const,
       nome: 'Instagram',
-      rotulo: `Instagram de ${p.nome}`,
+      rotulo: t.parceiro.instagramDe(p.nome),
       tipo: 'instagram' as const,
       url: ligacaoDoInstagram(p.instagram),
     },
     p.site && {
       icone: 'site' as const,
-      nome: 'Site',
-      rotulo: `Site de ${p.nome}`,
+      nome: t.parceiro.site,
+      rotulo: t.parceiro.siteDe(p.nome),
       tipo: 'site' as const,
       url: p.site,
     },
@@ -177,11 +181,15 @@ export default function PaginaDoParceiro() {
             alignItems: 'center',
           }}
         >
-          <BotaoSobreACapa icone="voltar" rotulo="Voltar" onPress={voltar} />
+          <BotaoSobreACapa icone="voltar" rotulo={t.parceiro.voltar} onPress={voltar} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             {p.exemplo && <EtiquetaExemplo sobreFoto />}
             {partilhavel && (
-              <BotaoSobreACapa icone="partilhar" rotulo="Partilhar" onPress={partilhar} />
+              <BotaoSobreACapa
+                icone="partilhar"
+                rotulo={t.parceiro.partilhar}
+                onPress={partilhar}
+              />
             )}
           </View>
         </View>
@@ -242,17 +250,19 @@ export default function PaginaDoParceiro() {
                 textTransform: 'uppercase',
               }}
             >
-              O teu cupão
+              {t.parceiro.oTeuCupao}
             </T>
             <T v="subtitulo" style={{ color: cor.sobreClaro, marginTop: 4 }}>
               {semPartir(k.destaque)} · {semPartir(k.titulo)}
             </T>
             <T v="legenda" style={{ color: 'rgba(10,10,10,0.6)', marginTop: 6 }}>
-              Até {dataCurta(k.validoAte, diaEmLisboa())} · mostra o cartão ao balcão
+              {t.parceiro.cupaoAte(dataCurta(k.validoAte, diaEmLisboa(), lingua))}
             </T>
           </View>
         ))}
-      <Rotulo>{p.promocoes.length === 1 ? 'A tua vantagem' : 'As tuas vantagens'}</Rotulo>
+      <Rotulo>
+        {p.promocoes.length === 1 ? t.parceiro.aTuaVantagem : t.parceiro.asTuasVantagens}
+      </Rotulo>
       {p.promocoes.map((pr) => {
         const vales = eu?.vales.filter((v) => v.promocaoId === pr.id) ?? [];
         const inicio = inicioDoPeriodo(pr.periodoDoLimite, data.hoje);
@@ -287,7 +297,7 @@ export default function PaginaDoParceiro() {
             <Pressable
               onPress={() => setAEscolherMapa(true)}
               role="link"
-              aria-label={`Morada: ${p.morada}. Abrir no mapa.`}
+              aria-label={t.parceiro.morada(p.morada)}
               style={({ pressed }) => ({
                 flexDirection: 'row',
                 gap: 14,

@@ -314,3 +314,48 @@ test('um nome perde o que não se vê, e só invisíveis não é nome', () => {
   assert.equal(limparNome('😀 Zé Ñandú'), '😀 Zé Ñandú');
   assert.equal(limparNome(limparNome(' a\u200Eb ')), 'ab');
 });
+
+test('as frases em inglês: o prémio, as datas e os limites', async () => {
+  const { linguaDaEtiqueta, naLingua } = await import('./lingua.ts');
+  const { recompensaNaLingua } = await import('./fidelidade.ts');
+  const { validadeEmTexto } = await import('./promocoes.ts');
+  const { limiteEmTexto } = await import('./vales.ts');
+  const { dataCurta } = await import('./datas.ts');
+  // A língua do aparelho: o português de qualquer país, o resto em inglês, e sem etiqueta o português.
+  assert.equal(linguaDaEtiqueta('pt-PT'), 'pt');
+  assert.equal(linguaDaEtiqueta('pt_BR'), 'pt');
+  assert.equal(linguaDaEtiqueta('en-US'), 'en');
+  assert.equal(linguaDaEtiqueta('fr'), 'en');
+  assert.equal(linguaDaEtiqueta(''), 'pt');
+  // O conteúdo do backoffice: a versão inglesa, ou o português se não a houver.
+  assert.equal(naLingua('en', 'Comer', 'Food'), 'Food');
+  assert.equal(naLingua('en', 'Comer', '  '), 'Comer');
+  assert.equal(naLingua('pt', 'Comer', 'Food'), 'Comer');
+  // O prémio de sempre traduz-se mesmo sem versão inglesa.
+  const desconto = { objectivo: 10, recompensa: '50% de desconto' };
+  assert.equal(fraseDoCartao(0, desconto, 'en'), 'Reward: 50% off');
+  assert.equal(fraseDoCartao(9, desconto, 'en'), 'Your next haircut is 50% off');
+  assert.equal(fraseDoCartao(10, desconto, 'en'), 'Card complete');
+  assert.equal(fraseDoCartao(3, { objectivo: 5, recompensa: '' }, 'en'), '2 to go');
+  assert.equal(
+    fraseDoCartao(9, { objectivo: 10, recompensa: 'Corte grátis' }, 'en'),
+    'Your next haircut is free',
+  );
+  assert.equal(recompensaNaLingua('Corte grátis', 'en'), 'Free haircut');
+  assert.equal(fraseDoCorteOferecido('50% de desconto', 'en'), 'This haircut was 50% off');
+  assert.equal(fraseDesteCorte('Corte grátis', 'en'), 'This haircut is free');
+  // As datas e as validades.
+  assert.equal(dataCurta('2026-12-31', '2026-11-07', 'en'), '31\u00A0Dec');
+  assert.equal(
+    validadeEmTexto({ inicio: null, fim: '2026-11-07' }, '2026-11-07', 'en'),
+    'Today only',
+  );
+  assert.equal(
+    validadeEmTexto({ inicio: null, fim: '2026-11-13' }, '2026-11-07', 'en'),
+    'Until Friday',
+  );
+  assert.equal(
+    limiteEmTexto({ limitePorCliente: 2, periodoDoLimite: 'semana' }, 'en'),
+    '2 per week',
+  );
+});

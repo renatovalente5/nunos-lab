@@ -4,12 +4,13 @@
  * rede. A API vive noutra origem: a sessão vai no cabeçalho.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ClienteEu } from '@nunos-lab/dominio';
-import { useSyncExternalStore } from 'react';
+import type { ClienteEu, Lingua } from '@nunos-lab/dominio';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { Linking, Platform } from 'react-native';
-import { guardar as guardarNoArmazem, lerSincrono } from '@nunos-lab/ui';
+import { guardar as guardarNoArmazem, lerSincrono, linguaActual, useLingua } from '@nunos-lab/ui';
 import { CHAVE_DO_CARTAO_VISTO } from './carimbos-novos';
 import { API, PRAZO_DO_PEDIDO } from './dados';
+import { textos } from './textos';
 
 const CHAVE_DA_SESSAO = 'nunoslab:sessao';
 // A versão sobe quando a forma do «eu» muda: um guardado antigo sem os campos novos rebentava o Cartão.
@@ -57,28 +58,14 @@ export function useTemSessao(): boolean {
   );
 }
 
-const MENSAGENS: Record<string, string> = {
-  sessao: 'A sessão acabou. Entra outra vez.',
-  google_invalido: 'O Google não confirmou a entrada. Tenta outra vez.',
-  apple_invalido: 'A Apple não confirmou a entrada. Tenta outra vez.',
-  apple_desligado: 'Entrar com a Apple ainda não está disponível.',
-  muitas_tentativas: 'Demasiadas tentativas. Espera um minuto.',
-  codigo_invalido: 'Código errado.',
-  noutra_conta: 'Essa conta já está ligada a outro cartão.',
-  forma_actual: 'É a forma com que entraste agora. Entra por outra e volta aqui.',
-  ultima_forma: 'É a única forma de entrar: não se pode tirar.',
-  so_formas_novas: 'Só podes tirar esta daqui a uns dias.',
-  invalido: 'Há algo por corrigir.',
-  demonstracao: 'Na conta de demonstração isto não se muda.',
-  grande: 'O pedido é grande de mais.',
-  rede: 'Sem ligação. Tenta outra vez.',
-  interno: 'Algo correu mal. Tenta outra vez.',
-};
-
-/** O texto de um código; um desconhecido (ou do protótipo: «constructor») dá «Algo correu mal». */
+/**
+ * O texto de um código na língua de agora; um desconhecido (ou do protótipo: «constructor») dá
+ * «Algo correu mal».
+ */
 function textoDoCodigo(codigo: string): string {
-  const texto = MENSAGENS[codigo];
-  return typeof texto === 'string' ? texto : (MENSAGENS.interno as string);
+  const erros = textos().erros;
+  const texto = Object.prototype.hasOwnProperty.call(erros, codigo) ? erros[codigo] : undefined;
+  return typeof texto === 'string' ? texto : erros.interno;
 }
 
 export class ErroDaConta extends Error {
@@ -87,8 +74,9 @@ export class ErroDaConta extends Error {
   }
 }
 
+/** A mensagem de um erro na língua de agora (mudar de língua muda também o erro à vista). */
 export function mensagemDe(e: unknown): string {
-  return e instanceof ErroDaConta ? e.message : (MENSAGENS.interno as string);
+  return textoDoCodigo(e instanceof ErroDaConta ? e.codigo : 'interno');
 }
 
 async function pedir<T = void>(
@@ -104,7 +92,8 @@ async function pedir<T = void>(
   try {
     let r: Response;
     try {
-      r = await fetch(`${API}/api/eu${caminho}`, {
+      // O que vem na conta (o prémio, a prenda, as vantagens) na língua da app.
+      r = await fetch(`${API}/api/eu${caminho}?lingua=${linguaActual()}`, {
         method: metodo,
         headers: cabecalhos,
         body: corpo !== undefined ? JSON.stringify(corpo) : undefined,
@@ -192,7 +181,8 @@ async function buscarEu(): Promise<ClienteEu> {
  */
 export function useEu(aoVivo = false) {
   const temSessao = useTemSessao();
-  return useQuery({
+  const lingua = useLingua();
+  const consulta = useQuery({
     queryKey: ['eu'],
     queryFn: buscarEu,
     enabled: temSessao,
@@ -205,6 +195,17 @@ export function useEu(aoVivo = false) {
     // Depois de um 401 não se repete: a sessão já foi, e repetia sem testemunho para mais um 401.
     retry: (n, e) => n < 1 && !(e instanceof ErroDaConta && e.codigo === 'sessao'),
   });
+  // Ao mudar de língua, a conta pede-se outra vez: o prémio e as vantagens vêm na nova.
+  const { refetch } = consulta;
+  const primeira = useRef(true);
+  useEffect(() => {
+    if (primeira.current) {
+      primeira.current = false;
+      return;
+    }
+    if (temSessao) void refetch();
+  }, [lingua, temSessao, refetch]);
+  return consulta;
 }
 
 /** Depois de entrar ou de mudar a conta, o «eu» volta a pedir-se. */
@@ -228,8 +229,12 @@ export function useConta() {
       ),
     entrarComApple: (dados: { token: string; nonce: string; nome: string | null }) =>
       pedir<{ sessao: string }>('/entrar/apple', { metodo: 'POST', corpo: dados }).then(entrou),
-    perfil: (p: { nome?: string; aniversario?: string | null; lojaId?: number | null }) =>
-      pedir<ClienteEu>('/perfil', { metodo: 'PATCH', corpo: p }).then(actualizar),
+    perfil: (p: {
+      nome?: string;
+      aniversario?: string | null;
+      lojaId?: number | null;
+      lingua?: Lingua;
+    }) => pedir<ClienteEu>('/perfil', { metodo: 'PATCH', corpo: p }).then(actualizar),
     juntarGoogle: (credencial: string) =>
       pedir<ClienteEu>('/formas/google', { metodo: 'POST', corpo: { credencial } }).then(
         actualizar,
@@ -279,4 +284,13 @@ export function moradaDeRetornoDaApple(): string {
   if (Platform.OS !== 'web' || typeof location === 'undefined') return '';
   const base = (process.env.EXPO_BASE_URL ?? '').replace(/\/$/, '');
   return `${window.location.origin}${base}/`;
+}
+
+/**
+ * A língua escolhida fica também na conta, se houver sessão: o passe da carteira e o que o
+ * servidor escreve saem nela. Sem rede, fica para a próxima escolha (a da app já mudou).
+ */
+export function guardarLinguaNaConta(lingua: Lingua): void {
+  if (!sessao()) return;
+  void pedir('/perfil', { metodo: 'PATCH', corpo: { lingua } }).catch(() => {});
 }

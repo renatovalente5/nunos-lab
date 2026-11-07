@@ -6,7 +6,8 @@ import {
 } from '@nunos-lab/dominio';
 import type { ReactNode } from 'react';
 import { Image, Pressable, View } from 'react-native';
-import { CONTINUO, Carimbos, T, cor, raio } from '@nunos-lab/ui';
+import { CONTINUO, Carimbos, T, cor, raio, useLingua } from '@nunos-lab/ui';
+import { useTextos } from '../textos';
 
 const palavra = require('../../assets/marca/palavra.png');
 const simbolo = require('../../assets/marca/simbolo.png');
@@ -48,6 +49,8 @@ export function CartaoDoCliente({
   /** O programa de agora (do /api/app), para o cartão sem sessão: sem ele valia o de origem da app. */
   programa?: { objectivo: number; recompensa: string } | null;
 }) {
+  const t = useTextos();
+  const lingua = useLingua();
   const carimbos = eu?.cartao.carimbos ?? 0;
   const objectivo =
     eu?.cartao.objectivo ??
@@ -103,15 +106,15 @@ export function CartaoDoCliente({
         <Pressable
           onPress={tentar}
           role="button"
-          aria-label="Sem ligação. Tentar outra vez"
+          aria-label={t.cartao.semLigacaoTentar}
           hitSlop={8}
           style={({ pressed }) => ({ marginTop: 24, opacity: pressed ? 0.6 : 1 })}
         >
           <T v="subtitulo" numberOfLines={1}>
-            Sem ligação
+            {t.cartao.semLigacaoNoCartao}
           </T>
           <T v="legenda" style={{ color: cor.texto2, marginTop: 3 }}>
-            Tocar para tentar outra vez.
+            {t.cartao.tocarParaTentar}
           </T>
         </Pressable>
       )}
@@ -155,7 +158,7 @@ export function CartaoDoCliente({
           >
             <T v="destaque">{carimbos}</T>
             <T v="forte" style={{ color: cor.texto2, fontSize: 18 }}>
-              de {objectivo}
+              {t.cartao.deObjectivo(objectivo)}
             </T>
           </View>
         )}
@@ -177,12 +180,12 @@ export function CartaoDoCliente({
         <>
           <T v="legenda" style={{ color: cor.texto2, marginTop: 8 }}>
             {entregue
-              ? fraseDoCorteOferecido(recompensa)
-              : fraseDoCartao(carimbos, { objectivo, recompensa })}
+              ? fraseDoCorteOferecido(recompensa, lingua)
+              : fraseDoCartao(carimbos, { objectivo, recompensa }, lingua)}
           </T>
           {entregue && (
             <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
-              O próximo carimbo abre um cartão novo
+              {t.cartao.proximoCarimbo}
             </T>
           )}
         </>

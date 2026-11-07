@@ -1,6 +1,7 @@
 import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui';
 import { BarraDeBaixo, BotaoDoSeparador } from '@nunos-lab/ui';
 import { PrecarregarMapa } from './mapa-das-casas';
+import { useTextos } from '../textos';
 
 /**
  * A barra dos três separadores na web e no Android: a cápsula desenhada à mão
@@ -9,6 +10,7 @@ import { PrecarregarMapa } from './mapa-das-casas';
  * o módulo expo-symbols, que a build não tem.
  */
 export default function Separadores() {
+  const t = useTextos();
   return (
     <Tabs style={{ flex: 1 }}>
       <PrecarregarMapa />
@@ -16,13 +18,13 @@ export default function Separadores() {
       <TabList asChild>
         <BarraDeBaixo>
           <TabTrigger name="vantagens" href="/" asChild>
-            <BotaoDoSeparador icone="etiqueta" nome="Vantagens" />
+            <BotaoDoSeparador icone="etiqueta" nome={t.separadores.vantagens} />
           </TabTrigger>
           <TabTrigger name="cartao" href="/cartao" asChild>
-            <BotaoDoSeparador icone="qr" nome="Cartão" />
+            <BotaoDoSeparador icone="qr" nome={t.separadores.cartao} />
           </TabTrigger>
           <TabTrigger name="barbearia" href="/barbearia" asChild>
-            <BotaoDoSeparador icone="mapaDobrado" nome="Barbearia" />
+            <BotaoDoSeparador icone="mapaDobrado" nome={t.separadores.barbearia} />
           </TabTrigger>
         </BarraDeBaixo>
       </TabList>

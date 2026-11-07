@@ -2,6 +2,7 @@
  * As regras do Nuno's Lab escritas uma vez. Este pacote não sabe se está num
  * Worker, num browser ou num telemóvel: não usa APIs de nenhum deles.
  */
+export * from './lingua.ts';
 export * from './limites.ts';
 export * from './datas.ts';
 export * from './promocoes.ts';

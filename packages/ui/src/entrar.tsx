@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { ETIQUETA_DA_LINGUA } from '@nunos-lab/dominio';
+import { linguaActual, useLingua } from './lingua';
 import { cor, letra } from './tema';
 import { T } from './texto';
+import { useTextosDaUi } from './textos';
 
 /**
  * Os botões de entrar, na web: o oficial da Google (desenhado pelo Google,
@@ -80,6 +83,8 @@ export function BotaoDoGoogle({
   aoEntrar: (credencial: string) => void;
   texto?: 'continue_with' | 'signin_with';
 }) {
+  const t = useTextosDaUi();
+  const lingua = useLingua();
   const caixa = useRef<ComponentRef<typeof View>>(null);
   const [falhou, setFalhou] = useState(false);
   const ultimo = useRef(aoEntrar);
@@ -94,6 +99,8 @@ export function BotaoDoGoogle({
         // O Safari pinta de branco um iframe «claro» dentro de uma página escura
         // (desencontro de color-scheme): a caixa declara-se clara e fica transparente.
         onde.style.colorScheme = 'light';
+        // Ao mudar de língua, o botão desenha-se outra vez, no lugar do antigo.
+        onde.replaceChildren();
         google.accounts.id.initialize({
           client_id: clienteId,
           callback: (r) => ultimo.current(r.credential),
@@ -108,7 +115,7 @@ export function BotaoDoGoogle({
           shape: 'pill',
           text: texto,
           logo_alignment: 'left',
-          locale: 'pt-PT',
+          locale: ETIQUETA_DA_LINGUA[lingua],
           width: LARGURA_DO_BOTAO,
         });
       })
@@ -116,11 +123,11 @@ export function BotaoDoGoogle({
     return () => {
       vivo = false;
     };
-  }, [clienteId, texto]);
+  }, [clienteId, texto, lingua]);
   if (falhou)
     return (
       <T v="legenda" style={{ color: cor.texto2, textAlign: 'center' }}>
-        O Google não abriu. Recarrega a página.
+        {t.googleNaoAbriuNaWeb}
       </T>
     );
   return (
@@ -148,20 +155,26 @@ export function BotaoDaApple({
   clienteId,
   redirectURI,
   aoEntrar,
-  texto = 'Continuar com a Apple',
+  texto,
 }: {
   clienteId: string;
   redirectURI: string;
   aoEntrar: (dados: { token: string; nonce: string; nome: string | null }) => void;
   texto?: string;
 }) {
+  const t = useTextosDaUi();
+  const nome = texto ?? t.continuarComApple;
   const [estado, setEstado] = useState<'a-carregar' | 'pronto' | 'falhou' | 'a-entrar'>(
     'a-carregar',
   );
   const nonce = useRef(aleatorio());
   useEffect(() => {
     let vivo = true;
-    carregar('https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/pt_PT/appleid.auth.js')
+    // A janela da Apple sai na língua com que o script carregou (a desta visita).
+    const local = linguaActual() === 'pt' ? 'pt_PT' : 'en_GB';
+    carregar(
+      `https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/${local}/appleid.auth.js`,
+    )
       .then(() => {
         if (!vivo || !window.AppleID) return;
         window.AppleID.auth.init({
@@ -196,7 +209,7 @@ export function BotaoDaApple({
     <Pressable
       onPress={entrar}
       role="button"
-      aria-label={texto}
+      aria-label={nome}
       aria-disabled={estado !== 'pronto'}
       style={({ pressed }) => ({
         width: LARGURA_DO_BOTAO,
@@ -217,7 +230,7 @@ export function BotaoDaApple({
           d="M16.4 12.7c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.3 1.2 9.7.8 1.2 1.8 2.5 3.1 2.4 1.2 0 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8 0 0-2.6-1-2.7-3.8zM14 5.5c.7-.8 1.1-2 1-3.1-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1 3 1.1.1 2.2-.6 2.9-1.4z"
         />
       </Svg>
-      <T style={{ color: cor.sobreClaro, fontFamily: letra.forte, fontSize: 15 }}>{texto}</T>
+      <T style={{ color: cor.sobreClaro, fontFamily: letra.forte, fontSize: 15 }}>{nome}</T>
     </Pressable>
   );
 }

@@ -17,6 +17,7 @@ import {
   larguraDoBalao,
   temBalao,
 } from './pino-da-casa';
+import { useTextos } from '../textos';
 
 /**
  * O mapa é ao alto: as casas estendem-se de norte a sul, e assim o mapa aproxima-se mais. Era
@@ -151,6 +152,7 @@ function MapaEstatico({
   aoIr: (loja: Loja) => void;
   falhou: () => void;
 }) {
+  const t = useTextos();
   const { width } = useWindowDimensions();
   // A largura só conta 300 ms depois de sossegar.
   const larguraSossegada = useSossegado(width, 300);
@@ -202,7 +204,7 @@ function MapaEstatico({
             if (tentativa === 0) novaTentativa.current = setTimeout(() => setTentativa(1), 2000);
             else falhou();
           }}
-          accessibilityLabel="Mapa com as casas"
+          accessibilityLabel={t.mapa.mapaComAsCasas}
         />
       </Pressable>
       {pronta &&
@@ -281,6 +283,7 @@ function ListaDasCasas({
   aoIr: (loja: Loja) => void;
   depoisDoMapa?: boolean;
 }) {
+  const t = useTextos();
   return (
     <Grupo style={depoisDoMapa ? { marginTop: 14 } : undefined}>
       {lojas.map((l, i) => (
@@ -299,8 +302,8 @@ function ListaDasCasas({
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                 {!!l.marcar && (
                   <Pilula
-                    nome="Marcar"
-                    rotulo={`Marcar em ${l.nome}`}
+                    nome={t.mapa.marcar}
+                    rotulo={t.mapa.marcarEm(l.nome)}
                     principal
                     onPress={() => {
                       contar('marcar', l.id);
@@ -309,7 +312,7 @@ function ListaDasCasas({
                   />
                 )}
                 {!!l.morada && (
-                  <Pilula nome="Ir" rotulo={`Ir a ${l.nome}`} onPress={() => aoIr(l)} />
+                  <Pilula nome={t.mapa.ir} rotulo={t.mapa.irA(l.nome)} onPress={() => aoIr(l)} />
                 )}
               </View>
             )}

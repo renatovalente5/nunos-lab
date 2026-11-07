@@ -3,6 +3,7 @@ import { CONTINUO, T, cor } from '@nunos-lab/ui';
 import { useRef, type ReactNode } from 'react';
 import { Image, Pressable, View } from 'react-native';
 import { abrir, contar } from '../dados';
+import { useTextos } from '../textos';
 // O «n» já em preto: pintar o branco com tintColor não funciona na web.
 const simboloPreto = require('../../assets/marca/simbolo-preto.png');
 
@@ -246,6 +247,7 @@ export function BalaoDaCasa({
   seta?: number;
   emBaixo?: boolean;
 }) {
+  const t = useTextos();
   const largura = larguraDoBalao(loja);
   // A seta não passa para os cantos redondos.
   const meio = Math.min(
@@ -289,8 +291,8 @@ export function BalaoDaCasa({
       >
         {!!loja.marcar && (
           <Pilula
-            nome="Marcar"
-            rotulo={`Marcar em ${loja.nome}`}
+            nome={t.mapa.marcar}
+            rotulo={t.mapa.marcarEm(loja.nome)}
             principal
             largura={MARCAR}
             noMapa
@@ -301,7 +303,13 @@ export function BalaoDaCasa({
           />
         )}
         {!!loja.morada && (
-          <Pilula nome="Ir" rotulo={`Ir a ${loja.nome}`} largura={IR} noMapa onPress={aoIr} />
+          <Pilula
+            nome={t.mapa.ir}
+            rotulo={t.mapa.irA(loja.nome)}
+            largura={IR}
+            noMapa
+            onPress={aoIr}
+          />
         )}
       </View>
       {!emBaixo && triangulo}

@@ -15,6 +15,7 @@ import { initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-
 import { CONTINUO, cor, LARGURA_MAXIMA, MARGEM, raio } from './tema';
 import { Icone } from './icone';
 import { T } from './texto';
+import { useTextosDaUi } from './textos';
 
 /** Na web não há módulo nativo de animações: aí o Animated corre em JavaScript. */
 const NATIVO = Platform.OS !== 'web';
@@ -45,6 +46,7 @@ export function Folha({
   subtitulo?: string;
   children: ReactNode;
 }) {
+  const t = useTextosDaUi();
   const margens = useSafeAreaInsets();
   // A folha cobre a janela toda: por baixo conta só a margem da janela. A do ecrã que a abre, num
   // separador do iPhone, inclui a barra de separadores, e sobrava uma faixa vazia de ~50 pt (7 nov).
@@ -129,7 +131,7 @@ export function Folha({
               { backgroundColor: 'rgba(0,0,0,0.6)', opacity: progresso },
             ]}
           >
-            <Pressable onPress={fechar} aria-label="Fechar" style={StyleSheet.absoluteFill} />
+            <Pressable onPress={fechar} aria-label={t.fechar} style={StyleSheet.absoluteFill} />
           </Animated.View>
           <Animated.View
             role="dialog"
@@ -180,7 +182,7 @@ export function Folha({
               <Pressable
                 onPress={fechar}
                 role="button"
-                aria-label="Fechar"
+                aria-label={t.fechar}
                 style={({ pressed }) => ({
                   width: 40,
                   height: 40,

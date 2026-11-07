@@ -10,6 +10,7 @@ import {
   LIMITES_DO_PROGRAMA,
   diaEmLisboa,
   eAniversarioValido,
+  naLingua,
   temPrendaHoje,
   textoDeBusca,
   type ClienteEu,
@@ -28,7 +29,7 @@ import {
   novoCartao,
   type LinhaCartao,
 } from '../programa.ts';
-import { DIA, agora, corpo, idDaMorada, recusar } from '../util.ts';
+import { DIA, agora, corpo, idDaMorada, linguaDoPedido, recusar } from '../util.ts';
 import { nomeLimpo } from '../nomes.ts';
 import { entrarComIdentidade, juntarIdentidade, type IdentidadeProvada } from './identidade.ts';
 import { apagarConta } from './apagar.ts';
@@ -139,10 +140,15 @@ type LinhaCliente = {
   criado_em: number;
 };
 
+/** As versões inglesas que vêm com as vantagens do cliente (vazias: o português). */
+type ComIngles = { destaque_en: string; titulo_en: string; detalhe_en?: string };
+
 async function lerEu(c: C): Promise<ClienteEu> {
   const { id, sessao } = c.get('cliente');
   const db = c.env.DB;
   const programa = await lerPrograma(db);
+  // Os textos do backoffice (o prémio, a prenda, as vantagens) na língua da app.
+  const lingua = linguaDoPedido(c);
   const consultas = () =>
     db.batch([
       db
@@ -175,7 +181,8 @@ async function lerEu(c: C): Promise<ClienteEu> {
         .bind(id),
       db
         .prepare(
-          `SELECT v.id, v.criado_em AS quando, pa.id AS parceiroId, pa.nome AS parceiro, p.id AS promocaoId, p.destaque, p.titulo
+          `SELECT v.id, v.criado_em AS quando, pa.id AS parceiroId, pa.nome AS parceiro, p.id AS promocaoId, p.destaque, p.titulo,
+             p.destaque_en, p.titulo_en
            FROM vales v JOIN promocoes p ON p.id = v.promocao_id JOIN parceiros pa ON pa.id = v.parceiro_id
            WHERE v.cliente_id = ? AND v.anulado_em IS NULL ORDER BY v.criado_em DESC LIMIT 30`,
         )
@@ -188,7 +195,7 @@ async function lerEu(c: C): Promise<ClienteEu> {
       db
         .prepare(
           `SELECT k.id, pa.id AS parceiroId, pa.nome AS parceiro, p.id AS promocaoId, p.destaque, p.titulo, p.detalhe,
-             k.emitido_em AS emitidoEm, k.valido_ate AS validoAte, k.usado_em AS usadoEm
+             p.destaque_en, p.titulo_en, p.detalhe_en, k.emitido_em AS emitidoEm, k.valido_ate AS validoAte, k.usado_em AS usadoEm
            FROM cupoes k JOIN promocoes p ON p.id = k.promocao_id JOIN parceiros pa ON pa.id = k.parceiro_id
            WHERE k.cliente_id = ? AND ((k.usado_em IS NULL AND k.valido_ate >= ?) OR k.usado_em > unixepoch() - 30 * 86400)
            ORDER BY k.usado_em IS NOT NULL, k.valido_ate, k.emitido_em DESC LIMIT 30`,
@@ -221,8 +228,13 @@ async function lerEu(c: C): Promise<ClienteEu> {
     lojaId: cliente.loja_id,
     criadoEm: cliente.criado_em,
     cortes: (r[4]!.results[0] as { n: number }).n,
-    cartao: cartaoPublico(cartao),
-    recompensas: r[2]!.results as ClienteEu['recompensas'],
+    cartao: cartaoPublico(cartao, lingua),
+    recompensas: (
+      r[2]!.results as (ClienteEu['recompensas'][number] & { recompensa_en: string })[]
+    ).map(({ recompensa_en, ...x }) => ({
+      ...x,
+      recompensa: naLingua(lingua, x.recompensa, recompensa_en),
+    })),
     visitas: r[3]!.results as ClienteEu['visitas'],
     formas: (
       r[5]!.results as {
@@ -251,21 +263,37 @@ async function lerEu(c: C): Promise<ClienteEu> {
     // Sempre true: a regra dos 15 minutos saiu a 6 nov 2026 (decisão do Renato). Fica pelas
     // apps antigas, que sem o campo pediam para sair e entrar.
     provaRecente: true,
-    programa: { objectivo: programa.objectivo, recompensa: programa.recompensa },
+    programa: {
+      objectivo: programa.objectivo,
+      recompensa: naLingua(lingua, programa.recompensa, programa.recompensaEn),
+    },
     activo: r[8]!.results.length > 0,
-    vales: r[7]!.results as ClienteEu['vales'],
+    vales: (r[7]!.results as (ClienteEu['vales'][number] & ComIngles)[]).map(
+      ({ destaque_en, titulo_en, ...v }) => ({
+        ...v,
+        destaque: naLingua(lingua, v.destaque, destaque_en),
+        titulo: naLingua(lingua, v.titulo, titulo_en),
+      }),
+    ),
     wallet: {
       apple: appleLigada(c.env),
       google: googleLigada(c.env),
       appleNaCarteira: r[11]!.results.length > 0,
     },
-    cupoes: r[9]!.results as ClienteEu['cupoes'],
+    cupoes: (r[9]!.results as (ClienteEu['cupoes'][number] & ComIngles)[]).map(
+      ({ destaque_en, titulo_en, detalhe_en, ...k }) => ({
+        ...k,
+        destaque: naLingua(lingua, k.destaque, destaque_en),
+        titulo: naLingua(lingua, k.titulo, titulo_en),
+        detalhe: naLingua(lingua, k.detalhe, detalhe_en),
+      }),
+    ),
     // A prenda só com a data dada há 30 dias ou mais (senão mudava-se na véspera), e uma vez por ano.
     prenda:
       temPrendaHoje(cliente.aniversario, cliente.aniversario_desde, diaEmLisboa(), agora()) &&
       programa.aniversario &&
       r[10]!.results.length === 0
-        ? programa.aniversario
+        ? naLingua(lingua, programa.aniversario, programa.aniversarioEn)
         : null,
   };
 }
@@ -280,6 +308,7 @@ const Perfil = z.object({
     .refine((v) => v === null || eAniversarioValido(v))
     .optional(),
   lojaId: z.number().int().positive().nullable().optional(),
+  lingua: z.enum(['pt', 'en']).optional(),
 });
 
 rotasDaConta.patch('/perfil', async (c) => {
@@ -309,6 +338,7 @@ rotasDaConta.patch('/perfil', async (c) => {
     }
   }
   if (p.lojaId !== undefined) (partes.push('loja_id = ?'), valores.push(p.lojaId));
+  if (p.lingua !== undefined) (partes.push('lingua = ?'), valores.push(p.lingua));
   if (partes.length === 0) {
     // A mesma data outra vez não é um erro: a roda voltou ao que estava.
     if (p.aniversario !== undefined) return c.json(await lerEu(c));

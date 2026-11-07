@@ -1,4 +1,11 @@
-import { codigoCurto, dataCurta, diaEmLisboa, textoDoQr } from '@nunos-lab/dominio';
+import {
+  codigoCurto,
+  dataCurta,
+  diaEmLisboa,
+  recompensaNaLingua,
+  textoDoQr,
+  type Lingua,
+} from '@nunos-lab/dominio';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, Modal, Pressable, useWindowDimensions, View } from 'react-native';
@@ -33,7 +40,10 @@ import {
   T,
   cor,
   raio,
+  useLingua,
+  useTextosDaUi,
 } from '@nunos-lab/ui';
+import { useTextos } from '../../textos';
 // Os selos oficiais, tal como a Apple e a Google os entregam (a 3x): não se redesenham nem se recolorem.
 const seloApple = require('../../../assets/selos/adicionar-a-carteira-apple.png');
 const seloGoogle = require('../../../assets/selos/adicionar-a-carteira-google.png');
@@ -47,13 +57,15 @@ function iniciais(nome: string): string {
 }
 
 /** «14:05» se foi hoje, senão «28 out»: a última vez que o cartão veio da rede. */
-function quandoFoi(instante: number): string {
+function quandoFoi(instante: number, lingua: Lingua): string {
   const hoje = diaEmLisboa();
   const dia = diaEmLisboa(instante);
-  return dia === hoje ? horaDe(instante / 1000) : dataCurta(dia, hoje);
+  return dia === hoje ? horaDe(instante / 1000) : dataCurta(dia, hoje, lingua);
 }
 
 export default function Cartao() {
+  const t = useTextos();
+  const lingua = useLingua();
   const temSessao = useTemSessao();
   // A cerimónia do carimbo novo, e os pedidos de 15 em 15 s, só com este separador à frente.
   const [focado, setFocado] = useState(false);
@@ -68,10 +80,8 @@ export default function Cartao() {
   const { width } = useWindowDimensions();
   const largura = Math.min(width, LARGURA_MAXIMA) - MARGEM * 2;
   const [qrAberto, setQrAberto] = useState(false);
-  useEffect(() => {
-    definirTitulo("Nuno's Lab · Cartão");
-    contar('cartao');
-  }, []);
+  useEffect(() => contar('cartao'), []);
+  useEffect(() => definirTitulo(t.titulos.cartao), [t]);
   const { novasDesde, aoAcabar } = useCarimbosNovos(temSessao ? eu?.cartao : null, focado);
   // Com sessão e ainda sem «eu»: o cartão diz que está a carregar ou sem ligação, em vez de um «0 de 10» a mentir.
   const espera = !temSessao || eu ? null : isError && !isFetching ? 'sem-ligacao' : 'a-carregar';
@@ -88,14 +98,14 @@ export default function Cartao() {
         }}
       >
         <T v="titulo" role="heading" aria-level={1}>
-          Cartão
+          {t.cartao.titulo}
         </T>
         {temSessao && (
           // Sem <Link asChild>: o Slot espalha um estilo em função num objecto e o círculo perdia-se.
           <Pressable
             onPress={() => router.push('/conta')}
             role="link"
-            aria-label="Conta"
+            aria-label={t.cartao.conta}
             hitSlop={6}
             style={({ pressed }) => ({
               width: 40,
@@ -160,11 +170,11 @@ export default function Cartao() {
               <View style={{ flex: 1 }}>
                 <T v="forte" style={{ color: cor.sobreClaro }}>
                   {eu.recompensas.length === 1
-                    ? `Tens ${eu.recompensas[0]!.recompensa.toLowerCase()}`
-                    : `Tens ${eu.recompensas.length} recompensas`}
+                    ? t.cartao.tensUma(recompensaNaLingua(eu.recompensas[0]!.recompensa, lingua))
+                    : t.cartao.tensVarias(eu.recompensas.length)}
                 </T>
                 <T v="legenda" style={{ color: 'rgba(10,10,10,0.6)' }}>
-                  Mostra o cartão ao balcão.
+                  {t.cartao.mostraOCartao}
                 </T>
               </View>
             </View>
@@ -173,7 +183,7 @@ export default function Cartao() {
           <Pressable
             onPress={() => setQrAberto(true)}
             role="button"
-            aria-label="Ver o código em grande"
+            aria-label={t.cartao.verOCodigo}
             style={({ pressed }) => ({
               marginHorizontal: MARGEM,
               marginTop: 14,
@@ -195,7 +205,7 @@ export default function Cartao() {
                 {codigoCurto(eu.codigo).replace('\u00a0', ' ')}
               </T>
               <T v="legenda" style={{ color: cor.texto2, marginTop: 6 }}>
-                Mostra ao balcão.{'\n'}Serve em todas as casas.
+                {t.cartao.mostraAoBalcao}
               </T>
             </View>
           </Pressable>
@@ -216,7 +226,7 @@ export default function Cartao() {
             >
               <Icone nome="bolo" tamanho={24} espessura={2} />
               <View style={{ flex: 1 }}>
-                <T v="forte">Parabéns!</T>
+                <T v="forte">{t.cartao.parabens}</T>
                 <T v="legenda" style={{ color: cor.texto2 }}>
                   {eu.prenda}
                 </T>
@@ -226,7 +236,7 @@ export default function Cartao() {
 
           {eu.cupoes.length > 0 && (
             <>
-              <Rotulo>Os teus cupões</Rotulo>
+              <Rotulo>{t.cartao.osTeusCupoes}</Rotulo>
               <Grupo>
                 {eu.cupoes.map((k, i) => (
                   <View key={k.id}>
@@ -254,7 +264,9 @@ export default function Cartao() {
                         </T>
                       </View>
                       <T v="legenda" style={{ color: cor.texto2 }}>
-                        {k.usadoEm ? 'Usado' : `até ${dataCurta(k.validoAte, diaEmLisboa())}`}
+                        {k.usadoEm
+                          ? t.cartao.usado
+                          : t.cartao.ate(dataCurta(k.validoAte, diaEmLisboa(), lingua))}
                       </T>
                     </View>
                   </View>
@@ -265,7 +277,7 @@ export default function Cartao() {
 
           {eu.visitas.length > 0 && (
             <>
-              <Rotulo>Últimas visitas</Rotulo>
+              <Rotulo>{t.cartao.ultimasVisitas}</Rotulo>
               <Grupo>
                 {eu.visitas.slice(0, 5).map((v, i) => (
                   <View key={v.id}>
@@ -288,7 +300,7 @@ export default function Cartao() {
                         )}
                       </View>
                       <T v="legenda" style={{ color: cor.texto2 }}>
-                        {dataCurta(diaEmLisboa(v.quando * 1000), diaEmLisboa())}
+                        {dataCurta(diaEmLisboa(v.quando * 1000), diaEmLisboa(), lingua)}
                       </T>
                     </View>
                   </View>
@@ -299,7 +311,7 @@ export default function Cartao() {
 
           {eu.vales.length > 0 && (
             <>
-              <Rotulo>Nos parceiros</Rotulo>
+              <Rotulo>{t.cartao.nosParceiros}</Rotulo>
               <Grupo>
                 {eu.vales.slice(0, 5).map((v, i) => (
                   <View key={v.id}>
@@ -326,7 +338,7 @@ export default function Cartao() {
                         </T>
                       </View>
                       <T v="legenda" style={{ color: cor.texto2 }}>
-                        {dataCurta(diaEmLisboa(v.quando * 1000), diaEmLisboa())}
+                        {dataCurta(diaEmLisboa(v.quando * 1000), diaEmLisboa(), lingua)}
                       </T>
                     </View>
                   </View>
@@ -338,8 +350,8 @@ export default function Cartao() {
           {isError && (
             <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 20 }}>
               {dataUpdatedAt
-                ? `Sem ligação · dados de ${quandoFoi(dataUpdatedAt)}`
-                : 'Sem ligação.'}
+                ? t.cartao.semLigacaoDesde(quandoFoi(dataUpdatedAt, lingua))
+                : t.cartao.semLigacao}
             </T>
           )}
 
@@ -363,6 +375,7 @@ export default function Cartao() {
  */
 const ALTURA_DO_SELO = 48;
 function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
+  const t = useTextos();
   const daqui = carteirasDaqui();
   const [aAbrir, setAAbrir] = useState<'apple' | 'google' | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -391,14 +404,14 @@ function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
   return (
     <View style={{ gap: 10, alignItems: 'flex-start' }}>
       {mostrarApple && (
-        <Selo qual="apple" nome="Adicionar à Carteira Apple" aAbrir={aAbrir} abrir={abrir} />
+        <Selo qual="apple" nome={t.cartao.adicionarApple} aAbrir={aAbrir} abrir={abrir} />
       )}
       {mostrarGoogle && (
-        <Selo qual="google" nome="Adicionar à Carteira do Google" aAbrir={aAbrir} abrir={abrir} />
+        <Selo qual="google" nome={t.cartao.adicionarGoogle} aAbrir={aAbrir} abrir={abrir} />
       )}
       {aAbrir && (
         <T v="legenda" style={{ color: cor.texto2 }}>
-          A preparar…
+          {t.cartao.aPreparar}
         </T>
       )}
       {erro && (
@@ -447,6 +460,7 @@ function Selo({
 
 /** Sem conta: um toque na Apple ou no Google e o cartão nasce. */
 function Entrar() {
+  const t = useTextos();
   const { entrarComGoogle, entrarComApple } = useConta();
   const [erro, setErro] = useState<string | null>(null);
   const [aEntrar, setAEntrar] = useState(false);
@@ -464,7 +478,7 @@ function Entrar() {
   return (
     <View style={{ paddingHorizontal: MARGEM, marginTop: 26, gap: 12, alignItems: 'center' }}>
       <T v="corpo" style={{ color: cor.texto2, textAlign: 'center', marginBottom: 6 }}>
-        Entra para ter o teu cartão.
+        {t.cartao.entraParaTer}
       </T>
       {APPLE_CLIENTE ? (
         <BotaoDaApple
@@ -481,11 +495,11 @@ function Entrar() {
       ) : null}
       {/* O cartão feito ao balcão junta-se pelo email provado; com a Apple a esconder o email nascia um segundo cartão. */}
       <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 4 }}>
-        Já tens cartão feito ao balcão? Entra com o mesmo email — na Apple, partilha o email.
+        {t.cartao.jaTensCartao}
       </T>
       {aEntrar && (
         <T v="legenda" style={{ color: cor.texto2 }}>
-          A entrar…
+          {t.cartao.aEntrar}
         </T>
       )}
       {erro && (
@@ -509,6 +523,7 @@ function QrEmGrande({
   codigo: string;
   nome: string;
 }) {
+  const ui = useTextosDaUi();
   const margens = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const lado = Math.min(width - 64, 340);
@@ -524,7 +539,7 @@ function QrEmGrande({
           paddingTop: margens.top,
           paddingBottom: margens.bottom,
         }}
-        aria-label="Fechar"
+        aria-label={ui.fechar}
       >
         <QR texto={textoDoQr(codigo)} tamanho={lado} margem={0} raio={0} />
         <T v="titulo" style={{ color: '#0A0A0A', marginTop: 28, letterSpacing: 2 }}>

@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import {
+  naLingua,
   DIAS_DE_NOVO,
   TIPOS_DE_CONTAGEM,
   diaEmLisboa,
@@ -18,7 +19,7 @@ import {
   type LinhaParceiro,
   type LinhaPromocao,
 } from './linhas.ts';
-import { DIA, agora, hex, paraBytes, sha256 } from './util.ts';
+import { DIA, agora, hex, linguaDoPedido, paraBytes, sha256 } from './util.ts';
 import { programaDasDefinicoes } from './programa.ts';
 
 export const rotasPublicas = new Hono<Ambiente>();
@@ -32,8 +33,10 @@ export const rotasPublicas = new Hono<Ambiente>();
 rotasPublicas.get('/app', async (c) => {
   const db = c.env.DB;
   const hoje = diaEmLisboa();
+  // Os textos do backoffice na língua da app (a versão inglesa, se o Nuno a escreveu).
+  const lingua = linguaDoPedido(c);
   const [cats, pars, proms, lojas, defs] = await db.batch([
-    db.prepare('SELECT id, nome, icone, ordem FROM categorias ORDER BY ordem, id'),
+    db.prepare('SELECT id, nome, nome_en, icone, ordem FROM categorias ORDER BY ordem, id'),
     db.prepare('SELECT * FROM parceiros WHERE activo = 1 ORDER BY ordem, nome'),
     db
       .prepare(
@@ -59,9 +62,9 @@ rotasPublicas.get('/app', async (c) => {
     const lista = porParceiro.get(l.id);
     if (!lista?.length) continue;
     parceiros.push({
-      ...parceiroBase(l),
+      ...parceiroBase(l, lingua),
       novo: l.criado_em > limiteDeNovo && l.exemplo === 0,
-      promocoes: lista.map(promocaoPublica),
+      promocoes: lista.map((p) => promocaoPublica(p, lingua)),
     });
   }
   const usadas = new Set(parceiros.map((p) => p.categoriaId));
@@ -69,7 +72,7 @@ rotasPublicas.get('/app', async (c) => {
     (defs!.results as { chave: string; valor: string }[]).map((d) => [d.chave, d.valor]),
   );
   const avisoAte = def.get('aviso_ate') ?? '';
-  const textoDoAviso = def.get('aviso')?.trim() || null;
+  const textoDoAviso = naLingua(lingua, def.get('aviso') ?? '', def.get('aviso_en')).trim() || null;
   const aviso = textoDoAviso && (!avisoAte || hoje <= avisoAte) ? textoDoAviso : null;
 
   const dados: DadosDaApp = {
@@ -83,12 +86,15 @@ rotasPublicas.get('/app', async (c) => {
     },
     aviso,
     avisoAte: aviso && avisoAte ? avisoAte : null,
-    categorias: (cats!.results as LinhaCategoria[]).filter((l) => usadas.has(l.id)).map(categoria),
+    categorias: (cats!.results as LinhaCategoria[])
+      .filter((l) => usadas.has(l.id))
+      .map((l) => categoria(l, lingua)),
     parceiros,
     // O cartão de quem ainda não entrou promete o programa de agora, e não o que a app traz de origem.
-    programa: (({ objectivo, recompensa }) => ({ objectivo, recompensa }))(
-      programaDasDefinicoes(def),
-    ),
+    programa: (({ objectivo, recompensa, recompensaEn }) => ({
+      objectivo,
+      recompensa: naLingua(lingua, recompensa, recompensaEn),
+    }))(programaDasDefinicoes(def)),
   };
 
   // Uma etiqueta do conteúdo: se a app já o tem, responde-se 304 sem corpo.

@@ -3,27 +3,18 @@ import { useEffect } from 'react';
 import { Pressable, View } from 'react-native';
 import { definirTitulo } from '../dados';
 import { Ecra, Icone, MARGEM, T, cor } from '@nunos-lab/ui';
-
-const PARAGRAFOS = [
-  'A app mostra as vantagens dos parceiros do Nuno’s Lab e, se quiseres, o teu cartão de carimbos. Sem conta, não pede nada: não usa cookies nem tem publicidade.',
-  'Com conta (Apple, Google ou email), o Nuno’s Lab guarda o teu nome, o email, a data de anos se a deres, e os carimbos: em que casa, com quem e quando. É o que faz o cartão funcionar. A Apple e a Google só confirmam quem és; não recebem os teus carimbos.',
-  'Se puseres o cartão na Apple Wallet ou na Google Wallet, o cartão (o nome, os carimbos, o código) fica também nessa carteira e actualiza-se a cada corte; a Apple e a Google tratam-no pelas regras delas.',
-  'Podes mudar ou apagar a conta na app, a qualquer altura. Ao apagar, o que é teu sai; ficam só contagens sem nome, para os números da barbearia.',
-  'Para o Nuno saber o que interessa, a app conta, sem saber quem és, quantas vezes é aberta e quantas vezes cada parceiro é visto ou contactado. Fica só o dia e o número.',
-  'A app guarda neste aparelho a última lista de vantagens, para a mostrar quando a rede falha, e o teu cartão, para abrir sem rede.',
-  'A app é servida pelo GitHub Pages e os dados vêm de um servidor da Cloudflare, com a base de dados na União Europeia. Como em qualquer site, estes serviços recebem o endereço do teu aparelho para te entregar a página.',
-  'O mapa das casas é dos Mapas da Apple: para o mostrar, o teu aparelho liga-se à Apple, que recebe o endereço dele, como qualquer site. No Android é uma imagem que o nosso servidor pede à Apple e guarda por pouco tempo.',
-];
+import { useTextos } from '../textos';
 
 export default function Privacidade() {
-  useEffect(() => definirTitulo("Privacidade · Nuno's Lab"), []);
+  const t = useTextos();
+  useEffect(() => definirTitulo(t.titulos.privacidade), [t]);
   return (
     <Ecra comBarra={false}>
       <View style={{ paddingHorizontal: MARGEM }}>
         <Pressable
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/barbearia'))}
           role="button"
-          aria-label="Voltar"
+          aria-label={t.parceiro.voltar}
           hitSlop={8}
           style={{
             width: 40,
@@ -37,9 +28,9 @@ export default function Privacidade() {
           <Icone nome="voltar" tamanho={21} espessura={2.2} />
         </Pressable>
         <T v="titulo" style={{ marginTop: 22, marginBottom: 8 }} role="heading" aria-level={1}>
-          Privacidade
+          {t.privacidade.titulo}
         </T>
-        {PARAGRAFOS.map((p) => (
+        {t.privacidade.paragrafos.map((p) => (
           <T
             key={p}
             v="corpo"

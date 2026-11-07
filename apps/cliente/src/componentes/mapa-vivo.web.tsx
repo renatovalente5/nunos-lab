@@ -1,4 +1,5 @@
 import {
+  ETIQUETA_DA_LINGUA,
   FOLGAS_DO_MAPA_VIVO,
   enquadrar,
   regiaoDoEnquadramento,
@@ -15,6 +16,7 @@ import {
 } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { View } from 'react-native';
+import { linguaActual, useLingua } from '@nunos-lab/ui';
 import { API, PRAZO_DO_PEDIDO } from '../dados';
 import type { PropsDoMapaVivo } from './mapa-vivo';
 import {
@@ -84,7 +86,7 @@ function carregarMapKit(): Promise<MapKit> {
             const mk = janela.mapkit!;
             let token: string | null = primeiro;
             mk.init({
-              language: 'pt-PT',
+              language: ETIQUETA_DA_LINGUA[linguaActual()],
               authorizationCallback: (feito) => {
                 // A primeira vez usa a que já veio; as seguintes (a cada meia hora) pedem outra.
                 if (token) feito(token);
@@ -132,6 +134,12 @@ export function MapaVivo({
   const caixa = useRef<ComponentRef<typeof View>>(null);
   const pinos = useRef(new Map<number, Pino>());
   const mapaFeito = useRef<Mapa | null>(null);
+  // As etiquetas do mapa, o logótipo e o «Legal» mudam com a língua da app, sem refazer o mapa.
+  const lingua = useLingua();
+  useEffect(() => {
+    const mk = (window as unknown as { mapkit?: { language: string } }).mapkit;
+    if (mk && mapaFeito.current) mk.language = ETIQUETA_DA_LINGUA[lingua];
+  }, [lingua]);
   const aoEscolher = useEffectEvent(escolher);
   const aoIrA = useEffectEvent(aoIr);
   const aoFalhar = useEffectEvent(falhou);

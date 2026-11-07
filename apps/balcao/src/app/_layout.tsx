@@ -12,8 +12,11 @@ import * as Updates from 'expo-updates';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Botao, T, carregarArmazem, cor } from '@nunos-lab/ui';
+import { fixarLingua, Botao, T, carregarArmazem, cor } from '@nunos-lab/ui';
 import { CHAVES_DO_ARMAZEM, CHAVES_SECRETAS, haEscritaEmCurso } from '../sessao';
+
+// Até a for partners ter as frases em inglês (a fase 2), as peças partilhadas ficam em português.
+fixarLingua('pt');
 
 const consultas = new QueryClient();
 

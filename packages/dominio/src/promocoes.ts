@@ -1,4 +1,5 @@
-import { DIAS_DA_SEMANA, dataCurta, diaDaSemana, diasEntre } from './datas.ts';
+import { dataCurta, diaDaSemana, diasEntre, nomeDoDia } from './datas.ts';
+import type { Lingua } from './lingua.ts';
 
 export type EstadoDaPromocao = 'activa' | 'agendada' | 'terminada' | 'pausada';
 
@@ -31,14 +32,16 @@ export const NOME_DO_ESTADO: Record<EstadoDaPromocao, string> = {
  * «Até sexta», «Até 31 dez». Sem data de fim não se diz nada: o que não
  * acaba não precisa de aviso.
  */
-export function validadeEmTexto(p: ComDatas, hoje: string): string | null {
+export function validadeEmTexto(p: ComDatas, hoje: string, lingua: Lingua = 'pt'): string | null {
   if (!p.fim) return null;
   const faltam = diasEntre(hoje, p.fim);
-  if (faltam < 0) return 'Terminou';
-  if (faltam === 0) return 'Só hoje';
-  if (faltam === 1) return 'Até amanhã';
-  if (faltam < 7) return `Até ${DIAS_DA_SEMANA[diaDaSemana(p.fim)]}`;
-  return `Até ${dataCurta(p.fim, hoje)}`;
+  const en = lingua === 'en';
+  if (faltam < 0) return en ? 'Ended' : 'Terminou';
+  if (faltam === 0) return en ? 'Today only' : 'Só hoje';
+  if (faltam === 1) return en ? 'Until tomorrow' : 'Até amanhã';
+  const ate = en ? 'Until' : 'Até';
+  if (faltam < 7) return `${ate} ${nomeDoDia(diaDaSemana(p.fim), lingua)}`;
+  return `${ate} ${dataCurta(p.fim, hoje, lingua)}`;
 }
 
 /** Para o backoffice: «Desde 1 nov», «1 nov – 31 dez», «Até 31 dez», «Sempre». */

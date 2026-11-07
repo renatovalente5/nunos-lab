@@ -1,3 +1,4 @@
+import type { Lingua } from './lingua.ts';
 /** As regras do cartão de carimbos, escritas uma vez. */
 
 export type Programa = {
@@ -9,6 +10,9 @@ export type Programa = {
   porDia: number;
   /** A prenda de anos (texto livre; vazio: não há). */
   aniversario: string;
+  /** As versões inglesas (vazias: o português). */
+  recompensaEn?: string;
+  aniversarioEn?: string;
 };
 
 export const PROGRAMA_PREDEFINIDO: Programa = {
@@ -38,9 +42,38 @@ const eCorteGratis = (recompensa: string) => /^corte gr[áa]tis$/i.test(recompen
 const eDesconto = (recompensa: string) => /desconto|%|metade/i.test(recompensa);
 const minuscula = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
-/** Quando falta um: «O próximo corte é grátis», «O próximo corte tem 50% de desconto», ou «O próximo é barba grátis». */
-export function fraseDoProximo(recompensa: string): string {
+/**
+ * O prémio em inglês, quando o backoffice só o tem em português: os dois de sempre traduzem-se
+ * («Corte grátis» → «Free haircut», «50% de desconto» → «50% off»); outro texto fica como está.
+ */
+const eCorteGratisEn = (recompensa: string) => /^free (hair)?cut$/i.test(recompensa.trim());
+const eDescontoEn = (recompensa: string) => /\boff\b|discount|%|half/i.test(recompensa);
+export function recompensaEmIngles(recompensa: string): string {
   const r = recompensa.trim();
+  if (eCorteGratis(r)) return 'Free haircut';
+  const percentagem = /^[-−]?\s*(\d+)\s*%\s*(de desconto)?$/i.exec(r);
+  if (percentagem) return `${percentagem[1]}% off`;
+  return r;
+}
+
+/** O prémio na língua pedida: em inglês, os dois de sempre traduzem-se; outro texto fica como está. */
+export function recompensaNaLingua(recompensa: string, lingua: Lingua): string {
+  return lingua === 'en' ? recompensaEmIngles(recompensa) : recompensa.trim();
+}
+
+/**
+ * Quando falta um: «O próximo corte é grátis», «O próximo corte tem 50% de desconto», ou «O próximo é
+ * barba grátis». Em inglês: «Your next haircut is free», «Your next haircut is 50% off», «Next: …».
+ */
+export function fraseDoProximo(recompensa: string, lingua: Lingua = 'pt'): string {
+  const r = recompensa.trim();
+  if (lingua === 'en') {
+    const e = recompensaEmIngles(r);
+    if (!e) return '1 to go';
+    if (eCorteGratisEn(e)) return 'Your next haircut is free';
+    if (eDescontoEn(e)) return `Your next haircut is ${minuscula(e)}`;
+    return `Next: ${minuscula(e)}`;
+  }
   if (!r) return 'Falta 1';
   if (eCorteGratis(r)) return 'O próximo corte é grátis';
   if (eDesconto(r)) return `O próximo corte tem ${minuscula(r)}`;
@@ -48,16 +81,28 @@ export function fraseDoProximo(recompensa: string): string {
 }
 
 /** O que a ficha diz ao barbeiro no corte da oferta: «Este corte é grátis», «Este corte tem 50% de desconto». */
-export function fraseDesteCorte(recompensa: string): string {
+export function fraseDesteCorte(recompensa: string, lingua: Lingua = 'pt'): string {
   const r = recompensa.trim();
+  if (lingua === 'en') {
+    const e = recompensaEmIngles(r);
+    if (eCorteGratisEn(e)) return 'This haircut is free';
+    if (eDescontoEn(e)) return `This haircut is ${minuscula(e)}`;
+    return `This haircut: ${minuscula(e)}`;
+  }
   if (eCorteGratis(r)) return 'Este corte é grátis';
   if (eDesconto(r)) return `Este corte tem ${minuscula(r)}`;
   return `Este corte: ${minuscula(r)}`;
 }
 
 /** Depois do carimbo que completa o cartão: «Este corte foi grátis», «Este corte teve 50% de desconto». */
-export function fraseDoCorteOferecido(recompensa: string): string {
+export function fraseDoCorteOferecido(recompensa: string, lingua: Lingua = 'pt'): string {
   const r = recompensa.trim();
+  if (lingua === 'en') {
+    const e = recompensaEmIngles(r);
+    if (eCorteGratisEn(e)) return 'This haircut was free';
+    if (eDescontoEn(e)) return `This haircut was ${minuscula(e)}`;
+    return `${e} · given`;
+  }
   if (eCorteGratis(r)) return 'Este corte foi grátis';
   if (eDesconto(r)) return `Este corte teve ${minuscula(r)}`;
   return `${r} · entregue`;
@@ -70,11 +115,15 @@ export function fraseDoCorteOferecido(recompensa: string): string {
 export function fraseDoCartao(
   carimbos: number,
   programa: Pick<Programa, 'objectivo' | 'recompensa'>,
+  lingua: Lingua = 'pt',
 ) {
   const { faltam, completo } = estadoDoCartao(carimbos, programa.objectivo);
-  if (completo) return 'Cartão completo';
+  const en = lingua === 'en';
+  if (completo) return en ? 'Card complete' : 'Cartão completo';
   const recompensa = programa.recompensa.trim();
-  if (faltam === 1) return fraseDoProximo(recompensa);
+  if (faltam === 1) return fraseDoProximo(recompensa, lingua);
+  if (en)
+    return recompensa ? `Reward: ${minuscula(recompensaEmIngles(recompensa))}` : `${faltam} to go`;
   return recompensa ? `Prémio: ${minuscula(recompensa)}` : `Faltam ${faltam}`;
 }
 

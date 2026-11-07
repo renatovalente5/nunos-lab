@@ -2,6 +2,7 @@ import { encode } from 'uqr';
 import { useMemo } from 'react';
 import { View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { useTextosDaUi } from './textos';
 
 /**
  * Um QR desenhado em SVG (uma só forma com todos os módulos escuros), num
@@ -21,6 +22,7 @@ export function QR({
   raio?: number;
   rotulo?: string;
 }) {
+  const t = useTextosDaUi();
   const { caminho, n } = useMemo(() => {
     const q = encode(texto, { ecc: 'M', border: 0 });
     let d = '';
@@ -42,7 +44,7 @@ export function QR({
         borderCurve: 'continuous',
       }}
       role="img"
-      aria-label={rotulo ?? 'Código QR'}
+      aria-label={rotulo ?? t.codigoQr}
     >
       <Svg
         width={tamanho - margem * 2}

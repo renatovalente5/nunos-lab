@@ -15,7 +15,8 @@ import { AppState, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registarAoPerderSessao } from '../conta';
 import { CHAVES_DO_ARMAZEM, CHAVES_SECRETAS, contar } from '../dados';
-import { Botao, T, carregarArmazem, cor } from '@nunos-lab/ui';
+import { Botao, T, carregarArmazem, cor, useLangDaPagina, useTextosDaUi } from '@nunos-lab/ui';
+import { useTextos } from '../textos';
 
 // O splash nativo fica até as letras e o armazém estarem prontos: sem isto
 // escondia-se na primeira View vazia, um clarão preto em cada arranque.
@@ -108,6 +109,7 @@ export default function Raiz() {
     carregarArmazem(CHAVES_DO_ARMAZEM, CHAVES_SECRETAS).finally(() => setArmazemPronto(true));
   }, []);
   useEffect(() => contar('abrir'), []);
+  useLangDaPagina();
   // Com as letras (ou sem elas, se não vierem) e o armazém lido: a app desenha-se e o splash sai.
   const pronta = (prontas || !!erro) && armazemPronto;
   useEffect(() => {
@@ -137,6 +139,8 @@ export default function Raiz() {
  * trocou), recarrega a página uma vez; se voltar a falhar, diz e deixa tentar.
  */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const t = useTextos();
+  const ui = useTextosDaUi();
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     const chave = 'nunoslab:recarregou';
@@ -161,15 +165,15 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
         gap: 14,
       }}
     >
-      <T v="titulo">Algo correu mal</T>
+      <T v="titulo">{t.erroDoEcra.titulo}</T>
       <T v="legenda" style={{ color: cor.texto2, textAlign: 'center' }}>
-        A app não conseguiu abrir este ecrã.
+        {t.erroDoEcra.texto}
       </T>
       <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', fontSize: 11 }}>
         {String(error?.message ?? error).slice(0, 160)}
       </T>
       <Botao
-        nome="Tentar outra vez"
+        nome={ui.tentarOutraVez}
         onPress={() => {
           if (Platform.OS === 'web') location.reload();
           else void retry();

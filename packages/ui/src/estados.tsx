@@ -3,6 +3,7 @@ import { cor, MARGEM, raio } from './tema';
 import { Icone } from './icone';
 import { Botao } from './pecas';
 import { T } from './texto';
+import { useTextosDaUi } from './textos';
 
 /** Enquanto chegam os dados pela primeira vez: a forma do ecrã, sem texto. */
 export function Esqueleto() {
@@ -27,13 +28,14 @@ export function Esqueleto() {
 
 /** Sem rede e sem nada guardado: diz-se em duas palavras e dá-se o botão. */
 export function SemLigacao({ tentar }: { tentar: () => void }) {
+  const t = useTextosDaUi();
   return (
     <View style={{ alignItems: 'center', paddingHorizontal: 32, paddingTop: 80, gap: 14 }}>
       <Icone nome="site" tamanho={34} cor={cor.texto3} />
       <T v="subtitulo" style={{ textAlign: 'center' }}>
-        Sem ligação
+        {t.semLigacao}
       </T>
-      <Botao nome="Tentar outra vez" onPress={tentar} />
+      <Botao nome={t.tentarOutraVez} onPress={tentar} />
     </View>
   );
 }

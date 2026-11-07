@@ -1,7 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { diaEmLisboa, type DadosDaApp, type TipoDeContagem } from '@nunos-lab/dominio';
+import { type Lingua, diaEmLisboa, type DadosDaApp, type TipoDeContagem } from '@nunos-lab/dominio';
 import { Linking, Platform } from 'react-native';
-import { guardar as guardarNoArmazem, lerSincrono } from '@nunos-lab/ui';
+import {
+  CHAVE_DA_LINGUA,
+  guardar as guardarNoArmazem,
+  lerSincrono,
+  useLingua,
+} from '@nunos-lab/ui';
 
 /** A morada da app na web (o telemóvel partilha ligações para aqui). */
 export const SITIO = process.env.EXPO_PUBLIC_SITIO ?? 'https://renatovalente5.github.io/nunos-lab';
@@ -46,11 +51,12 @@ function guardar(d: DadosDaApp) {
   guardarNoArmazem(CHAVE, JSON.stringify(d));
 }
 
-async function buscar(): Promise<DadosDaApp> {
+async function buscar(lingua: Lingua): Promise<DadosDaApp> {
   const prazo = new AbortController();
   const temporizador = setTimeout(() => prazo.abort(), PRAZO_DO_PEDIDO);
   try {
-    const r = await fetch(`${API}/api/app`, { signal: prazo.signal });
+    // Os textos do backoffice vêm na língua da app (o inglês que o Nuno escreveu, senão o português).
+    const r = await fetch(`${API}/api/app?lingua=${lingua}`, { signal: prazo.signal });
     if (!r.ok) throw new Error(`A API respondeu ${r.status}`);
     const d = (await r.json()) as DadosDaApp;
     guardar(d);
@@ -89,9 +95,11 @@ function soDeHoje(d: DadosDaApp): DadosDaApp {
 }
 
 export function useDados() {
+  const lingua = useLingua();
   return useQuery({
-    queryKey: ['app'],
-    queryFn: buscar,
+    // Mudar de língua pede a lista outra vez; a guardada (da língua de antes) fica à vista entretanto.
+    queryKey: ['app', lingua],
+    queryFn: () => buscar(lingua),
     // A lista guardada entra como dados a sério (e não como «placeholder», que
     // desaparece quando o pedido falha): sem rede, a app fica com ela. Conta
     // como velha, por isso a app pede logo a nova.
@@ -175,5 +183,12 @@ export function guardarCasa(id: number | null) {
 }
 
 /** As chaves que a app guarda no aparelho (o telemóvel carrega-as ao arrancar). */
-export const CHAVES_DO_ARMAZEM = [CHAVE, CHAVE_DA_CASA, 'nunoslab:eu:2', 'nunoslab:cartao-visto'];
+// A língua escolhida lê-se com o resto, antes do primeiro ecrã: sem ela, a app abria na do aparelho e mudava logo.
+export const CHAVES_DO_ARMAZEM = [
+  CHAVE,
+  CHAVE_DA_CASA,
+  'nunoslab:eu:2',
+  'nunoslab:cartao-visto',
+  CHAVE_DA_LINGUA,
+];
 export const CHAVES_SECRETAS = ['nunoslab:sessao'];

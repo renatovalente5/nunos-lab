@@ -1,10 +1,11 @@
-import { limparNome, type FormaDeEntrar, type Loja } from '@nunos-lab/dominio';
+import { NOME_DA_LINGUA, limparNome, type FormaDeEntrar, type Loja } from '@nunos-lab/dominio';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import {
   APPLE_CLIENTE,
   GOOGLE_CLIENTE,
+  guardarLinguaNaConta,
   mensagemDe,
   moradaDeRetornoDaApple,
   useConta,
@@ -21,6 +22,7 @@ import {
   Ecra,
   Esqueleto,
   Folha,
+  FolhaDaLingua,
   Grupo,
   Icone,
   MARGEM,
@@ -31,8 +33,10 @@ import {
   Separador,
   T,
   cor,
+  useLingua,
   type NomeDoIcone,
 } from '@nunos-lab/ui';
+import { useTextos } from '../textos';
 
 const NOME_DA_FORMA: Record<FormaDeEntrar['tipo'], string> = {
   apple: 'Apple',
@@ -95,6 +99,7 @@ function Linha({
 
 /** «Voltar» e o título: ficam sempre, mesmo sem o «eu» (um ecrã vazio não tinha saída). */
 function Cabecalho() {
+  const t = useTextos();
   return (
     <View
       style={{ paddingHorizontal: MARGEM, flexDirection: 'row', alignItems: 'center', gap: 14 }}
@@ -102,7 +107,7 @@ function Cabecalho() {
       <Pressable
         onPress={() => (router.canGoBack() ? router.back() : router.replace('/cartao'))}
         role="button"
-        aria-label="Voltar"
+        aria-label={t.conta.voltar}
         hitSlop={8}
         style={({ pressed }) => ({
           width: 40,
@@ -116,24 +121,26 @@ function Cabecalho() {
         <Icone nome="voltar" tamanho={21} espessura={2.2} />
       </Pressable>
       <T v="titulo" role="heading" aria-level={1}>
-        Conta
+        {t.conta.titulo}
       </T>
     </View>
   );
 }
 
 export default function Conta() {
+  const t = useTextos();
+  const lingua = useLingua();
   const temSessao = useTemSessao();
   const { data: eu, isError, isFetching, refetch } = useEu();
   const { data: dados } = useDados();
   const conta = useConta();
   const [aviso, setAviso] = useState<string | null>(null);
-  const [folha, setFolha] = useState<'nome' | 'aniversario' | 'casa' | 'juntar' | 'apagar' | null>(
-    null,
-  );
+  const [folha, setFolha] = useState<
+    'nome' | 'aniversario' | 'casa' | 'juntar' | 'apagar' | 'lingua' | null
+  >(null);
   const [texto, setTexto] = useState('');
   const [erro, setErro] = useState<string | null>(null);
-  useEffect(() => definirTitulo("Nuno's Lab · Conta"), []);
+  useEffect(() => definirTitulo(t.titulos.conta), [t]);
   useEffect(() => {
     if (!temSessao) router.replace('/cartao');
   }, [temSessao]);
@@ -148,7 +155,7 @@ export default function Conta() {
   }
 
   const lojas: Loja[] = dados?.barbearia.lojas ?? [];
-  const casa = lojas.find((l) => l.id === eu.lojaId)?.nome ?? 'Todas';
+  const casa = lojas.find((l) => l.id === eu.lojaId)?.nome ?? t.conta.todas;
   const correr = async (f: () => Promise<unknown>, depois?: () => void) => {
     setErro(null);
     try {
@@ -176,26 +183,26 @@ export default function Conta() {
     <Ecra comBarra={false}>
       <Cabecalho />
 
-      <Rotulo>Eu</Rotulo>
+      <Rotulo>{t.conta.eu}</Rotulo>
       <Grupo>
         <Linha
           icone="pessoa"
-          nome="Nome"
+          nome={t.conta.nome}
           valor={eu.nome || '—'}
           onPress={() => abrir('nome', eu.nome)}
         />
         <Separador recuo={48} />
         <Linha
           icone="bolo"
-          nome="Aniversário"
+          nome={t.conta.aniversario}
           valor={paraEcra(eu.aniversario) || '—'}
           onPress={() => abrir('aniversario', eu.aniversario ?? '')}
         />
         <Separador recuo={48} />
-        <Linha icone="loja" nome="A minha casa" valor={casa} onPress={() => abrir('casa')} />
+        <Linha icone="loja" nome={t.conta.aMinhaCasa} valor={casa} onPress={() => abrir('casa')} />
       </Grupo>
 
-      <Rotulo>Formas de entrar</Rotulo>
+      <Rotulo>{t.conta.formasDeEntrar}</Rotulo>
       <Grupo>
         {eu.formas.map((f, i) => (
           <View key={f.id}>
@@ -227,12 +234,12 @@ export default function Conta() {
                 <Pressable
                   onPress={() => correr(() => conta.tirarForma(f.id))}
                   role="button"
-                  aria-label={`Tirar ${NOME_DA_FORMA[f.tipo]}`}
+                  aria-label={t.conta.tirarForma(NOME_DA_FORMA[f.tipo])}
                   hitSlop={8}
                   style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
                 >
                   <T v="legenda" style={{ color: cor.texto2 }}>
-                    Tirar
+                    {t.conta.tirar}
                   </T>
                 </Pressable>
               )}
@@ -242,17 +249,19 @@ export default function Conta() {
         {formasQueFaltam.length > 0 && !demonstracao && (
           <>
             <Separador recuo={48} />
-            <Linha icone="mais" nome="Juntar outra forma" onPress={() => abrir('juntar')} />
+            <Linha icone="mais" nome={t.conta.juntarOutraForma} onPress={() => abrir('juntar')} />
           </>
         )}
       </Grupo>
 
-      <Rotulo>Sessões</Rotulo>
+      <Rotulo>{t.conta.sessoes}</Rotulo>
       <Grupo>
         <Linha
           icone="aparelho"
-          nome={eu.sessoes.length === 1 ? 'Só este aparelho' : `${eu.sessoes.length} aparelhos`}
-          valor={eu.sessoes.length > 1 && !demonstracao ? 'Terminar as outras' : undefined}
+          nome={
+            eu.sessoes.length === 1 ? t.conta.soEsteAparelho : t.conta.aparelhos(eu.sessoes.length)
+          }
+          valor={eu.sessoes.length > 1 && !demonstracao ? t.conta.terminarAsOutras : undefined}
           onPress={
             eu.sessoes.length > 1 && !demonstracao
               ? () => correr(() => conta.sairDasOutras())
@@ -262,7 +271,7 @@ export default function Conta() {
         <Separador recuo={48} />
         <Linha
           icone="sair"
-          nome="Sair"
+          nome={t.conta.sair}
           onPress={() =>
             correr(
               () => conta.sair(),
@@ -272,13 +281,29 @@ export default function Conta() {
         />
       </Grupo>
 
-      <Rotulo>Mais</Rotulo>
+      <Rotulo>{t.conta.mais}</Rotulo>
       <Grupo>
-        <Linha icone="escudo" nome="Privacidade" onPress={() => router.push('/privacidade')} />
+        <Linha
+          icone="site"
+          nome={t.conta.lingua}
+          valor={NOME_DA_LINGUA[lingua]}
+          onPress={() => abrir('lingua')}
+        />
+        <Separador recuo={48} />
+        <Linha
+          icone="escudo"
+          nome={t.conta.privacidade}
+          onPress={() => router.push('/privacidade')}
+        />
         {!demonstracao && (
           <>
             <Separador recuo={48} />
-            <Linha icone="lixo" nome="Apagar a conta" perigo onPress={() => abrir('apagar')} />
+            <Linha
+              icone="lixo"
+              nome={t.conta.apagarAConta}
+              perigo
+              onPress={() => abrir('apagar')}
+            />
           </>
         )}
       </Grupo>
@@ -298,22 +323,22 @@ export default function Conta() {
         </T>
       )}
 
-      <Folha aberta={folha === 'nome'} fechar={() => setFolha(null)} titulo="O teu nome">
+      <Folha aberta={folha === 'nome'} fechar={() => setFolha(null)} titulo={t.conta.oTeuNome}>
         <View style={{ paddingHorizontal: MARGEM, paddingTop: 10, gap: 14 }}>
           <Campo
             value={texto}
             onChangeText={setTexto}
             autoFocus
             maxLength={40}
-            placeholder="Nome próprio"
+            placeholder={t.conta.nomeProprio}
             autoCapitalize="words"
             erro={erro}
           />
           <Botao
-            nome="Guardar"
+            nome={t.conta.guardar}
             onPress={() => {
               const nome = limparNome(texto);
-              if (!nome) return setErro('Escreve o teu nome.');
+              if (!nome) return setErro(t.conta.escreveONome);
               correr(
                 () => conta.perfil({ nome }),
                 () => setFolha(null),
@@ -323,12 +348,16 @@ export default function Conta() {
         </View>
       </Folha>
 
-      <Folha aberta={folha === 'aniversario'} fechar={() => setFolha(null)} titulo="Aniversário">
+      <Folha
+        aberta={folha === 'aniversario'}
+        fechar={() => setFolha(null)}
+        titulo={t.conta.aniversario}
+      >
         <View style={{ paddingHorizontal: MARGEM, paddingTop: 10, gap: 18 }}>
           {folha === 'aniversario' && <RodaDeData valor={eu.aniversario} aoMudar={setTexto} />}
           {/* Só depois de rodar: o que a roda mostra ao abrir não é uma escolha. */}
           <Botao
-            nome="Guardar"
+            nome={t.conta.guardar}
             inactivo={!texto}
             onPress={() =>
               correr(
@@ -349,7 +378,7 @@ export default function Conta() {
               style={{ alignSelf: 'center', padding: 8 }}
             >
               <T v="legenda" style={{ color: cor.texto3 }}>
-                Tirar o aniversário
+                {t.conta.tirarOAniversario}
               </T>
             </Pressable>
           )}
@@ -361,10 +390,10 @@ export default function Conta() {
         </View>
       </Folha>
 
-      <Folha aberta={folha === 'casa'} fechar={() => setFolha(null)} titulo="A minha casa">
-        <CartaoDaFolha role="radiogroup" aria-label="A minha casa">
+      <Folha aberta={folha === 'casa'} fechar={() => setFolha(null)} titulo={t.conta.aMinhaCasa}>
+        <CartaoDaFolha role="radiogroup" aria-label={t.conta.aMinhaCasa}>
           <OpcaoDaFolha
-            nome="Todas as casas"
+            nome={t.conta.todasAsCasas}
             escolhida={eu.lojaId === null}
             onPress={() =>
               correr(
@@ -395,7 +424,11 @@ export default function Conta() {
         )}
       </Folha>
 
-      <Folha aberta={folha === 'juntar'} fechar={() => setFolha(null)} titulo="Juntar outra forma">
+      <Folha
+        aberta={folha === 'juntar'}
+        fechar={() => setFolha(null)}
+        titulo={t.conta.juntarOutraForma}
+      >
         <View style={{ paddingHorizontal: MARGEM, paddingTop: 10, gap: 12, alignItems: 'center' }}>
           {formasQueFaltam.includes('apple') && (
             <BotaoDaApple
@@ -431,12 +464,12 @@ export default function Conta() {
       <Folha
         aberta={folha === 'apagar'}
         fechar={() => setFolha(null)}
-        titulo="Apagar a conta"
-        subtitulo="O cartão, os carimbos e as recompensas perdem-se. Não se desfaz."
+        titulo={t.conta.apagarAConta}
+        subtitulo={t.conta.apagarAviso}
       >
         <View style={{ paddingHorizontal: MARGEM, paddingTop: 10, gap: 14 }}>
           <Botao
-            nome="Apagar a conta"
+            nome={t.conta.apagarAConta}
             perigo
             onPress={() =>
               correr(
@@ -452,6 +485,11 @@ export default function Conta() {
           )}
         </View>
       </Folha>
+      <FolhaDaLingua
+        aberta={folha === 'lingua'}
+        fechar={() => setFolha(null)}
+        aoEscolher={guardarLinguaNaConta}
+      />
     </Ecra>
   );
 }

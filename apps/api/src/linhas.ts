@@ -6,7 +6,7 @@ import type {
   PeriodoDoLimite,
   PromocaoPublica,
 } from '@nunos-lab/dominio';
-import { eIconeDaCategoria } from '@nunos-lab/dominio';
+import { eIconeDaCategoria, naLingua, type Lingua } from '@nunos-lab/dominio';
 
 /** As linhas como vêm da base, e a passagem para o contrato da API. */
 
@@ -21,7 +21,9 @@ export type LinhaParceiro = {
   instagram: string;
   site: string;
   horario: string;
+  horario_en: string;
   descricao: string;
+  descricao_en: string;
   cor: string;
   logotipo_id: string | null;
   capa_id: string | null;
@@ -36,8 +38,11 @@ export type LinhaPromocao = {
   id: number;
   parceiro_id: number;
   destaque: string;
+  destaque_en: string;
   titulo: string;
+  titulo_en: string;
   detalhe: string;
+  detalhe_en: string;
   inicio: string | null;
   fim: string | null;
   em_destaque: number;
@@ -56,7 +61,13 @@ export type LinhaPromocao = {
   alterada_em: number;
 };
 
-export type LinhaCategoria = { id: number; nome: string; icone: string; ordem: number };
+export type LinhaCategoria = {
+  id: number;
+  nome: string;
+  nome_en: string;
+  icone: string;
+  ordem: number;
+};
 export type LinhaLoja = {
   id: number;
   nome: string;
@@ -68,9 +79,9 @@ export type LinhaLoja = {
   lng: number | null;
 };
 
-export function categoria(l: LinhaCategoria): Categoria {
+export function categoria(l: LinhaCategoria, lingua: Lingua = 'pt'): Categoria {
   const icone: IconeDaCategoria = eIconeDaCategoria(l.icone) ? l.icone : 'outro';
-  return { id: l.id, nome: l.nome, icone, ordem: l.ordem };
+  return { id: l.id, nome: naLingua(lingua, l.nome, l.nome_en), icone, ordem: l.ordem };
 }
 
 export function loja(l: LinhaLoja): Loja {
@@ -86,12 +97,12 @@ export function loja(l: LinhaLoja): Loja {
   };
 }
 
-export function promocaoPublica(l: LinhaPromocao): PromocaoPublica {
+export function promocaoPublica(l: LinhaPromocao, lingua: Lingua = 'pt'): PromocaoPublica {
   return {
     id: l.id,
-    destaque: l.destaque,
-    titulo: l.titulo,
-    detalhe: l.detalhe,
+    destaque: naLingua(lingua, l.destaque, l.destaque_en),
+    titulo: naLingua(lingua, l.titulo, l.titulo_en),
+    detalhe: naLingua(lingua, l.detalhe, l.detalhe_en),
     inicio: l.inicio,
     fim: l.fim,
     emDestaque: l.em_destaque === 1,
@@ -103,7 +114,7 @@ export function promocaoPublica(l: LinhaPromocao): PromocaoPublica {
   };
 }
 
-export function parceiroBase(l: LinhaParceiro) {
+export function parceiroBase(l: LinhaParceiro, lingua: Lingua = 'pt') {
   return {
     id: l.id,
     nome: l.nome,
@@ -114,8 +125,8 @@ export function parceiroBase(l: LinhaParceiro) {
     telefone: l.telefone,
     instagram: l.instagram,
     site: l.site,
-    horario: l.horario,
-    descricao: l.descricao,
+    horario: naLingua(lingua, l.horario, l.horario_en),
+    descricao: naLingua(lingua, l.descricao, l.descricao_en),
     cor: l.cor,
     logotipo: l.logotipo_id,
     capa: l.capa_id,

@@ -15,4 +15,7 @@ export * from './campo';
 export * from './entrar';
 export * from './interruptor';
 export * from './armazem';
+export * from './lingua';
+export * from './textos';
+export * from './escolha-da-lingua';
 export * from './vibrar';
