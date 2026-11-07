@@ -643,17 +643,11 @@ rotasDaBalcao.post('/clientes', async (c) => {
   const db = c.env.DB;
   const email = p.email ? normalizarEmail(p.email) : null;
   if (p.email && !email) recusar(400, 'invalido');
-  if (email && p.carimbo) {
-    const proprio = await db
-      .prepare('SELECT 1 FROM equipa WHERE id = ? AND email = ?')
-      .bind(c.get('pessoa').id, email)
-      .first();
-    if (proprio) recusar(403, 'proprio_cartao');
-  }
-  if (email) await recusarSeEmailTemCartao(c, email);
   if (p.carimbo) {
     // A mesma submissão outra vez (dois toques, a rede a cair depois de gravar): a
-    // ficha que já nasceu com essa chave, e não um segundo cliente.
+    // ficha que já nasceu com essa chave, e não um segundo cliente. Vem ANTES da
+    // guarda do email: com email, o segundo envio dava «email_ja_tem_cartao» e a
+    // for partners saltava o ecrã do cliente novo (o código em grande, «Partilhar»).
     const repetida = await db
       .prepare('SELECT id, cliente_id FROM carimbos WHERE chave = ?')
       .bind(p.carimbo.chave)
@@ -671,9 +665,17 @@ rotasDaBalcao.post('/clientes', async (c) => {
           carimbo: await resultadoDe(c, repetida.id),
         });
     }
-    // A casa confere-se antes de o cliente nascer: uma recusa aqui não deixa um cliente sem carimbo.
-    await lojaDe(c, p.carimbo.lojaId);
   }
+  if (email && p.carimbo) {
+    const proprio = await db
+      .prepare('SELECT 1 FROM equipa WHERE id = ? AND email = ?')
+      .bind(c.get('pessoa').id, email)
+      .first();
+    if (proprio) recusar(403, 'proprio_cartao');
+  }
+  if (email) await recusarSeEmailTemCartao(c, email);
+  // A casa confere-se antes de o cliente nascer: uma recusa aqui não deixa um cliente sem carimbo.
+  if (p.carimbo) await lojaDe(c, p.carimbo.lojaId);
   const programa = await lerPrograma(db);
   const codigo = await codigoNovo(db);
   const cliente = await db

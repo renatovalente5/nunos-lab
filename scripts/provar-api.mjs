@@ -1935,6 +1935,25 @@ await passo(
       await pedir('/api/balcao/clientes?q=Duplo%20Toque', { token: tokenDono })
     ).json();
     assert.equal(lista.length, 1);
+    // Com email, o segundo envio também devolve a ficha do primeiro (e não «email_ja_tem_cartao»).
+    const comEmail = {
+      nome: 'Duplo Email',
+      email: '  DUPLO.Email@Exemplo.PT ',
+      carimbo: { chave: chaveNova(), lojaId: lojaDaProva },
+    };
+    const primeiro = await pedir('/api/balcao/clientes', {
+      method: 'POST',
+      token: tokenDono,
+      body: json(comEmail),
+    });
+    const segundo = await pedir('/api/balcao/clientes', {
+      method: 'POST',
+      token: tokenDono,
+      body: json(comEmail),
+    });
+    assert.equal(primeiro.status, 200);
+    assert.equal(segundo.status, 200, 'a mesma chave com email devolve o mesmo cliente');
+    assert.equal((await primeiro.json()).ficha.cliente.id, (await segundo.json()).ficha.cliente.id);
     const casaMa = await pedir('/api/balcao/clientes', {
       method: 'POST',
       token: tokenDono,
