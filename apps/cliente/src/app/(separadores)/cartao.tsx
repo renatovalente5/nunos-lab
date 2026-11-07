@@ -17,7 +17,7 @@ import {
   useEu,
   useTemSessao,
 } from '../../conta';
-import { contar, definirTitulo } from '../../dados';
+import { contar, definirTitulo, useDados } from '../../dados';
 import {
   BotaoDaApple,
   BotaoDoGoogle,
@@ -64,6 +64,7 @@ export default function Cartao() {
     }, []),
   );
   const { data: eu, isError, isFetching, dataUpdatedAt, refetch } = useEu(focado);
+  const { data: dadosDaApp } = useDados();
   const { width } = useWindowDimensions();
   const largura = Math.min(width, LARGURA_MAXIMA) - MARGEM * 2;
   const [qrAberto, setQrAberto] = useState(false);
@@ -119,6 +120,7 @@ export default function Cartao() {
       <View style={{ paddingHorizontal: MARGEM, marginTop: 18 }}>
         <CartaoDoCliente
           eu={temSessao ? (eu ?? null) : null}
+          programa={dadosDaApp?.programa ?? null}
           recompensas={eu?.recompensas.length ?? 0}
           largura={largura}
           novasDesde={novasDesde}

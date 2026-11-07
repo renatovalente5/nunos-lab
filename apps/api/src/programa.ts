@@ -11,7 +11,11 @@ export async function lerPrograma(db: D1Database): Promise<Programa> {
   const defs = await db
     .prepare("SELECT chave, valor FROM definicoes WHERE chave LIKE 'fid.%'")
     .all<{ chave: string; valor: string }>();
-  const d = new Map(defs.results.map((x) => [x.chave, x.valor]));
+  return programaDasDefinicoes(new Map(defs.results.map((x) => [x.chave, x.valor])));
+}
+
+/** O programa a partir das definições já lidas (as chaves «fid.*»), com os valores de origem no que faltar. */
+export function programaDasDefinicoes(d: Map<string, string>): Programa {
   const inteiro = (chave: string, { min, max }: { min: number; max: number }, senao: number) => {
     const n = Number(d.get(chave));
     return Number.isInteger(n) && n >= min && n <= max ? n : senao;

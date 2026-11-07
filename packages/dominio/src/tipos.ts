@@ -80,6 +80,8 @@ export type DadosDaApp = {
   avisoAte?: string | null;
   categorias: Categoria[];
   parceiros: ParceiroPublico[];
+  /** O programa de agora, para o cartão de quem ainda não entrou (falta em respostas guardadas antigas). */
+  programa?: { objectivo: number; recompensa: string };
 };
 
 /** Os tipos de toque que a app conta, sem saber quem tocou. */

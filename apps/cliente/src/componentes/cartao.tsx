@@ -24,6 +24,7 @@ export function CartaoDoCliente({
   rodape,
   espera = null,
   tentar,
+  programa = null,
 }: {
   eu: Pick<ClienteEu, 'nome' | 'criadoEm' | 'cortes' | 'cartao' | 'programa'> | null;
   /** Cartões cheios por entregar (eu.recompensas.length). */
@@ -41,11 +42,20 @@ export function CartaoDoCliente({
    */
   espera?: 'a-carregar' | 'sem-ligacao' | null;
   tentar?: () => void;
+  /** O programa de agora (do /api/app), para o cartão sem sessão: sem ele valia o de origem da app. */
+  programa?: { objectivo: number; recompensa: string } | null;
 }) {
   const carimbos = eu?.cartao.carimbos ?? 0;
-  const objectivo = eu?.cartao.objectivo ?? eu?.programa.objectivo ?? 10;
+  const objectivo =
+    eu?.cartao.objectivo ??
+    eu?.programa.objectivo ??
+    programa?.objectivo ??
+    PROGRAMA_PREDEFINIDO.objectivo;
   const recompensa =
-    eu?.cartao.recompensa ?? eu?.programa.recompensa ?? PROGRAMA_PREDEFINIDO.recompensa;
+    eu?.cartao.recompensa ??
+    eu?.programa.recompensa ??
+    programa?.recompensa ??
+    PROGRAMA_PREDEFINIDO.recompensa;
   const desde = eu ? new Date(eu.criadoEm * 1000).getFullYear() : null;
   // Cheio e sem nada por entregar: o carimbo que o completou já foi o corte da oferta.
   const entregue = carimbos >= objectivo && recompensas === 0;

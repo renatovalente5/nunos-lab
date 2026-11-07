@@ -19,6 +19,7 @@ import {
   type LinhaPromocao,
 } from './linhas.ts';
 import { DIA, agora, hex, paraBytes, sha256 } from './util.ts';
+import { programaDasDefinicoes } from './programa.ts';
 
 export const rotasPublicas = new Hono<Ambiente>();
 
@@ -84,6 +85,10 @@ rotasPublicas.get('/app', async (c) => {
     avisoAte: aviso && avisoAte ? avisoAte : null,
     categorias: (cats!.results as LinhaCategoria[]).filter((l) => usadas.has(l.id)).map(categoria),
     parceiros,
+    // O cartão de quem ainda não entrou promete o programa de agora, e não o que a app traz de origem.
+    programa: (({ objectivo, recompensa }) => ({ objectivo, recompensa }))(
+      programaDasDefinicoes(def),
+    ),
   };
 
   // Uma etiqueta do conteúdo: se a app já o tem, responde-se 304 sem corpo.
