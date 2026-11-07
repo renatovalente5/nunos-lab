@@ -13,11 +13,30 @@ export const PRAZO_DO_PEDIDO = 15_000;
 
 const CHAVE = 'nunoslab:dados:1';
 
-/** A última resposta fica no aparelho: a app abre logo, mesmo sem rede. */
+/**
+ * A última resposta fica no aparelho: a app abre logo, mesmo sem rede. Só se tiver a forma de
+ * agora: uma guardada antes de as casas terem sítio (5 nov) não traz `lat` nem `lng`, e o mapa
+ * rebentava a app inteira na primeira abertura (visto a 7 nov, no Chrome do Renato).
+ */
 function lerGuardados(): DadosDaApp | undefined {
   try {
     const texto = lerSincrono(CHAVE);
-    return texto ? (JSON.parse(texto) as DadosDaApp) : undefined;
+    if (!texto) return undefined;
+    const d = JSON.parse(texto) as Partial<DadosDaApp>;
+    const inteira =
+      !!d &&
+      typeof d.hoje === 'string' &&
+      Array.isArray(d.categorias) &&
+      Array.isArray(d.parceiros) &&
+      d.parceiros.every((p) => !!p && Array.isArray(p.promocoes)) &&
+      !!d.barbearia &&
+      Array.isArray(d.barbearia.lojas) &&
+      d.barbearia.lojas.every((l) => !!l && 'lat' in l && 'lng' in l);
+    if (!inteira) {
+      guardarNoArmazem(CHAVE, null);
+      return undefined;
+    }
+    return d as DadosDaApp;
   } catch {
     return undefined;
   }
