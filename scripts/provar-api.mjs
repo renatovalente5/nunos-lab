@@ -1954,6 +1954,29 @@ await passo(
     assert.equal(primeiro.status, 200);
     assert.equal(segundo.status, 200, 'a mesma chave com email devolve o mesmo cliente');
     assert.equal((await primeiro.json()).ficha.cliente.id, (await segundo.json()).ficha.cliente.id);
+    // A primeira sem email (a rede caiu depois de gravar) e a segunda com ele: o email junta-se,
+    // e quem entra na app com esse email encontra o cartão com o carimbo.
+    const semEmail = { nome: 'Rede Ma', carimbo: { chave: chaveNova(), lojaId: lojaDaProva } };
+    const antes = await (
+      await pedir('/api/balcao/clientes', {
+        method: 'POST',
+        token: tokenDono,
+        body: json(semEmail),
+      })
+    ).json();
+    const depois = await pedir('/api/balcao/clientes', {
+      method: 'POST',
+      token: tokenDono,
+      body: json({ ...semEmail, email: 'rede.ma.prova@gmail.com' }),
+    });
+    assert.equal(depois.status, 200);
+    const entrou = await (
+      await entrarTeste('google', 'rede-ma-1', 'rede.ma.prova@gmail.com', { nome: 'Rede Ma' })
+    ).json();
+    assert.equal(entrou.nova, false, 'a conta é a do balcão, e não uma nova a zeros');
+    const contaDele = (await euDe(entrou.sessao)).eu;
+    assert.equal(contaDele.codigo, antes.ficha.cliente.codigo);
+    assert.equal(contaDele.cartao.carimbos, 1);
     const casaMa = await pedir('/api/balcao/clientes', {
       method: 'POST',
       token: tokenDono,

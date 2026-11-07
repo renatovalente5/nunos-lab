@@ -667,15 +667,32 @@ rotasDaBalcao.post('/clientes', async (c) => {
     if (repetida) {
       const jaCriado = await db
         .prepare(
-          'SELECT id, codigo, nome, criado_em, aniversario, aniversario_desde FROM clientes WHERE id = ? AND apagado_em IS NULL',
+          'SELECT id, codigo, nome, email, criado_em, aniversario, aniversario_desde FROM clientes WHERE id = ? AND apagado_em IS NULL',
         )
         .bind(repetida.cliente_id)
-        .first<LinhaCliente>();
-      if (jaCriado)
+        .first<LinhaCliente & { email: string | null }>();
+      if (jaCriado) {
+        // O email escrito só na segunda vez (a primeira caiu na rede depois de gravar) junta-se
+        // a quem nasceu sem ele: a for partners diz «entra na app com esse email», e sem isto a
+        // conta nascia vazia e o carimbo ficava num cartão sem dono (achado da revisão de 7 nov).
+        if (email && !jaCriado.email) {
+          await recusarSeEmailTemCartao(c, email);
+          await db.batch([
+            db
+              .prepare('UPDATE clientes SET email = ? WHERE id = ? AND email IS NULL')
+              .bind(email, jaCriado.id),
+            db
+              .prepare(
+                "INSERT OR IGNORE INTO identidades (cliente_id, tipo, sujeito, email, dona) VALUES (?, 'email', ?, ?, 0)",
+              )
+              .bind(jaCriado.id, email, email),
+          ]);
+        }
         return c.json({
           ficha: await ficha(c, jaCriado),
           carimbo: await resultadoDe(c, repetida.id),
         });
+      }
     }
   }
   if (email && p.carimbo) {
