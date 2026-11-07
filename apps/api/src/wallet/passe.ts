@@ -23,7 +23,7 @@ import { zipar } from './zip.ts';
  * ao ver uma versão diferente da guardada, refaz os passes de todos e avisa
  * os telemóveis (servico.ts, refrescarSePreciso).
  */
-export const VERSAO_DO_PASSE = '2026-11-06b';
+export const VERSAO_DO_PASSE = '2026-11-07';
 
 export type CartaoDoPasse = {
   serie: string;
