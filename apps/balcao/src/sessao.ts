@@ -158,9 +158,31 @@ export const motivoCurto = (codigo: string) =>
 /** Com rede fraca o sistema só desiste ao fim de ~60 s; 8 s chegam para a API e deixam o balcão seguir. */
 const TEMPO_LIMITE = 8000;
 
+/**
+ * Os pedidos que mudam alguma coisa (carimbar, despejar a fila, um cliente novo) ainda sem
+ * resposta. Uma actualização da app não reinicia a meio deles: o carimbo só vai para a fila
+ * quando o pedido falha, e um reinício a meio perdia-o sem aviso.
+ */
+let escritasEmCurso = 0;
+export const haEscritaEmCurso = () => escritasEmCurso > 0;
+
 export async function pedir<T = void>(
   caminho: string,
   { metodo = 'GET', corpo }: { metodo?: 'GET' | 'POST' | 'DELETE'; corpo?: unknown } = {},
+): Promise<T> {
+  const escrita = metodo !== 'GET';
+  if (escrita) escritasEmCurso++;
+  try {
+    return await pedirAgora<T>(caminho, metodo, corpo);
+  } finally {
+    if (escrita) escritasEmCurso--;
+  }
+}
+
+async function pedirAgora<T>(
+  caminho: string,
+  metodo: 'GET' | 'POST' | 'DELETE',
+  corpo: unknown,
 ): Promise<T> {
   const cabecalhos: Record<string, string> = {};
   const t = sessao();
