@@ -249,6 +249,9 @@ rotasDaBalcao.post('/prenda', async (c) => {
     z.object({ codigo: z.string().min(1).max(20), lojaId: z.number().int().positive().nullish() }),
   );
   const cliente = await clientePorCodigo(c, codigo);
+  // A regra do carimbo vale para a prenda: ninguém da equipa a dá ao próprio cartão (o carimbo
+  // dava 403 e a prenda passava; achado da revisão de 7 nov).
+  await exigirCartaoDeOutro(c, cliente.id);
   const loja = lojaId ? await lojaDe(c, lojaId) : null;
   const f = await ficha(c, cliente);
   if (f.prendaEntregue) recusar(409, 'prenda_entregue');
