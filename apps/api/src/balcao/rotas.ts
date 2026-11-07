@@ -521,6 +521,15 @@ async function carimbar(
   }
   const novo = r[0]!.results[0] as { id: number; criado_em: number } | undefined;
   if (!novo) {
+    // A mesma chave enviada duas vezes ao mesmo tempo (dois despejos da fila, o prazo de 8 s
+    // esgotado com o pedido ainda a caminho): as duas passaram a procura da chave antes de a
+    // primeira gravar, e a segunda já não cabia no limite do dia. É o mesmo carimbo: devolve-se
+    // o que entrou, e não um «limite_do_dia» que a for partners mostrava em «Não entraram».
+    const mesma = await db
+      .prepare('SELECT id FROM carimbos WHERE chave = ? AND cliente_id = ?')
+      .bind(p.chave, cliente.id)
+      .first<{ id: number }>();
+    if (mesma) return resultadoDe(c, mesma.id);
     // O carimbo não entrou. Ou o cartão completou-se entretanto (outro carimbo ao mesmo
     // instante) e este pertence ao cartão seguinte — repete-se uma vez, do cartão actual —,
     // ou o limite do dia ficou feito entretanto.

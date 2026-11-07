@@ -469,13 +469,26 @@ const RECUSAS_DEFINITIVAS = [
 ];
 
 /**
+ * Um despejo de cada vez, venha de onde vier (o início, outro ecrã montado, a Conta ao sair):
+ * cada ecrã tinha o seu trinco, e dois despejos ao mesmo tempo mandavam o mesmo carimbo duas vezes.
+ */
+let despejoEmCurso: Promise<number> | null = null;
+export function despejarFila(pessoaId?: number): Promise<number> {
+  if (despejoEmCurso) return despejoEmCurso;
+  despejoEmCurso = despejarAgora(pessoaId).finally(() => {
+    despejoEmCurso = null;
+  });
+  return despejoEmCurso;
+}
+
+/**
  * Despeja a fila desta pessoa (os itens sem pessoa, da fila antiga, vão também):
  * um a um, pela ordem, com o que foi decidido ao tocar e o instante do toque.
  * Sai da fila com sucesso, ou com uma recusa definitiva (passa para «Não
  * entraram», com o motivo); outra falha (rede, sessão, limite, servidor) pára
  * o ciclo e fica guardada no item.
  */
-export async function despejarFila(pessoaId?: number): Promise<number> {
+async function despejarAgora(pessoaId?: number): Promise<number> {
   let feitos = 0;
   for (const p of lerFila()) {
     if (p.pessoaId !== undefined && p.pessoaId !== pessoaId) continue;
