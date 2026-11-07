@@ -2,7 +2,7 @@ import { enquadrar, projectar, semPartir, versaoDasCasas, type Loja } from '@nun
 import { CONTINUO, Grupo, LARGURA_MAXIMA, MARGEM, Separador, T, cor, raio } from '@nunos-lab/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, PixelRatio, Pressable, View, useWindowDimensions } from 'react-native';
-import { API, abrir, contar, useDados } from '../dados';
+import { API, abrir, contar, lerCasa, useDados } from '../dados';
 // O «n» já em preto: pintar o branco com tintColor não funciona na web.
 const simboloPreto = require('../../assets/marca/simbolo-preto.png');
 
@@ -12,12 +12,6 @@ const ARO = 1;
 const PONTA = 5;
 const ALTURA_DO_PINO = ICONE + 2 * ARO + PONTA;
 const LARGURA_DO_TOQUE = 150;
-/** O balão que abre por cima do pino tocado (o Renato escolheu o B). */
-const LARGURA_DO_BALAO = 212;
-const ALTURA_DO_BALAO = 118;
-const SETA = 8;
-const FOLGA = 8;
-const FUNDO_DO_BALAO = '#1C1C1C';
 
 /**
  * Um lado do mapa em degraus de 16 px, entre 112 e 640: a API guarda uma imagem
@@ -73,10 +67,12 @@ export function PrecarregarMapa() {
 /**
  * O mapa das casas: a imagem vem da API (os Mapas da Apple, pedidos pelo
  * servidor, sem os balões da Apple) e a app desenha por cima um pino por casa,
- * com o nome por baixo. Ao tocar num pino abre um balão, como nos Mapas da
- * Apple, com a morada e «Marcar» e «Ir»; tocar no mapa, ou outra vez no pino,
- * fecha-o. O enquadramento é o mesmo do servidor (packages/dominio, mapa.ts),
- * por isso os pinos caem no sítio certo. Se a imagem não vier (a Apple, a rede,
+ * com o nome por baixo. Ao tocar num pino, a casa aparece por baixo do mapa,
+ * com a morada, «Marcar» e «Ir»; tocar no mapa, ou outra vez no pino, tira-a.
+ * Abre já com a casa do cliente, se escolheu uma nas Vantagens. (Até 7 nov era
+ * um balão por cima do pino: tapava o mapa e cortava-se na borda de cima.)
+ * O enquadramento é o mesmo do servidor (packages/dominio, mapa.ts), por isso
+ * os pinos caem no sítio certo. Se a imagem não vier (a Apple, a rede,
  * o travão), não fica rectângulo nenhum: as casas aparecem em lista, com a morada,
  * «Marcar» e «Ir». Uma casa ainda sem coordenadas vai para a lista por baixo do mapa.
  */
@@ -114,7 +110,7 @@ export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja
     },
     [],
   );
-  const [aberta, setAberta] = useState<number | null>(null);
+  const [aberta, setAberta] = useState<number | null>(lerCasa);
   const { comSitio, w, h, e, uri } = aVista;
   if (!e || estado === 'falhou') return <ListaDasCasas lojas={lojas} aoIr={aoIr} />;
   const semSitio = lojas.filter((l) => l.lat === null || l.lng === null);
@@ -165,7 +161,7 @@ export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja
                 alignItems: 'center',
               }}
             >
-              {/* O pino com o balão aberto ganha um aro creme (o Renato escolheu o 5). */}
+              {/* O pino escolhido ganha um aro creme (o Renato escolheu o 5). */}
               {aberta === l.id && (
                 <View
                   style={{
@@ -240,30 +236,17 @@ export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja
               </View>
             </Pressable>
           ))}
-        {escolhida && (
-          <Balao
-            loja={escolhida.loja}
-            x={escolhida.x}
-            y={escolhida.y}
-            largura={w}
-            altura={h}
-            fechar={() => setAberta(null)}
-            aoIr={() => {
-              setAberta(null);
-              aoIr(escolhida.loja);
-            }}
-          />
-        )}
       </View>
+      {escolhida && <ListaDasCasas lojas={[escolhida.loja]} aoIr={aoIr} depoisDoMapa />}
       {semSitio.length > 0 && <ListaDasCasas lojas={semSitio} aoIr={aoIr} depoisDoMapa />}
     </>
   );
 }
 
 /**
- * As casas em lista, quando o mapa não as pode mostrar: sem ela, um mapa que não
- * veio deixava a Barbearia sem moradas nem «Marcar» (visto a 7 nov, com a Apple a
- * responder 403 no servidor local). As acções são as do balão.
+ * As casas em lista: a escolhida no mapa, por baixo dele, e todas quando o mapa não
+ * as pode mostrar (sem ela, um mapa que não veio deixava a Barbearia sem moradas nem
+ * «Marcar»: visto a 7 nov, com a Apple a responder 403 no servidor local).
  */
 function ListaDasCasas({
   lojas,
@@ -310,102 +293,6 @@ function ListaDasCasas({
         </View>
       ))}
     </Grupo>
-  );
-}
-
-/**
- * O balão: por cima do pino, com a seta a apontar-lhe; encostado às bordas do
- * mapa quando o pino está perto delas, e por baixo do nome quando não cabe em cima.
- */
-function Balao({
-  loja,
-  x,
-  y,
-  largura,
-  altura,
-  fechar,
-  aoIr,
-}: {
-  loja: Loja;
-  x: number;
-  y: number;
-  largura: number;
-  altura: number;
-  fechar: () => void;
-  aoIr: () => void;
-}) {
-  const esquerda = Math.min(
-    Math.max(FOLGA, x - LARGURA_DO_BALAO / 2),
-    largura - FOLGA - LARGURA_DO_BALAO,
-  );
-  // A seta fica sobre o pino, mas nunca a sair do balão.
-  const seta = Math.min(Math.max(20, x - esquerda), LARGURA_DO_BALAO - 20);
-  const cabeEmCima = y - ALTURA_DO_PINO - SETA - ALTURA_DO_BALAO >= FOLGA;
-  const triangulo = (paraBaixo: boolean) => (
-    <View
-      style={{
-        marginLeft: seta - SETA,
-        width: 0,
-        height: 0,
-        borderLeftWidth: SETA,
-        borderRightWidth: SETA,
-        borderLeftColor: 'transparent',
-        borderRightColor: 'transparent',
-        ...(paraBaixo
-          ? { marginTop: -1, borderTopWidth: SETA, borderTopColor: FUNDO_DO_BALAO }
-          : { marginBottom: -1, borderBottomWidth: SETA, borderBottomColor: FUNDO_DO_BALAO }),
-      }}
-    />
-  );
-  return (
-    <View
-      role="dialog"
-      aria-label={loja.nome}
-      style={{
-        position: 'absolute',
-        left: esquerda,
-        // Em cima: o fundo do balão (com a seta) encosta ao topo do pino. Em baixo: debaixo do nome.
-        ...(cabeEmCima ? { bottom: altura - (y - ALTURA_DO_PINO - 4) } : { top: y + 30 }),
-      }}
-    >
-      {!cabeEmCima && triangulo(false)}
-      <View
-        style={{
-          width: LARGURA_DO_BALAO,
-          padding: 14,
-          gap: 4,
-          borderRadius: 16,
-          backgroundColor: FUNDO_DO_BALAO,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
-          ...CONTINUO,
-        }}
-      >
-        <T v="forte" numberOfLines={1}>
-          {loja.nome}
-        </T>
-        {!!loja.morada && (
-          <T v="legenda" numberOfLines={2} style={{ color: cor.texto2 }}>
-            {semPartir(loja.morada)}
-          </T>
-        )}
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-          {!!loja.marcar && (
-            <Pilula
-              nome="Marcar"
-              rotulo={`Marcar em ${loja.nome}`}
-              principal
-              onPress={() => {
-                contar('marcar', loja.id);
-                fechar();
-                abrir(loja.marcar);
-              }}
-            />
-          )}
-          {!!loja.morada && <Pilula nome="Ir" rotulo={`Ir a ${loja.nome}`} onPress={aoIr} />}
-        </View>
-      </View>
-      {cabeEmCima && triangulo(true)}
-    </View>
   );
 }
 
