@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
+import { textos } from './textos';
 
 export const API = (import.meta.env.VITE_API as string).replace(/\/$/, '');
 const CHAVE = 'nunoslab:backoffice:sessao';
@@ -25,49 +26,25 @@ export function guardarSessao(testemunho: string | null) {
   window.dispatchEvent(new Event('nunoslab:sessao'));
 }
 
-const MENSAGENS: Record<string, string> = {
-  sessao: 'A sessão acabou. Entra outra vez.',
-  ligacao_invalida: 'Esta ligação já foi usada ou já caducou. Entra com o Google.',
-  google_invalido: 'O Google não confirmou a entrada. Tenta outra vez.',
-  sem_acesso: 'Esta conta Google não tem acesso ao backoffice.',
-  muitas_tentativas: 'Demasiadas tentativas. Espera um minuto.',
-  invalido: 'Há campos por corrigir.',
-  json: 'O pedido chegou partido. Tenta outra vez.',
-  referencia: 'Uma das escolhas já não existe. Recarrega a página.',
-  datas: 'A data de fim tem de ser no mesmo dia ou depois do início.',
-  imagem_grande: 'A imagem é grande demais.',
-  tipo_de_imagem: 'Esse formato não serve. Usa JPG, PNG ou WebP.',
-  imagem_invalida: 'Esse ficheiro não é uma imagem.',
-  imagem_por_abrir: 'Este browser não abre essa imagem. Usa JPG ou PNG.',
-  imagem_vazia: 'Esse ficheiro está vazio.',
-  medidas: 'Não consegui ler as medidas da imagem.',
-  a_si_proprio: 'Não podes tirar o teu próprio acesso.',
-  nao_existe: 'Isto já não existe. Recarrega a página.',
-  casa_com_historia:
-    'Essa casa tem carimbos, clientes, equipa ou parceiros: não se tira. Se fechou, muda-lhe o nome.',
-  ja_anulado: 'Esse carimbo já estava anulado.',
-  recompensa_usada: 'Esse carimbo deu um prémio já entregue: não se anula.',
-  cartao_seguinte: 'O cartão seguinte já tem carimbos: esse não se anula.',
-  email_ja_tem_cartao: 'Esse email já tem cartão noutro cliente.',
-  nada_a_mudar: 'Não havia nada para gravar.',
-  repetido: 'Isso já existe.',
-  ultimo_admin: 'É o último admin: não se tira.',
-  grande: 'O pedido é demasiado grande.',
-  rede: 'Sem ligação à internet. Tenta outra vez.',
-  interno: 'Algo correu mal do nosso lado. Tenta outra vez.',
-};
+/** O texto de um código de recusa, na língua de agora (os códigos estão em textos/geral.ts). */
+function textoDoCodigo(codigo: string): string {
+  const erros = textos().geral.erros;
+  const texto = Object.prototype.hasOwnProperty.call(erros, codigo) ? erros[codigo] : undefined;
+  return typeof texto === 'string' ? texto : erros.interno;
+}
 
 export class ErroDaApi extends Error {
   constructor(
     public codigo: string,
     public campos: string[] = [],
   ) {
-    super(MENSAGENS[codigo] ?? MENSAGENS.interno);
+    super(textoDoCodigo(codigo));
   }
 }
 
+/** A mensagem de um erro na língua de agora (mudar de língua muda também o erro à vista). */
 export function mensagemDe(e: unknown): string {
-  return e instanceof ErroDaApi ? e.message : (MENSAGENS.interno as string);
+  return textoDoCodigo(e instanceof ErroDaApi ? e.codigo : 'interno');
 }
 
 type Opcoes = {

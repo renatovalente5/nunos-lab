@@ -1,12 +1,13 @@
 import {
   LIMITES,
   LIMITES_DOS_VALES,
-  NOME_DO_ESTADO,
-  NOME_DO_PERIODO,
   PERIODOS_DO_LIMITE,
   SUGESTOES_DE_DESTAQUE,
   diaEmLisboa,
   limiteEmTexto,
+  naLingua,
+  nomeDoEstado,
+  nomeDoPeriodo,
   normalizarDestaque,
   periodoEmTexto,
   somarDias,
@@ -24,8 +25,10 @@ import {
   Esqueleto,
   Etiqueta,
   Folha,
+  GrupoEmIngles,
   Icone,
   Interruptor,
+  porRever,
   PrevisaoDaPromocao,
   Segmentado,
   Seletor,
@@ -34,7 +37,9 @@ import {
   useConfirmar,
   Vazio,
 } from '../pecas';
-import { parametro, plural } from '../util';
+import { useLingua } from '../lingua';
+import { useTextos } from '../textos';
+import { numero, parametro } from '../util';
 
 /**
  * O conteúdo de uma linha de promoção: o texto grande, o título e, por baixo,
@@ -51,7 +56,9 @@ export function ConteudoDaPromocao({
   hoje: string;
   comParceiro?: boolean;
 }) {
-  const limite = p.validar ? limiteEmTexto(p) : null;
+  const t = useTextos();
+  const lingua = useLingua();
+  const limite = p.validar ? limiteEmTexto(p, lingua) : null;
   return (
     <>
       <span className="promocao-grande">{p.destaque}</span>
@@ -59,7 +66,7 @@ export function ConteudoDaPromocao({
         <div className="titulo-linha">{p.titulo}</div>
         <div className="detalhe">
           {comParceiro ? `${p.parceiro} · ` : ''}
-          {periodoEmTexto(p, hoje)}
+          {periodoEmTexto(p, hoje, lingua)}
         </div>
         {(p.emDestaque ||
           p.validar ||
@@ -70,28 +77,26 @@ export function ConteudoDaPromocao({
           p.estado === 'terminada' ||
           (p.activa && p.parceiroPausado)) && (
           <div className="etiquetas">
-            {p.emDestaque && <Etiqueta semPonto>Em destaque</Etiqueta>}
-            {p.validar && <Etiqueta semPonto>{limite ? `Valida · ${limite}` : 'Valida'}</Etiqueta>}
+            {p.emDestaque && <Etiqueta semPonto>{t.promocoes.emDestaque}</Etiqueta>}
+            {p.validar && <Etiqueta semPonto>{t.promocoes.valida(limite)}</Etiqueta>}
             {p.validacoes > 0 && (
-              <Etiqueta semPonto>{plural(p.validacoes, 'validação', 'validações')}</Etiqueta>
+              <Etiqueta semPonto>{t.promocoes.validacoes(p.validacoes)}</Etiqueta>
             )}
-            {p.surpresa && (
-              <Etiqueta semPonto>Surpresa · {plural(p.surpresaDias, 'dia', 'dias')}</Etiqueta>
-            )}
-            {p.cupoes > 0 && <Etiqueta semPonto>{plural(p.cupoes, 'cupão', 'cupões')}</Etiqueta>}
+            {p.surpresa && <Etiqueta semPonto>{t.promocoes.surpresa(p.surpresaDias)}</Etiqueta>}
+            {p.cupoes > 0 && <Etiqueta semPonto>{t.promocoes.cupoes(p.cupoes)}</Etiqueta>}
             {p.surpresa &&
               p.surpresaRestantes !== null &&
               (p.surpresaRestantes === 0 ? (
                 <Etiqueta tom="fraco" semPonto>
-                  Esgotado
+                  {t.promocoes.esgotado}
                 </Etiqueta>
               ) : (
-                <Etiqueta semPonto>Faltam {p.surpresaRestantes.toLocaleString('pt-PT')}</Etiqueta>
+                <Etiqueta semPonto>{t.promocoes.faltam(p.surpresaRestantes)}</Etiqueta>
               ))}
             {(p.estado === 'agendada' || p.estado === 'terminada') && (
               <EtiquetaDoEstado estado={p.estado} />
             )}
-            {p.activa && p.parceiroPausado && <Etiqueta>Parceiro pausado</Etiqueta>}
+            {p.activa && p.parceiroPausado && <Etiqueta>{t.promocoes.parceiroPausado}</Etiqueta>}
           </div>
         )}
       </div>
@@ -100,13 +105,15 @@ export function ConteudoDaPromocao({
 }
 
 export function EtiquetaDoEstado({ estado }: { estado: EstadoDaPromocao }) {
+  const lingua = useLingua();
   const tom = estado === 'activa' ? 'bom' : estado === 'agendada' ? 'atencao' : undefined;
-  return <Etiqueta tom={tom}>{NOME_DO_ESTADO[estado]}</Etiqueta>;
+  return <Etiqueta tom={tom}>{nomeDoEstado(estado, lingua)}</Etiqueta>;
 }
 
 type Filtro = 'todas' | EstadoDaPromocao;
 
 export function Promocoes() {
+  const t = useTextos();
   const promocoes = useQuery({
     queryKey: ['promocoes'],
     queryFn: () => pedir<Promocao[]>('/api/bo/promocoes'),
@@ -164,21 +171,19 @@ export function Promocoes() {
       },
       campo === 'activa'
         ? p.activa
-          ? 'Promoção pausada'
-          : 'Promoção ligada'
+          ? t.promocoes.promocaoPausada
+          : t.promocoes.promocaoLigada
         : p.emDestaque
-          ? 'Saiu do destaque'
-          : 'Em destaque',
+          ? t.promocoes.saiuDoDestaque
+          : t.promocoes.emDestaque,
     );
 
   return (
     <>
       <div className="cabecalho">
         <div>
-          <h1>Promoções</h1>
-          <p className="subtitulo">
-            {promocoes.data ? `${plural(conta('activa'), 'promoção', 'promoções')} na app` : ' '}
-          </p>
+          <h1>{t.geral.seccoes.promocoes}</h1>
+          <p className="subtitulo">{promocoes.data ? t.promocoes.naApp(conta('activa')) : ' '}</p>
         </div>
         <button
           type="button"
@@ -186,21 +191,21 @@ export function Promocoes() {
           disabled={!parceiros.data?.length}
           onClick={() => setEditor({ promocao: null })}
         >
-          <Icone nome="mais" tamanho={18} /> Nova promoção
+          <Icone nome="mais" tamanho={18} /> {t.promocoes.nova}
         </button>
       </div>
 
       <div className="filtros">
         <Segmentado<Filtro>
-          rotulo="Estado"
+          rotulo={t.promocoes.estado}
           valor={filtro}
           mudar={setFiltro}
           opcoes={[
-            { valor: 'todas', nome: 'Todas' },
-            { valor: 'activa', nome: `Na app · ${conta('activa')}` },
-            { valor: 'agendada', nome: `Agendadas · ${conta('agendada')}` },
-            { valor: 'pausada', nome: `Pausadas · ${conta('pausada')}` },
-            { valor: 'terminada', nome: `Terminaram · ${conta('terminada')}` },
+            { valor: 'todas', nome: t.promocoes.filtros.todas },
+            ...(['activa', 'agendada', 'pausada', 'terminada'] as const).map((e) => ({
+              valor: e,
+              nome: `${t.promocoes.filtros[e]} · ${numero(conta(e))}`,
+            })),
           ]}
         />
       </div>
@@ -208,11 +213,11 @@ export function Promocoes() {
         <select
           className="entrada"
           style={{ maxWidth: 280 }}
-          aria-label="Parceiro"
+          aria-label={t.promocoes.parceiro}
           value={doParceiro ?? ''}
           onChange={(e) => setDoParceiro(Number(e.target.value) || null)}
         >
-          <option value="">Todos os parceiros</option>
+          <option value="">{t.promocoes.todosOsParceiros}</option>
           {(parceiros.data ?? []).map((p) => (
             <option key={p.id} value={p.id}>
               {p.nome}
@@ -222,8 +227,8 @@ export function Promocoes() {
         <input
           className="entrada procura"
           type="search"
-          placeholder="Procurar"
-          aria-label="Procurar promoções"
+          placeholder={t.promocoes.procurar}
+          aria-label={t.promocoes.procurarPromocoes}
           value={procura}
           onChange={(e) => setProcura(e.target.value)}
         />
@@ -233,7 +238,7 @@ export function Promocoes() {
         <Esqueleto />
       ) : lista.length === 0 ? (
         <div className="cartao">
-          <Vazio titulo={promocoes.data.length ? 'Nenhuma promoção aqui' : 'Ainda sem promoções'} />
+          <Vazio titulo={promocoes.data.length ? t.promocoes.nenhumaAqui : t.promocoes.aindaSem} />
         </div>
       ) : (
         <div className="cartao">
@@ -254,9 +259,11 @@ export function Promocoes() {
                     className="botao secundario icone so-largo"
                     aria-pressed={p.emDestaque}
                     aria-label={
-                      p.emDestaque ? `Tirar ${p.titulo} do destaque` : `Pôr ${p.titulo} em destaque`
+                      p.emDestaque
+                        ? t.promocoes.tirarDoDestaque(p.titulo)
+                        : t.promocoes.porEmDestaqueDe(p.titulo)
                     }
-                    title={p.emDestaque ? 'Em destaque' : 'Pôr em destaque'}
+                    title={p.emDestaque ? t.promocoes.emDestaque : t.promocoes.porEmDestaque}
                     style={
                       p.emDestaque
                         ? {
@@ -302,6 +309,10 @@ type FormularioDaPromocao = {
   destaque: string;
   titulo: string;
   detalhe: string;
+  /** Em inglês: vazio, a app em inglês mostra o português. */
+  destaqueEn: string;
+  tituloEn: string;
+  detalheEn: string;
   inicio: string;
   fim: string;
   emDestaque: boolean;
@@ -356,6 +367,8 @@ export function EditorDePromocao({
   fechar: () => void;
 }) {
   const hoje = diaEmLisboa();
+  const t = useTextos();
+  const lingua = useLingua();
   const [inicial] = useState<FormularioDaPromocao>(() =>
     promocao
       ? {
@@ -363,6 +376,9 @@ export function EditorDePromocao({
           destaque: promocao.destaque,
           titulo: promocao.titulo,
           detalhe: promocao.detalhe,
+          destaqueEn: promocao.destaqueEn ?? '',
+          tituloEn: promocao.tituloEn ?? '',
+          detalheEn: promocao.detalheEn ?? '',
           inicio: promocao.inicio ?? '',
           fim: promocao.fim ?? '',
           emDestaque: promocao.emDestaque,
@@ -384,6 +400,9 @@ export function EditorDePromocao({
           destaque: '',
           titulo: '',
           detalhe: '',
+          destaqueEn: '',
+          tituloEn: '',
+          detalheEn: '',
           inicio: '',
           fim: '',
           emDestaque: false,
@@ -442,14 +461,7 @@ export function EditorDePromocao({
   // Já validou ou já saiu como cupão: o que se apaga ou se muda de parceiro leva isso junto.
   const comHistorico = !!promocao && (promocao.validacoes > 0 || promocao.cupoes > 0);
   const vaoJunto =
-    promocao && comHistorico
-      ? `${promocao.validacoes + promocao.cupoes === 1 ? 'Sai' : 'Saem'} também ${[
-          promocao.validacoes > 0 && plural(promocao.validacoes, 'validação', 'validações'),
-          promocao.cupoes > 0 && `${plural(promocao.cupoes, 'cupão', 'cupões')} por usar`,
-        ]
-          .filter(Boolean)
-          .join(' e ')}.`
-      : '';
+    promocao && comHistorico ? t.promocoes.vaoJunto(promocao.validacoes, promocao.cupoes) : '';
   const fimDoMes = (() => {
     const [a, m] = hoje.split('-').map(Number) as [number, number];
     return new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10);
@@ -471,14 +483,14 @@ export function EditorDePromocao({
       setErros(faltam);
       avisar(
         faltam.includes('fim')
-          ? 'O fim tem de ser no dia do início ou depois.'
+          ? t.promocoes.fimAntesDoInicio
           : faltam.includes('limitePorCliente') || faltam.includes('limiteTotal')
-            ? 'Os limites: de 1 a 100 por cliente, de 1 a 100 000 no total.'
+            ? t.promocoes.limitesErrados
             : faltam.includes('surpresaDias') ||
                 faltam.includes('surpresaPeso') ||
                 faltam.includes('surpresaRestantes')
-              ? 'O saco: de 1 a 365 dias, peso de 1 a 100, até 100 000 a sair.'
-              : 'Faltam campos obrigatórios.',
+              ? t.promocoes.sacoErrado
+              : t.promocoes.faltamCampos,
         true,
       );
       return;
@@ -486,6 +498,7 @@ export function EditorDePromocao({
     const corpo = {
       ...f,
       destaque: normalizarDestaque(f.destaque),
+      destaqueEn: normalizarDestaque(f.destaqueEn),
       inicio: f.inicio || null,
       fim: f.fim || null,
       limitePorCliente: f.validar ? limitePorCliente : null,
@@ -505,7 +518,9 @@ export function EditorDePromocao({
         await pedir(`/api/bo/promocoes/${promocao.id}`, { metodo: 'PATCH', corpo });
       else await pedir('/api/bo/promocoes', { metodo: 'POST', corpo });
       await refrescar();
-      avisar(comoNova ? 'Cópia criada' : promocao ? 'Guardado' : 'Promoção criada');
+      avisar(
+        comoNova ? t.promocoes.copiaCriada : promocao ? t.promocoes.guardado : t.promocoes.criada,
+      );
       fechar();
     } catch (e) {
       if (e instanceof ErroDaApi && e.campos.length) setErros(e.campos);
@@ -519,7 +534,7 @@ export function EditorDePromocao({
         aberta
         fechar={fechar}
         sujo={sujo}
-        titulo={promocao ? 'Promoção' : 'Nova promoção'}
+        titulo={promocao ? t.promocoes.promocao : t.promocoes.nova}
         pe={
           <>
             <button
@@ -528,7 +543,7 @@ export function EditorDePromocao({
               disabled={aCorrer}
               onClick={() => correr(() => guardar())}
             >
-              {promocao ? 'Guardar' : 'Criar'}
+              {promocao ? t.promocoes.guardar : t.promocoes.criar}
             </button>
             {promocao && (
               <button
@@ -537,13 +552,11 @@ export function EditorDePromocao({
                 disabled={aCorrer}
                 onClick={() => correr(() => guardar(true))}
               >
-                Guardar como nova
+                {t.promocoes.guardarComoNova}
               </button>
             )}
             {promocao && promocao.validacoes > 0 && (
-              <span className="estado">
-                {plural(promocao.validacoes, 'validação', 'validações')}
-              </span>
+              <span className="estado">{t.promocoes.validacoes(promocao.validacoes)}</span>
             )}
             {promocao && (
               <button
@@ -553,19 +566,19 @@ export function EditorDePromocao({
                 onClick={async () => {
                   if (
                     await confirmar(
-                      'Apagar a promoção?',
-                      `Sai da app e do backoffice.${vaoJunto ? ` ${vaoJunto}` : ''} Para a tirar só por uns tempos, desliga-a.`,
-                      'Apagar',
+                      t.promocoes.apagarPergunta,
+                      t.promocoes.apagarTexto(vaoJunto),
+                      t.promocoes.apagar,
                     )
                   )
                     await correr(async () => {
                       await pedir(`/api/bo/promocoes/${promocao.id}`, { metodo: 'DELETE' });
                       await refrescar();
                       fechar();
-                    }, 'Promoção apagada');
+                    }, t.promocoes.apagada);
                 }}
               >
-                Apagar
+                {t.promocoes.apagar}
               </button>
             )}
           </>
@@ -574,30 +587,26 @@ export function EditorDePromocao({
         <div className="formulario">
           {!parceiroFixo && (
             <Seletor<number>
-              rotulo="Parceiro"
+              rotulo={t.promocoes.parceiro}
               valor={f.parceiroId}
               mudar={mudar('parceiroId')}
-              vazio="Escolhe o parceiro"
+              vazio={t.promocoes.escolheOParceiro}
               erro={erros.includes('parceiroId')}
               opcoes={(parceiros ?? []).map((p) => ({ valor: p.id, nome: p.nome }))}
-              ajuda={
-                comHistorico
-                  ? 'As validações e os cupões vão com ela para o parceiro novo.'
-                  : undefined
-              }
+              ajuda={comHistorico ? t.promocoes.vaoComEla : undefined}
             />
           )}
           <div className="campo">
             <Campo
-              rotulo="Em grande"
+              rotulo={t.promocoes.emGrande}
               valor={f.destaque}
               mudar={mudar('destaque')}
               max={LIMITES.destaque}
               obrigatorio
               erro={erros.includes('destaque')}
-              placeholder="ex.: −10%"
+              placeholder={t.promocoes.emGrandeExemplo}
             />
-            <div className="sugestoes" aria-label="Sugestões">
+            <div className="sugestoes" aria-label={t.promocoes.sugestoes}>
               {SUGESTOES_DE_DESTAQUE.map((s) => (
                 <button key={s} type="button" onClick={() => mudar('destaque')(s)}>
                   {s}
@@ -606,83 +615,111 @@ export function EditorDePromocao({
             </div>
           </div>
           <Campo
-            rotulo="Em quê"
+            rotulo={t.promocoes.emQue}
             valor={f.titulo}
             mudar={mudar('titulo')}
             max={LIMITES.titulo}
             obrigatorio
             erro={erros.includes('titulo')}
-            placeholder="ex.: Na refeição"
+            placeholder={t.promocoes.emQueExemplo}
           />
           <AreaDeTexto
-            rotulo="Condições"
+            rotulo={t.promocoes.condicoes}
             valor={f.detalhe}
             mudar={mudar('detalhe')}
             max={LIMITES.detalhe}
             erro={erros.includes('detalhe')}
-            ajuda="Curtas: quando, onde, quantas vezes."
+            ajuda={t.promocoes.condicoesAjuda}
           />
+          <GrupoEmIngles>
+            <Campo
+              rotulo={t.promocoes.emGrande}
+              valor={f.destaqueEn}
+              mudar={mudar('destaqueEn')}
+              max={LIMITES.destaque}
+              erro={erros.includes('destaqueEn')}
+              placeholder={t.promocoes.emGrandeExemploEn}
+              ajuda={porRever(inicial.destaque, f.destaque, inicial.destaqueEn, f.destaqueEn)}
+            />
+            <Campo
+              rotulo={t.promocoes.emQue}
+              valor={f.tituloEn}
+              mudar={mudar('tituloEn')}
+              max={LIMITES.titulo}
+              erro={erros.includes('tituloEn')}
+              placeholder={t.promocoes.emQueExemploEn}
+              ajuda={porRever(inicial.titulo, f.titulo, inicial.tituloEn, f.tituloEn)}
+            />
+            <AreaDeTexto
+              rotulo={t.promocoes.condicoes}
+              valor={f.detalheEn}
+              mudar={mudar('detalheEn')}
+              max={LIMITES.detalhe}
+              erro={erros.includes('detalheEn')}
+              ajuda={porRever(inicial.detalhe, f.detalhe, inicial.detalheEn, f.detalheEn)}
+            />
+          </GrupoEmIngles>
           <div className="duas-colunas">
             <Campo
-              rotulo="Começa"
+              rotulo={t.promocoes.comeca}
               tipo="date"
               valor={f.inicio}
               mudar={mudar('inicio')}
               erro={erros.includes('inicio')}
-              ajuda="Vazio: já."
+              ajuda={t.promocoes.comecaAjuda}
             />
             <Campo
-              rotulo="Acaba"
+              rotulo={t.promocoes.acaba}
               tipo="date"
               valor={f.fim}
               mudar={mudar('fim')}
               erro={erros.includes('fim')}
-              ajuda="Vazio: não acaba."
+              ajuda={t.promocoes.acabaAjuda}
             />
           </div>
-          <div className="sugestoes" aria-label="Atalhos para o fim">
+          <div className="sugestoes" aria-label={t.promocoes.atalhos.rotulo}>
             <button type="button" onClick={() => mudar('fim')(somarDias(hoje, 6))}>
-              Uma semana
+              {t.promocoes.atalhos.umaSemana}
             </button>
             <button type="button" onClick={() => mudar('fim')(somarDias(hoje, 29))}>
-              30 dias
+              {t.promocoes.atalhos.trintaDias}
             </button>
             <button type="button" onClick={() => mudar('fim')(fimDoMes)}>
-              Fim do mês
+              {t.promocoes.atalhos.fimDoMes}
             </button>
             <button type="button" onClick={() => mudar('fim')('')}>
-              Sem fim
+              {t.promocoes.atalhos.semFim}
             </button>
           </div>
           <div className="cartao recheado formulario" style={{ boxShadow: 'none' }}>
             <Interruptor
               ligado={f.activa}
               mudar={mudar('activa')}
-              rotulo="Ligada"
-              ajuda="Desligada, não aparece na app."
+              rotulo={t.promocoes.ligada}
+              ajuda={t.promocoes.ligadaAjuda}
             />
             <Interruptor
               ligado={f.emDestaque}
               mudar={mudar('emDestaque')}
-              rotulo="Em destaque"
-              ajuda="Aparece no cartão grande, no topo da app."
+              rotulo={t.promocoes.emDestaque}
+              ajuda={t.promocoes.emDestaqueAjuda}
             />
           </div>
           <div className="cartao recheado formulario" style={{ boxShadow: 'none' }}>
             <div className="campo">
-              <span className="rotulo-campo">Na app for partners do parceiro</span>
+              <span className="rotulo-campo">{t.promocoes.naAppDoParceiro}</span>
               <Interruptor
                 ligado={f.validar}
                 mudar={ligarValidacao}
-                rotulo="O parceiro valida ao ler o cartão"
-                ajuda="Desligado, basta mostrar a app."
+                rotulo={t.promocoes.validar}
+                ajuda={t.promocoes.validarAjuda}
               />
             </div>
             {f.validar && (
               <>
                 <div className="duas-colunas">
                   <Campo
-                    rotulo="Por cliente"
+                    rotulo={t.promocoes.porCliente}
                     tipo="number"
                     valor={f.limitePorCliente}
                     mudar={mudar('limitePorCliente')}
@@ -690,18 +727,21 @@ export function EditorDePromocao({
                     maximo={LIMITES_DOS_VALES.porCliente.max}
                     modoDeTeclado="numeric"
                     erro={erros.includes('limitePorCliente')}
-                    ajuda="Vazio: sem limite."
+                    ajuda={t.promocoes.semLimite}
                   />
                   <Seletor<PeriodoDoLimite>
-                    rotulo="Período"
+                    rotulo={t.promocoes.periodo}
                     valor={f.periodoDoLimite}
                     mudar={(v) => mudar('periodoDoLimite')(v ?? 'dia')}
-                    opcoes={PERIODOS_DO_LIMITE.map((p) => ({ valor: p, nome: NOME_DO_PERIODO[p] }))}
+                    opcoes={PERIODOS_DO_LIMITE.map((p) => ({
+                      valor: p,
+                      nome: nomeDoPeriodo(p, lingua),
+                    }))}
                   />
                 </div>
                 <div className="duas-colunas">
                   <Campo
-                    rotulo="No total"
+                    rotulo={t.promocoes.noTotal}
                     tipo="number"
                     valor={f.limiteTotal}
                     mudar={mudar('limiteTotal')}
@@ -709,33 +749,33 @@ export function EditorDePromocao({
                     maximo={LIMITES_DOS_VALES.total.max}
                     modoDeTeclado="numeric"
                     erro={erros.includes('limiteTotal')}
-                    ajuda="Vazio: sem limite."
+                    ajuda={t.promocoes.semLimite}
                   />
                 </div>
                 <Interruptor
                   ligado={f.soClientesActivos}
                   mudar={mudar('soClientesActivos')}
-                  rotulo="Só clientes activos"
-                  ajuda="Corte no último ano."
+                  rotulo={t.promocoes.soActivos}
+                  ajuda={t.promocoes.soActivosAjuda}
                 />
               </>
             )}
           </div>
           <div className="cartao recheado formulario" style={{ boxShadow: 'none' }}>
             <div className="campo">
-              <span className="rotulo-campo">No saco das surpresas</span>
+              <span className="rotulo-campo">{t.promocoes.noSaco}</span>
               <Interruptor
                 ligado={f.surpresa}
                 mudar={ligarSurpresa}
-                rotulo="Sai como cupão ao carimbar"
-                ajuda="Não aparece na lista; sai sorteada a quem corta o cabelo."
+                rotulo={t.promocoes.saiComoCupao}
+                ajuda={t.promocoes.saiComoCupaoAjuda}
               />
             </div>
             {f.surpresa && (
               <>
                 <div className="duas-colunas">
                   <Campo
-                    rotulo="Vale durante"
+                    rotulo={t.promocoes.valeDurante}
                     tipo="number"
                     valor={f.surpresaDias}
                     mudar={mudar('surpresaDias')}
@@ -743,10 +783,10 @@ export function EditorDePromocao({
                     maximo={LIMITES_DO_SACO.dias.max}
                     modoDeTeclado="numeric"
                     erro={erros.includes('surpresaDias')}
-                    ajuda="dias"
+                    ajuda={t.promocoes.dias}
                   />
                   <Campo
-                    rotulo="Peso no sorteio"
+                    rotulo={t.promocoes.peso}
                     tipo="number"
                     valor={f.surpresaPeso}
                     mudar={mudar('surpresaPeso')}
@@ -754,12 +794,12 @@ export function EditorDePromocao({
                     maximo={LIMITES_DO_SACO.peso.max}
                     modoDeTeclado="numeric"
                     erro={erros.includes('surpresaPeso')}
-                    ajuda="Mais peso, sai mais vezes."
+                    ajuda={t.promocoes.pesoAjuda}
                   />
                 </div>
                 <div className="duas-colunas">
                   <Campo
-                    rotulo="Quantos podem sair"
+                    rotulo={t.promocoes.quantos}
                     tipo="number"
                     valor={f.surpresaRestantes}
                     mudar={mudar('surpresaRestantes')}
@@ -767,7 +807,7 @@ export function EditorDePromocao({
                     maximo={LIMITES_DO_SACO.restantes.max}
                     modoDeTeclado="numeric"
                     erro={erros.includes('surpresaRestantes')}
-                    ajuda="Vazio: sem limite."
+                    ajuda={t.promocoes.semLimite}
                   />
                 </div>
               </>
@@ -775,9 +815,9 @@ export function EditorDePromocao({
           </div>
           <PrevisaoDaPromocao
             parceiro={parceiro}
-            destaque={normalizarDestaque(f.destaque)}
-            titulo={f.titulo}
-            detalhe={f.detalhe}
+            destaque={normalizarDestaque(naLingua(lingua, f.destaque, f.destaqueEn))}
+            titulo={naLingua(lingua, f.titulo, f.tituloEn)}
+            detalhe={naLingua(lingua, f.detalhe, f.detalheEn)}
             inicio={f.inicio || null}
             fim={f.fim || null}
             hoje={hoje}
@@ -785,10 +825,13 @@ export function EditorDePromocao({
             surpresa={f.surpresa}
             limite={
               f.validar
-                ? limiteEmTexto({
-                    limitePorCliente: Number.isNaN(limitePorCliente) ? null : limitePorCliente,
-                    periodoDoLimite: f.periodoDoLimite,
-                  })
+                ? limiteEmTexto(
+                    {
+                      limitePorCliente: Number.isNaN(limitePorCliente) ? null : limitePorCliente,
+                      periodoDoLimite: f.periodoDoLimite,
+                    },
+                    lingua,
+                  )
                 : null
             }
           />

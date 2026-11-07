@@ -61,14 +61,19 @@ export function motivoDaVantagem(
   return 'ok';
 }
 
-/** «1 por dia», «2 por semana», «3 no total», ou nada. */
-const NOME_DO_PERIODO_EN: Record<PeriodoDoLimite, string> = {
+export const NOME_DO_PERIODO_EN: Record<PeriodoDoLimite, string> = {
   dia: 'per day',
   semana: 'per week',
   mes: 'per month',
   sempre: 'in total',
 };
 
+/** «por dia», «per day». */
+export function nomeDoPeriodo(periodo: PeriodoDoLimite, lingua: Lingua = 'pt'): string {
+  return (lingua === 'en' ? NOME_DO_PERIODO_EN : NOME_DO_PERIODO)[periodo];
+}
+
+/** «1 por dia», «2 por semana», «3 no total», ou nada. */
 export function limiteEmTexto(
   regras: Pick<RegrasDaVantagem, 'limitePorCliente' | 'periodoDoLimite'>,
   lingua: Lingua = 'pt',

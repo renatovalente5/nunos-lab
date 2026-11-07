@@ -10,14 +10,16 @@ import {
   Esqueleto,
   Folha,
   Icone,
+  porRever,
   useAccao,
   useAvisar,
   useConfirmar,
   Vazio,
 } from '../pecas';
-import { plural } from '../util';
+import { useTextos } from '../textos';
 
 export function Categorias() {
+  const t = useTextos();
   const { data } = useQuery({
     queryKey: ['categorias'],
     queryFn: () => pedir<CategoriaComContagem[]>('/api/bo/categorias'),
@@ -25,8 +27,12 @@ export function Categorias() {
   const [editar, setEditar] = useState<{
     id: number | null;
     nome: string;
+    /** O nome em inglês (vazio: a app em inglês mostra o português). */
+    nomeEn: string;
     icone: IconeDaCategoria;
     parceiros: number;
+    /** O que estava gravado: o inglês fica por rever quando o português muda. */
+    antes: { nome: string; nomeEn: string };
   } | null>(null);
   const { correr, aCorrer } = useAccao();
   const avisar = useAvisar();
@@ -49,22 +55,31 @@ export function Categorias() {
     <>
       <div className="cabecalho">
         <div>
-          <h1>Categorias</h1>
-          <p className="subtitulo">Os filtros por cima dos parceiros, na app, por esta ordem.</p>
+          <h1>{t.geral.seccoes.categorias}</h1>
+          <p className="subtitulo">{t.categorias.subtitulo}</p>
         </div>
         <button
           type="button"
           className="botao"
-          onClick={() => setEditar({ id: null, nome: '', icone: 'outro', parceiros: 0 })}
+          onClick={() =>
+            setEditar({
+              id: null,
+              nome: '',
+              nomeEn: '',
+              icone: 'outro',
+              parceiros: 0,
+              antes: { nome: '', nomeEn: '' },
+            })
+          }
         >
-          <Icone nome="mais" tamanho={18} /> Nova categoria
+          <Icone nome="mais" tamanho={18} /> {t.categorias.nova}
         </button>
       </div>
       {!data ? (
         <Esqueleto />
       ) : !data.length ? (
         <div className="cartao">
-          <Vazio titulo="Ainda sem categorias" />
+          <Vazio titulo={t.categorias.vazio} />
         </div>
       ) : (
         <div className="cartao">
@@ -79,9 +94,16 @@ export function Categorias() {
                 <button
                   type="button"
                   className="linha"
-                  aria-label={`Editar ${k.nome}`}
+                  aria-label={t.categorias.editarDe(k.nome)}
                   onClick={() =>
-                    setEditar({ id: k.id, nome: k.nome, icone: k.icone, parceiros: k.parceiros })
+                    setEditar({
+                      id: k.id,
+                      nome: k.nome,
+                      nomeEn: k.nomeEn ?? '',
+                      icone: k.icone,
+                      parceiros: k.parceiros,
+                      antes: { nome: k.nome, nomeEn: k.nomeEn ?? '' },
+                    })
                   }
                 >
                   <span className="icone-categoria">
@@ -89,10 +111,10 @@ export function Categorias() {
                   </span>
                   <div className="meio">
                     <div className="titulo-linha">{k.nome}</div>
-                    <div className="detalhe">{plural(k.parceiros, 'parceiro', 'parceiros')}</div>
+                    <div className="detalhe">{t.categorias.parceiros(k.parceiros)}</div>
                   </div>
                   <span className="botao secundario pequeno so-largo" aria-hidden="true">
-                    Editar
+                    {t.categorias.editar}
                   </span>
                 </button>
               </>
@@ -104,7 +126,7 @@ export function Categorias() {
       <Folha
         aberta={!!editar}
         fechar={() => setEditar(null)}
-        titulo={editar?.id ? 'Editar a categoria' : 'Nova categoria'}
+        titulo={editar?.id ? t.categorias.editarACategoria : t.categorias.nova}
         pe={
           <>
             <button
@@ -114,16 +136,16 @@ export function Categorias() {
               onClick={() =>
                 editar &&
                 correr(async () => {
-                  const corpo = { nome: editar.nome, icone: editar.icone };
+                  const corpo = { nome: editar.nome, nomeEn: editar.nomeEn, icone: editar.icone };
                   if (editar.id)
                     await pedir(`/api/bo/categorias/${editar.id}`, { metodo: 'PATCH', corpo });
                   else await pedir('/api/bo/categorias', { metodo: 'POST', corpo });
                   await refrescar();
                   setEditar(null);
-                }, 'Guardado')
+                }, t.categorias.guardado)
               }
             >
-              Guardar
+              {t.categorias.guardar}
             </button>
             {editar?.id && (
               <button
@@ -135,21 +157,21 @@ export function Categorias() {
                   const { id, nome, parceiros } = editar;
                   if (
                     await confirmar(
-                      `Apagar «${nome}»?`,
+                      t.categorias.apagarPergunta(nome),
                       parceiros
-                        ? `${plural(parceiros, 'parceiro fica', 'parceiros ficam')} sem categoria (continuam na app).`
-                        : 'Nenhum parceiro a usa.',
-                      'Apagar',
+                        ? t.categorias.ficamSemCategoria(parceiros)
+                        : t.categorias.nenhumParceiro,
+                      t.categorias.apagar,
                     )
                   )
                     await correr(async () => {
                       await pedir(`/api/bo/categorias/${id}`, { metodo: 'DELETE' });
                       await refrescar();
                       setEditar(null);
-                    }, 'Categoria apagada');
+                    }, t.categorias.apagada);
                 }}
               >
-                Apagar
+                {t.categorias.apagar}
               </button>
             )}
           </>
@@ -158,12 +180,22 @@ export function Categorias() {
         {editar && (
           <div className="formulario">
             <Campo
-              rotulo="Nome"
+              rotulo={t.categorias.nome}
               valor={editar.nome}
               mudar={(nome) => setEditar({ ...editar, nome })}
               max={LIMITES.categoria}
               obrigatorio
               autoFocus
+            />
+            <Campo
+              rotulo={t.geral.emIngles.nome}
+              valor={editar.nomeEn}
+              mudar={(nomeEn) => setEditar({ ...editar, nomeEn })}
+              max={LIMITES.categoria}
+              ajuda={
+                porRever(editar.antes.nome, editar.nome, editar.antes.nomeEn, editar.nomeEn) ??
+                t.geral.emIngles.ajuda
+              }
             />
             <EscolhaDoDesenho
               valor={editar.icone}

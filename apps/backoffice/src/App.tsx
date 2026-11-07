@@ -1,4 +1,4 @@
-import type { Eu } from '@nunos-lab/dominio';
+import { ETIQUETA_DA_LINGUA, NOME_DA_LINGUA, type Eu, type Lingua } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { ErroDaApi, guardarSessao, mensagemDe, pedir, sessao } from './api';
@@ -17,23 +17,45 @@ import { Promocoes } from './paginas/Promocoes';
 import { Historico } from './paginas/Historico';
 import { Resumo } from './paginas/Resumo';
 import { Icone, type NomeDoIcone } from './pecas';
+import { escolherLingua, useLingua } from './lingua';
+import { useTextos, type Textos } from './textos';
 import { useRota } from './util';
 
 const PALAVRA = `${import.meta.env.BASE_URL}palavra.png`;
 
-const SECCOES: { caminho: string; nome: string; icone: NomeDoIcone }[] = [
-  { caminho: '', nome: 'Resumo', icone: 'resumo' },
-  { caminho: 'metricas', nome: 'Métricas', icone: 'metricas' },
-  { caminho: 'clientes', nome: 'Clientes', icone: 'clientes' },
-  { caminho: 'equipa', nome: 'Equipa', icone: 'equipa' },
-  { caminho: 'fidelidade', nome: 'Fidelidade', icone: 'fidelidade' },
-  { caminho: 'parceiros', nome: 'Parceiros', icone: 'parceiros' },
-  { caminho: 'promocoes', nome: 'Promoções', icone: 'promocoes' },
-  { caminho: 'categorias', nome: 'Categorias', icone: 'categorias' },
-  { caminho: 'barbearia', nome: 'Barbearia', icone: 'barbearia' },
-  { caminho: 'acessos', nome: 'Acessos', icone: 'acessos' },
-  { caminho: 'historico', nome: 'Histórico', icone: 'registo' },
+const SECCOES: {
+  caminho: string;
+  nome: keyof Textos['geral']['seccoes'];
+  icone: NomeDoIcone;
+}[] = [
+  { caminho: '', nome: 'resumo', icone: 'resumo' },
+  { caminho: 'metricas', nome: 'metricas', icone: 'metricas' },
+  { caminho: 'clientes', nome: 'clientes', icone: 'clientes' },
+  { caminho: 'equipa', nome: 'equipa', icone: 'equipa' },
+  { caminho: 'fidelidade', nome: 'fidelidade', icone: 'fidelidade' },
+  { caminho: 'parceiros', nome: 'parceiros', icone: 'parceiros' },
+  { caminho: 'promocoes', nome: 'promocoes', icone: 'promocoes' },
+  { caminho: 'categorias', nome: 'categorias', icone: 'categorias' },
+  { caminho: 'barbearia', nome: 'barbearia', icone: 'barbearia' },
+  { caminho: 'acessos', nome: 'acessos', icone: 'acessos' },
+  { caminho: 'historico', nome: 'historico', icone: 'registo' },
 ];
+
+/** A língua: um botão com a outra, dita na própria língua («English», «Português»). Um toque muda. */
+function BotaoDaLingua({ className }: { className: string }) {
+  const lingua = useLingua();
+  const outra: Lingua = lingua === 'pt' ? 'en' : 'pt';
+  return (
+    <button
+      type="button"
+      className={className}
+      lang={ETIQUETA_DA_LINGUA[outra]}
+      onClick={() => escolherLingua(outra)}
+    >
+      <Icone nome="lingua" tamanho={16} /> {NOME_DA_LINGUA[outra]}
+    </button>
+  );
+}
 
 /** A ligação de acesso traz o código no fragmento: «…/backoffice/#acesso=XXXX». */
 function codigoNaMorada(): string | null {
@@ -44,7 +66,7 @@ export function App() {
   const [temSessao, setTemSessao] = useState(() => !!sessao());
   const [entrada, setEntrada] = useState<{
     estado: 'parado' | 'a-entrar' | 'erro';
-    mensagem?: string;
+    erro?: unknown;
   }>({ estado: 'parado' });
   const tentados = useRef(new Set<string>());
 
@@ -72,7 +94,7 @@ export function App() {
           setEntrada({ estado: 'parado' });
           window.dispatchEvent(new HashChangeEvent('hashchange'));
         })
-        .catch((e) => setEntrada({ estado: 'erro', mensagem: mensagemDe(e) }));
+        .catch((e) => setEntrada({ estado: 'erro', erro: e }));
     };
     tentar();
     window.addEventListener('hashchange', tentar);
@@ -80,12 +102,14 @@ export function App() {
   }, []);
 
   if (!temSessao || entrada.estado === 'a-entrar')
-    return <Entrar estado={entrada.estado} mensagem={entrada.mensagem} />;
+    return <Entrar estado={entrada.estado} erroDaLigacao={entrada.erro} />;
   return <Casca />;
 }
 
-function Entrar({ estado, mensagem }: { estado: string; mensagem?: string }) {
-  const [erro, setErro] = useState<string | null>(null);
+function Entrar({ estado, erroDaLigacao }: { estado: string; erroDaLigacao?: unknown }) {
+  const t = useTextos();
+  // O erro guarda-se como erro (e o email com que se tentou): a mensagem diz-se na língua de agora.
+  const [erro, setErro] = useState<{ e: unknown; email: string | null } | null>(null);
   const [aEntrar, setAEntrar] = useState(false);
   const entrarComGoogle = async (credencial: string) => {
     setAEntrar(true);
@@ -97,12 +121,7 @@ function Entrar({ estado, mensagem }: { estado: string; mensagem?: string }) {
       });
       guardarSessao(r.sessao);
     } catch (e) {
-      const email = emailDoToken(credencial);
-      setErro(
-        e instanceof ErroDaApi && e.codigo === 'sem_acesso' && email
-          ? `${email} não tem acesso ao backoffice. Entra com a conta que te deu acesso, ou pede ao Renato para a juntar.`
-          : mensagemDe(e),
-      );
+      setErro({ e, email: emailDoToken(credencial) });
     } finally {
       setAEntrar(false);
     }
@@ -111,30 +130,36 @@ function Entrar({ estado, mensagem }: { estado: string; mensagem?: string }) {
     <main className="entrada-pagina">
       <div className="caixa">
         <img className="palavra" src={PALAVRA} alt="Nuno's Lab" />
-        <div className="sobre-palavra">Backoffice</div>
+        <div className="sobre-palavra">{t.geral.backoffice}</div>
         {estado === 'a-entrar' || aEntrar ? (
-          <h1>A entrar…</h1>
+          <h1>{t.geral.entrar.aEntrar}</h1>
         ) : (
           <>
-            <h1>Entrar</h1>
+            <h1>{t.geral.entrar.titulo}</h1>
             {CLIENTE_GOOGLE ? (
               <BotaoDoGoogle aoEntrar={entrarComGoogle} />
             ) : (
-              <p>Abre a ligação de acesso que te mandaram.</p>
+              <p>{t.geral.entrar.abreALigacao}</p>
             )}
           </>
         )}
         {(erro || estado === 'erro') && (
           <div className="caixa-aviso mau" role="alert">
-            {erro ?? mensagem}
+            {erro
+              ? erro.e instanceof ErroDaApi && erro.e.codigo === 'sem_acesso' && erro.email
+                ? t.geral.entrar.semAcesso(erro.email)
+                : mensagemDe(erro.e)
+              : mensagemDe(erroDaLigacao)}
           </div>
         )}
+        <BotaoDaLingua className="botao-lingua" />
       </div>
     </main>
   );
 }
 
 function Casca() {
+  const t = useTextos();
   const rota = useRota();
   const eu = useQuery({ queryKey: ['eu'], queryFn: () => pedir<Eu>('/api/bo/eu') });
   const principal = useRef<HTMLElement>(null);
@@ -142,9 +167,12 @@ function Casca() {
   useEffect(() => {
     principal.current?.scrollTo?.(0, 0);
     window.scrollTo(0, 0);
-    const s = SECCOES.find((x) => x.caminho === actual);
-    document.title = `${s?.nome ?? 'Backoffice'} · Nuno's Lab`;
   }, [actual, rota[1]]);
+  // O título da página também muda com a língua (sem voltar ao topo).
+  useEffect(() => {
+    const s = SECCOES.find((x) => x.caminho === actual);
+    document.title = `${s ? t.geral.seccoes[s.nome] : t.geral.backoffice} · Nuno's Lab`;
+  }, [actual, t]);
   if (eu.error instanceof ErroDaApi && eu.error.codigo === 'sessao') return null;
 
   // Sair: no rodapé da barra lateral e, no telemóvel, no fim do menu.
@@ -176,8 +204,8 @@ function Casca() {
     <div className="casca">
       <aside className="lateral">
         <img className="palavra" src={PALAVRA} alt="Nuno's Lab" />
-        <div className="sobre-palavra">Backoffice</div>
-        <nav className="navegacao" aria-label="Secções">
+        <div className="sobre-palavra">{t.geral.backoffice}</div>
+        <nav className="navegacao" aria-label={t.geral.seccoesRotulo}>
           {SECCOES.map((s) => (
             <a
               key={s.caminho}
@@ -185,21 +213,23 @@ function Casca() {
               aria-current={actual === s.caminho ? 'page' : undefined}
             >
               <Icone nome={s.icone} />
-              {s.nome}
+              {t.geral.seccoes[s.nome]}
             </a>
           ))}
+          <BotaoDaLingua className="sair sair-movel" />
           <button type="button" className="sair sair-movel" onClick={sair}>
-            <Icone nome="sair" tamanho={16} /> Sair
+            <Icone nome="sair" tamanho={16} /> {t.geral.sair}
           </button>
         </nav>
         <div className="rodape-lateral">
           {eu.data && (
             <>
-              Entraste como <strong>{eu.data.nome}</strong>
+              {t.geral.entrasteComo} <strong>{eu.data.nome}</strong>
             </>
           )}
+          <BotaoDaLingua className="sair" />
           <button type="button" className="sair" onClick={sair}>
-            <Icone nome="sair" tamanho={16} /> Sair
+            <Icone nome="sair" tamanho={16} /> {t.geral.sair}
           </button>
         </div>
       </aside>

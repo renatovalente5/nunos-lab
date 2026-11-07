@@ -72,7 +72,9 @@ rotasPublicas.get('/app', async (c) => {
     (defs!.results as { chave: string; valor: string }[]).map((d) => [d.chave, d.valor]),
   );
   const avisoAte = def.get('aviso_ate') ?? '';
-  const textoDoAviso = naLingua(lingua, def.get('aviso') ?? '', def.get('aviso_en')).trim() || null;
+  // O inglês só com o aviso em português (tirar o aviso tira-o para toda a gente).
+  const avisoPt = def.get('aviso') ?? '';
+  const textoDoAviso = naLingua(lingua, avisoPt, avisoPt ? def.get('aviso_en') : '').trim() || null;
   const aviso = textoDoAviso && (!avisoAte || hoje <= avisoAte) ? textoDoAviso : null;
 
   const dados: DadosDaApp = {

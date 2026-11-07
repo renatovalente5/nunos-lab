@@ -1,5 +1,8 @@
 import { dataCurta } from '@nunos-lab/dominio';
 import { useEffect, useRef, useState } from 'react';
+import { useLingua } from './lingua';
+import { useTextos } from './textos';
+import { numero } from './util';
 
 /** Um teto «redondo» para o eixo: 1, 2, 5, 10, 20, 50… */
 function tetoRedondo(n: number): number {
@@ -29,6 +32,8 @@ export function Grafico({
   nome: string;
   rotulos?: 'pontas' | 'semanal';
 }) {
+  const t = useTextos();
+  const lingua = useLingua();
   const caixa = useRef<HTMLDivElement>(null);
   const [largura, setLargura] = useState(640);
   const [activo, setActivo] = useState<number | null>(null);
@@ -71,7 +76,7 @@ export function Grafico({
         height={altura}
         viewBox={`0 0 ${largura} ${altura}`}
         role="img"
-        aria-label={`${nome} por dia: ${total} no total. Usa as setas para ver cada dia.`}
+        aria-label={t.geral.grafico.porDia(nome, numero(total))}
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'ArrowRight') setActivo((a) => Math.min(dados.length - 1, (a ?? -1) + 1));
@@ -92,7 +97,7 @@ export function Grafico({
               y2={Math.round(y(m)) + 0.5}
             />
             <text className="marca-eixo" x={margem.esquerda - 8} y={y(m) + 4} textAnchor="end">
-              {m.toLocaleString('pt-PT')}
+              {numero(m)}
             </text>
           </g>
         ))}
@@ -134,7 +139,7 @@ export function Grafico({
               y={altura - 6}
               textAnchor={i === 0 ? 'start' : i === dados.length - 1 ? 'end' : 'middle'}
             >
-              {dataCurta(dados[i].dia, hoje)}
+              {dataCurta(dados[i].dia, hoje, lingua)}
             </text>
           ) : null,
         )}
@@ -145,24 +150,24 @@ export function Grafico({
           style={{ left: margem.esquerda + activo * fatia + fatia / 2, top: y(sel.n) }}
           role="status"
         >
-          <strong>{sel.n.toLocaleString('pt-PT')}</strong>
-          {sel.dia === hoje ? 'hoje' : dataCurta(sel.dia, hoje)}
+          <strong>{numero(sel.n)}</strong>
+          {sel.dia === hoje ? t.geral.grafico.hoje : dataCurta(sel.dia, hoje, lingua)}
         </div>
       )}
       <details className="tabela">
-        <summary>Ver em tabela</summary>
+        <summary>{t.geral.grafico.verEmTabela}</summary>
         <table>
           <thead>
             <tr>
-              <th scope="col">Dia</th>
+              <th scope="col">{t.geral.grafico.dia}</th>
               <th scope="col">{nome}</th>
             </tr>
           </thead>
           <tbody>
             {dados.map((d) => (
               <tr key={d.dia}>
-                <td>{dataCurta(d.dia, hoje)}</td>
-                <td>{d.n.toLocaleString('pt-PT')}</td>
+                <td>{dataCurta(d.dia, hoje, lingua)}</td>
+                <td>{numero(d.n)}</td>
               </tr>
             ))}
           </tbody>

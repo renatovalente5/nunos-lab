@@ -1,4 +1,5 @@
 import type { IconeDaCategoria } from './limites.ts';
+import type { Lingua } from './lingua.ts';
 
 /**
  * Os desenhos das categorias: linha, 24×24, traço redondo. Os mesmos na app
@@ -77,3 +78,26 @@ export const NOMES_DOS_DESENHOS: Record<IconeDaCategoria, string> = {
   lazer: 'Estrela',
   outro: 'Pontos',
 };
+
+export const NOMES_DOS_DESENHOS_EN: Record<IconeDaCategoria, string> = {
+  comer: 'Knife and fork',
+  cafe: 'Cup',
+  bebidas: 'Glass',
+  carro: 'Car',
+  oficina: 'Spanner',
+  treino: 'Dumbbell',
+  beleza: 'Sparkle',
+  saude: 'Heart',
+  roupa: 'Jumper',
+  compras: 'Bag',
+  casa: 'House',
+  animais: 'Paw',
+  tecnologia: 'Mobile phone',
+  educacao: 'Book',
+  lazer: 'Star',
+  outro: 'Dots',
+};
+
+export function nomeDoDesenho(icone: IconeDaCategoria, lingua: Lingua = 'pt'): string {
+  return (lingua === 'en' ? NOMES_DOS_DESENHOS_EN : NOMES_DOS_DESENHOS)[icone];
+}

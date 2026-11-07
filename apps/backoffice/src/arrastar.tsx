@@ -7,6 +7,7 @@ import {
   type PointerEvent,
   type ReactNode,
 } from 'react';
+import { textos } from './textos';
 
 /**
  * Uma lista que se ordena a arrastar, com o rato ou com o dedo (Pointer
@@ -162,7 +163,7 @@ export function ListaArrastavel<T>({
       const [movido] = nova.splice(a.inicio, 1);
       nova.splice(a.alvo, 0, movido!);
       entregar(nova);
-      setAnuncio(`${deFora.current.nome(movido!)}: posição ${a.alvo + 1} de ${nova.length}`);
+      setAnuncio(textos().geral.posicao(deFora.current.nome(movido!), a.alvo + 1, nova.length));
     },
     [entregar],
   );
@@ -223,7 +224,7 @@ export function ListaArrastavel<T>({
     const nova = [...ordem];
     [nova[i], nova[j]] = [nova[j]!, nova[i]!];
     entregar(nova);
-    setAnuncio(`${nome(item)}: posição ${j + 1} de ${nova.length}`);
+    setAnuncio(textos().geral.posicao(nome(item), j + 1, nova.length));
   };
 
   const ItemDaLista = Etiqueta === 'div' ? 'div' : 'li';
@@ -236,7 +237,7 @@ export function ListaArrastavel<T>({
             <button
               type="button"
               className="pega"
-              aria-label={`Ordem de ${nome(item)}: arrasta, ou usa as setas`}
+              aria-label={textos().geral.ordemDe(nome(item))}
               onPointerDown={(e) => comecar(e, item)}
               onPointerMove={mover}
               onPointerUp={() => largar()}

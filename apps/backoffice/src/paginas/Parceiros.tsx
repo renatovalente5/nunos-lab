@@ -1,4 +1,4 @@
-import type { CategoriaComContagem, Parceiro } from '@nunos-lab/dominio';
+import { naLingua, type CategoriaComContagem, type Parceiro } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { mensagemDe, pedir, refrescar } from '../api';
@@ -14,11 +14,14 @@ import {
   useConfirmar,
   Vazio,
 } from '../pecas';
-import { plural } from '../util';
+import { useLingua } from '../lingua';
+import { useTextos } from '../textos';
 
 type Filtro = 'todos' | 'app' | 'sem' | 'pausados' | 'exemplos';
 
 export function Parceiros() {
+  const t = useTextos();
+  const lingua = useLingua();
   const parceiros = useQuery({
     queryKey: ['parceiros'],
     queryFn: () => pedir<Parceiro[]>('/api/bo/parceiros'),
@@ -45,7 +48,11 @@ export function Parceiros() {
     });
   }, [parceiros.data, filtro, procura]);
 
-  const nomeDaCategoria = (id: number | null) => categorias.data?.find((k) => k.id === id)?.nome;
+  // O nome da categoria na língua do backoffice (em inglês, o inglês, se o houver).
+  const nomeDaCategoria = (id: number | null) => {
+    const k = categorias.data?.find((x) => x.id === id);
+    return k && naLingua(lingua, k.nome, k.nomeEn);
+  };
   const naApp = (parceiros.data ?? []).filter((p) => p.activo && p.promocoesNaApp > 0).length;
   const exemplos = (parceiros.data ?? []).filter((p) => p.exemplo).length;
   // A ordem é a da lista inteira: só se arrasta com tudo à vista (sem filtro nem procura).
@@ -76,18 +83,18 @@ export function Parceiros() {
       <div className="lado">
         {p.exemplo && (
           <span className="so-largo">
-            <Etiqueta semPonto>Exemplo</Etiqueta>
+            <Etiqueta semPonto>{t.parceiros.exemplo}</Etiqueta>
           </span>
         )}
         {!p.activo ? (
-          <Etiqueta>Pausado</Etiqueta>
+          <Etiqueta>{t.parceiros.pausado}</Etiqueta>
         ) : p.promocoesNaApp > 0 ? (
           <Etiqueta tom="bom">
-            {plural(p.promocoesNaApp, 'promoção', 'promoções')}
-            <span className="so-largo">na app</span>
+            {t.parceiros.promocoes(p.promocoesNaApp)}
+            <span className="so-largo">{t.parceiros.naApp}</span>
           </Etiqueta>
         ) : (
-          <Etiqueta tom="mau">Sem promoções</Etiqueta>
+          <Etiqueta tom="mau">{t.parceiros.semPromocoes}</Etiqueta>
         )}
       </div>
     </a>
@@ -97,15 +104,11 @@ export function Parceiros() {
     <>
       <div className="cabecalho">
         <div>
-          <h1>Parceiros</h1>
-          <p className="subtitulo">
-            {parceiros.data
-              ? `${plural(naApp, 'parceiro', 'parceiros')} na app, por esta ordem`
-              : ' '}
-          </p>
+          <h1>{t.geral.seccoes.parceiros}</h1>
+          <p className="subtitulo">{parceiros.data ? t.parceiros.naAppPorEstaOrdem(naApp) : ' '}</p>
         </div>
         <a className="botao" href="#/parceiros/novo">
-          <Icone nome="mais" tamanho={18} /> Novo parceiro
+          <Icone nome="mais" tamanho={18} /> {t.parceiros.novoParceiro}
         </a>
       </div>
 
@@ -119,50 +122,49 @@ export function Parceiros() {
             flexWrap: 'wrap',
           }}
         >
-          <span>
-            {plural(exemplos, 'parceiro é de exemplo', 'parceiros são de exemplo')}, inventados para
-            a demonstração.
-          </span>
+          <span>{t.parceiros.exemplos(exemplos)}</span>
           <button
             type="button"
             className="botao perigo pequeno"
             onClick={async () => {
               if (
                 await confirmar(
-                  'Apagar os exemplos?',
-                  'Os parceiros de exemplo e as promoções deles saem da app. Não se desfaz.',
-                  'Apagar os exemplos',
+                  t.parceiros.apagarOsExemplos.pergunta,
+                  t.parceiros.apagarOsExemplos.texto,
+                  t.parceiros.apagarOsExemplos.accao,
                 )
               )
                 await correr(async () => {
                   await pedir('/api/bo/exemplos/apagar', { metodo: 'POST' });
                   await refrescar();
-                }, 'Exemplos apagados');
+                }, t.parceiros.apagarOsExemplos.feito);
             }}
           >
-            Apagar os exemplos
+            {t.parceiros.apagarOsExemplos.accao}
           </button>
         </div>
       )}
 
       <div className="filtros">
         <Segmentado<Filtro>
-          rotulo="Mostrar"
+          rotulo={t.parceiros.mostrar}
           valor={filtro}
           mudar={setFiltro}
           opcoes={[
-            { valor: 'todos', nome: 'Todos' },
-            { valor: 'app', nome: 'Na app' },
-            { valor: 'sem', nome: 'Sem promoções' },
-            { valor: 'pausados', nome: 'Pausados' },
-            ...(exemplos ? [{ valor: 'exemplos' as const, nome: 'Exemplos' }] : []),
+            { valor: 'todos', nome: t.parceiros.filtros.todos },
+            { valor: 'app', nome: t.parceiros.filtros.app },
+            { valor: 'sem', nome: t.parceiros.filtros.sem },
+            { valor: 'pausados', nome: t.parceiros.filtros.pausados },
+            ...(exemplos
+              ? [{ valor: 'exemplos' as const, nome: t.parceiros.filtros.exemplos }]
+              : []),
           ]}
         />
         <input
           className="entrada procura"
           type="search"
-          placeholder="Procurar"
-          aria-label="Procurar parceiros"
+          placeholder={t.parceiros.procurar}
+          aria-label={t.parceiros.procurarParceiros}
           value={procura}
           onChange={(e) => setProcura(e.target.value)}
         />
@@ -172,11 +174,11 @@ export function Parceiros() {
         <Esqueleto />
       ) : lista.length === 0 ? (
         <div className="cartao">
-          <Vazio titulo={parceiros.data.length ? 'Nenhum parceiro aqui' : 'Ainda sem parceiros'}>
+          <Vazio titulo={parceiros.data.length ? t.parceiros.nenhumAqui : t.parceiros.semParceiros}>
             {!parceiros.data.length && (
               <p>
                 <a className="botao" href="#/parceiros/novo">
-                  Juntar o primeiro
+                  {t.parceiros.juntarOPrimeiro}
                 </a>
               </p>
             )}

@@ -1,4 +1,7 @@
+import { ETIQUETA_DA_LINGUA } from '@nunos-lab/dominio';
 import { useEffect, useRef, useState } from 'react';
+import { useLingua } from './lingua';
+import { useTextos } from './textos';
 
 /**
  * O botão oficial «Fazer login com o Google» (Google Identity Services). O
@@ -59,6 +62,8 @@ export function emailDoToken(credencial: string): string | null {
 }
 
 export function BotaoDoGoogle({ aoEntrar }: { aoEntrar: (credencial: string) => void }) {
+  const t = useTextos();
+  const lingua = useLingua();
   const caixa = useRef<HTMLDivElement>(null);
   const [falhou, setFalhou] = useState(false);
   const ultimo = useRef(aoEntrar);
@@ -68,6 +73,8 @@ export function BotaoDoGoogle({ aoEntrar }: { aoEntrar: (credencial: string) => 
     carregarGoogle()
       .then((google) => {
         if (!vivo || !caixa.current) return;
+        // Ao mudar de língua, o botão desenha-se outra vez, no lugar do antigo.
+        caixa.current.replaceChildren();
         google.accounts.id.initialize({
           client_id: CLIENTE_GOOGLE,
           callback: (r) => ultimo.current(r.credential),
@@ -82,7 +89,7 @@ export function BotaoDoGoogle({ aoEntrar }: { aoEntrar: (credencial: string) => 
           shape: 'pill',
           text: 'signin_with',
           logo_alignment: 'left',
-          locale: 'pt-PT',
+          locale: ETIQUETA_DA_LINGUA[lingua],
           width: 300,
         });
       })
@@ -90,11 +97,11 @@ export function BotaoDoGoogle({ aoEntrar }: { aoEntrar: (credencial: string) => 
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [lingua]);
   if (falhou)
     return (
       <div className="caixa-aviso mau" role="alert">
-        Não deu para abrir o Google. Recarrega a página.
+        {t.geral.entrar.googleNaoAbriu}
       </div>
     );
   return <div ref={caixa} className="botao-google" style={{ minHeight: 44 }} />;

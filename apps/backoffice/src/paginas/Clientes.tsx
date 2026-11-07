@@ -3,7 +3,8 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { API, ErroDaApi, guardarSessao, pedir, refrescar, sessao } from '../api';
 import { Esqueleto, Etiqueta, Icone, Segmentado, useAccao, useConfirmar, Vazio } from '../pecas';
-import { haQuanto, ir, plural } from '../util';
+import { useTextos } from '../textos';
+import { haQuanto, ir, numero } from '../util';
 
 type Estado = 'todos' | 'novos' | 'activos' | 'em-risco' | 'perdidos' | 'sem-app';
 
@@ -32,14 +33,15 @@ export function Formas({ formas }: { formas: TipoDeEntrada[] }) {
 
 /** Quem tem cartão: a lista, com procura e filtros; cada linha abre a ficha. */
 export function Clientes() {
+  const t = useTextos();
   const [estado, setEstado] = useState<Estado>('todos');
   const [lojaId, setLojaId] = useState<number | null>(null);
   const [procura, setProcura] = useState('');
   const [q, setQ] = useState('');
   // A procura só vai à API quando se pára de escrever.
   useEffect(() => {
-    const t = setTimeout(() => setQ(procura.trim()), 250);
-    return () => clearTimeout(t);
+    const espera = setTimeout(() => setQ(procura.trim()), 250);
+    return () => clearTimeout(espera);
   }, [procura]);
 
   const parametros = new URLSearchParams({ estado });
@@ -87,11 +89,11 @@ export function Clientes() {
     <>
       <div className="cabecalho">
         <div>
-          <h1>Clientes</h1>
-          <p className="subtitulo">Quem tem cartão.</p>
+          <h1>{t.geral.seccoes.clientes}</h1>
+          <p className="subtitulo">{t.clientes.subtitulo}</p>
         </div>
         <button type="button" className="botao secundario" disabled={aCorrer} onClick={exportar}>
-          <Icone nome="descarregar" tamanho={18} /> Exportar CSV
+          <Icone nome="descarregar" tamanho={18} /> {t.clientes.exportarCsv}
         </button>
       </div>
 
@@ -105,19 +107,16 @@ export function Clientes() {
             flexWrap: 'wrap',
           }}
         >
-          <span>
-            {plural(exemplos, 'cliente é de exemplo', 'clientes são de exemplo')}, inventados para a
-            demonstração.
-          </span>
+          <span>{t.clientes.exemplos(exemplos)}</span>
           <button
             type="button"
             className="botao perigo pequeno"
             onClick={async () => {
               if (
                 await confirmar(
-                  'Apagar os exemplos?',
-                  'Os clientes de exemplo saem com os cartões e os carimbos deles. Não se desfaz.',
-                  'Apagar os exemplos',
+                  t.clientes.apagarOsExemplos.pergunta,
+                  t.clientes.apagarOsExemplos.texto,
+                  t.clientes.apagarOsExemplos.accao,
                 )
               )
                 await correr(async () => {
@@ -125,26 +124,26 @@ export function Clientes() {
                     metodo: 'DELETE',
                   });
                   await refrescar();
-                }, 'Exemplos apagados');
+                }, t.clientes.apagarOsExemplos.feito);
             }}
           >
-            Apagar os exemplos
+            {t.clientes.apagarOsExemplos.accao}
           </button>
         </div>
       )}
 
       <div className="filtros">
         <Segmentado<Estado>
-          rotulo="Estado"
+          rotulo={t.clientes.estado}
           valor={estado}
           mudar={setEstado}
           opcoes={[
-            { valor: 'todos', nome: 'Todos' },
-            { valor: 'novos', nome: 'Novos' },
-            { valor: 'activos', nome: 'Activos' },
-            { valor: 'em-risco', nome: 'Em risco' },
-            { valor: 'perdidos', nome: 'Perdidos' },
-            { valor: 'sem-app', nome: 'Sem app' },
+            { valor: 'todos', nome: t.clientes.estados.todos },
+            { valor: 'novos', nome: t.clientes.estados.novos },
+            { valor: 'activos', nome: t.clientes.estados.activos },
+            { valor: 'em-risco', nome: t.clientes.estados.emRisco },
+            { valor: 'perdidos', nome: t.clientes.estados.perdidos },
+            { valor: 'sem-app', nome: t.clientes.estados.semApp },
           ]}
         />
       </div>
@@ -153,11 +152,11 @@ export function Clientes() {
           <select
             className="entrada"
             style={{ maxWidth: 280 }}
-            aria-label="Casa"
+            aria-label={t.clientes.casa}
             value={lojaId ?? ''}
             onChange={(e) => setLojaId(Number(e.target.value) || null)}
           >
-            <option value="">Todas as casas</option>
+            <option value="">{t.clientes.todasAsCasas}</option>
             {(barbearia.data?.lojas ?? []).map((l) => (
               <option key={l.id} value={l.id}>
                 {l.nome}
@@ -168,8 +167,8 @@ export function Clientes() {
         <input
           className="entrada procura"
           type="search"
-          placeholder="Nome, email ou código"
-          aria-label="Procurar clientes"
+          placeholder={t.clientes.pistaDaProcura}
+          aria-label={t.clientes.procurarClientes}
           value={procura}
           onChange={(e) => setProcura(e.target.value)}
         />
@@ -181,7 +180,7 @@ export function Clientes() {
         <div className="cartao">
           <Vazio
             titulo={
-              estado === 'todos' && !q && !lojaId ? 'Ainda sem clientes' : 'Nenhum cliente aqui'
+              estado === 'todos' && !q && !lojaId ? t.clientes.semClientes : t.clientes.nenhumAqui
             }
           />
         </div>
@@ -190,15 +189,15 @@ export function Clientes() {
           <table className="quadro clientes">
             <thead>
               <tr>
-                <th scope="col">Nome</th>
-                <th scope="col">Email</th>
+                <th scope="col">{t.clientes.colunas.nome}</th>
+                <th scope="col">{t.clientes.colunas.email}</th>
                 <th scope="col" className="num">
-                  Cortes
+                  {t.clientes.colunas.cortes}
                 </th>
-                <th scope="col">Último</th>
-                <th scope="col">Cartão</th>
-                <th scope="col">Recompensas</th>
-                <th scope="col">Entra com</th>
+                <th scope="col">{t.clientes.colunas.ultimo}</th>
+                <th scope="col">{t.clientes.colunas.cartao}</th>
+                <th scope="col">{t.clientes.colunas.recompensas}</th>
+                <th scope="col">{t.clientes.colunas.entraCom}</th>
               </tr>
             </thead>
             <tbody>
@@ -215,19 +214,19 @@ export function Clientes() {
                     <a className="ligacao-nome" href={`#/clientes/${c.id}`}>
                       {c.nome}
                     </a>{' '}
-                    {c.exemplo && <Etiqueta semPonto>Exemplo</Etiqueta>}
+                    {c.exemplo && <Etiqueta semPonto>{t.clientes.exemplo}</Etiqueta>}
                   </td>
                   <td className="email">{c.email ?? '—'}</td>
-                  <td className="num cortes" data-sufixo={c.cortes === 1 ? 'corte' : 'cortes'}>
-                    {c.cortes.toLocaleString('pt-PT')}
+                  <td className="num cortes" data-sufixo={t.clientes.sufixoDosCortes(c.cortes)}>
+                    {numero(c.cortes)}
                   </td>
                   <td className="ultimo">{c.ultimo ? haQuanto(c.ultimo) : '—'}</td>
                   <td className="carimbos forte">
-                    {c.objectivo ? `${c.carimbos} de ${c.objectivo}` : '—'}
+                    {c.objectivo ? t.clientes.carimbosDe(c.carimbos, c.objectivo) : '—'}
                   </td>
                   <td className="por-usar">
                     {c.recompensasPorUsar > 0 && (
-                      <Etiqueta tom="bom">{c.recompensasPorUsar} por usar</Etiqueta>
+                      <Etiqueta tom="bom">{t.clientes.porUsar(c.recompensasPorUsar)}</Etiqueta>
                     )}
                   </td>
                   <td className="formas">
@@ -247,7 +246,7 @@ export function Clientes() {
                 fontSize: 13.5,
               }}
             >
-              A mostrar os {MAXIMO_DA_LISTA.toLocaleString('pt-PT')} mais recentes: afina a procura.
+              {t.clientes.aMostrar(MAXIMO_DA_LISTA)}
             </p>
           )}
         </div>

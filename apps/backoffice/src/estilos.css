@@ -1244,31 +1244,32 @@ select.entrada {
 
 /* ——— no telemóvel: o título e o botão da página lado a lado, a frase por baixo ——— */
 @media (max-width: 640px) {
+  /* O título e o botão (ou os filtros) na mesma linha; quando não cabem lado a lado (em inglês,
+     «Summary» e os três períodos), os botões descem para a linha de baixo em vez de taparem o título. */
   .cabecalho {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: space-between;
     column-gap: 12px;
-    row-gap: 4px;
+    row-gap: 8px;
     margin-bottom: 16px;
   }
   .cabecalho > div:first-child {
     display: contents;
   }
   .cabecalho h1 {
-    grid-column: 1;
-    grid-row: 1;
+    order: 1;
     font-size: 26px;
   }
   .cabecalho .subtitulo {
-    grid-column: 1 / -1;
-    grid-row: 2;
+    order: 3;
+    flex-basis: 100%;
     margin: 0;
     font-size: 14px;
   }
   .cabecalho > :not(:first-child) {
-    grid-column: 2;
-    grid-row: 1;
+    order: 2;
   }
   .cabecalho .botao {
     height: 38px;
@@ -1564,4 +1565,22 @@ table.quadro {
   .detalhes .largo {
     grid-column: 1 / -1;
   }
+}
+
+/* ——— a língua: um botão com a outra («English», «Português»), na entrada ——— */
+.botao-lingua {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 28px;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  color: #bdb8b0;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.botao-lingua:hover {
+  color: #fff;
 }

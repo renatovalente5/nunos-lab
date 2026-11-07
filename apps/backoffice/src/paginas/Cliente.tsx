@@ -2,12 +2,15 @@ import {
   LIMITES_DO_PROGRAMA,
   dataCurta,
   diaEmLisboa,
+  recompensaNaLingua,
   type DefinicoesDaBarbearia,
   type FichaDoCliente,
+  type Lingua,
 } from '@nunos-lab/dominio';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
+import { etiquetaDaLingua, useLingua } from '../lingua';
 import {
   Campo,
   Esqueleto,
@@ -20,16 +23,18 @@ import {
   useAvisar,
   useConfirmar,
 } from '../pecas';
+import { useTextos } from '../textos';
+import { numero } from '../util';
 import { Formas } from './Clientes';
 
-/** «12 out» de um instante. */
-function diaDe(segundos: number, hoje: string): string {
-  return dataCurta(diaEmLisboa(segundos * 1000), hoje);
+/** «12 out» («12 Oct») de um instante. */
+function diaDe(segundos: number, hoje: string, lingua: Lingua): string {
+  return dataCurta(diaEmLisboa(segundos * 1000), hoje, lingua);
 }
 
 /** «15:30» de um instante, em Lisboa. */
 function horaDe(segundos: number): string {
-  return new Date(segundos * 1000).toLocaleTimeString('pt-PT', {
+  return new Date(segundos * 1000).toLocaleTimeString(etiquetaDaLingua(), {
     hour: '2-digit',
     minute: '2-digit',
     timeZone: 'Europe/Lisbon',
@@ -51,6 +56,8 @@ type Edicao = { nome: string; email: string; aniversario: string; lojaId: number
 
 /** A ficha de um cliente: quem é, os cartões, e cada carimbo; editar, apagar e anular um carimbo. */
 export function Cliente({ id }: { id: string }) {
+  const t = useTextos();
+  const lingua = useLingua();
   const consultas = useQueryClient();
   const ficha = useQuery({
     queryKey: ['cliente', id],
@@ -68,7 +75,7 @@ export function Cliente({ id }: { id: string }) {
   const [erros, setErros] = useState<string[]>([]);
   const voltar = (
     <a className="voltar" href="#/clientes">
-      <Icone nome="voltar" tamanho={16} /> Clientes
+      <Icone nome="voltar" tamanho={16} /> {t.geral.seccoes.clientes}
     </a>
   );
   if (ficha.error)
@@ -96,7 +103,7 @@ export function Cliente({ id }: { id: string }) {
     const aniversario = aniversarioDoTexto(edicao.aniversario);
     if (aniversario === undefined) {
       setErros(['aniversario']);
-      avisar('Aniversário: dia e mês, como «25/06».', true);
+      avisar(t.cliente.edicao.aniversarioErrado, true);
       return;
     }
     // Só vai o que mudou: a API regista o quê.
@@ -115,7 +122,7 @@ export function Cliente({ id }: { id: string }) {
       setEdicao(null);
       setErros([]);
       await refrescar();
-      avisar('Guardado');
+      avisar(t.cliente.edicao.guardado);
     } catch (e) {
       if (e instanceof ErroDaApi) setErros(e.campos);
       avisar(mensagemDe(e), true);
@@ -126,9 +133,9 @@ export function Cliente({ id }: { id: string }) {
     if (!c) return;
     if (
       !(await confirmar(
-        `Apagar a conta de ${c.nome || 'este cliente'}?`,
-        'Saem o nome, o email, as formas de entrar e o passe da Wallet; os carimbos ficam sem nome, para as contas. Não se desfaz.',
-        'Apagar',
+        t.cliente.apagar.pergunta(c.nome),
+        t.cliente.apagar.texto,
+        t.cliente.apagar.accao,
       ))
     )
       return;
@@ -136,15 +143,15 @@ export function Cliente({ id }: { id: string }) {
       await pedir(`/api/bo/clientes/${id}`, { metodo: 'DELETE' });
       await refrescar();
       location.hash = '#/clientes';
-    }, 'Conta apagada');
+    }, t.cliente.apagar.feito);
   }
 
   async function anular(h: FichaDoCliente['historico'][number]) {
     if (
       !(await confirmar(
-        `Anular o carimbo de ${diaDe(h.quando, hoje)} às ${horaDe(h.quando)}?`,
-        'O cliente fica com menos um carimbo. Se este completou o cartão, o cartão volta a ficar por completar.',
-        'Anular',
+        t.cliente.anular.pergunta(diaDe(h.quando, hoje, lingua), horaDe(h.quando)),
+        t.cliente.anular.texto,
+        t.cliente.anular.accao,
       ))
     )
       return;
@@ -153,7 +160,7 @@ export function Cliente({ id }: { id: string }) {
         await pedir<FichaDoCliente>(`/api/bo/carimbos/${h.id}/anular`, { metodo: 'POST' }),
       );
       await refrescar();
-    }, 'Carimbo anulado');
+    }, t.cliente.anular.feito);
   }
 
   return (
@@ -161,21 +168,21 @@ export function Cliente({ id }: { id: string }) {
       {voltar}
       <div className="cabecalho">
         <div>
-          <h1>{c.apagado ? 'Conta apagada' : c.nome || 'Sem nome'}</h1>
+          <h1>{c.apagado ? t.cliente.contaApagada : c.nome || t.cliente.semNome}</h1>
           <p className="subtitulo">
             <code className="codigo">{c.codigo}</code>
             {c.apagado && (
               <>
                 {' '}
                 <Etiqueta tom="mau" semPonto>
-                  Apagada
+                  {t.cliente.apagada}
                 </Etiqueta>
               </>
             )}
             {c.exemplo && (
               <>
                 {' '}
-                <Etiqueta semPonto>Exemplo</Etiqueta>
+                <Etiqueta semPonto>{t.cliente.exemplo}</Etiqueta>
               </>
             )}
           </p>
@@ -195,10 +202,10 @@ export function Cliente({ id }: { id: string }) {
                 });
               }}
             >
-              Editar
+              {t.cliente.editar}
             </button>
             <button type="button" className="botao perigo" disabled={aCorrer} onClick={apagar}>
-              Apagar a conta
+              {t.cliente.apagarAConta}
             </button>
           </div>
         )}
@@ -207,31 +214,31 @@ export function Cliente({ id }: { id: string }) {
       <div className="cartao recheado">
         <dl className="detalhes">
           <div className="largo">
-            <dt>Email</dt>
+            <dt>{t.cliente.email}</dt>
             <dd>{c.email ?? '—'}</dd>
           </div>
           <div>
-            <dt>Aniversário</dt>
+            <dt>{t.cliente.aniversario}</dt>
             <dd>{aniversarioEmTexto(c.aniversario) || '—'}</dd>
           </div>
           <div>
-            <dt>Casa</dt>
-            <dd>{casa ?? (barbearia.data ? 'Sem casa' : '—')}</dd>
+            <dt>{t.cliente.casa}</dt>
+            <dd>{casa ?? (barbearia.data ? t.cliente.semCasa : '—')}</dd>
           </div>
           <div>
-            <dt>Desde</dt>
-            <dd>{diaDe(c.criadoEm, hoje)}</dd>
+            <dt>{t.cliente.desde}</dt>
+            <dd>{diaDe(c.criadoEm, hoje, lingua)}</dd>
           </div>
           <div>
-            <dt>Cortes</dt>
-            <dd>{c.cortes.toLocaleString('pt-PT')}</dd>
+            <dt>{t.cliente.cortes}</dt>
+            <dd>{numero(c.cortes)}</dd>
           </div>
           <div>
-            <dt>Cartões completos</dt>
-            <dd>{c.cartoes.filter((k) => k.completoEm).length.toLocaleString('pt-PT')}</dd>
+            <dt>{t.cliente.cartoesCompletos}</dt>
+            <dd>{numero(c.cartoes.filter((k) => k.completoEm).length)}</dd>
           </div>
           <div>
-            <dt>Entra com</dt>
+            <dt>{t.cliente.entraCom}</dt>
             <dd>
               <Formas formas={c.formas} />
             </dd>
@@ -239,7 +246,7 @@ export function Cliente({ id }: { id: string }) {
         </dl>
       </div>
 
-      <h2 className="seccao">Cartões</h2>
+      <h2 className="seccao">{t.cliente.cartoes.titulo}</h2>
       <div className="cartao">
         {c.cartoes.length ? (
           <ul className="lista">
@@ -251,25 +258,27 @@ export function Cliente({ id }: { id: string }) {
                   <div className="linha">
                     <div className="meio">
                       <div className="titulo-linha">
-                        Cartão {k.numero}
+                        {t.cliente.cartoes.cartao(k.numero)}
                         <span style={{ fontWeight: 600, color: 'var(--tinta-2)' }}>
                           {' '}
-                          · {k.carimbos} de {k.objectivo}
+                          · {t.cliente.cartoes.carimbosDe(k.carimbos, k.objectivo)}
                         </span>
                       </div>
                       <div className="detalhe">
-                        {k.recompensa} · desde {diaDe(k.iniciadoEm, hoje)}
-                        {completo && ` · completo a ${diaDe(k.completoEm!, hoje)}`}
+                        {recompensaNaLingua(k.recompensa, lingua)} ·{' '}
+                        {t.cliente.cartoes.desde(diaDe(k.iniciadoEm, hoje, lingua))}
+                        {completo &&
+                          ` · ${t.cliente.cartoes.completoA(diaDe(k.completoEm!, hoje, lingua))}`}
                         {usado &&
-                          ` · usado a ${diaDe(k.usadoEm!, hoje)}${k.usadoLoja ? ` em ${k.usadoLoja}` : ''}${k.usadoPor ? ` por ${k.usadoPor}` : ''}`}
+                          ` · ${t.cliente.cartoes.usadoA(diaDe(k.usadoEm!, hoje, lingua), k.usadoLoja, k.usadoPor)}`}
                       </div>
                     </div>
                     {usado ? (
-                      <Etiqueta>Usado</Etiqueta>
+                      <Etiqueta>{t.cliente.cartoes.usado}</Etiqueta>
                     ) : completo ? (
-                      <Etiqueta tom="bom">Por usar</Etiqueta>
+                      <Etiqueta tom="bom">{t.cliente.cartoes.porUsar}</Etiqueta>
                     ) : (
-                      <Etiqueta semPonto>Em curso</Etiqueta>
+                      <Etiqueta semPonto>{t.cliente.cartoes.emCurso}</Etiqueta>
                     )}
                   </div>
                 </li>
@@ -277,11 +286,11 @@ export function Cliente({ id }: { id: string }) {
             })}
           </ul>
         ) : (
-          <Vazio titulo="Ainda sem cartão" />
+          <Vazio titulo={t.cliente.cartoes.vazio} />
         )}
       </div>
 
-      <h2 className="seccao">Histórico</h2>
+      <h2 className="seccao">{t.cliente.historico.titulo}</h2>
       <div className="cartao">
         {c.historico.length ? (
           <ul className="lista">
@@ -290,18 +299,22 @@ export function Cliente({ id }: { id: string }) {
                 <div className="linha">
                   <div className="meio">
                     <div className="titulo-linha">
-                      {diaDe(h.quando, hoje)} · {horaDe(h.quando)}
+                      {diaDe(h.quando, hoje, lingua)} · {horaDe(h.quando)}
                     </div>
                     <div className="detalhe">
-                      {[h.loja, h.pessoa, `Cartão ${h.cartaoNumero}`].filter(Boolean).join(' · ')}
+                      {[h.loja, h.pessoa, t.cliente.cartoes.cartao(h.cartaoNumero)]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </div>
                   </div>
                   <div className="lado">
                     {h.anuladoEm !== null && (
-                      <Etiqueta tom="mau">{`Anulado${h.anuladoPor ? ` por ${h.anuladoPor}` : ''}`}</Etiqueta>
+                      <Etiqueta tom="mau">{t.cliente.historico.anulado(h.anuladoPor)}</Etiqueta>
                     )}
-                    {h.repetido && <Etiqueta tom="atencao">Repetido</Etiqueta>}
-                    {h.semLeitura && <Etiqueta>Sem leitura</Etiqueta>}
+                    {h.repetido && (
+                      <Etiqueta tom="atencao">{t.cliente.historico.repetido}</Etiqueta>
+                    )}
+                    {h.semLeitura && <Etiqueta>{t.cliente.historico.semLeitura}</Etiqueta>}
                     {h.anuladoEm === null && !c.apagado && (
                       <button
                         type="button"
@@ -309,7 +322,7 @@ export function Cliente({ id }: { id: string }) {
                         disabled={aCorrer}
                         onClick={() => anular(h)}
                       >
-                        Anular
+                        {t.cliente.historico.anular}
                       </button>
                     )}
                   </div>
@@ -318,14 +331,14 @@ export function Cliente({ id }: { id: string }) {
             ))}
           </ul>
         ) : (
-          <Vazio titulo="Ainda sem carimbos" />
+          <Vazio titulo={t.cliente.historico.vazio} />
         )}
       </div>
 
       <Folha
         aberta={!!edicao}
         fechar={() => setEdicao(null)}
-        titulo="Editar cliente"
+        titulo={t.cliente.edicao.titulo}
         pe={
           <button
             type="button"
@@ -333,14 +346,14 @@ export function Cliente({ id }: { id: string }) {
             disabled={!edicao?.nome.trim() || aCorrer}
             onClick={() => correr(guardar)}
           >
-            Guardar
+            {t.cliente.edicao.guardar}
           </button>
         }
       >
         {edicao && (
           <div className="formulario">
             <Campo
-              rotulo="Nome"
+              rotulo={t.cliente.nome}
               valor={edicao.nome}
               mudar={(nome) => setEdicao({ ...edicao, nome })}
               max={LIMITES_DO_PROGRAMA.nomeDoCliente}
@@ -349,31 +362,31 @@ export function Cliente({ id }: { id: string }) {
               autoFocus
             />
             <Campo
-              rotulo="Email"
+              rotulo={t.cliente.email}
               valor={edicao.email}
               mudar={(email) => setEdicao({ ...edicao, email })}
               max={254}
               erro={erros.includes('email')}
-              placeholder="nome@gmail.com"
-              ajuda="Quem entrar na app com este email fica com este cartão."
+              placeholder={t.cliente.edicao.exemploDeEmail}
+              ajuda={t.cliente.edicao.ajudaDoEmail}
             />
             <div className="duas-colunas">
               <Campo
-                rotulo="Aniversário"
+                rotulo={t.cliente.aniversario}
                 valor={edicao.aniversario}
                 mudar={(aniversario) => setEdicao({ ...edicao, aniversario })}
                 max={5}
                 erro={erros.includes('aniversario')}
-                erroTexto="Dia e mês, como «25/06»."
+                erroTexto={t.cliente.edicao.diaEMes}
                 placeholder="25/06"
-                ajuda="Vazio: sem prenda de anos."
+                ajuda={t.cliente.edicao.ajudaDoAniversario}
               />
               <Seletor
-                rotulo="Casa"
+                rotulo={t.cliente.casa}
                 valor={edicao.lojaId}
                 mudar={(lojaId) => setEdicao({ ...edicao, lojaId })}
                 opcoes={(barbearia.data?.lojas ?? []).map((l) => ({ valor: l.id, nome: l.nome }))}
-                vazio="Sem casa"
+                vazio={t.cliente.semCasa}
               />
             </div>
           </div>

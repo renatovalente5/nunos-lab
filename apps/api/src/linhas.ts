@@ -139,6 +139,8 @@ export function parceiroDoBackoffice(
 ): Parceiro {
   return {
     ...parceiroBase(l),
+    horarioEn: l.horario_en,
+    descricaoEn: l.descricao_en,
     activo: l.activo === 1,
     ordem: l.ordem,
     criadoEm: l.criado_em,

@@ -26,7 +26,7 @@ export const MESES = [
   'nov',
   'dez',
 ] as const;
-const MESES_EN = [
+export const MESES_EN = [
   'Jan',
   'Feb',
   'Mar',
@@ -91,7 +91,7 @@ export function diaDaSemana(dia: string): number {
 }
 
 /** «31 dez», ou «31 dez 2027» quando não é o ano de `hoje` (com espaços que não partem). */
-const DIAS_DA_SEMANA_EN = [
+export const DIAS_DA_SEMANA_EN = [
   'Sunday',
   'Monday',
   'Tuesday',
@@ -102,6 +102,11 @@ const DIAS_DA_SEMANA_EN = [
 ] as const;
 
 /** O nome de um dia da semana (0 = domingo) na língua pedida. */
+/** O mês curto, de 0 a 11: «out», «Oct». */
+export function nomeDoMes(n: number, lingua: Lingua = 'pt'): string {
+  return (lingua === 'en' ? MESES_EN : MESES)[n] as string;
+}
+
 export function nomeDoDia(n: number, lingua: Lingua = 'pt'): string {
   return (lingua === 'en' ? DIAS_DA_SEMANA_EN : DIAS_DA_SEMANA)[n] as string;
 }

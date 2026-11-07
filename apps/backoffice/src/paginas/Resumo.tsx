@@ -3,10 +3,14 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { pedir, refrescar } from '../api';
 import { Grafico } from '../grafico';
+import { useLingua } from '../lingua';
 import { Esqueleto, Etiqueta, Numero, Segmentado, useAccao, useConfirmar } from '../pecas';
-import { plural } from '../util';
+import { useTextos } from '../textos';
+import { numero } from '../util';
 
 export function Resumo() {
+  const t = useTextos();
+  const lingua = useLingua();
   const [dias, setDias] = useState<7 | 30 | 90>(30);
   const { data: r } = useQuery({
     queryKey: ['resumo', dias],
@@ -19,17 +23,17 @@ export function Resumo() {
     <>
       <div className="cabecalho">
         <div>
-          <h1>Resumo</h1>
-          <p className="subtitulo">O que está na app e o que os clientes fazem nela.</p>
+          <h1>{t.geral.seccoes.resumo}</h1>
+          <p className="subtitulo">{t.resumo.subtitulo}</p>
         </div>
         <Segmentado
-          rotulo="Período"
+          rotulo={t.resumo.periodo}
           valor={dias}
           mudar={setDias}
           opcoes={[
-            { valor: 7, nome: '7 dias' },
-            { valor: 30, nome: '30 dias' },
-            { valor: 90, nome: '90 dias' },
+            { valor: 7, nome: t.resumo.dias(7) },
+            { valor: 30, nome: t.resumo.dias(30) },
+            { valor: 90, nome: t.resumo.dias(90) },
           ]}
         />
       </div>
@@ -39,30 +43,32 @@ export function Resumo() {
       ) : (
         <>
           <div className="grelha quatro">
-            <Numero rotulo="Aberturas da app" valor={r.totais.aberturas} />
-            <Numero rotulo="Parceiros vistos" valor={r.totais.parceiros} />
+            <Numero rotulo={t.resumo.aberturasDaApp} valor={r.totais.aberturas} />
+            <Numero rotulo={t.resumo.parceirosVistos} valor={r.totais.parceiros} />
             <Numero
-              rotulo="Contactos"
+              rotulo={t.resumo.contactos}
               valor={r.totais.contactos}
-              nota="Ir, ligar, Instagram e site"
+              nota={t.resumo.notaDosContactos}
             />
-            <Numero rotulo="Toques em «Marcar»" valor={r.totais.marcacoes} />
+            <Numero rotulo={t.resumo.toquesEmMarcar} valor={r.totais.marcacoes} />
           </div>
 
           <div className="cartao recheado" style={{ marginTop: 14 }}>
-            <div style={{ fontWeight: 800, marginBottom: 4 }}>Aberturas da app por dia</div>
+            <div style={{ fontWeight: 800, marginBottom: 4 }}>{t.resumo.aberturasPorDia}</div>
             <div
               className="ajuda"
               style={{ color: 'var(--tinta-3)', fontSize: 13, marginBottom: 14 }}
             >
-              Últimos {dias} dias, até hoje
+              {t.resumo.ultimosDias(dias)}
             </div>
-            <Grafico dados={r.aberturas} hoje={r.hoje} nome="Aberturas da app" />
+            <Grafico dados={r.aberturas} hoje={r.hoje} nome={t.resumo.aberturasDaApp} />
           </div>
 
           <div className="grelha duas" style={{ marginTop: 14 }}>
             <div className="cartao">
-              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>Precisa de atenção</div>
+              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>
+                {t.resumo.precisaDeAtencao}
+              </div>
               <ul className="lista">
                 {r.aAcabar.map((p) => (
                   <li key={`a${p.id}`}>
@@ -73,7 +79,9 @@ export function Resumo() {
                         </div>
                         <div className="detalhe">{p.parceiro}</div>
                       </div>
-                      <Etiqueta tom="atencao">Acaba a {dataCurta(p.fim, r.hoje)}</Etiqueta>
+                      <Etiqueta tom="atencao">
+                        {t.resumo.acabaA(dataCurta(p.fim, r.hoje, lingua))}
+                      </Etiqueta>
                     </a>
                   </li>
                 ))}
@@ -82,9 +90,9 @@ export function Resumo() {
                     <a className="linha" href={`#/parceiros/${p.id}`}>
                       <div className="meio">
                         <div className="titulo-linha">{p.nome}</div>
-                        <div className="detalhe">Não aparece na app</div>
+                        <div className="detalhe">{t.resumo.naoApareceNaApp}</div>
                       </div>
-                      <Etiqueta tom="mau">Sem promoções</Etiqueta>
+                      <Etiqueta tom="mau">{t.resumo.semPromocoes}</Etiqueta>
                     </a>
                   </li>
                 ))}
@@ -93,15 +101,9 @@ export function Resumo() {
                     <div className="linha">
                       <div className="meio">
                         <div className="titulo-linha">
-                          {plural(
-                            r.parceiros.exemplos,
-                            'parceiro de exemplo',
-                            'parceiros de exemplo',
-                          )}
+                          {t.resumo.parceirosDeExemplo(r.parceiros.exemplos)}
                         </div>
-                        <div className="detalhe">
-                          Inventados para a demonstração. Apaga-os quando puseres os verdadeiros.
-                        </div>
+                        <div className="detalhe">{t.resumo.inventados}</div>
                       </div>
                       <button
                         type="button"
@@ -109,18 +111,18 @@ export function Resumo() {
                         onClick={async () => {
                           if (
                             await confirmar(
-                              'Apagar os exemplos?',
-                              'Os parceiros de exemplo e as promoções deles saem da app e do backoffice. Não se desfaz.',
-                              'Apagar os exemplos',
+                              t.resumo.apagarOsExemplos.pergunta,
+                              t.resumo.apagarOsExemplos.texto,
+                              t.resumo.apagarOsExemplos.accao,
                             )
                           )
                             await correr(async () => {
                               await pedir('/api/bo/exemplos/apagar', { metodo: 'POST' });
                               await refrescar();
-                            }, 'Exemplos apagados');
+                            }, t.resumo.apagarOsExemplos.feito);
                         }}
                       >
-                        Apagar
+                        {t.resumo.apagar}
                       </button>
                     </div>
                   </li>
@@ -128,7 +130,7 @@ export function Resumo() {
                 {!r.aAcabar.length && !r.semPromocoes.length && !r.parceiros.exemplos && (
                   <li>
                     <div className="linha">
-                      <div className="meio detalhe">Nada por agora.</div>
+                      <div className="meio detalhe">{t.resumo.nadaPorAgora}</div>
                     </div>
                   </li>
                 )}
@@ -136,20 +138,32 @@ export function Resumo() {
             </div>
 
             <div className="cartao">
-              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>Na app agora</div>
+              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>{t.resumo.naAppAgora}</div>
               <ul className="lista">
-                <LinhaDeConta href="#/parceiros" nome="Parceiros" valor={r.parceiros.naApp} />
-                <LinhaDeConta href="#/promocoes" nome="Promoções" valor={r.promocoes.naApp} />
-                <LinhaDeConta
-                  href="#/promocoes"
-                  nome="Agendadas"
-                  valor={r.promocoes.agendadas}
-                  detalhe="Entram sozinhas no dia de início"
-                />
-                <LinhaDeConta href="#/promocoes" nome="Pausadas" valor={r.promocoes.pausadas} />
                 <LinhaDeConta
                   href="#/parceiros"
-                  nome="Parceiros pausados"
+                  nome={t.geral.seccoes.parceiros}
+                  valor={r.parceiros.naApp}
+                />
+                <LinhaDeConta
+                  href="#/promocoes"
+                  nome={t.geral.seccoes.promocoes}
+                  valor={r.promocoes.naApp}
+                />
+                <LinhaDeConta
+                  href="#/promocoes"
+                  nome={t.resumo.agendadas}
+                  valor={r.promocoes.agendadas}
+                  detalhe={t.resumo.entramSozinhas}
+                />
+                <LinhaDeConta
+                  href="#/promocoes"
+                  nome={t.resumo.pausadas}
+                  valor={r.promocoes.pausadas}
+                />
+                <LinhaDeConta
+                  href="#/parceiros"
+                  nome={t.resumo.parceirosPausados}
                   valor={r.parceiros.pausados}
                 />
               </ul>
@@ -158,7 +172,7 @@ export function Resumo() {
 
           <div className="grelha duas" style={{ marginTop: 14 }}>
             <div className="cartao">
-              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>Parceiros mais vistos</div>
+              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>{t.resumo.maisVistos}</div>
               {r.maisVistos.length ? (
                 <ul className="lista">
                   {r.maisVistos.map((p, i) => (
@@ -169,12 +183,10 @@ export function Resumo() {
                         </span>
                         <div className="meio">
                           <div className="titulo-linha">{p.nome}</div>
-                          <div className="detalhe">
-                            {plural(p.contactos, 'contacto', 'contactos')}
-                          </div>
+                          <div className="detalhe">{t.resumo.contactosDe(p.contactos)}</div>
                         </div>
                         <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {plural(p.vistas, 'vista', 'vistas')}
+                          {t.resumo.vistas(p.vistas)}
                         </strong>
                       </a>
                     </li>
@@ -182,22 +194,20 @@ export function Resumo() {
                 </ul>
               ) : (
                 <p className="detalhe" style={{ padding: '0 20px 18px', color: 'var(--tinta-2)' }}>
-                  Ainda sem visitas neste período.
+                  {t.resumo.semVisitas}
                 </p>
               )}
             </div>
             <div className="cartao">
               <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>
-                Toques em «Marcar», por loja
+                {t.resumo.toquesPorLoja}
               </div>
               <ul className="lista">
                 {r.marcacoes.map((l) => (
                   <li key={l.id}>
                     <div className="linha">
                       <div className="meio titulo-linha">{l.nome}</div>
-                      <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {l.n.toLocaleString('pt-PT')}
-                      </strong>
+                      <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{numero(l.n)}</strong>
                     </div>
                   </li>
                 ))}
@@ -230,7 +240,7 @@ function LinhaDeConta({
           {detalhe && <div className="detalhe">{detalhe}</div>}
         </div>
         <strong style={{ fontSize: 18, fontVariantNumeric: 'tabular-nums' }}>
-          {valor.toLocaleString('pt-PT')}
+          {numero(valor)}
         </strong>
       </a>
     </li>

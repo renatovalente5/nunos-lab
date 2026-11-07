@@ -2,9 +2,9 @@ import {
   CORES_DOS_PARCEIROS,
   DESENHOS_DAS_CATEGORIAS,
   ICONES_DAS_CATEGORIAS,
-  NOMES_DOS_DESENHOS,
   corParaBranco,
   misturar,
+  nomeDoDesenho,
   semPartir,
   validadeEmTexto,
   type IconeDaCategoria,
@@ -21,6 +21,9 @@ import {
 } from 'react';
 import { API, mensagemDe } from './api';
 import { carregarImagem } from './imagens';
+import { useLingua } from './lingua';
+import { textos, useTextos } from './textos';
+import { numero } from './util';
 
 // ——— ícones (linha, 24×24) ———
 
@@ -71,6 +74,11 @@ const DESENHOS = {
   aberto: [
     'M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7S2.5 12 2.5 12z',
     'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  ],
+  lingua: [
+    'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z',
+    'M3.5 12h17',
+    'M12 3c2.4 2.6 3.6 5.6 3.6 9s-1.2 6.4-3.6 9c-2.4-2.6-3.6-5.6-3.6-9S9.6 5.6 12 3z',
   ],
 } as const;
 
@@ -215,7 +223,7 @@ export function Campo({
       />
       {erro ? (
         <div className="mensagem-erro" id={`${id}-a`}>
-          {erroTexto ?? 'Revê este campo.'}
+          {erroTexto ?? textos().geral.reveEsteCampo}
         </div>
       ) : (
         ajuda && (
@@ -257,7 +265,7 @@ export function AreaDeTexto({
       />
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
         <span className="ajuda">
-          {erro ? <span className="mensagem-erro">Revê este campo.</span> : ajuda}
+          {erro ? <span className="mensagem-erro">{textos().geral.reveEsteCampo}</span> : ajuda}
         </span>
         {/* A conta só aparece perto do limite: antes disso é ruído. */}
         {valor.length >= max * 0.8 && (
@@ -370,10 +378,11 @@ export function Segmentado<T extends string | number>({
 }
 
 export function Cores({ valor, mudar }: { valor: string; mudar: (v: string) => void }) {
+  const t = useTextos();
   return (
     <div className="campo">
       <span className="rotulo-campo" id="cor-do-parceiro">
-        Cor
+        {t.geral.cor}
       </span>
       <div className="cores" role="group" aria-labelledby="cor-do-parceiro">
         {CORES_DOS_PARCEIROS.map((c) => (
@@ -383,7 +392,7 @@ export function Cores({ valor, mudar }: { valor: string; mudar: (v: string) => v
             className="cor"
             style={{ background: c }}
             aria-pressed={valor.toUpperCase() === c}
-            aria-label={`Cor ${c}`}
+            aria-label={t.geral.corDe(c)}
             onClick={() => mudar(c)}
           />
         ))}
@@ -391,12 +400,62 @@ export function Cores({ valor, mudar }: { valor: string; mudar: (v: string) => v
           type="color"
           className="cor-propria"
           value={valor}
-          aria-label="Outra cor"
+          aria-label={t.geral.outraCor}
           onChange={(e) => mudar(e.target.value.toUpperCase())}
         />
       </div>
     </div>
   );
+}
+
+// ——— os textos em inglês ———
+
+/**
+ * Os textos em inglês de um formulário (vazio: a app em inglês mostra o português). Um grupo com
+ * o rótulo «Em inglês», como os outros do formulário; numa página, uma secção.
+ */
+export function GrupoEmIngles({
+  children,
+  seccao = false,
+}: {
+  children: ReactNode;
+  seccao?: boolean;
+}) {
+  const t = useTextos();
+  if (seccao)
+    return (
+      <>
+        <h2 className="seccao">{t.geral.emIngles.titulo}</h2>
+        <div className="cartao recheado formulario">
+          <div className="ajuda">{t.geral.emIngles.ajuda}</div>
+          {children}
+        </div>
+      </>
+    );
+  return (
+    <div className="cartao recheado formulario" style={{ boxShadow: 'none' }}>
+      <div className="campo">
+        <span className="rotulo-campo">{t.geral.emIngles.titulo}</span>
+        <span className="ajuda">{t.geral.emIngles.ajuda}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * O português mudou e o inglês ficou como estava: o inglês pode já não dizer o mesmo (uma vantagem
+ * em inglês a anunciar um desconto que já não existe). Devolve o aviso para a ajuda do campo.
+ */
+export function porRever(
+  ptAntes: string,
+  ptAgora: string,
+  enAntes: string,
+  enAgora: string,
+): string | undefined {
+  return ptAgora.trim() !== ptAntes.trim() && enAgora.trim() && enAgora === enAntes
+    ? textos().geral.emIngles.porRever
+    : undefined;
 }
 
 // ——— folhas (diálogos) ———
@@ -418,9 +477,10 @@ export function Folha({
   /** Há alterações por guardar: fechar pergunta primeiro. */
   sujo?: boolean;
 }) {
+  const t = useTextos();
   const ref = useRef<HTMLDialogElement>(null);
   const fecharSePuder = () => {
-    if (!sujo || window.confirm('Há alterações por guardar. Fechar sem guardar?')) fechar();
+    if (!sujo || window.confirm(t.geral.fecharSemGuardar)) fechar();
   };
   // Fecha com um clique FORA, e só se o clique também começou fora: seleccionar
   // texto num campo e largar o rato fora da folha não a fecha.
@@ -455,7 +515,7 @@ export function Folha({
             <button
               type="button"
               className="botao secundario icone"
-              aria-label="Fechar"
+              aria-label={t.geral.fechar}
               onClick={fecharSePuder}
             >
               <Icone nome="fechar" />
@@ -471,6 +531,7 @@ export function Folha({
 
 /** Uma pergunta de «tens a certeza?» para o que não se desfaz. */
 export function useConfirmar() {
+  const t = useTextos();
   const [pedido, setPedido] = useState<{
     titulo: string;
     texto: string;
@@ -497,7 +558,7 @@ export function useConfirmar() {
             {pedido?.accao}
           </button>
           <button type="button" className="botao secundario" onClick={() => responder(false)}>
-            Cancelar
+            {t.geral.cancelar}
           </button>
         </>
       }
@@ -541,9 +602,7 @@ export function Numero({
   return (
     <div className={`cartao numero${pequeno ? ' pequeno' : ''}`}>
       <div className="rotulo">{rotulo}</div>
-      <div className="valor">
-        {typeof valor === 'number' ? valor.toLocaleString('pt-PT') : valor}
-      </div>
+      <div className="valor">{typeof valor === 'number' ? numero(valor) : valor}</div>
       {nota && <div className="nota">{nota}</div>}
     </div>
   );
@@ -559,8 +618,9 @@ export function Vazio({ titulo, children }: { titulo: string; children?: ReactNo
 }
 
 export function Esqueleto({ linhas = 4 }: { linhas?: number }) {
+  const t = useTextos();
   return (
-    <div className="cartao recheado" aria-busy="true" aria-label="A carregar">
+    <div className="cartao recheado" aria-busy="true" aria-label={t.geral.aCarregar}>
       {Array.from({ length: linhas }, (_, i) => (
         <div key={i} className="esqueleto" style={{ height: 44, marginTop: i ? 12 : 0 }} />
       ))}
@@ -636,6 +696,7 @@ export function CampoDeImagem({
   ajuda: string;
   erro?: boolean;
 }) {
+  const t = useTextos();
   const entrada = useRef<HTMLInputElement>(null);
   const avisar = useAvisar();
   const [aCarregar, setACarregar] = useState(false);
@@ -653,11 +714,15 @@ export function CampoDeImagem({
             disabled={aCarregar}
             onClick={() => entrada.current?.click()}
           >
-            {aCarregar ? 'A carregar…' : valor ? 'Trocar' : 'Escolher imagem'}
+            {aCarregar
+              ? t.geral.imagem.aCarregar
+              : valor
+                ? t.geral.imagem.trocar
+                : t.geral.imagem.escolher}
           </button>
           {valor && (
             <button type="button" className="botao secundario pequeno" onClick={() => mudar(null)}>
-              Tirar
+              {t.geral.imagem.tirar}
             </button>
           )}
         </div>
@@ -682,7 +747,7 @@ export function CampoDeImagem({
         />
       </div>
       {erro ? (
-        <div className="mensagem-erro">Revê este campo.</div>
+        <div className="mensagem-erro">{t.geral.reveEsteCampo}</div>
       ) : (
         <div className="ajuda">{ajuda}</div>
       )}
@@ -726,30 +791,34 @@ export function PrevisaoDaPromocao({
   /** Está no saco das surpresas: sai como cupão ao carimbar. */
   surpresa?: boolean;
 }) {
-  const validade = validadeEmTexto({ inicio, fim }, hoje);
+  const t = useTextos();
+  const lingua = useLingua();
+  const validade = validadeEmTexto({ inicio, fim }, hoje, lingua);
   const cor = parceiro?.cor ?? '#5C544C';
   return (
-    <div className="previsao" aria-label="Como fica na app">
-      <div className="rotulo-previsao">Na app</div>
+    <div className="previsao" aria-label={t.geral.previsao.rotulo}>
+      <div className="rotulo-previsao">{t.geral.previsao.naApp}</div>
       <div className="capa-previsao" style={{ background: fundoDaCapa(cor) }}>
         {parceiro?.capa && <img className="fundo" src={urlDaImagem(parceiro.capa)} alt="" />}
         <div className="topo-capa">
           {parceiro && (
             <Logotipo nome={parceiro.nome} cor={cor} logotipo={parceiro.logotipo} tamanho={30} />
           )}
-          <span>{parceiro?.nome ?? 'Parceiro'}</span>
+          <span>{parceiro?.nome ?? t.geral.previsao.parceiro}</span>
         </div>
         <div className="fundo-capa">
           <div className="grande">{semPartir(destaque || '−10%')}</div>
-          <div className="titulo-previsao">{semPartir(titulo || 'Título da vantagem')}</div>
+          <div className="titulo-previsao">{semPartir(titulo || t.geral.previsao.titulo)}</div>
           {validar && (
             <div className="vale">
               {semPartir(
-                limite ? `Mostra o cartão ao balcão · ${limite}` : 'Mostra o cartão ao balcão',
+                limite
+                  ? `${t.geral.previsao.mostraOCartao} · ${limite}`
+                  : t.geral.previsao.mostraOCartao,
               )}
             </div>
           )}
-          {surpresa && <div className="surpresa">Sai como cupão surpresa</div>}
+          {surpresa && <div className="surpresa">{t.geral.previsao.surpresa}</div>}
           {validade && <div className="validade">{validade}</div>}
         </div>
       </div>
@@ -795,10 +864,12 @@ export function EscolhaDoDesenho({
   valor: IconeDaCategoria;
   mudar: (v: IconeDaCategoria) => void;
 }) {
+  const t = useTextos();
+  const lingua = useLingua();
   return (
     <div className="campo">
       <span className="rotulo-campo" id="desenho-da-categoria">
-        Desenho
+        {t.geral.desenho}
       </span>
       <div className="desenhos" role="radiogroup" aria-labelledby="desenho-da-categoria">
         {ICONES_DAS_CATEGORIAS.map((i) => (
@@ -807,8 +878,8 @@ export function EscolhaDoDesenho({
             type="button"
             role="radio"
             aria-checked={valor === i}
-            aria-label={NOMES_DOS_DESENHOS[i]}
-            title={NOMES_DOS_DESENHOS[i]}
+            aria-label={nomeDoDesenho(i, lingua)}
+            title={nomeDoDesenho(i, lingua)}
             className="desenho"
             onClick={() => mudar(i)}
           >

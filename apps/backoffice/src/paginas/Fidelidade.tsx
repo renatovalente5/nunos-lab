@@ -2,7 +2,8 @@ import { LIMITES_DO_PROGRAMA, type Programa } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
-import { Campo, Esqueleto, useAccao, useAvisar } from '../pecas';
+import { Campo, Esqueleto, GrupoEmIngles, porRever, useAccao, useAvisar } from '../pecas';
+import { useTextos } from '../textos';
 import { useAvisoAoSair } from '../util';
 
 /** O programa como se escreve: os números ficam em texto enquanto se editam. */
@@ -11,6 +12,9 @@ type Formulario = {
   recompensa: string;
   porDia: string;
   aniversario: string;
+  /** Em inglês: vazio, a app em inglês traduz os prémios comuns («Free haircut») ou mostra o português. */
+  recompensaEn: string;
+  aniversarioEn: string;
 };
 
 function formularioDe(p: Programa): Formulario {
@@ -19,6 +23,8 @@ function formularioDe(p: Programa): Formulario {
     recompensa: p.recompensa,
     porDia: String(p.porDia),
     aniversario: p.aniversario,
+    recompensaEn: p.recompensaEn ?? '',
+    aniversarioEn: p.aniversarioEn ?? '',
   };
 }
 
@@ -28,6 +34,7 @@ function inteiroEntre(texto: string, min: number, max: number): number | null {
 }
 
 export function Fidelidade() {
+  const t = useTextos();
   const programa = useQuery({
     queryKey: ['programa'],
     queryFn: () => pedir<Programa>('/api/bo/programa'),
@@ -75,7 +82,7 @@ export function Fidelidade() {
     ].filter(Boolean) as string[];
     if (faltam.length) {
       setErros(faltam);
-      avisar('Há campos por corrigir.', true);
+      avisar(t.fidelidade.camposPorCorrigir, true);
       return;
     }
     const enviado = f;
@@ -87,13 +94,15 @@ export function Fidelidade() {
           recompensa: f.recompensa.trim(),
           porDia,
           aniversario: f.aniversario.trim(),
+          recompensaEn: f.recompensaEn.trim(),
+          aniversarioEn: f.aniversarioEn.trim(),
         },
       });
       const novo = formularioDe(guardado);
       setOriginal(novo);
       setF((agora) => (agora === enviado ? novo : agora));
       await refrescar();
-      avisar('Guardado');
+      avisar(t.fidelidade.guardado);
       setErros([]);
     } catch (e) {
       if (e instanceof ErroDaApi) setErros(e.campos);
@@ -105,18 +114,18 @@ export function Fidelidade() {
     <>
       <div className="cabecalho">
         <div>
-          <h1>Fidelidade</h1>
-          <p className="subtitulo">O cartão de carimbos e a recompensa.</p>
+          <h1>{t.geral.seccoes.fidelidade}</h1>
+          <p className="subtitulo">{t.fidelidade.subtitulo}</p>
         </div>
       </div>
 
       <h2 className="seccao" style={{ marginTop: 0 }}>
-        Programa
+        {t.fidelidade.programa}
       </h2>
       <div className="cartao recheado formulario">
         <div className="duas-colunas">
           <Campo
-            rotulo="Carimbos para a recompensa"
+            rotulo={t.fidelidade.objectivo}
             tipo="number"
             modoDeTeclado="numeric"
             minimo={LIMITES_DO_PROGRAMA.objectivo.min}
@@ -125,23 +134,23 @@ export function Fidelidade() {
             valor={f.objectivo}
             mudar={mudar('objectivo')}
             erro={erros.includes('objectivo')}
-            ajuda="Os cartões já começados completam-se com o número com que começaram."
+            ajuda={t.fidelidade.objectivoAjuda}
             obrigatorio
           />
           <Campo
-            rotulo="Recompensa"
+            rotulo={t.fidelidade.recompensa}
             valor={f.recompensa}
             mudar={mudar('recompensa')}
             max={LIMITES_DO_PROGRAMA.recompensa}
             erro={erros.includes('recompensa')}
-            placeholder="ex.: 50% de desconto"
-            ajuda="Vale também para os cartões em curso."
+            placeholder={t.fidelidade.recompensaExemplo}
+            ajuda={t.fidelidade.recompensaAjuda}
             obrigatorio
           />
         </div>
         <div className="duas-colunas">
           <Campo
-            rotulo="Carimbos por dia"
+            rotulo={t.fidelidade.porDia}
             tipo="number"
             modoDeTeclado="numeric"
             minimo={LIMITES_DO_PROGRAMA.porDia.min}
@@ -150,20 +159,53 @@ export function Fidelidade() {
             valor={f.porDia}
             mudar={mudar('porDia')}
             erro={erros.includes('porDia')}
-            ajuda="Por cliente. Acima disto, a app for partners avisa."
+            ajuda={t.fidelidade.porDiaAjuda}
             obrigatorio
           />
           <Campo
-            rotulo="Prenda de anos"
+            rotulo={t.fidelidade.aniversario}
             valor={f.aniversario}
             mudar={mudar('aniversario')}
             max={LIMITES_DO_PROGRAMA.aniversario}
             erro={erros.includes('aniversario')}
-            placeholder="ex.: Barba grátis"
-            ajuda="Vazio: não há."
+            placeholder={t.fidelidade.aniversarioExemplo}
+            ajuda={t.fidelidade.aniversarioAjuda}
           />
         </div>
       </div>
+
+      <GrupoEmIngles seccao>
+        <div className="duas-colunas">
+          <Campo
+            rotulo={t.fidelidade.recompensa}
+            valor={f.recompensaEn}
+            mudar={mudar('recompensaEn')}
+            max={LIMITES_DO_PROGRAMA.recompensa}
+            erro={erros.includes('recompensaEn')}
+            placeholder={t.fidelidade.recompensaExemploEn}
+            ajuda={porRever(
+              original?.recompensa ?? '',
+              f.recompensa,
+              original?.recompensaEn ?? '',
+              f.recompensaEn,
+            )}
+          />
+          <Campo
+            rotulo={t.fidelidade.aniversario}
+            valor={f.aniversarioEn}
+            mudar={mudar('aniversarioEn')}
+            max={LIMITES_DO_PROGRAMA.aniversario}
+            erro={erros.includes('aniversarioEn')}
+            placeholder={t.fidelidade.aniversarioExemploEn}
+            ajuda={porRever(
+              original?.aniversario ?? '',
+              f.aniversario,
+              original?.aniversarioEn ?? '',
+              f.aniversarioEn,
+            )}
+          />
+        </div>
+      </GrupoEmIngles>
 
       <div className="gravar">
         <button
@@ -172,9 +214,9 @@ export function Fidelidade() {
           disabled={!sujo || aCorrer}
           onClick={() => correr(guardar)}
         >
-          Guardar
+          {t.fidelidade.guardar}
         </button>
-        {sujo && <span className="estado">Alterações por guardar</span>}
+        {sujo && <span className="estado">{t.fidelidade.porGuardar}</span>}
       </div>
     </>
   );

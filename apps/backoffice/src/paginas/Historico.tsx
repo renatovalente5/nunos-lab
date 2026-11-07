@@ -1,18 +1,31 @@
-import { dataCurta, diaEmLisboa, somarDias, type EntradaDoRegisto } from '@nunos-lab/dominio';
+import {
+  dataCurta,
+  diaEmLisboa,
+  somarDias,
+  type EntradaDoRegisto,
+  type Lingua,
+} from '@nunos-lab/dominio';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { pedir } from '../api';
+import { etiquetaDaLingua, useLingua } from '../lingua';
 import { Esqueleto, Vazio } from '../pecas';
-import { ACCOES, haQuanto } from '../util';
+import { useTextos, type Textos } from '../textos';
+import { accao, alvoDoRegisto, haQuanto } from '../util';
 
-/** «Hoje», «Ontem», ou o dia («20 out»), em Lisboa, para separar o histórico por dias. */
-function diaDe(segundos: number, hoje: string): string {
+/**
+ * «Hoje», «Ontem», ou o dia («20 out»), em Lisboa e na língua de agora, para separar o histórico
+ * por dias.
+ */
+function diaDe(segundos: number, hoje: string, t: Textos, lingua: Lingua): string {
   const dia = diaEmLisboa(segundos * 1000);
-  if (dia === hoje) return 'Hoje';
-  if (dia === somarDias(hoje, -1)) return 'Ontem';
-  return dataCurta(dia, hoje);
+  if (dia === hoje) return t.historico.hoje;
+  if (dia === somarDias(hoje, -1)) return t.historico.ontem;
+  return dataCurta(dia, hoje, lingua);
 }
 
 export function Historico() {
+  const t = useTextos();
+  const lingua = useLingua();
   const q = useInfiniteQuery({
     queryKey: ['registo'],
     queryFn: ({ pageParam }) =>
@@ -25,7 +38,7 @@ export function Historico() {
   const entradas = q.data?.pages.flat() ?? [];
   const dias: { dia: string; entradas: EntradaDoRegisto[] }[] = [];
   for (const e of entradas) {
-    const dia = diaDe(e.quando, hoje);
+    const dia = diaDe(e.quando, hoje, t, lingua);
     if (dias.at(-1)?.dia === dia) dias.at(-1)!.entradas.push(e);
     else dias.push({ dia, entradas: [e] });
   }
@@ -33,15 +46,15 @@ export function Historico() {
     <>
       <div className="cabecalho">
         <div>
-          <h1>Histórico</h1>
-          <p className="subtitulo">Quem mudou o quê, do mais recente para trás.</p>
+          <h1>{t.geral.seccoes.historico}</h1>
+          <p className="subtitulo">{t.historico.subtitulo}</p>
         </div>
       </div>
       {!q.data ? (
         <Esqueleto />
       ) : !entradas.length ? (
         <div className="cartao">
-          <Vazio titulo="Ainda nada no histórico" />
+          <Vazio titulo={t.historico.vazio} />
         </div>
       ) : (
         dias.map(({ dia, entradas: doDia }, i) => (
@@ -55,13 +68,16 @@ export function Historico() {
                   <li key={e.id}>
                     <div className="linha">
                       <div className="meio">
-                        <strong>{e.quem ?? 'Instalação'}</strong> {ACCOES[e.accao] ?? e.accao}{' '}
-                        {e.alvo && <span style={{ fontWeight: 700 }}>{e.alvo}</span>}
+                        <strong>{e.quem ?? t.historico.instalacao}</strong>{' '}
+                        {accao(e.accao) ?? e.accao}{' '}
+                        {e.alvo && (
+                          <span style={{ fontWeight: 700 }}>{alvoDoRegisto(e.accao, e.alvo)}</span>
+                        )}
                       </div>
                       <span
                         className="detalhe"
                         style={{ whiteSpace: 'nowrap' }}
-                        title={new Date(e.quando * 1000).toLocaleString('pt-PT', {
+                        title={new Date(e.quando * 1000).toLocaleString(etiquetaDaLingua(), {
                           timeZone: 'Europe/Lisbon',
                         })}
                       >
@@ -83,7 +99,7 @@ export function Historico() {
             disabled={q.isFetchingNextPage}
             onClick={() => q.fetchNextPage()}
           >
-            Ver mais antigos
+            {t.historico.verMaisAntigos}
           </button>
         </div>
       )}

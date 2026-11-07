@@ -27,6 +27,18 @@ export const NOME_DO_ESTADO: Record<EstadoDaPromocao, string> = {
   pausada: 'Pausada',
 };
 
+export const NOME_DO_ESTADO_EN: Record<EstadoDaPromocao, string> = {
+  activa: 'In the app',
+  agendada: 'Scheduled',
+  terminada: 'Ended',
+  pausada: 'Paused',
+};
+
+/** «Na app», «In the app». */
+export function nomeDoEstado(estado: EstadoDaPromocao, lingua: Lingua = 'pt'): string {
+  return (lingua === 'en' ? NOME_DO_ESTADO_EN : NOME_DO_ESTADO)[estado];
+}
+
 /**
  * Até quando vale, dito como se diz ao balcão: «Só hoje», «Até amanhã»,
  * «Até sexta», «Até 31 dez». Sem data de fim não se diz nada: o que não
@@ -45,11 +57,13 @@ export function validadeEmTexto(p: ComDatas, hoje: string, lingua: Lingua = 'pt'
 }
 
 /** Para o backoffice: «Desde 1 nov», «1 nov – 31 dez», «Até 31 dez», «Sempre». */
-export function periodoEmTexto(p: ComDatas, hoje: string): string {
-  if (p.inicio && p.fim) return `${dataCurta(p.inicio, hoje)} – ${dataCurta(p.fim, hoje)}`;
-  if (p.inicio) return `Desde ${dataCurta(p.inicio, hoje)}`;
-  if (p.fim) return `Até ${dataCurta(p.fim, hoje)}`;
-  return 'Sempre';
+export function periodoEmTexto(p: ComDatas, hoje: string, lingua: Lingua = 'pt'): string {
+  const en = lingua === 'en';
+  if (p.inicio && p.fim)
+    return `${dataCurta(p.inicio, hoje, lingua)} – ${dataCurta(p.fim, hoje, lingua)}`;
+  if (p.inicio) return `${en ? 'From' : 'Desde'} ${dataCurta(p.inicio, hoje, lingua)}`;
+  if (p.fim) return `${en ? 'Until' : 'Até'} ${dataCurta(p.fim, hoje, lingua)}`;
+  return en ? 'Always' : 'Sempre';
 }
 
 /**

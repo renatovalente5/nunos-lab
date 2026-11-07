@@ -2,8 +2,9 @@ import { LIMITES, type DefinicoesDaBarbearia } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
-import { Campo, Esqueleto, Icone, useAccao, useAvisar, useConfirmar } from '../pecas';
+import { Campo, Esqueleto, Icone, porRever, useAccao, useAvisar, useConfirmar } from '../pecas';
 import { ListaArrastavel } from '../arrastar';
+import { useTextos } from '../textos';
 import { useAvisoAoSair } from '../util';
 
 type LojaNoFormulario = {
@@ -24,6 +25,7 @@ type Formulario = Omit<DefinicoesDaBarbearia, 'lojas' | 'avisoAte'> & {
 function formularioDe(d: DefinicoesDaBarbearia): Formulario {
   return {
     ...d,
+    avisoEn: d.avisoEn ?? '',
     avisoAte: d.avisoAte ?? '',
     lojas: d.lojas.map((l) => ({
       id: l.id,
@@ -49,6 +51,7 @@ function coordenadasDe(texto: string): { lat: number | null; lng: number | null 
 }
 
 export function Barbearia() {
+  const t = useTextos();
   const { data } = useQuery({
     queryKey: ['barbearia'],
     queryFn: () => pedir<DefinicoesDaBarbearia>('/api/bo/barbearia'),
@@ -77,13 +80,13 @@ export function Barbearia() {
   async function guardar() {
     if (!f) return;
     if (f.lojas.some((l) => !l.nome.trim())) {
-      avisar('Cada loja precisa de um nome.', true);
+      avisar(t.barbearia.lojaSemNome, true);
       return;
     }
     const malEscritas = f.lojas.map((l, i) => (coordenadasDe(l.coordenadas) ? null : i));
     if (malEscritas.some((i) => i !== null)) {
       setErros(malEscritas.filter((i) => i !== null).map((i) => `lojas.${i}.coordenadas`));
-      avisar('Coordenadas: latitude e longitude, como «40.884, -8.452».', true);
+      avisar(t.barbearia.coordenadasErradas, true);
       return;
     }
     const enviado = f;
@@ -109,7 +112,7 @@ export function Barbearia() {
       setOriginal(novo);
       setF((agora) => (agora === enviado ? novo : agora));
       await refrescar();
-      avisar('Guardado');
+      avisar(t.barbearia.guardado);
       setErros([]);
     } catch (e) {
       if (e instanceof ErroDaApi) setErros(e.campos);
@@ -121,46 +124,56 @@ export function Barbearia() {
     <>
       <div className="cabecalho">
         <div>
-          <h1>Barbearia</h1>
-          <p className="subtitulo">
-            O separador «Barbearia» da app: as lojas, as marcações e as redes.
-          </p>
+          <h1>{t.geral.seccoes.barbearia}</h1>
+          <p className="subtitulo">{t.barbearia.subtitulo}</p>
         </div>
       </div>
 
       <h2 className="seccao" style={{ marginTop: 0 }}>
-        Aviso no topo da app
+        {t.barbearia.aviso}
       </h2>
       <div className="cartao recheado formulario">
         <Campo
-          rotulo="Texto"
+          rotulo={t.barbearia.texto}
           valor={f.aviso}
           mudar={(aviso) => setF({ ...f, aviso })}
           max={LIMITES.aviso}
           erro={erros.includes('aviso')}
-          placeholder="ex.: Novos parceiros esta semana"
-          ajuda="Vazio: sem aviso."
+          placeholder={t.barbearia.avisoExemplo}
+          ajuda={t.barbearia.avisoVazio}
+        />
+        <Campo
+          rotulo={t.geral.emIngles.titulo}
+          valor={f.avisoEn}
+          mudar={(avisoEn) => setF({ ...f, avisoEn })}
+          max={LIMITES.aviso}
+          erro={erros.includes('avisoEn')}
+          placeholder={t.barbearia.avisoExemploEn}
+          ajuda={
+            porRever(original?.aviso ?? '', f.aviso, original?.avisoEn ?? '', f.avisoEn) ??
+            t.geral.emIngles.ajuda
+          }
         />
         <div className="duas-colunas">
           <Campo
-            rotulo="Até"
+            rotulo={t.barbearia.ate}
             tipo="date"
             valor={f.avisoAte}
             mudar={(avisoAte) => setF({ ...f, avisoAte })}
             erro={erros.includes('avisoAte')}
-            ajuda="Vazio: fica até o tirares."
+            ajuda={t.barbearia.ateVazio}
           />
         </div>
       </div>
 
-      <h2 className="seccao">Lojas</h2>
+      <h2 className="seccao">{t.barbearia.lojas}</h2>
       <div className="formulario">
         <ListaArrastavel
           como="div"
           className="formulario"
           itens={f.lojas}
           chave={(l) => l.chave}
-          nome={(l) => l.nome || 'Loja nova'}
+          nome={(l) => l.nome || t.barbearia.lojaNova}
           aoReordenar={(lojas) => setF({ ...f, lojas })}
           desenhar={(l, pega) => {
             const i = f.lojas.findIndex((x) => x.chave === l.chave);
@@ -169,7 +182,7 @@ export function Barbearia() {
               <div className="cartao recheado formulario">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   {pega}
-                  <strong style={{ flex: 1, minWidth: 0 }}>{l.nome || 'Loja nova'}</strong>
+                  <strong style={{ flex: 1, minWidth: 0 }}>{l.nome || t.barbearia.lojaNova}</strong>
                   <button
                     type="button"
                     className="botao perigo pequeno"
@@ -178,9 +191,9 @@ export function Barbearia() {
                       if (
                         l.id &&
                         !(await confirmar(
-                          `Tirar ${l.nome || 'a loja'}?`,
-                          'Só sai uma casa que nunca teve carimbos, clientes, equipa nem parceiros. Não se desfaz.',
-                          'Tirar',
+                          t.barbearia.tirarPergunta(l.nome),
+                          t.barbearia.tirarTexto,
+                          t.barbearia.tirar,
                         ))
                       )
                         return;
@@ -189,12 +202,12 @@ export function Barbearia() {
                       );
                     }}
                   >
-                    Tirar
+                    {t.barbearia.tirar}
                   </button>
                 </div>
                 <div className="duas-colunas">
                   <Campo
-                    rotulo="Nome"
+                    rotulo={t.barbearia.nome}
                     valor={l.nome}
                     mudar={(v) => mudarLoja(l.chave, 'nome', v)}
                     max={LIMITES.loja}
@@ -202,48 +215,40 @@ export function Barbearia() {
                     obrigatorio
                   />
                   <Campo
-                    rotulo="Telefone"
+                    rotulo={t.barbearia.telefone}
                     tipo="tel"
                     valor={l.telefone}
                     mudar={(v) => mudarLoja(l.chave, 'telefone', v)}
                     max={LIMITES.telefone}
                     erro={errado('telefone')}
-                    erroTexto="Um telefone com 9 a 15 algarismos (ex.: 912 345 678)."
+                    erroTexto={t.barbearia.telefoneErrado}
                   />
                 </div>
                 <Campo
-                  rotulo="Morada"
+                  rotulo={t.barbearia.morada}
                   valor={l.morada}
                   mudar={(v) => mudarLoja(l.chave, 'morada', v)}
                   max={LIMITES.morada}
                   erro={errado('morada')}
                 />
                 <Campo
-                  rotulo="Coordenadas"
+                  rotulo={t.barbearia.coordenadas}
                   valor={l.coordenadas}
                   mudar={(v) => mudarLoja(l.chave, 'coordenadas', v)}
                   max={40}
                   erro={errado('coordenadas')}
                   placeholder="40.884, -8.452"
-                  ajuda={
-                    i === 0
-                      ? 'Latitude e longitude: o mapa da app, e o passe da Wallet acorda ao chegar à casa.'
-                      : undefined
-                  }
+                  ajuda={i === 0 ? t.barbearia.coordenadasAjuda : undefined}
                 />
                 <Campo
-                  rotulo="Ligação de marcação"
+                  rotulo={t.barbearia.marcacao}
                   tipo="url"
                   valor={l.marcar}
                   mudar={(v) => mudarLoja(l.chave, 'marcar', v)}
                   max={500}
                   erro={errado('marcar')}
-                  erroTexto="Uma ligação https://… (a página da Fresha desta loja)."
-                  ajuda={
-                    i === 0
-                      ? 'A página da Fresha de cada loja. O botão «Marcar» abre-a.'
-                      : undefined
-                  }
+                  erroTexto={t.barbearia.marcacaoErrada}
+                  ajuda={i === 0 ? t.barbearia.marcacaoAjuda : undefined}
                 />
               </div>
             );
@@ -270,12 +275,12 @@ export function Barbearia() {
               })
             }
           >
-            <Icone nome="mais" tamanho={18} /> Juntar loja
+            <Icone nome="mais" tamanho={18} /> {t.barbearia.juntarLoja}
           </button>
         </div>
       </div>
 
-      <h2 className="seccao">Redes e contactos</h2>
+      <h2 className="seccao">{t.barbearia.redes}</h2>
       <div className="cartao recheado formulario">
         <div className="duas-colunas">
           <Campo
@@ -284,8 +289,8 @@ export function Barbearia() {
             mudar={(instagram) => setF({ ...f, instagram })}
             max={200}
             erro={erros.includes('instagram')}
-            erroTexto="Põe só a conta (ex.: @nunoslab), não a ligação de uma publicação."
-            placeholder="@conta"
+            erroTexto={t.barbearia.instagramErrado}
+            placeholder={t.barbearia.conta}
           />
           <Campo
             rotulo="TikTok"
@@ -294,29 +299,29 @@ export function Barbearia() {
             mudar={(tiktok) => setF({ ...f, tiktok })}
             max={200}
             erro={erros.includes('tiktok')}
-            erroTexto="Uma ligação https://www.tiktok.com/@…"
+            erroTexto={t.barbearia.tiktokErrado}
             placeholder="https://www.tiktok.com/@…"
           />
         </div>
         <div className="duas-colunas">
           <Campo
-            rotulo="WhatsApp das tatuagens"
+            rotulo={t.barbearia.whatsapp}
             tipo="url"
             valor={f.whatsapp}
             mudar={(whatsapp) => setF({ ...f, whatsapp })}
             max={200}
             erro={erros.includes('whatsapp')}
-            erroTexto="Uma ligação https://wa.link/… ou https://wa.me/…"
+            erroTexto={t.barbearia.whatsappErrado}
             placeholder="https://wa.link/…"
           />
           <Campo
-            rotulo="Site"
+            rotulo={t.barbearia.site}
             tipo="url"
             valor={f.site}
             mudar={(site) => setF({ ...f, site })}
             max={LIMITES.site}
             erro={erros.includes('site')}
-            erroTexto="Uma morada de site, como nunoslab.com."
+            erroTexto={t.barbearia.siteErrado}
           />
         </div>
       </div>
@@ -328,9 +333,9 @@ export function Barbearia() {
           disabled={!sujo || aCorrer}
           onClick={() => correr(guardar)}
         >
-          Guardar
+          {t.barbearia.guardar}
         </button>
-        {sujo && <span className="estado">Alterações por guardar</span>}
+        {sujo && <span className="estado">{t.barbearia.porGuardar}</span>}
       </div>
       {dialogo}
     </>

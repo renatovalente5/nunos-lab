@@ -8,6 +8,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ErroDaApi, guardarSessao, mensagemDe, pedir, refrescar } from '../api';
+import { etiquetaDaLingua, useLingua } from '../lingua';
 import {
   Campo,
   Esqueleto,
@@ -18,7 +19,8 @@ import {
   useAvisar,
   useConfirmar,
 } from '../pecas';
-import { haQuanto } from '../util';
+import { useTextos } from '../textos';
+import { haQuanto, nomeDoAparelho } from '../util';
 
 /** A ligação monta-se com a morada deste backoffice, onde quer que ele esteja publicado. */
 function ligacaoDe(codigo: string): string {
@@ -30,6 +32,8 @@ function ligacaoDe(codigo: string): string {
  * aqui está; a ligação de acesso fica para quem não tiver conta Google.
  */
 export function Acessos() {
+  const t = useTextos();
+  const lingua = useLingua();
   const { data } = useQuery({
     queryKey: ['acessos'],
     queryFn: () => pedir<PessoaComAcesso[]>('/api/bo/acessos'),
@@ -67,12 +71,12 @@ export function Acessos() {
     try {
       await pedir('/api/bo/pessoas', { metodo: 'POST', corpo: { nome: nova.nome.trim(), email } });
       await refrescar();
-      avisar(`${nova.nome.trim()} já pode entrar com o Google`);
+      avisar(t.acessos.jaPodeEntrar(nova.nome.trim()));
       setNova(null);
     } catch (e) {
       avisar(
         e instanceof ErroDaApi && e.codigo === 'repetido'
-          ? 'Esse email já tem acesso.'
+          ? t.acessos.emailJaTemAcesso
           : mensagemDe(e),
         true,
       );
@@ -89,12 +93,12 @@ export function Acessos() {
     try {
       await pedir(`/api/bo/pessoas/${mudarEmail.id}`, { metodo: 'PATCH', corpo: { email } });
       await refrescar();
-      avisar('Email guardado');
+      avisar(t.acessos.emailGuardado);
       setMudarEmail(null);
     } catch (e) {
       avisar(
         e instanceof ErroDaApi && e.codigo === 'repetido'
-          ? 'Esse email já é de outra pessoa.'
+          ? t.acessos.emailDeOutraPessoa
           : mensagemDe(e),
         true,
       );
@@ -105,8 +109,8 @@ export function Acessos() {
     <>
       <div className="cabecalho">
         <div>
-          <h1>Acessos</h1>
-          <p className="subtitulo">Quem entra no backoffice, e em que aparelhos.</p>
+          <h1>{t.geral.seccoes.acessos}</h1>
+          <p className="subtitulo">{t.acessos.subtitulo}</p>
         </div>
         <button
           type="button"
@@ -116,7 +120,7 @@ export function Acessos() {
             setNova({ nome: '', email: '' });
           }}
         >
-          <Icone nome="mais" tamanho={18} /> Dar acesso a alguém
+          <Icone nome="mais" tamanho={18} /> {t.acessos.darAcessoAAlguem}
         </button>
       </div>
 
@@ -138,7 +142,7 @@ export function Acessos() {
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <strong style={{ fontSize: 17 }}>{p.nome}</strong>{' '}
-                  {p.eu && <Etiqueta semPonto>Tu</Etiqueta>}
+                  {p.eu && <Etiqueta semPonto>{t.acessos.tu}</Etiqueta>}
                   <div
                     className="detalhe"
                     style={{
@@ -148,7 +152,7 @@ export function Acessos() {
                       overflowWrap: 'anywhere',
                     }}
                   >
-                    {p.email ?? 'Só entra por ligação'}
+                    {p.email ?? t.acessos.soPorLigacao}
                   </div>
                 </div>
                 <button
@@ -159,7 +163,7 @@ export function Acessos() {
                     setMudarEmail({ id: p.id, nome: p.nome, email: p.email ?? '', eu: p.eu });
                   }}
                 >
-                  Editar
+                  {t.acessos.editar}
                 </button>
               </div>
               <ul className="lista">
@@ -168,11 +172,11 @@ export function Acessos() {
                     <div className="linha">
                       <div className="meio">
                         <div className="titulo-linha">
-                          {s.aparelho || 'Aparelho'}{' '}
-                          {s.actual && <Etiqueta tom="bom">Este aparelho</Etiqueta>}
+                          {nomeDoAparelho(s.aparelho, t.acessos.aparelho)}{' '}
+                          {s.actual && <Etiqueta tom="bom">{t.acessos.esteAparelho}</Etiqueta>}
                         </div>
                         <div className="detalhe">
-                          Entrou {haQuanto(s.criadaEm)} · usado {haQuanto(s.vistaEm)}
+                          {t.acessos.entrouEUsado(haQuanto(s.criadaEm), haQuanto(s.vistaEm))}
                         </div>
                       </div>
                       <button
@@ -181,13 +185,13 @@ export function Acessos() {
                         disabled={aCorrer}
                         onClick={async () => {
                           const texto = s.actual
-                            ? 'Sais do backoffice neste aparelho.'
-                            : `${p.nome} sai do backoffice nesse aparelho.`;
+                            ? t.acessos.saisNesteAparelho
+                            : t.acessos.saiNesseAparelho(p.nome);
                           if (
                             await confirmar(
-                              s.actual ? 'Sair deste aparelho?' : 'Terminar a sessão?',
+                              s.actual ? t.acessos.sairDesteAparelho : t.acessos.terminarASessao,
                               texto,
-                              s.actual ? 'Sair' : 'Terminar',
+                              s.actual ? t.geral.sair : t.acessos.terminar,
                             )
                           )
                             await correr(async () => {
@@ -197,7 +201,7 @@ export function Acessos() {
                             });
                         }}
                       >
-                        {s.actual ? 'Sair' : 'Terminar'}
+                        {s.actual ? t.geral.sair : t.acessos.terminar}
                       </button>
                     </div>
                   </li>
@@ -206,9 +210,11 @@ export function Acessos() {
                   <li key={`l${l.id}`}>
                     <div className="linha">
                       <div className="meio">
-                        <div className="titulo-linha">Ligação por usar</div>
+                        <div className="titulo-linha">{t.acessos.ligacaoPorUsar}</div>
                         <div className="detalhe">
-                          Vale até {dataCurta(diaEmLisboa(l.expiraEm * 1000), diaEmLisboa())}
+                          {t.acessos.valeAte(
+                            dataCurta(diaEmLisboa(l.expiraEm * 1000), diaEmLisboa(), lingua),
+                          )}
                         </div>
                       </div>
                       <button
@@ -219,17 +225,17 @@ export function Acessos() {
                           correr(async () => {
                             await pedir(`/api/bo/acessos/${l.id}`, { metodo: 'DELETE' });
                             await refrescar();
-                          }, 'Ligação cancelada')
+                          }, t.acessos.ligacaoCancelada)
                         }
                       >
-                        Cancelar
+                        {t.geral.cancelar}
                       </button>
                     </div>
                   </li>
                 ))}
                 {!p.sessoes.length && !p.ligacoes.length && (
                   <li>
-                    <div className="linha detalhe">Ainda não entrou.</div>
+                    <div className="linha detalhe">{t.acessos.aindaNaoEntrou}</div>
                   </li>
                 )}
               </ul>
@@ -241,7 +247,7 @@ export function Acessos() {
       <Folha
         aberta={nova !== null}
         fechar={() => setNova(null)}
-        titulo="Dar acesso a alguém"
+        titulo={t.acessos.darAcessoAAlguem}
         pe={
           <button
             type="button"
@@ -249,22 +255,22 @@ export function Acessos() {
             disabled={!nova?.nome.trim() || !nova?.email.trim() || aCorrer}
             onClick={() => correr(darAcesso)}
           >
-            Dar acesso
+            {t.acessos.darAcesso}
           </button>
         }
       >
         {nova && (
           <div className="formulario">
             <Campo
-              rotulo="Nome"
+              rotulo={t.acessos.nome}
               valor={nova.nome}
               mudar={(nome) => setNova({ ...nova, nome })}
               max={LIMITES.pessoa}
-              placeholder="ex.: Nuno"
+              placeholder={t.acessos.exemploDeNome}
               autoFocus
             />
             <Campo
-              rotulo="Email da conta Google"
+              rotulo={t.acessos.emailDaConta}
               valor={nova.email}
               mudar={(email) => {
                 setErroDoEmail(false);
@@ -272,8 +278,8 @@ export function Acessos() {
               }}
               max={254}
               erro={erroDoEmail}
-              placeholder="nome@gmail.com"
-              ajuda="Entra no backoffice com o botão do Google, com esta conta."
+              placeholder={t.acessos.exemploDeEmail}
+              ajuda={t.acessos.ajudaDoEmail}
             />
           </div>
         )}
@@ -282,7 +288,7 @@ export function Acessos() {
       <Folha
         aberta={mudarEmail !== null}
         fechar={() => setMudarEmail(null)}
-        titulo={`Editar ${mudarEmail?.nome ?? ''}`}
+        titulo={t.acessos.editarPessoa(mudarEmail?.nome ?? '')}
         pe={
           <button
             type="button"
@@ -290,14 +296,14 @@ export function Acessos() {
             disabled={aCorrer}
             onClick={() => correr(guardarEmail)}
           >
-            Guardar
+            {t.acessos.guardar}
           </button>
         }
       >
         {mudarEmail && (
           <div className="formulario">
             <Campo
-              rotulo="Email da conta Google"
+              rotulo={t.acessos.emailDaConta}
               valor={mudarEmail.email}
               mudar={(email) => {
                 setErroDoEmail(false);
@@ -305,8 +311,8 @@ export function Acessos() {
               }}
               max={254}
               erro={erroDoEmail}
-              placeholder="nome@gmail.com"
-              ajuda="Vazio: deixa de entrar com o Google."
+              placeholder={t.acessos.exemploDeEmail}
+              ajuda={t.acessos.ajudaDoEmailVazio}
             />
             <div className="botoes">
               <button
@@ -319,7 +325,7 @@ export function Acessos() {
                   criarLigacao(id, nome);
                 }}
               >
-                Criar ligação de acesso
+                {t.acessos.criarLigacao}
               </button>
               {!mudarEmail.eu && (
                 <button
@@ -329,19 +335,19 @@ export function Acessos() {
                     const { id, nome } = mudarEmail;
                     if (
                       await confirmar(
-                        `Tirar o acesso a ${nome}?`,
-                        'Sai já de todos os aparelhos, e deixa de conseguir entrar.',
-                        'Tirar o acesso',
+                        t.acessos.tirarOAcessoA(nome),
+                        t.acessos.tirarOAcessoTexto,
+                        t.acessos.tirarOAcesso,
                       )
                     )
                       await correr(async () => {
                         await pedir(`/api/bo/pessoas/${id}`, { metodo: 'DELETE' });
                         await refrescar();
                         setMudarEmail(null);
-                      }, 'Acesso tirado');
+                      }, t.acessos.acessoTirado);
                   }}
                 >
-                  Tirar o acesso
+                  {t.acessos.tirarOAcesso}
                 </button>
               )}
             </div>
@@ -352,7 +358,7 @@ export function Acessos() {
       <Folha
         aberta={!!ligacao}
         fechar={() => setLigacao(null)}
-        titulo={`A ligação para ${ligacao?.para ?? ''}`}
+        titulo={t.acessos.ligacaoPara(ligacao?.para ?? '')}
         pe={
           <>
             <button
@@ -362,13 +368,13 @@ export function Acessos() {
                 if (!ligacao) return;
                 try {
                   await navigator.clipboard.writeText(ligacao.url);
-                  avisar('Copiada');
+                  avisar(t.acessos.copiada);
                 } catch {
-                  avisar('Não deu para copiar: selecciona e copia à mão.', true);
+                  avisar(t.acessos.naoDeuParaCopiar, true);
                 }
               }}
             >
-              <Icone nome="copiar" tamanho={17} /> Copiar
+              <Icone nome="copiar" tamanho={17} /> {t.acessos.copiar}
             </button>
             {typeof navigator.share === 'function' && (
               <button
@@ -377,11 +383,11 @@ export function Acessos() {
                 onClick={() =>
                   ligacao &&
                   navigator
-                    .share({ title: "Backoffice do Nuno's Lab", url: ligacao.url })
+                    .share({ title: t.acessos.tituloDaPartilha, url: ligacao.url })
                     .catch(() => {})
                 }
               >
-                <Icone nome="partilhar" tamanho={17} /> Partilhar
+                <Icone nome="partilhar" tamanho={17} /> {t.acessos.partilhar}
               </button>
             )}
           </>
@@ -394,15 +400,16 @@ export function Acessos() {
               readOnly
               value={ligacao.url}
               onFocus={(e) => e.target.select()}
-              aria-label="Ligação de acesso"
+              aria-label={t.acessos.ligacaoDeAcesso}
             />
             <div className="caixa-aviso">
-              Entra uma vez, num aparelho, até{' '}
-              {new Date(ligacao.ate * 1000).toLocaleDateString('pt-PT', {
-                day: 'numeric',
-                month: 'long',
-              })}
-              . Manda-a só a {ligacao.para}: quem a abrir entra no backoffice.
+              {t.acessos.entraUmaVez(
+                new Date(ligacao.ate * 1000).toLocaleDateString(etiquetaDaLingua(), {
+                  day: 'numeric',
+                  month: 'long',
+                }),
+                ligacao.para,
+              )}
             </div>
           </div>
         )}

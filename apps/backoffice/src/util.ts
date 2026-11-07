@@ -1,69 +1,68 @@
-import { MESES, dataCurta, diaEmLisboa } from '@nunos-lab/dominio';
+import { dataCurta, diaEmLisboa, nomeDoMes } from '@nunos-lab/dominio';
 import { useEffect, useState } from 'react';
+import { etiquetaDaLingua, linguaActual } from './lingua';
+import { textos } from './textos';
 
-/** «agora», «há 5 min», «há 3 h», «ontem», «há 4 dias», «12 out». */
+/** «agora», «há 5 min», «há 3 h», «ontem», «há 4 dias», «12 out» (na língua de agora). */
 export function haQuanto(segundos: number, agora = Date.now() / 1000): string {
+  const t = textos().geral.quando;
   const d = Math.max(0, agora - segundos);
-  if (d < 60) return 'agora';
-  if (d < 3600) return `há ${Math.floor(d / 60)} min`;
-  if (d < 86_400) return `há ${Math.floor(d / 3600)} h`;
-  if (d < 2 * 86_400) return 'ontem';
-  if (d < 7 * 86_400) return `há ${Math.floor(d / 86_400)} dias`;
+  if (d < 60) return t.agora;
+  if (d < 3600) return t.haMinutos(Math.floor(d / 60));
+  if (d < 86_400) return t.haHoras(Math.floor(d / 3600));
+  if (d < 2 * 86_400) return t.ontem;
+  if (d < 7 * 86_400) return t.haDias(Math.floor(d / 86_400));
   // O Chrome escreve «12/10» com o mês curto em pt-PT: a data vem do domínio, como na app.
-  return dataCurta(diaEmLisboa(segundos * 1000), diaEmLisboa(agora * 1000));
+  return dataCurta(diaEmLisboa(segundos * 1000), diaEmLisboa(agora * 1000), linguaActual());
+}
+
+/** Um número como se escreve na língua de agora («1234» em português, «1,234» em inglês). */
+export function numero(n: number): string {
+  return n.toLocaleString(etiquetaDaLingua());
 }
 
 export function plural(n: number, um: string, varios: string): string {
-  return `${n.toLocaleString('pt-PT')} ${n === 1 ? um : varios}`;
+  return `${numero(n)} ${n === 1 ? um : varios}`;
 }
 
-/** O que cada linha do registo quer dizer, em português corrido. */
-export const ACCOES: Record<string, string> = {
-  entrou: 'entrou no backoffice',
-  'acesso.criado': 'criou uma ligação de acesso para',
-  'sessao.terminada': 'terminou a sessão de',
-  'pessoa.removida': 'tirou o acesso a',
-  'pessoa.criada': 'deu acesso a',
-  'pessoa.email': 'mudou o email de',
-  'parceiro.criado': 'criou o parceiro',
-  'parceiro.alterado': 'alterou o parceiro',
-  'parceiro.activado': 'pôs na app o parceiro',
-  'parceiro.pausado': 'pausou o parceiro',
-  'parceiro.apagado': 'apagou o parceiro',
-  'parceiros.ordenados': 'mudou a ordem dos parceiros',
-  'promocao.criada': 'criou a promoção',
-  'promocao.alterada': 'alterou a promoção',
-  'promocao.activada': 'ligou a promoção',
-  'promocao.pausada': 'pausou a promoção',
-  'promocao.destaque': 'mudou o destaque de',
-  'promocao.apagada': 'apagou a promoção',
-  'categoria.criada': 'criou a categoria',
-  'categoria.alterada': 'alterou a categoria',
-  'categoria.apagada': 'apagou a categoria',
-  'barbearia.alterada': 'alterou a barbearia',
-  'exemplos.apagados': 'apagou os parceiros de exemplo',
-  'programa.alterado': 'alterou o programa de fidelidade:',
-  'servico.criado': 'criou o serviço',
-  'equipa.criada': 'juntou à equipa',
-  'equipa.removida': 'tirou da equipa',
-  'equipa.ligacao': 'criou uma ligação da app for partners para',
-  'clientes.exemplos_apagados': 'apagou os clientes de exemplo',
-};
+/** O que uma linha do registo quer dizer («criou o parceiro»), na língua de agora. */
+export function accao(chave: string): string | undefined {
+  const accoes = textos().geral.accoes;
+  return Object.prototype.hasOwnProperty.call(accoes, chave) ? accoes[chave] : undefined;
+}
+
+/**
+ * O aparelho de uma sessão como a API o guarda («iPhone · Safari»; «Aparelho · Chrome» quando não
+ * conhece o sistema), com a palavra «Aparelho» na língua de agora.
+ */
+export function nomeDoAparelho(aparelho: string, palavra: string): string {
+  return aparelho ? aparelho.replace(/^Aparelho(?= ·|$)/, palavra) : palavra;
+}
+
+/** O alvo de uma linha do registo, com o que a API guarda em português na entrada («Aparelho · ligação»). */
+export function alvoDoRegisto(accao: string, alvo: string): string {
+  if (accao !== 'entrou') return alvo;
+  const t = textos().geral;
+  return nomeDoAparelho(alvo, t.aparelho).replace(/ · ligação$/, ` · ${t.ligacao}`);
+}
 
 /** Cêntimos em euros, como se lê: «15,00 €». */
 export function euros(centimos: number): string {
-  return (centimos / 100).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+  return (centimos / 100).toLocaleString(etiquetaDaLingua(), {
+    style: 'currency',
+    currency: 'EUR',
+  });
 }
 
-/** Uma fracção em percentagem inteira: 0,623 → «62 %». */
+/** Uma fracção em percentagem inteira: 0,623 → «62 %» (em inglês, «62%»). */
 export function percentagem(fraccao: number): string {
-  return `${Math.round(fraccao * 100)} %`;
+  return `${Math.round(fraccao * 100)}${linguaActual() === 'en' ? '' : ' '}%`;
 }
 
-/** «AAAA-MM» → «out 2026». */
+/** «AAAA-MM» → «out 2026», «Oct 2026». */
 export function mesPorExtenso(mes: string): string {
   const [ano, m] = mes.split('-');
-  return `${MESES[Number(m) - 1] ?? m} ${ano}`;
+  return `${nomeDoMes(Number(m) - 1, linguaActual()) ?? m} ${ano}`;
 }
 
 /** O endereço da página: «#/parceiros/3» → ['parceiros', '3']. */
@@ -96,7 +95,7 @@ export function useAvisoAoSair(sujo: boolean) {
     const clique = (e: MouseEvent) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
       const ligacao = (e.target as Element | null)?.closest?.('a[href^="#/"]');
-      if (ligacao && !window.confirm('Há alterações por guardar. Sair sem guardar?')) {
+      if (ligacao && !window.confirm(textos().geral.sairSemGuardar)) {
         e.preventDefault();
         e.stopPropagation();
       }

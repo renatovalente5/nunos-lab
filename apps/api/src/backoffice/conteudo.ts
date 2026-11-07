@@ -91,8 +91,8 @@ rotasDoConteudo.post('/parceiros', async (c) => {
       db
         .prepare(
           `INSERT INTO parceiros (nome, categoria_id, loja_id, localidade, morada, telefone, instagram, site, horario, descricao,
-             cor, logotipo_id, capa_id, activo, ordem)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM parceiros))
+             horario_en, descricao_en, cor, logotipo_id, capa_id, activo, ordem)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM parceiros))
            RETURNING id`,
         )
         .bind(
@@ -106,6 +106,8 @@ rotasDoConteudo.post('/parceiros', async (c) => {
           p.site,
           p.horario,
           p.descricao,
+          p.horarioEn ?? '',
+          p.descricaoEn ?? '',
           p.cor,
           p.logotipo,
           p.capa,
@@ -252,6 +254,9 @@ function promocaoDoBackoffice(
 ): PromocaoDoContrato {
   return {
     ...promocaoPublica(l),
+    destaqueEn: l.destaque_en,
+    tituloEn: l.titulo_en,
+    detalheEn: l.detalhe_en,
     limiteTotal: l.validar === 1 ? l.limite_total : null,
     validacoes: l.validacoes ?? 0,
     surpresaDias: l.surpresa_dias,
@@ -314,10 +319,11 @@ rotasDoConteudo.post('/promocoes', async (c) => {
   const [nova] = await db.batch([
     db
       .prepare(
-        `INSERT INTO promocoes (parceiro_id, destaque, titulo, detalhe, inicio, fim, em_destaque, activa,
+        `INSERT INTO promocoes (parceiro_id, destaque, titulo, detalhe, destaque_en, titulo_en, detalhe_en,
+           inicio, fim, em_destaque, activa,
            validar, limite_por_cliente, periodo_do_limite, limite_total, so_clientes_activos,
            surpresa, surpresa_dias, surpresa_peso, surpresa_restantes, ordem)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM promocoes WHERE parceiro_id = ?))
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM promocoes WHERE parceiro_id = ?))
          RETURNING id`,
       )
       .bind(
@@ -325,6 +331,9 @@ rotasDoConteudo.post('/promocoes', async (c) => {
         p.destaque,
         p.titulo,
         p.detalhe,
+        p.destaqueEn ?? '',
+        p.tituloEn ?? '',
+        p.detalheEn ?? '',
         p.inicio,
         p.fim,
         p.emDestaque ? 1 : 0,
@@ -433,6 +442,7 @@ rotasDoConteudo.get('/categorias', async (c) => {
   ).all<LinhaCategoria & { parceiros: number }>();
   const lista: CategoriaComContagem[] = results.map((l) => ({
     ...categoria(l),
+    nomeEn: l.nome_en,
     parceiros: l.parceiros,
   }));
   return c.json(lista);
@@ -444,9 +454,9 @@ rotasDoConteudo.post('/categorias', async (c) => {
   const [nova] = await db.batch([
     db
       .prepare(
-        'INSERT INTO categorias (nome, icone, ordem) VALUES (?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM categorias)) RETURNING id',
+        'INSERT INTO categorias (nome, nome_en, icone, ordem) VALUES (?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM categorias)) RETURNING id',
       )
-      .bind(k.nome, k.icone),
+      .bind(k.nome, k.nomeEn ?? '', k.icone),
     registar(c, 'categoria.criada', k.nome),
   ]);
   return c.json({ id: (nova!.results[0] as { id: number }).id }, 201);
@@ -457,7 +467,12 @@ rotasDoConteudo.patch('/categorias/:id', async (c) => {
   const k = await corpo(c, Categoria);
   const db = c.env.DB;
   const [r] = await db.batch([
-    db.prepare('UPDATE categorias SET nome = ?, icone = ? WHERE id = ?').bind(k.nome, k.icone, id),
+    // O nome em inglês só muda quando vem (um backoffice antigo aberto não o apaga).
+    db
+      .prepare(
+        'UPDATE categorias SET nome = ?, icone = ?, nome_en = coalesce(?, nome_en) WHERE id = ?',
+      )
+      .bind(k.nome, k.icone, k.nomeEn ?? null, id),
     registar(c, 'categoria.alterada', k.nome),
   ]);
   if (!r!.meta.changes) recusar(404, 'nao_existe');
@@ -487,7 +502,15 @@ rotasDoConteudo.post('/categorias/ordem', async (c) => {
 
 // ——— a barbearia: lojas, redes e o aviso ———
 
-const CHAVES = ['instagram', 'tiktok', 'whatsapp', 'site', 'aviso', 'aviso_ate'] as const;
+const CHAVES = [
+  'instagram',
+  'tiktok',
+  'whatsapp',
+  'site',
+  'aviso',
+  'aviso_en',
+  'aviso_ate',
+] as const;
 
 async function lerBarbearia(db: D1Database) {
   const [lojas, defs] = await db.batch([
@@ -504,6 +527,7 @@ async function lerBarbearia(db: D1Database) {
     whatsapp: d.get('whatsapp') ?? '',
     site: d.get('site') ?? '',
     aviso: d.get('aviso') ?? '',
+    avisoEn: d.get('aviso_en') ?? '',
     avisoAte: d.get('aviso_ate') || null,
   };
 }
@@ -564,22 +588,25 @@ rotasDoConteudo.put('/barbearia', async (c) => {
             .bind(l.nome, l.morada, l.telefone, l.marcar, i + 1, l.lat ?? null, l.lng ?? null),
     );
   });
-  const valores: Record<(typeof CHAVES)[number], string> = {
+  // Sem aviso em português não fica o inglês; um backoffice antigo (sem avisoEn) deixa-o como está.
+  const valores: Record<(typeof CHAVES)[number], string | undefined> = {
     instagram: b.instagram,
     tiktok: b.tiktok,
     whatsapp: b.whatsapp,
     site: b.site,
     aviso: b.aviso,
+    aviso_en: b.aviso ? b.avisoEn : '',
     aviso_ate: b.aviso ? (b.avisoAte ?? '') : '',
   };
   for (const chave of CHAVES)
-    instrucoes.push(
-      db
-        .prepare(
-          'INSERT INTO definicoes (chave, valor) VALUES (?, ?) ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor',
-        )
-        .bind(chave, valores[chave]),
-    );
+    if (valores[chave] !== undefined)
+      instrucoes.push(
+        db
+          .prepare(
+            'INSERT INTO definicoes (chave, valor) VALUES (?, ?) ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor',
+          )
+          .bind(chave, valores[chave]),
+      );
   instrucoes.push(registar(c, 'barbearia.alterada'));
   await db.batch(instrucoes);
   // O passe leva as casas (os sítios que o acordam no ecrã bloqueado, os nomes e telefones nas

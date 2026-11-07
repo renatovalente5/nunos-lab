@@ -104,6 +104,9 @@ export type TipoDeContagem = (typeof TIPOS_DE_CONTAGEM)[number];
 export type Parceiro = ContactosDoParceiro & {
   id: number;
   nome: string;
+  /** O horário e a descrição em inglês (vazio: a app em inglês mostra o português). */
+  horarioEn: string;
+  descricaoEn: string;
   categoriaId: number | null;
   lojaId: number | null;
   cor: string;
@@ -119,6 +122,10 @@ export type Parceiro = ContactosDoParceiro & {
 };
 
 export type Promocao = PromocaoPublica & {
+  /** Os textos em inglês (vazio: a app em inglês mostra o português). */
+  destaqueEn: string;
+  tituloEn: string;
+  detalheEn: string;
   parceiroId: number;
   parceiro: string;
   /** Para toda a gente (null: sem limite), e quantas já foram usadas. */
@@ -138,7 +145,7 @@ export type Promocao = PromocaoPublica & {
   estado: EstadoDaPromocao;
 };
 
-export type CategoriaComContagem = Categoria & { parceiros: number };
+export type CategoriaComContagem = Categoria & { parceiros: number; nomeEn: string };
 
 export type Eu = { id: number; nome: string; sessao: number };
 
@@ -191,6 +198,8 @@ export type DefinicoesDaBarbearia = {
   whatsapp: string;
   site: string;
   aviso: string;
+  /** O aviso em inglês (vazio: a app em inglês mostra o português). */
+  avisoEn: string;
   avisoAte: string | null;
 };
 

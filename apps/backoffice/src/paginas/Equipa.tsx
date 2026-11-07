@@ -9,6 +9,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
+import { etiquetaDaLingua } from '../lingua';
 import {
   Campo,
   Esqueleto,
@@ -23,7 +24,8 @@ import {
   useConfirmar,
   Vazio,
 } from '../pecas';
-import { haQuanto, plural } from '../util';
+import { useTextos } from '../textos';
+import { haQuanto, nomeDoAparelho, plural } from '../util';
 
 /** A Balcão, onde quer que esteja publicada. */
 const BALCAO = (import.meta.env.VITE_BALCAO as string).replace(/\/$/, '');
@@ -32,11 +34,8 @@ function ligacaoDe(codigo: string): string {
   return `${BALCAO}/#acesso=${codigo}`;
 }
 
-const PAPEIS: { valor: PapelDaEquipa; nome: string }[] = [
-  { valor: 'dono', nome: 'Dono' },
-  { valor: 'barbeiro', nome: 'Barbeiro' },
-  { valor: 'parceiro', nome: 'Parceiro' },
-];
+/** Os papéis, pela ordem em que aparecem; os nomes vêm dos textos, na língua de agora. */
+const PAPEIS: PapelDaEquipa[] = ['dono', 'barbeiro', 'parceiro'];
 
 type Formulario = {
   id: number | null;
@@ -64,6 +63,7 @@ const NOVA: Formulario = {
  * que aqui está, ou por uma ligação de acesso (uma vez, num aparelho).
  */
 export function Equipa() {
+  const t = useTextos();
   const equipa = useQuery({
     queryKey: ['equipa'],
     queryFn: () => pedir<PessoaDaEquipaNoBackoffice[]>('/api/bo/equipa'),
@@ -94,7 +94,7 @@ export function Equipa() {
   };
   juntar(
     'dono',
-    'Dono',
+    t.equipa.papeis.dono,
     pessoas.filter((p) => p.papel === 'dono'),
   );
   const barbeiros = pessoas.filter((p) => p.papel === 'barbeiro');
@@ -106,12 +106,12 @@ export function Equipa() {
     );
   juntar(
     'todas',
-    'Todas as casas',
+    t.equipa.todasAsCasas,
     barbeiros.filter((p) => p.lojaId === null || !lojas.some((l) => l.id === p.lojaId)),
   );
   juntar(
     'parceiros',
-    'Parceiros',
+    t.equipa.parceiros,
     pessoas.filter((p) => p.papel === 'parceiro'),
   );
 
@@ -150,7 +150,7 @@ export function Equipa() {
     if (faltam.length) {
       setErros(faltam);
       avisar(
-        faltam.includes('parceiroId') ? 'Escolhe o parceiro.' : 'Há campos por corrigir.',
+        faltam.includes('parceiroId') ? t.equipa.faltaOParceiro : t.equipa.camposPorCorrigir,
         true,
       );
       return;
@@ -167,12 +167,12 @@ export function Equipa() {
       if (f.id) await pedir(`/api/bo/equipa/${f.id}`, { metodo: 'PATCH', corpo });
       else await pedir('/api/bo/equipa', { metodo: 'POST', corpo });
       await refrescar();
-      avisar(f.id ? 'Guardado' : `${corpo.nome} já faz parte da equipa`);
+      avisar(f.id ? t.equipa.guardado : t.equipa.jaFazParte(corpo.nome));
       setF(null);
     } catch (e) {
       if (e instanceof ErroDaApi && e.codigo === 'repetido') {
         setErros(['email']);
-        avisar('Esse email já é de outra pessoa.', true);
+        avisar(t.equipa.emailDeOutraPessoa, true);
       } else {
         if (e instanceof ErroDaApi && e.campos.length) setErros(e.campos);
         avisar(mensagemDe(e), true);
@@ -192,23 +192,23 @@ export function Equipa() {
   const remover = async (p: { id: number; nome: string }) => {
     if (
       await confirmar(
-        `Tirar ${p.nome} da equipa?`,
-        'Sai já de todos os aparelhos e deixa de carimbar. Os carimbos que deu ficam.',
-        'Tirar da equipa',
+        t.equipa.tirarDaEquipaPergunta(p.nome),
+        t.equipa.tirarDaEquipaTexto,
+        t.equipa.tirarDaEquipa,
       )
     )
       await correr(async () => {
         await pedir(`/api/bo/equipa/${p.id}`, { metodo: 'DELETE' });
         await refrescar();
         setF(null);
-      }, `${p.nome} saiu da equipa`);
+      }, t.equipa.saiuDaEquipa(p.nome));
   };
 
   const ondeDe = (p: PessoaDaEquipaNoBackoffice) =>
     p.papel === 'parceiro'
       ? p.parceiro
       : p.papel === 'barbeiro'
-        ? (p.loja ?? 'Todas as casas')
+        ? (p.loja ?? t.equipa.todasAsCasas)
         : null;
 
   const comAparelhos = aparelhosDe !== null ? pessoas.find((p) => p.id === aparelhosDe) : null;
@@ -217,11 +217,11 @@ export function Equipa() {
     <>
       <div className="cabecalho">
         <div>
-          <h1>Equipa</h1>
-          <p className="subtitulo">Quem carimba na app for partners, e os parceiros que validam.</p>
+          <h1>{t.geral.seccoes.equipa}</h1>
+          <p className="subtitulo">{t.equipa.subtitulo}</p>
         </div>
         <button type="button" className="botao" onClick={() => abrir(null)}>
-          <Icone nome="mais" tamanho={18} /> Adicionar à equipa
+          <Icone nome="mais" tamanho={18} /> {t.equipa.adicionarAEquipa}
         </button>
       </div>
 
@@ -229,7 +229,7 @@ export function Equipa() {
         <Esqueleto />
       ) : !grupos.length ? (
         <div className="cartao">
-          <Vazio titulo="Ainda sem equipa" />
+          <Vazio titulo={t.equipa.semEquipa} />
         </div>
       ) : (
         grupos.map((g, i) => (
@@ -248,13 +248,15 @@ export function Equipa() {
                     <div className="linha">
                       <div className="meio">
                         <div className="titulo-linha">
-                          {p.nome} {!p.activo && <Etiqueta>Desligado</Etiqueta>}{' '}
+                          {p.nome} {!p.activo && <Etiqueta>{t.equipa.desligado}</Etiqueta>}{' '}
                           {p.ligacoes.length > 0 && (
-                            <Etiqueta tom="atencao">Ligação por usar</Etiqueta>
+                            <Etiqueta tom="atencao">{t.equipa.ligacaoPorUsar}</Etiqueta>
                           )}
                         </div>
                         <div className="detalhe" style={{ overflowWrap: 'anywhere' }}>
-                          {[p.email ?? 'Só por ligação', ondeDe(p)].filter(Boolean).join(' · ')}
+                          {[p.email ?? t.equipa.soPorLigacao, ondeDe(p)]
+                            .filter(Boolean)
+                            .join(' · ')}
                         </div>
                       </div>
                       <div className="lado">
@@ -264,7 +266,11 @@ export function Equipa() {
                             className="botao secundario pequeno"
                             onClick={() => setAparelhosDe(p.id)}
                           >
-                            {plural(p.sessoes.length, 'aparelho', 'aparelhos')}
+                            {plural(
+                              p.sessoes.length,
+                              t.equipa.aparelhos.um,
+                              t.equipa.aparelhos.varios,
+                            )}
                           </button>
                         )}
                         <button
@@ -272,7 +278,7 @@ export function Equipa() {
                           className="botao secundario pequeno"
                           onClick={() => abrir(p)}
                         >
-                          Editar
+                          {t.equipa.editar}
                         </button>
                       </div>
                     </div>
@@ -287,7 +293,7 @@ export function Equipa() {
       <Folha
         aberta={!!f}
         fechar={() => setF(null)}
-        titulo={f?.id ? `Editar ${f.nome}` : 'Adicionar à equipa'}
+        titulo={f?.id ? t.equipa.editarPessoa(f.nome) : t.equipa.adicionarAEquipa}
         pe={
           <button
             type="button"
@@ -295,55 +301,55 @@ export function Equipa() {
             disabled={!f?.nome.trim() || aCorrer}
             onClick={() => correr(guardar)}
           >
-            {f?.id ? 'Guardar' : 'Adicionar'}
+            {f?.id ? t.equipa.guardar : t.equipa.adicionar}
           </button>
         }
       >
         {f && (
           <div className="formulario">
             <Campo
-              rotulo="Nome"
+              rotulo={t.equipa.nome}
               valor={f.nome}
               mudar={mudar('nome')}
               max={LIMITES.pessoa}
               erro={erros.includes('nome')}
-              placeholder="ex.: Nuno"
+              placeholder={t.equipa.exemploDeNome}
               obrigatorio
               autoFocus={!f.id}
             />
             <Campo
-              rotulo="Email"
+              rotulo={t.equipa.email}
               valor={f.email}
               mudar={mudar('email')}
               max={254}
               erro={erros.includes('email')}
-              placeholder="nome@gmail.com"
-              ajuda="Entra na app for partners com o Google ou a Apple deste email. Vazio: só por ligação."
+              placeholder={t.equipa.exemploDeEmail}
+              ajuda={t.equipa.ajudaDoEmail}
             />
             <div className="campo">
-              <span className="rotulo-campo">Papel</span>
+              <span className="rotulo-campo">{t.equipa.papel}</span>
               <Segmentado<PapelDaEquipa>
-                rotulo="Papel"
+                rotulo={t.equipa.papel}
                 valor={f.papel}
                 mudar={mudar('papel')}
-                opcoes={PAPEIS}
+                opcoes={PAPEIS.map((valor) => ({ valor, nome: t.equipa.papeis[valor] }))}
               />
             </div>
             {f.papel === 'barbeiro' && (
               <Seletor<number>
-                rotulo="Casa"
+                rotulo={t.equipa.casa}
                 valor={f.lojaId}
                 mudar={mudar('lojaId')}
-                vazio="Todas as casas"
+                vazio={t.equipa.todasAsCasas}
                 opcoes={lojas.map((l) => ({ valor: l.id, nome: l.nome }))}
               />
             )}
             {f.papel === 'parceiro' && (
               <Seletor<number>
-                rotulo="Parceiro"
+                rotulo={t.equipa.parceiro}
                 valor={f.parceiroId}
                 mudar={mudar('parceiroId')}
-                vazio="Escolhe o parceiro"
+                vazio={t.equipa.escolheOParceiro}
                 erro={erros.includes('parceiroId')}
                 opcoes={(parceiros.data ?? []).map((p) => ({ valor: p.id, nome: p.nome }))}
               />
@@ -353,8 +359,8 @@ export function Equipa() {
                 <Interruptor
                   ligado={f.activo}
                   mudar={mudar('activo')}
-                  rotulo="Activo"
-                  ajuda="Desligado, não entra na app for partners."
+                  rotulo={t.equipa.activo}
+                  ajuda={t.equipa.ajudaDoActivo}
                 />
                 <div className="botoes">
                   {f.activo && (
@@ -368,7 +374,7 @@ export function Equipa() {
                         criarLigacao({ id: id!, nome });
                       }}
                     >
-                      Criar ligação de acesso
+                      {t.equipa.criarLigacao}
                     </button>
                   )}
                   <button
@@ -376,7 +382,7 @@ export function Equipa() {
                     className="botao perigo pequeno"
                     onClick={() => remover({ id: f.id!, nome: f.nome })}
                   >
-                    Tirar da equipa
+                    {t.equipa.tirarDaEquipa}
                   </button>
                 </div>
               </>
@@ -388,7 +394,7 @@ export function Equipa() {
       <Folha
         aberta={!!comAparelhos}
         fechar={() => setAparelhosDe(null)}
-        titulo={`Aparelhos de ${comAparelhos?.nome ?? ''}`}
+        titulo={t.equipa.aparelhosDe(comAparelhos?.nome ?? '')}
       >
         {comAparelhos &&
           (comAparelhos.sessoes.length ? (
@@ -397,9 +403,11 @@ export function Equipa() {
                 <li key={s.id}>
                   <div className="linha" style={{ padding: '12px 0' }}>
                     <div className="meio">
-                      <div className="titulo-linha">{s.aparelho || 'Aparelho'}</div>
+                      <div className="titulo-linha">
+                        {nomeDoAparelho(s.aparelho, t.equipa.aparelho)}
+                      </div>
                       <div className="detalhe">
-                        Entrou {haQuanto(s.criadaEm)} · usado {haQuanto(s.vistaEm)}
+                        {t.equipa.entrouEUsado(haQuanto(s.criadaEm), haQuanto(s.vistaEm))}
                       </div>
                     </div>
                     <button
@@ -408,32 +416,32 @@ export function Equipa() {
                       onClick={async () => {
                         if (
                           await confirmar(
-                            'Terminar a sessão?',
-                            `${comAparelhos.nome} sai da app for partners nesse aparelho.`,
-                            'Terminar',
+                            t.equipa.terminarASessao,
+                            t.equipa.saiNesseAparelho(comAparelhos.nome),
+                            t.equipa.terminar,
                           )
                         )
                           await correr(async () => {
                             await pedir(`/api/bo/equipa/sessoes/${s.id}`, { metodo: 'DELETE' });
                             await refrescar();
-                          }, 'Sessão terminada');
+                          }, t.equipa.sessaoTerminada);
                       }}
                     >
-                      Terminar
+                      {t.equipa.terminar}
                     </button>
                   </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <Vazio titulo="Sem aparelhos" />
+            <Vazio titulo={t.equipa.semAparelhos} />
           ))}
       </Folha>
 
       <Folha
         aberta={!!ligacao}
         fechar={() => setLigacao(null)}
-        titulo={`A ligação para ${ligacao?.para ?? ''}`}
+        titulo={t.equipa.ligacaoPara(ligacao?.para ?? '')}
         pe={
           <>
             <button
@@ -443,13 +451,13 @@ export function Equipa() {
                 if (!ligacao) return;
                 try {
                   await navigator.clipboard.writeText(ligacao.url);
-                  avisar('Copiada');
+                  avisar(t.equipa.copiada);
                 } catch {
-                  avisar('Não deu para copiar: selecciona e copia à mão.', true);
+                  avisar(t.equipa.naoDeuParaCopiar, true);
                 }
               }}
             >
-              <Icone nome="copiar" tamanho={17} /> Copiar
+              <Icone nome="copiar" tamanho={17} /> {t.equipa.copiar}
             </button>
             {typeof navigator.share === 'function' && (
               <button
@@ -462,7 +470,7 @@ export function Equipa() {
                     .catch(() => {})
                 }
               >
-                <Icone nome="partilhar" tamanho={17} /> Partilhar
+                <Icone nome="partilhar" tamanho={17} /> {t.equipa.partilhar}
               </button>
             )}
           </>
@@ -475,15 +483,16 @@ export function Equipa() {
               readOnly
               value={ligacao.url}
               onFocus={(e) => e.target.select()}
-              aria-label="Ligação de acesso"
+              aria-label={t.equipa.ligacaoDeAcesso}
             />
             <div className="caixa-aviso">
-              Entra uma vez, num aparelho, até{' '}
-              {new Date(ligacao.ate * 1000).toLocaleDateString('pt-PT', {
-                day: 'numeric',
-                month: 'long',
-              })}
-              . Manda-a só a {ligacao.para}: quem a abrir entra na app for partners.
+              {t.equipa.entraUmaVez(
+                new Date(ligacao.ate * 1000).toLocaleDateString(etiquetaDaLingua(), {
+                  day: 'numeric',
+                  month: 'long',
+                }),
+                ligacao.para,
+              )}
             </div>
           </div>
         )}

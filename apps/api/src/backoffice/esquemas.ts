@@ -44,6 +44,9 @@ export const Parceiro = z.object({
   site: normalizado(LIMITES.site, normalizarSite),
   horario: texto(LIMITES.horario),
   descricao: texto(LIMITES.descricao),
+  /** Em inglês (vazio: a app em inglês mostra o português); sem eles, ficam como estão. */
+  horarioEn: texto(LIMITES.horario).optional(),
+  descricaoEn: texto(LIMITES.descricao).optional(),
   cor: z
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/)
@@ -65,6 +68,8 @@ export const COLUNAS_DO_PARCEIRO = {
   site: 'site',
   horario: 'horario',
   descricao: 'descricao',
+  horarioEn: 'horario_en',
+  descricaoEn: 'descricao_en',
   cor: 'cor',
   logotipo: 'logotipo_id',
   capa: 'capa_id',
@@ -76,6 +81,14 @@ export const Promocao = z.object({
   destaque: z.string().transform(normalizarDestaque).pipe(z.string().min(1).max(LIMITES.destaque)),
   titulo: obrigatorio(LIMITES.titulo),
   detalhe: texto(LIMITES.detalhe),
+  /** Em inglês (vazio: a app em inglês mostra o português); sem eles, ficam como estão. */
+  destaqueEn: z
+    .string()
+    .transform(normalizarDestaque)
+    .pipe(z.string().max(LIMITES.destaque))
+    .optional(),
+  tituloEn: texto(LIMITES.titulo).optional(),
+  detalheEn: texto(LIMITES.detalhe).optional(),
   inicio: dia,
   fim: dia,
   emDestaque: z.boolean(),
@@ -111,6 +124,9 @@ export const COLUNAS_DA_PROMOCAO = {
   destaque: 'destaque',
   titulo: 'titulo',
   detalhe: 'detalhe',
+  destaqueEn: 'destaque_en',
+  tituloEn: 'titulo_en',
+  detalheEn: 'detalhe_en',
   inicio: 'inicio',
   fim: 'fim',
   emDestaque: 'em_destaque',
@@ -128,6 +144,7 @@ export const COLUNAS_DA_PROMOCAO = {
 
 export const Categoria = z.object({
   nome: obrigatorio(LIMITES.categoria),
+  nomeEn: texto(LIMITES.categoria).optional(),
   icone: z.enum(ICONES_DAS_CATEGORIAS),
 });
 
@@ -153,6 +170,7 @@ export const Barbearia = z.object({
   whatsapp: normalizado(200, normalizarLigacao),
   site: normalizado(LIMITES.site, normalizarSite),
   aviso: texto(LIMITES.aviso),
+  avisoEn: texto(LIMITES.aviso).optional(),
   avisoAte: dia,
 });
 

@@ -7,7 +7,12 @@ import {
   type ParceiroComPromocoes,
   type Promocao,
 } from '@nunos-lab/dominio';
-import { normalizarInstagram, normalizarSite, normalizarTelefone } from '@nunos-lab/dominio';
+import {
+  naLingua,
+  normalizarInstagram,
+  normalizarSite,
+  normalizarTelefone,
+} from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
@@ -19,9 +24,11 @@ import {
   Esqueleto,
   Etiqueta,
   fundoDaCapa,
+  GrupoEmIngles,
   Icone,
   Interruptor,
   Logotipo,
+  porRever,
   Seletor,
   urlDaImagem,
   useAccao,
@@ -30,15 +37,10 @@ import {
   Vazio,
 } from '../pecas';
 import { ListaArrastavel } from '../arrastar';
+import { useLingua } from '../lingua';
+import { useTextos } from '../textos';
 import { ir, parametro, useAvisoAoSair } from '../util';
 import { ConteudoDaPromocao, EditorDePromocao } from './Promocoes';
-
-/** Porque um contacto não serve, dito como ao Nuno: a API só diz qual é o campo. */
-const RAZOES = {
-  instagram: 'Põe só a conta (ex.: @tasca), não a ligação de uma publicação.',
-  telefone: 'Um telefone com 9 a 15 algarismos (ex.: 912 345 678).',
-  site: 'Uma morada de site, como tasca.pt.',
-};
 
 /** A app do cliente (para «Ver na app»). */
 const APP = (import.meta.env.VITE_APP as string).replace(/\/$/, '');
@@ -54,6 +56,9 @@ type Formulario = {
   site: string;
   horario: string;
   descricao: string;
+  /** Em inglês: vazio, a app em inglês mostra o português. */
+  horarioEn: string;
+  descricaoEn: string;
   cor: string;
   logotipo: string | null;
   capa: string | null;
@@ -71,6 +76,8 @@ const VAZIO: Formulario = {
   site: '',
   horario: '',
   descricao: '',
+  horarioEn: '',
+  descricaoEn: '',
   cor: '#5C544C',
   logotipo: null,
   capa: null,
@@ -89,6 +96,8 @@ function doParceiro(p: ParceiroDoContrato): Formulario {
     site: p.site,
     horario: p.horario,
     descricao: p.descricao,
+    horarioEn: p.horarioEn ?? '',
+    descricaoEn: p.descricaoEn ?? '',
     cor: p.cor,
     logotipo: p.logotipo,
     capa: p.capa,
@@ -97,6 +106,8 @@ function doParceiro(p: ParceiroDoContrato): Formulario {
 }
 
 export function Parceiro({ id }: { id: string }) {
+  const t = useTextos();
+  const lingua = useLingua();
   const novo = id === 'novo';
   const dados = useQuery({
     queryKey: ['parceiro', id],
@@ -152,7 +163,7 @@ export function Parceiro({ id }: { id: string }) {
     if (!f) return;
     if (!f.nome.trim()) {
       setErros(['nome']);
-      avisar('Falta o nome.', true);
+      avisar(t.parceiro.faltaONome, true);
       return;
     }
     // Os contactos conferem-se aqui, com as regras da API, para dizer o quê antes de enviar.
@@ -163,7 +174,7 @@ export function Parceiro({ id }: { id: string }) {
     ].filter((x): x is string => typeof x === 'string');
     if (errados.length) {
       setErros(errados);
-      avisar('Revê os campos marcados.', true);
+      avisar(t.parceiro.reveOsCampos, true);
       return;
     }
     try {
@@ -171,7 +182,7 @@ export function Parceiro({ id }: { id: string }) {
         const r = await pedir<{ id: number }>('/api/bo/parceiros', { metodo: 'POST', corpo: f });
         setOriginal(f);
         await refrescar();
-        avisar('Parceiro criado. Agora, a primeira promoção.');
+        avisar(t.parceiro.criado);
         history.replaceState(null, '', `#/parceiros/${r.id}?nova=promocao`);
         window.dispatchEvent(new HashChangeEvent('hashchange'));
       } else {
@@ -186,14 +197,14 @@ export function Parceiro({ id }: { id: string }) {
         setOriginal(novoFormulario);
         setF((agora) => (agora === enviado ? novoFormulario : agora));
         await refrescar();
-        avisar('Guardado');
+        avisar(t.parceiro.guardado);
       }
     } catch (e) {
       // Uma imagem escolhida há dias já saiu da base: volta-se a escolher só ela.
       if (e instanceof ErroDaApi && e.codigo === 'referencia' && (f.logotipo || f.capa)) {
         setF((x) => (x ? { ...x, logotipo: null, capa: null } : x));
         setErros([f.logotipo && 'logotipo', f.capa && 'capa'].filter(Boolean) as string[]);
-        avisar('A imagem caducou: volta a escolhê-la.', true);
+        avisar(t.parceiro.imagemCaducou, true);
         return;
       }
       if (e instanceof ErroDaApi && e.campos.length) setErros(e.campos);
@@ -222,27 +233,29 @@ export function Parceiro({ id }: { id: string }) {
         await pedir(`/api/bo/promocoes/${p.id}`, { metodo: 'PATCH', corpo: { activa: !p.activa } });
         await refrescar();
       },
-      p.activa ? 'Promoção desligada' : 'Promoção ligada',
+      p.activa ? t.parceiro.promocaoDesligada : t.parceiro.promocaoLigada,
     );
   const categoria = categorias.data?.find((k) => k.id === f.categoriaId);
   const primeira = promocoes.find((p) => p.estado === 'activa');
+  // A pré-visualização na língua do backoffice: em inglês, os textos em inglês (ou o português).
+  const naLinguaDoBackoffice = (pt: string, en: string | undefined) => naLingua(lingua, pt, en);
 
   return (
     <>
       <a className="voltar" href="#/parceiros">
-        <Icone nome="voltar" tamanho={16} /> Parceiros
+        <Icone nome="voltar" tamanho={16} /> {t.geral.seccoes.parceiros}
       </a>
       <div className="cabecalho">
         <div>
-          <h1>{novo ? 'Novo parceiro' : f.nome || 'Parceiro'}</h1>
+          <h1>{novo ? t.parceiro.novo : f.nome || t.parceiro.parceiro}</h1>
           {!novo && dados.data && (
             <p className="subtitulo">
               {!f.activo ? (
-                <Etiqueta>Pausado: não aparece na app</Etiqueta>
+                <Etiqueta>{t.parceiro.pausado}</Etiqueta>
               ) : dados.data.parceiro.promocoesNaApp > 0 ? (
-                <Etiqueta tom="bom">Na app</Etiqueta>
+                <Etiqueta tom="bom">{t.parceiro.naApp}</Etiqueta>
               ) : (
-                <Etiqueta tom="mau">Sem promoções: não aparece na app</Etiqueta>
+                <Etiqueta tom="mau">{t.parceiro.semPromocoes}</Etiqueta>
               )}
             </p>
           )}
@@ -254,7 +267,7 @@ export function Parceiro({ id }: { id: string }) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Icone nome="aberto" tamanho={18} /> Ver na app
+            <Icone nome="aberto" tamanho={18} /> {t.parceiro.verNaApp}
           </a>
         )}
       </div>
@@ -271,7 +284,7 @@ export function Parceiro({ id }: { id: string }) {
         <div className="formulario">
           <div className="cartao recheado formulario">
             <Campo
-              rotulo="Nome"
+              rotulo={t.parceiro.nome}
               valor={f.nome}
               mudar={mudar('nome')}
               max={LIMITES.nome}
@@ -281,34 +294,34 @@ export function Parceiro({ id }: { id: string }) {
             />
             <div className="duas-colunas">
               <Seletor<number>
-                rotulo="Categoria"
+                rotulo={t.parceiro.categoria}
                 valor={f.categoriaId}
                 mudar={mudar('categoriaId')}
-                vazio="Sem categoria"
+                vazio={t.parceiro.semCategoria}
                 opcoes={(categorias.data ?? []).map((k) => ({ valor: k.id, nome: k.nome }))}
               />
               <Campo
-                rotulo="Localidade"
+                rotulo={t.parceiro.localidade}
                 valor={f.localidade}
                 mudar={mudar('localidade')}
                 max={LIMITES.localidade}
-                placeholder="ex.: Oliveira de Azeméis"
+                placeholder={t.parceiro.localidadeExemplo}
               />
             </div>
             {(barbearia.data?.lojas.length ?? 0) > 1 && (
               <div className="duas-colunas">
                 <Seletor<number>
-                  rotulo="Casa"
+                  rotulo={t.parceiro.casa}
                   valor={f.lojaId}
                   mudar={mudar('lojaId')}
-                  vazio="Todas as casas"
+                  vazio={t.parceiro.todasAsCasas}
                   opcoes={(barbearia.data?.lojas ?? []).map((l) => ({ valor: l.id, nome: l.nome }))}
-                  ajuda="A app filtra os parceiros pela casa do cliente."
+                  ajuda={t.parceiro.casaAjuda}
                 />
               </div>
             )}
             <AreaDeTexto
-              rotulo="Uma frase sobre o parceiro"
+              rotulo={t.parceiro.descricao}
               valor={f.descricao}
               mudar={mudar('descricao')}
               max={LIMITES.descricao}
@@ -317,42 +330,42 @@ export function Parceiro({ id }: { id: string }) {
             <Cores valor={f.cor} mudar={mudar('cor')} />
             <div className="duas-colunas">
               <CampoDeImagem
-                rotulo="Logótipo"
+                rotulo={t.parceiro.logotipo}
                 valor={f.logotipo}
                 mudar={mudar('logotipo')}
                 modo="logotipo"
-                ajuda="Aparece num círculo branco."
+                ajuda={t.parceiro.logotipoAjuda}
                 erro={erros.includes('logotipo')}
               />
               <CampoDeImagem
-                rotulo="Fotografia de capa"
+                rotulo={t.parceiro.capa}
                 valor={f.capa}
                 mudar={mudar('capa')}
                 modo="capa"
-                ajuda="Na horizontal. Sem capa, usa a cor."
+                ajuda={t.parceiro.capaAjuda}
                 erro={erros.includes('capa')}
               />
             </div>
           </div>
 
-          <h2 className="seccao">Contactos</h2>
+          <h2 className="seccao">{t.parceiro.contactos}</h2>
           <div className="cartao recheado formulario">
             <Campo
-              rotulo="Morada"
+              rotulo={t.parceiro.morada}
               valor={f.morada}
               mudar={mudar('morada')}
               max={LIMITES.morada}
-              ajuda="O botão «Ir» abre o mapa nesta morada."
+              ajuda={t.parceiro.moradaAjuda}
             />
             <div className="duas-colunas">
               <Campo
-                rotulo="Telefone"
+                rotulo={t.parceiro.telefone}
                 tipo="tel"
                 valor={f.telefone}
                 mudar={mudar('telefone')}
                 max={LIMITES.telefone}
                 erro={erros.includes('telefone')}
-                erroTexto={RAZOES.telefone}
+                erroTexto={t.parceiro.razoes.telefone}
               />
               <Campo
                 rotulo="Instagram"
@@ -360,36 +373,65 @@ export function Parceiro({ id }: { id: string }) {
                 mudar={mudar('instagram')}
                 max={200}
                 erro={erros.includes('instagram')}
-                erroTexto={RAZOES.instagram}
-                placeholder="@conta"
+                erroTexto={t.parceiro.razoes.instagram}
+                placeholder={t.parceiro.conta}
               />
             </div>
             <Campo
-              rotulo="Site"
+              rotulo={t.parceiro.site}
               tipo="url"
               valor={f.site}
               mudar={mudar('site')}
               max={LIMITES.site}
               erro={erros.includes('site')}
-              erroTexto={RAZOES.site}
-              placeholder="exemplo.pt"
+              erroTexto={t.parceiro.razoes.site}
+              placeholder={t.parceiro.siteExemplo}
             />
             <Campo
-              rotulo="Horário"
+              rotulo={t.parceiro.horario}
               valor={f.horario}
               mudar={mudar('horario')}
               max={LIMITES.horario}
-              placeholder="ex.: Seg a sáb · 9:00–19:00"
+              placeholder={t.parceiro.horarioExemplo}
             />
           </div>
 
-          <h2 className="seccao">Na app</h2>
+          <GrupoEmIngles seccao>
+            <AreaDeTexto
+              rotulo={t.parceiro.descricao}
+              valor={f.descricaoEn}
+              mudar={mudar('descricaoEn')}
+              max={LIMITES.descricao}
+              erro={erros.includes('descricaoEn')}
+              ajuda={porRever(
+                original?.descricao ?? '',
+                f.descricao,
+                original?.descricaoEn ?? '',
+                f.descricaoEn,
+              )}
+            />
+            <Campo
+              rotulo={t.parceiro.horario}
+              valor={f.horarioEn}
+              mudar={mudar('horarioEn')}
+              max={LIMITES.horario}
+              placeholder={t.parceiro.horarioExemploEn}
+              ajuda={porRever(
+                original?.horario ?? '',
+                f.horario,
+                original?.horarioEn ?? '',
+                f.horarioEn,
+              )}
+            />
+          </GrupoEmIngles>
+
+          <h2 className="seccao">{t.parceiro.naApp}</h2>
           <div className="cartao recheado">
             <Interruptor
               ligado={f.activo}
               mudar={mudar('activo')}
-              rotulo="Mostrar na app"
-              ajuda="Desligado, o parceiro e as promoções dele saem da app."
+              rotulo={t.parceiro.mostrarNaApp}
+              ajuda={t.parceiro.mostrarNaAppAjuda}
             />
           </div>
 
@@ -403,13 +445,13 @@ export function Parceiro({ id }: { id: string }) {
                   gap: 12,
                 }}
               >
-                <h2 className="seccao">Promoções</h2>
+                <h2 className="seccao">{t.geral.seccoes.promocoes}</h2>
                 <button
                   type="button"
                   className="botao secundario pequeno"
                   onClick={() => setEditor({ promocao: null })}
                 >
-                  <Icone nome="mais" tamanho={16} /> Nova promoção
+                  <Icone nome="mais" tamanho={16} /> {t.parceiro.novaPromocao}
                 </button>
               </div>
               <div className="cartao">
@@ -442,8 +484,8 @@ export function Parceiro({ id }: { id: string }) {
                     )}
                   />
                 ) : (
-                  <Vazio titulo="Ainda sem promoções">
-                    Sem uma promoção ligada, o parceiro não aparece na app.
+                  <Vazio titulo={t.parceiro.aindaSemPromocoes}>
+                    {t.parceiro.semPromocaoLigada}
                   </Vazio>
                 )}
               </div>
@@ -457,9 +499,9 @@ export function Parceiro({ id }: { id: string }) {
               disabled={!sujo || aCorrer}
               onClick={() => correr(guardar)}
             >
-              {novo ? 'Criar parceiro' : 'Guardar'}
+              {novo ? t.parceiro.criarParceiro : t.parceiro.guardar}
             </button>
-            {sujo && <span className="estado">Alterações por guardar</span>}
+            {sujo && <span className="estado">{t.parceiro.porGuardar}</span>}
             {!novo && (
               <button
                 type="button"
@@ -468,9 +510,9 @@ export function Parceiro({ id }: { id: string }) {
                 onClick={async () => {
                   if (
                     await confirmar(
-                      `Apagar ${f.nome}?`,
-                      `O parceiro, ${promocoes.length === 1 ? 'a promoção' : `as ${promocoes.length} promoções`}, as pessoas da equipa ligadas a ele, as validações e os cupões saem. Não se desfaz. Para tirar só por uns tempos, desliga «Mostrar na app».`,
-                      'Apagar',
+                      t.parceiro.apagarPergunta(f.nome),
+                      t.parceiro.apagarTexto(promocoes.length),
+                      t.parceiro.apagar,
                     )
                   )
                     await correr(async () => {
@@ -478,18 +520,18 @@ export function Parceiro({ id }: { id: string }) {
                       setOriginal(f);
                       await refrescar();
                       ir('parceiros');
-                    }, 'Parceiro apagado');
+                    }, t.parceiro.apagado);
                 }}
               >
-                Apagar parceiro
+                {t.parceiro.apagarParceiro}
               </button>
             )}
           </div>
         </div>
 
         <aside style={{ position: 'sticky', top: 24 }} className="lado-previsao">
-          <div className="previsao" aria-label="Como fica na app">
-            <div className="rotulo-previsao">Na app</div>
+          <div className="previsao" aria-label={t.geral.previsao.rotulo}>
+            <div className="rotulo-previsao">{t.geral.previsao.naApp}</div>
             <div
               className="capa-previsao"
               style={{ aspectRatio: '16 / 10', background: fundoDaCapa(f.cor) }}
@@ -509,19 +551,27 @@ export function Parceiro({ id }: { id: string }) {
               <div
                 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginTop: 6 }}
               >
-                {f.nome || 'Nome do parceiro'}
+                {f.nome || t.parceiro.nomeDoParceiro}
               </div>
               <div style={{ color: '#aba69e', fontSize: 13, fontWeight: 600 }}>
-                {[categoria?.nome, f.localidade].filter(Boolean).join(' · ')}
+                {[categoria && naLinguaDoBackoffice(categoria.nome, categoria.nomeEn), f.localidade]
+                  .filter(Boolean)
+                  .join(' · ')}
               </div>
               {f.descricao && (
-                <div style={{ color: '#aba69e', fontSize: 14, marginTop: 8 }}>{f.descricao}</div>
+                <div style={{ color: '#aba69e', fontSize: 14, marginTop: 8 }}>
+                  {naLinguaDoBackoffice(f.descricao, f.descricaoEn)}
+                </div>
               )}
             </div>
             {primeira && (
               <div className="cartao-promocao">
-                <div className="grande">{primeira.destaque}</div>
-                <div className="titulo-previsao">{primeira.titulo}</div>
+                <div className="grande">
+                  {naLinguaDoBackoffice(primeira.destaque, primeira.destaqueEn)}
+                </div>
+                <div className="titulo-previsao">
+                  {naLinguaDoBackoffice(primeira.titulo, primeira.tituloEn)}
+                </div>
               </div>
             )}
           </div>

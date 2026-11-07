@@ -1,0 +1,43 @@
+/** As frases desta página: o português é a fonte; o inglês (britânico) tem as mesmas chaves. */
+export const pt = {
+  subtitulo: 'O cartão de carimbos e a recompensa.',
+  camposPorCorrigir: 'Há campos por corrigir.',
+  guardado: 'Guardado',
+  programa: 'Programa',
+  objectivo: 'Carimbos para a recompensa',
+  objectivoAjuda: 'Os cartões já começados completam-se com o número com que começaram.',
+  recompensa: 'Recompensa',
+  /** Os exemplos dos campos em português são conteúdo em português; os dos campos em inglês, em inglês. */
+  recompensaExemplo: 'ex.: 50% de desconto',
+  recompensaExemploEn: 'ex.: 50% off',
+  recompensaAjuda: 'Vale também para os cartões em curso.',
+  porDia: 'Carimbos por dia',
+  porDiaAjuda: 'Por cliente. Acima disto, a app for partners avisa.',
+  aniversario: 'Prenda de anos',
+  aniversarioExemplo: 'ex.: Barba grátis',
+  aniversarioExemploEn: 'ex.: Free beard trim',
+  aniversarioAjuda: 'Vazio: não há.',
+  guardar: 'Guardar',
+  porGuardar: 'Alterações por guardar',
+};
+
+export const en: typeof pt = {
+  subtitulo: 'The stamp card and the reward.',
+  camposPorCorrigir: 'Some fields need fixing.',
+  guardado: 'Saved',
+  programa: 'Programme',
+  objectivo: 'Stamps for the reward',
+  objectivoAjuda: 'Cards already started keep the number they started with.',
+  recompensa: 'Reward',
+  recompensaExemplo: 'e.g. 50% de desconto',
+  recompensaExemploEn: 'e.g. 50% off',
+  recompensaAjuda: 'Also applies to cards in progress.',
+  porDia: 'Stamps per day',
+  porDiaAjuda: 'Per client. Above this, the for partners app shows a warning.',
+  aniversario: 'Birthday gift',
+  aniversarioExemplo: 'e.g. Barba grátis',
+  aniversarioExemploEn: 'e.g. Free beard trim',
+  aniversarioAjuda: 'Empty: none.',
+  guardar: 'Save',
+  porGuardar: 'Unsaved changes',
+};

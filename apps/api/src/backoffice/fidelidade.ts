@@ -39,6 +39,9 @@ const ProgramaPedido = z.object({
   recompensa: z.string().trim().min(1).max(LIMITES_DO_PROGRAMA.recompensa),
   porDia: z.number().int().min(LIMITES_DO_PROGRAMA.porDia.min).max(LIMITES_DO_PROGRAMA.porDia.max),
   aniversario: z.string().trim().max(LIMITES_DO_PROGRAMA.aniversario),
+  /** Em inglês (vazio: a app em inglês traduz os prémios comuns ou mostra o português); sem eles, ficam como estão. */
+  recompensaEn: z.string().trim().max(LIMITES_DO_PROGRAMA.recompensa).optional(),
+  aniversarioEn: z.string().trim().max(LIMITES_DO_PROGRAMA.aniversario).optional(),
 });
 
 rotasDaFidelidade.put('/programa', async (c) => {
@@ -54,14 +57,16 @@ rotasDaFidelidade.put('/programa', async (c) => {
   // A recompensa nova vale também para os cartões em curso (os completos ficam com a que
   // ganharam): o Nuno muda a regra para toda a gente, e o passe da Wallet passa a dizer o
   // mesmo que a app. O objectivo não: um cartão a 9 de 10 completa-se a 10.
-  const mudouRecompensa = p.recompensa !== antes.recompensa;
+  const recompensaEn = p.recompensaEn ?? antes.recompensaEn ?? '';
+  const mudouRecompensa =
+    p.recompensa !== antes.recompensa || recompensaEn !== (antes.recompensaEn ?? '');
   const emCurso = mudouRecompensa
     ? ((
         await db
           .prepare(
-            'SELECT count(*) AS n FROM cartoes WHERE completo_em IS NULL AND recompensa != ?',
+            'SELECT count(*) AS n FROM cartoes WHERE completo_em IS NULL AND (recompensa != ? OR recompensa_en != ?)',
           )
-          .bind(p.recompensa)
+          .bind(p.recompensa, recompensaEn)
           .first<{ n: number }>()
       )?.n ?? 0)
     : 0;
@@ -70,13 +75,15 @@ rotasDaFidelidade.put('/programa', async (c) => {
     por('fid.recompensa', p.recompensa),
     por('fid.por_dia', String(p.porDia)),
     por('fid.aniversario', p.aniversario),
+    por('fid.recompensa_en', recompensaEn),
+    ...(p.aniversarioEn !== undefined ? [por('fid.aniversario_en', p.aniversarioEn)] : []),
     ...(mudouRecompensa
       ? [
           db
             .prepare(
-              'UPDATE cartoes SET recompensa = ? WHERE completo_em IS NULL AND recompensa != ?',
+              'UPDATE cartoes SET recompensa = ?, recompensa_en = ? WHERE completo_em IS NULL AND (recompensa != ? OR recompensa_en != ?)',
             )
-            .bind(p.recompensa, p.recompensa),
+            .bind(p.recompensa, recompensaEn, p.recompensa, recompensaEn),
         ]
       : []),
     registar(
