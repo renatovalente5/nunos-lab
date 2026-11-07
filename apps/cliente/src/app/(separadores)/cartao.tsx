@@ -188,8 +188,11 @@ export default function Cartao() {
           >
             <QR texto={textoDoQr(eu.codigo)} tamanho={128} margem={10} raio={14} />
             <View style={{ flex: 1 }}>
+              {/* Com um espaço normal entre os dois grupos: o codigoCurto junta-os com um espaço
+                  inseparável, e num ecrã estreito (ou com letra grande) o código partia-se a meio
+                  de um grupo («8ZPP MC» / «DE»). Assim, se não couber, fica um grupo por linha. */}
               <T v="subtitulo" style={{ letterSpacing: 1.5 }}>
-                {codigoCurto(eu.codigo)}
+                {codigoCurto(eu.codigo).replace('\u00a0', ' ')}
               </T>
               <T v="legenda" style={{ color: cor.texto2, marginTop: 6 }}>
                 Mostra ao balcão.{'\n'}Serve em todas as casas.
