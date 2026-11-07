@@ -29,7 +29,7 @@ const cfg = {
   testemunho: 't',
 };
 
-test('o storeCard leva a faixa limpa (sem campos principais) e a linha cliente · prémio · cortes', () => {
+test('o storeCard leva a faixa limpa (sem campos principais) e a linha cliente · prémio, sem os cortes', () => {
   const p = passJson(cartao, cfg);
   assert.equal(p.storeCard.headerFields[0]!.value, '7 de 10');
   assert.ok(!('primaryFields' in p.storeCard));
@@ -40,7 +40,7 @@ test('o storeCard leva a faixa limpa (sem campos principais) e a linha cliente �
       ['CORTE GRÁTIS', 'Faltam 3'],
     ],
   );
-  assert.deepEqual(p.storeCard.auxiliaryFields, [{ key: 'cortes', label: 'CORTES', value: '12' }]);
+  assert.ok(!('auxiliaryFields' in p.storeCard), 'os cortes saíram da frente (7 nov)');
 });
 
 test('o poster do iOS 27 vai ao lado: nome em título, o que falta, e um rodapé curto', () => {

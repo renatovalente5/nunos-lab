@@ -23,7 +23,7 @@ import { zipar } from './zip.ts';
  * ao ver uma versão diferente da guardada, refaz os passes de todos e avisa
  * os telemóveis (servico.ts, refrescarSePreciso).
  */
-export const VERSAO_DO_PASSE = '2026-11-07';
+export const VERSAO_DO_PASSE = '2026-11-07b';
 
 export type CartaoDoPasse = {
   serie: string;
@@ -174,7 +174,7 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
         },
         ...porUsar,
       ],
-      auxiliaryFields: [{ key: 'cortes', label: 'CORTES', value: String(c.cortes) }],
+      // Sem «CORTES» na frente: o Renato tirou-o (7 nov, «não faz falta»); fica nas costas do poster.
       backFields: costas,
     },
     // O iOS 27 prefere o poster: a arte (artwork.png) enche o cartão, com as
