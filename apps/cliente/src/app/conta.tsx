@@ -24,6 +24,7 @@ import {
   Grupo,
   Icone,
   MARGEM,
+  CartaoDaFolha,
   OpcaoDaFolha,
   Rotulo,
   SemLigacao,
@@ -298,7 +299,7 @@ export default function Conta() {
       )}
 
       <Folha aberta={folha === 'nome'} fechar={() => setFolha(null)} titulo="O teu nome">
-        <View style={{ paddingHorizontal: MARGEM, paddingTop: 6, gap: 14 }}>
+        <View style={{ paddingHorizontal: MARGEM, paddingTop: 10, gap: 14 }}>
           <Campo
             value={texto}
             onChangeText={setTexto}
@@ -323,7 +324,7 @@ export default function Conta() {
       </Folha>
 
       <Folha aberta={folha === 'aniversario'} fechar={() => setFolha(null)} titulo="Aniversário">
-        <View style={{ paddingHorizontal: MARGEM, paddingTop: 6, gap: 18 }}>
+        <View style={{ paddingHorizontal: MARGEM, paddingTop: 10, gap: 18 }}>
           {folha === 'aniversario' && <RodaDeData valor={eu.aniversario} aoMudar={setTexto} />}
           {/* Só depois de rodar: o que a roda mostra ao abrir não é uma escolha. */}
           <Botao
@@ -361,30 +362,32 @@ export default function Conta() {
       </Folha>
 
       <Folha aberta={folha === 'casa'} fechar={() => setFolha(null)} titulo="A minha casa">
-        <OpcaoDaFolha
-          nome="Todas as casas"
-          escolhida={eu.lojaId === null}
-          onPress={() =>
-            correr(
-              () => conta.perfil({ lojaId: null }),
-              () => setFolha(null),
-            )
-          }
-        />
-        {lojas.map((l) => (
+        <CartaoDaFolha role="radiogroup" aria-label="A minha casa">
           <OpcaoDaFolha
-            key={l.id}
-            nome={l.nome}
-            escolhida={eu.lojaId === l.id}
-            separador
+            nome="Todas as casas"
+            escolhida={eu.lojaId === null}
             onPress={() =>
               correr(
-                () => conta.perfil({ lojaId: l.id }),
+                () => conta.perfil({ lojaId: null }),
                 () => setFolha(null),
               )
             }
           />
-        ))}
+          {lojas.map((l) => (
+            <OpcaoDaFolha
+              key={l.id}
+              nome={l.nome}
+              escolhida={eu.lojaId === l.id}
+              separador
+              onPress={() =>
+                correr(
+                  () => conta.perfil({ lojaId: l.id }),
+                  () => setFolha(null),
+                )
+              }
+            />
+          ))}
+        </CartaoDaFolha>
         {erro && (
           <T v="legenda" style={{ color: '#E07A72', paddingHorizontal: MARGEM, marginTop: 10 }}>
             {erro}
@@ -393,7 +396,7 @@ export default function Conta() {
       </Folha>
 
       <Folha aberta={folha === 'juntar'} fechar={() => setFolha(null)} titulo="Juntar outra forma">
-        <View style={{ paddingHorizontal: MARGEM, paddingTop: 6, gap: 12, alignItems: 'center' }}>
+        <View style={{ paddingHorizontal: MARGEM, paddingTop: 10, gap: 12, alignItems: 'center' }}>
           {formasQueFaltam.includes('apple') && (
             <BotaoDaApple
               clienteId={APPLE_CLIENTE}
@@ -425,13 +428,16 @@ export default function Conta() {
         </View>
       </Folha>
 
-      <Folha aberta={folha === 'apagar'} fechar={() => setFolha(null)} titulo="Apagar a conta">
-        <View style={{ paddingHorizontal: MARGEM, paddingTop: 6, gap: 14 }}>
-          <T v="corpo" style={{ color: cor.texto2 }}>
-            O cartão, os carimbos e as recompensas perdem-se. Não se desfaz.
-          </T>
+      <Folha
+        aberta={folha === 'apagar'}
+        fechar={() => setFolha(null)}
+        titulo="Apagar a conta"
+        subtitulo="O cartão, os carimbos e as recompensas perdem-se. Não se desfaz."
+      >
+        <View style={{ paddingHorizontal: MARGEM, paddingTop: 10, gap: 14 }}>
           <Botao
             nome="Apagar a conta"
+            perigo
             onPress={() =>
               correr(
                 () => conta.apagar(),

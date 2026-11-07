@@ -15,6 +15,8 @@ export const cor = {
   /** 5,4:1 sobre o fundo e 4,9 sobre os cartões (o #7C776F ficava a 4,45 e 4,07). */
   texto3: '#8A857D',
   claro: '#F4F1EC',
+  /** O que não se desfaz (apagar a conta) e os erros: 5,3:1 sobre a superfície alta. */
+  perigo: '#E07A72',
   claroPremido: '#DDD9D2',
   sobreClaro: '#0A0A0A',
   /** Os botões redondos sobre uma capa (Voltar, Partilhar). */

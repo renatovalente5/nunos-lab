@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
-import { Botao, Folha, MARGEM, T, cor } from '@nunos-lab/ui';
+import { Botao, Folha, MARGEM } from '@nunos-lab/ui';
 
 type Pergunta = {
   titulo: string;
@@ -30,14 +30,14 @@ export function useConfirmacao(): [(p: Pergunta) => Promise<boolean>, ReactNode]
     responder.current(sim);
   };
   const folha = (
-    <Folha aberta={!!pergunta} fechar={() => fechar(false)} titulo={pergunta?.titulo ?? ''}>
-      <View style={{ paddingHorizontal: MARGEM, paddingTop: 4, gap: 14 }}>
-        {!!pergunta?.detalhe && (
-          <T v="corpo" style={{ color: cor.texto2 }}>
-            {pergunta.detalhe}
-          </T>
-        )}
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+    <Folha
+      aberta={!!pergunta}
+      fechar={() => fechar(false)}
+      titulo={pergunta?.titulo ?? ''}
+      subtitulo={pergunta?.detalhe}
+    >
+      <View style={{ paddingHorizontal: MARGEM, paddingTop: 10 }}>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
           <Botao nome="Deixar" secundario largo onPress={() => fechar(false)} />
           <Botao nome={pergunta?.accao ?? ''} largo onPress={() => fechar(true)} />
         </View>

@@ -13,6 +13,7 @@ import {
   Icone,
   LARGURA_MAXIMA,
   MARGEM,
+  CartaoDaFolha,
   OpcaoDaFolha,
   Rotulo,
   SemLigacao,
@@ -241,7 +242,7 @@ export default function Vantagens() {
             </View>
           )}
           <Folha aberta={aEscolherCasa} fechar={() => setAEscolherCasa(false)} titulo="A tua casa">
-            <View role="radiogroup" aria-label="A tua casa">
+            <CartaoDaFolha role="radiogroup" aria-label="A tua casa">
               <OpcaoDaFolha
                 nome="Todas as casas"
                 escolhida={casaEscolhida === null}
@@ -256,7 +257,7 @@ export default function Vantagens() {
                   separador
                 />
               ))}
-            </View>
+            </CartaoDaFolha>
           </Folha>
           {lista.length > 0 ? (
             <Grupo>

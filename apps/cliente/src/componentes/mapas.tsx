@@ -1,5 +1,5 @@
 import { ligacoesDosMapas, semPartir } from '@nunos-lab/dominio';
-import { Folha, Grupo, Icone, Separador, T, cor, type NomeDoIcone } from '@nunos-lab/ui';
+import { CartaoDaFolha, Folha, Icone, Separador, T, cor, type NomeDoIcone } from '@nunos-lab/ui';
 import { Platform, Pressable, View } from 'react-native';
 import { abrir } from '../dados';
 
@@ -67,9 +67,8 @@ export function OpcoesDeMapa({
     { nome: 'Google Maps', icone: 'mapa', url: ligacoes.google },
     { nome: 'Waze', icone: 'navegar', url: ligacoes.waze },
   ];
-  // O cartão destaca-se da folha, que é da cor dos outros cartões.
   return (
-    <Grupo style={{ marginTop: 10, backgroundColor: cor.superficieAlta }}>
+    <CartaoDaFolha>
       {mapas.map((m, i) => (
         <LinhaDaFolha
           key={m.nome}
@@ -82,7 +81,7 @@ export function OpcoesDeMapa({
           }}
         />
       ))}
-    </Grupo>
+    </CartaoDaFolha>
   );
 }
 

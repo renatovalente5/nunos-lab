@@ -201,7 +201,38 @@ export function Folha({
   );
 }
 
-/** Uma opção da folha: o nome e, se for a escolhida, o certo. */
+/**
+ * O cartão das linhas de uma folha, como o da escolha do mapa: destaca-se da folha, que é da cor
+ * dos outros cartões. Leva o papel de quem o usa (`radiogroup` nas escolhas).
+ */
+export function CartaoDaFolha({
+  children,
+  role,
+  'aria-label': rotulo,
+}: {
+  children: ReactNode;
+  role?: 'radiogroup' | 'list';
+  'aria-label'?: string;
+}) {
+  return (
+    <View
+      role={role}
+      aria-label={rotulo}
+      style={{
+        marginHorizontal: MARGEM,
+        marginTop: 10,
+        backgroundColor: cor.superficieAlta,
+        borderRadius: raio.grupo,
+        overflow: 'hidden',
+        ...CONTINUO,
+      }}
+    >
+      {children}
+    </View>
+  );
+}
+
+/** Uma opção da folha (num cartão): o nome e, se for a escolhida, o certo. */
 export function OpcaoDaFolha({
   nome,
   escolhida,
@@ -215,7 +246,7 @@ export function OpcaoDaFolha({
 }) {
   return (
     <View>
-      {separador && <View style={{ height: 1, backgroundColor: cor.linha, marginLeft: MARGEM }} />}
+      {separador && <View style={{ height: 1, backgroundColor: cor.linha, marginLeft: 16 }} />}
       <Pressable
         onPress={onPress}
         role="radio"
@@ -224,8 +255,8 @@ export function OpcaoDaFolha({
           flexDirection: 'row',
           alignItems: 'center',
           minHeight: 56,
-          paddingHorizontal: MARGEM,
-          backgroundColor: pressed ? cor.superficieAlta : 'transparent',
+          paddingHorizontal: 16,
+          backgroundColor: pressed ? cor.linha : 'transparent',
         })}
       >
         <T

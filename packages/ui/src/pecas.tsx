@@ -148,12 +148,16 @@ export function BotaoRedondo({
   );
 }
 
-/** O botão principal: o papel claro com a tinta preta. O secundário é da superfície. */
+/**
+ * O botão principal: o papel claro com a tinta preta. O secundário é da superfície; o de perigo
+ * também, com a tinta vermelha (o que não se desfaz).
+ */
 export function Botao({
   nome,
   onPress,
   icone,
   secundario = false,
+  perigo = false,
   largo = false,
   rotulo,
   ocupado = false,
@@ -163,6 +167,7 @@ export function Botao({
   onPress: () => void;
   icone?: NomeDoIcone;
   secundario?: boolean;
+  perigo?: boolean;
   largo?: boolean;
   rotulo?: string;
   /** A enviar: ignora os toques (sem `disabled`, que na web perde o foco e o aria-disabled). */
@@ -170,7 +175,8 @@ export function Botao({
   /** Ainda não há o que guardar: esbatido, ignora os toques. */
   inactivo?: boolean;
 }) {
-  const tinta = secundario ? cor.texto : cor.sobreClaro;
+  const escuro = secundario || perigo;
+  const tinta = perigo ? cor.perigo : secundario ? cor.texto : cor.sobreClaro;
   return (
     <Pressable
       onPress={ocupado || inactivo ? undefined : onPress}
@@ -187,7 +193,7 @@ export function Botao({
         height: 48,
         paddingHorizontal: 20,
         borderRadius: raio.pilula,
-        backgroundColor: secundario
+        backgroundColor: escuro
           ? pressed
             ? cor.superficie
             : cor.superficieAlta

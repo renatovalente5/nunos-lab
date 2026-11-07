@@ -9,6 +9,7 @@ import {
   Grupo,
   Icone,
   MARGEM,
+  CartaoDaFolha,
   OpcaoDaFolha,
   Rotulo,
   Separador,
@@ -136,7 +137,7 @@ export default function Resumo() {
       )}
       {eu && eu.lojas.length > 1 && (
         <Folha aberta={aEscolherCasa} fechar={() => setAEscolherCasa(false)} titulo="Casa">
-          <View role="radiogroup" aria-label="Casa">
+          <CartaoDaFolha role="radiogroup" aria-label="Casa">
             <OpcaoDaFolha
               nome={todasAsCasas}
               escolhida={casa === null}
@@ -157,7 +158,7 @@ export default function Resumo() {
                 separador
               />
             ))}
-          </View>
+          </CartaoDaFolha>
         </Folha>
       )}
 
