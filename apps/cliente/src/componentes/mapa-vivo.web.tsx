@@ -2,6 +2,7 @@ import {
   FOLGAS_DO_MAPA_VIVO,
   enquadrar,
   regiaoDoEnquadramento,
+  type Loja,
   type PontoNoMapa,
 } from '@nunos-lab/dominio';
 import { useEffect, useEffectEvent, useRef, type ComponentRef } from 'react';
@@ -9,7 +10,15 @@ import { createRoot, type Root } from 'react-dom/client';
 import { View } from 'react-native';
 import { API, PRAZO_DO_PEDIDO } from '../dados';
 import type { PropsDoMapaVivo } from './mapa-vivo';
-import { ALTURA_DO_PINO, LARGURA_DO_PINO, PinoDaCasa } from './pino-da-casa';
+import {
+  ALTURA_DO_PINO,
+  BalaoDaCasa,
+  LARGURA_DO_PINO,
+  PinoDaCasa,
+  balaoPorBaixo,
+  quantoAndarParaCaber,
+  temBalao,
+} from './pino-da-casa';
 
 /** Na web, o mapa vivo é o dos Mapas da Apple (MapKit JS), como no iPhone. */
 export const HA_MAPA_VIVO = true;
@@ -17,9 +26,17 @@ export const HA_MAPA_VIVO = true;
 /** O que se usa do MapKit JS (a Apple não publica os tipos). */
 type Anotacao = {
   selected: boolean;
+  coordinate: object;
   addEventListener(tipo: 'select' | 'deselect', f: () => void): void;
 };
-type Mapa = { addAnnotations(a: Anotacao[]): void; destroy(): void };
+type Mapa = {
+  center: object;
+  addAnnotations(a: Anotacao[]): void;
+  convertCoordinateToPointOnPage(sitio: object): DOMPoint;
+  convertPointOnPageToCoordinate(ponto: DOMPoint): object;
+  setCenterAnimated(sitio: object, animar: boolean): void;
+  destroy(): void;
+};
 type MapKit = {
   init(o: {
     authorizationCallback: (feito: (token: string) => void) => void;
@@ -85,19 +102,64 @@ function carregarMapKit(): Promise<MapKit> {
   return carregamento;
 }
 
-type Pino = { anotacao: Anotacao; raiz: Root; nome: string };
+type Pino = { anotacao: Anotacao; raiz: Root; loja: Loja };
 
-export function MapaVivo({ lojas, largura, altura, aberta, escolher, falhou }: PropsDoMapaVivo) {
+export function MapaVivo({
+  lojas,
+  largura,
+  altura,
+  aberta,
+  escolher,
+  aoIr,
+  falhou,
+}: PropsDoMapaVivo) {
   const caixa = useRef<ComponentRef<typeof View>>(null);
   const pinos = useRef(new Map<number, Pino>());
+  const mapaFeito = useRef<Mapa | null>(null);
   const aoEscolher = useEffectEvent(escolher);
+  const aoIrA = useEffectEvent(aoIr);
   const aoFalhar = useEffectEvent(falhou);
-  // O aro no pino da casa escolhida, e a selecção do MapKit igual à da app.
-  const pintar = useEffectEvent(() => {
+  // O aro e o balão no pino da casa escolhida, e a selecção do MapKit igual à da app.
+  const pintar = useEffectEvent((porBaixo: boolean) => {
     for (const [id, p] of pinos.current) {
-      p.raiz.render(<PinoDaCasa nome={p.nome} escolhido={id === aberta} />);
-      if (p.anotacao.selected !== (id === aberta)) p.anotacao.selected = id === aberta;
+      const aberto = id === aberta;
+      p.raiz.render(
+        <PinoDaCasa
+          nome={p.loja.nome}
+          escolhido={aberto}
+          balao={
+            aberto && temBalao(p.loja) ? (
+              <BalaoDaCasa loja={p.loja} aoIr={() => aoIrA(p.loja)} emBaixo={porBaixo} />
+            ) : undefined
+          }
+          balaoPorBaixo={porBaixo}
+        />,
+      );
+      if (p.anotacao.selected !== aberto) p.anotacao.selected = aberto;
     }
+  });
+  // O balão abre do lado que não tapa outra casa; perto da borda, o mapa anda o que falta.
+  const abrirBalao = useEffectEvent(() => {
+    const mapa = mapaFeito.current;
+    const p = aberta === null ? undefined : pinos.current.get(aberta);
+    if (!mapa || !p || !temBalao(p.loja)) return pintar(false);
+    const centro = mapa.convertCoordinateToPointOnPage(mapa.center);
+    const noMapa = (q: Pino) => {
+      const ponto = mapa.convertCoordinateToPointOnPage(q.anotacao.coordinate);
+      return { x: ponto.x - centro.x + largura / 2, y: ponto.y - centro.y + altura / 2 };
+    };
+    const sitio = noMapa(p);
+    const outras = [...pinos.current.values()]
+      .filter((q) => q !== p)
+      .map((q) => ({ ...noMapa(q), nome: q.loja.nome }));
+    const porBaixo = balaoPorBaixo(p.loja, sitio, outras);
+    pintar(porBaixo);
+    const { dx, dy } = quantoAndarParaCaber(p.loja, sitio, porBaixo, largura, altura);
+    if (!dx && !dy) return;
+    mapa.setCenterAnimated(
+      mapa.convertPointOnPageToCoordinate(new DOMPoint(centro.x - dx, centro.y - dy)),
+      true,
+    );
   });
   const medidas = useEffectEvent(() => ({ largura, altura }));
 
@@ -139,17 +201,19 @@ export function MapaVivo({ lojas, largura, altura, aberta, escolher, falhou }: P
           });
           anotacao.addEventListener('select', () => aoEscolher(l.id));
           anotacao.addEventListener('deselect', () => aoEscolher(null));
-          deste.set(l.id, { anotacao, raiz, nome: l.nome });
+          deste.set(l.id, { anotacao, raiz, loja: l });
           return anotacao;
         });
         mapa.addAnnotations(anotacoes);
-        pintar();
+        mapaFeito.current = mapa;
+        abrirBalao();
       })
       .catch(() => {
         if (vivo) aoFalhar();
       });
     return () => {
       vivo = false;
+      mapaFeito.current = null;
       mapa?.destroy();
       const raizes = [...deste.values()].map((p) => p.raiz);
       deste.clear();
@@ -158,7 +222,7 @@ export function MapaVivo({ lojas, largura, altura, aberta, escolher, falhou }: P
     };
   }, [lojas]);
 
-  useEffect(() => pintar(), [aberta]);
+  useEffect(() => abrirBalao(), [aberta]);
 
   return <View ref={caixa} style={{ width: largura, height: altura }} />;
 }

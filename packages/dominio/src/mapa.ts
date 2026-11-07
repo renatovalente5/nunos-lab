@@ -14,9 +14,10 @@ export type Folgas = { cima: number; baixo: number; lados: number };
 export const FOLGAS_DO_MAPA: Folgas = { cima: 64, baixo: 40, lados: 44 };
 /**
  * Nos mapas vivos o logótipo e o «Legal» da Apple ficam no canto de baixo e não se podem
- * tapar: o nome do pino mais a sul tem de ficar acima deles.
+ * tapar: o nome do pino mais a sul tem de ficar acima deles. Por cima cabe o balão da casa
+ * mais a norte: com 64, o mapa descia para o abrir e o nome de Aveiro tapava o «Legal».
  */
-export const FOLGAS_DO_MAPA_VIVO: Folgas = { cima: 64, baixo: 64, lados: 44 };
+export const FOLGAS_DO_MAPA_VIVO: Folgas = { cima: 100, baixo: 64, lados: 44 };
 /** Uma casa só (ou todas no mesmo sítio): à escala da vila, não da rua. */
 const ZOOM_MAXIMO = 13;
 const ZOOM_MINIMO = 3;

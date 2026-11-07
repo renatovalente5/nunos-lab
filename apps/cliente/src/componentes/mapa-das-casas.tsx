@@ -2,9 +2,27 @@ import { enquadrar, projectar, semPartir, versaoDasCasas, type Loja } from '@nun
 import { CONTINUO, Grupo, LARGURA_MAXIMA, MARGEM, Separador, T, cor, raio } from '@nunos-lab/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, PixelRatio, Pressable, View, useWindowDimensions } from 'react-native';
-import { API, abrir, contar, lerCasa, useDados } from '../dados';
+import { API, abrir, contar, useDados } from '../dados';
 import { HA_MAPA_VIVO, MapaVivo } from './mapa-vivo';
-import { ALTURA_DO_PINO, LARGURA_DO_PINO, PinoDaCasa } from './pino-da-casa';
+import {
+  ALTURA_DO_BALAO,
+  ALTURA_DO_PINO,
+  BalaoDaCasa,
+  FOLGA_NA_BORDA,
+  LARGURA_DO_PINO,
+  Pilula,
+  PinoDaCasa,
+  balaoPorBaixo,
+  cimoDoBalao,
+  larguraDoBalao,
+  temBalao,
+} from './pino-da-casa';
+
+/**
+ * O mapa é ao alto: as casas estendem-se de norte a sul, e assim o mapa aproxima-se mais. Era
+ * 1,05; passou a 1,25 para o balão de uma casa caber sem tapar a de cima (7 nov).
+ */
+const ALTO = 1.25;
 
 /** A moldura dos dois mapas: cantos redondos, à largura da coluna. */
 const MOLDURA = {
@@ -29,8 +47,7 @@ function degrau(px: number): number {
 function medidasDoMapa(lojas: Loja[], larguraDaJanela: number) {
   const comSitio = lojas.filter((l) => l.lat !== null && l.lng !== null);
   const w = degrau(Math.min(larguraDaJanela, LARGURA_MAXIMA) - 2 * MARGEM);
-  // Ao alto: as casas estendem-se de norte a sul, e assim o mapa aproxima-se mais.
-  const h = degrau(w * 1.05);
+  const h = degrau(w * ALTO);
   const e = enquadrar(comSitio as { lat: number; lng: number }[], w, h);
   const escala = Math.min(3, Math.max(1, Math.round(PixelRatio.get())));
   const v = versaoDasCasas(comSitio);
@@ -71,16 +88,14 @@ export function PrecarregarMapa() {
  * O mapa das casas. No iPhone e no site é o mapa vivo dos Mapas da Apple (arrastar,
  * aproximar); no Android, até haver a chave da Google, e quando o mapa vivo não vem, é
  * uma imagem dos Mapas da Apple pedida pela API, com os pinos desenhados por cima. Ao
- * tocar num pino, a casa aparece por baixo do mapa, com a morada, «Marcar» e «Ir»;
- * tocar no mapa tira-a. Abre já com a casa do cliente, se escolheu uma nas Vantagens.
- * (Até 7 nov era um balão por cima do pino: tapava o mapa e cortava-se na borda de
- * cima.) Sem mapa nenhum (a Apple, a rede, o travão), as casas aparecem em lista, com
+ * tocar num pino abre-se junto dele um balão só com «Marcar» e «Ir» (por cima, ou por
+ * baixo do nome se em cima tapar outra casa); tocar no mapa fecha-o. Sem mapa nenhum (a Apple, a rede, o travão), as casas aparecem em lista, com
  * a morada, «Marcar» e «Ir». Uma casa ainda sem coordenadas vai para a lista por baixo
  * do mapa.
  */
 export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja) => void }) {
   const { width } = useWindowDimensions();
-  const [aberta, setAberta] = useState<number | null>(lerCasa);
+  const [aberta, setAberta] = useState<number | null>(null);
   const [vivoFalhou, setVivoFalhou] = useState(false);
   const [imagemFalhou, setImagemFalhou] = useState(false);
   const comSitio = useMemo(() => lojas.filter((l) => l.lat !== null && l.lng !== null), [lojas]);
@@ -88,9 +103,8 @@ export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja
   if (comSitio.length === 0 || (!vivo && imagemFalhou))
     return <ListaDasCasas lojas={lojas} aoIr={aoIr} />;
   const semSitio = lojas.filter((l) => l.lat === null || l.lng === null);
-  const escolhida = comSitio.find((l) => l.id === aberta) ?? null;
   const w = Math.min(width, LARGURA_MAXIMA) - 2 * MARGEM;
-  const h = Math.round(w * 1.05);
+  const h = Math.min(640, Math.round(w * ALTO));
   return (
     <>
       {vivo ? (
@@ -101,6 +115,7 @@ export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja
             altura={h}
             aberta={aberta}
             escolher={setAberta}
+            aoIr={aoIr}
             falhou={() => setVivoFalhou(true)}
           />
         </View>
@@ -109,10 +124,10 @@ export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja
           lojas={comSitio}
           aberta={aberta}
           escolher={setAberta}
+          aoIr={aoIr}
           falhou={() => setImagemFalhou(true)}
         />
       )}
-      {escolhida && <ListaDasCasas lojas={[escolhida]} aoIr={aoIr} depoisDoMapa />}
       {semSitio.length > 0 && <ListaDasCasas lojas={semSitio} aoIr={aoIr} depoisDoMapa />}
     </>
   );
@@ -127,11 +142,13 @@ function MapaEstatico({
   lojas,
   aberta,
   escolher,
+  aoIr,
   falhou,
 }: {
   lojas: Loja[];
   aberta: number | null;
   escolher: (id: number | null) => void;
+  aoIr: (loja: Loja) => void;
   falhou: () => void;
 }) {
   const { width } = useWindowDimensions();
@@ -173,6 +190,7 @@ function MapaEstatico({
     loja: l,
     ...projectar({ lat: l.lat!, lng: l.lng! }, e, w, h),
   }));
+  const escolhida = posicoes.find((p) => p.loja.id === aberta && temBalao(p.loja));
   return (
     <View style={{ ...MOLDURA, width: w, height: h }}>
       <Pressable onPress={() => escolher(null)} disabled={aberta === null} aria-hidden>
@@ -204,14 +222,55 @@ function MapaEstatico({
             <PinoDaCasa nome={l.nome} escolhido={aberta === l.id} />
           </Pressable>
         ))}
+      {pronta && escolhida && (
+        <BalaoNaImagem
+          loja={escolhida.loja}
+          sitio={escolhida}
+          outras={posicoes.filter((p) => p !== escolhida).map((p) => ({ ...p, nome: p.loja.nome }))}
+          largura={w}
+          altura={h}
+          aoIr={() => aoIr(escolhida.loja)}
+        />
+      )}
     </View>
   );
 }
 
 /**
- * As casas em lista: a escolhida no mapa, por baixo dele, e todas quando o mapa não
- * as pode mostrar (sem ela, um mapa que não veio deixava a Barbearia sem moradas nem
- * «Marcar»: visto a 7 nov, com a Apple a responder 403 no servidor local).
+ * Na imagem o mapa não anda: o balão encosta às bordas quando o pino está perto delas, e passa
+ * para baixo do nome quando não cabe em cima (ou quando em cima tapa outra casa).
+ */
+function BalaoNaImagem({
+  loja,
+  sitio: { x, y },
+  outras,
+  largura,
+  altura,
+  aoIr,
+}: {
+  loja: Loja;
+  sitio: { x: number; y: number };
+  outras: { x: number; y: number; nome: string }[];
+  largura: number;
+  altura: number;
+  aoIr: () => void;
+}) {
+  const w = larguraDoBalao(loja);
+  const esquerda = Math.min(Math.max(FOLGA_NA_BORDA, x - w / 2), largura - FOLGA_NA_BORDA - w);
+  const cabeEmCima = y + cimoDoBalao(false) >= FOLGA_NA_BORDA;
+  const cabeEmBaixo = y + cimoDoBalao(true) + ALTURA_DO_BALAO <= altura - FOLGA_NA_BORDA;
+  const porBaixo = !cabeEmCima || (cabeEmBaixo && balaoPorBaixo(loja, { x, y }, outras));
+  return (
+    <View style={{ position: 'absolute', left: esquerda, top: y + cimoDoBalao(porBaixo) }}>
+      <BalaoDaCasa loja={loja} aoIr={aoIr} seta={x - esquerda} emBaixo={porBaixo} />
+    </View>
+  );
+}
+
+/**
+ * As casas em lista, quando o mapa não as pode mostrar: sem ela, um mapa que não veio
+ * deixava a Barbearia sem moradas nem «Marcar» (visto a 7 nov, com a Apple a responder
+ * 403 no servidor local). E as casas ainda sem sítio, por baixo do mapa.
  */
 function ListaDasCasas({
   lojas,
@@ -258,42 +317,5 @@ function ListaDasCasas({
         </View>
       ))}
     </Grupo>
-  );
-}
-
-function Pilula({
-  nome,
-  rotulo,
-  principal = false,
-  onPress,
-}: {
-  nome: string;
-  rotulo: string;
-  principal?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      role="button"
-      aria-label={rotulo}
-      style={({ pressed }) => ({
-        paddingHorizontal: 18,
-        height: 34,
-        borderRadius: 17,
-        justifyContent: 'center',
-        backgroundColor: principal
-          ? pressed
-            ? cor.claroPremido
-            : cor.claro
-          : pressed
-            ? cor.linha
-            : cor.superficieAlta,
-      })}
-    >
-      <T v="forte" style={{ fontSize: 14, color: principal ? cor.sobreClaro : cor.texto }}>
-        {nome}
-      </T>
-    </Pressable>
   );
 }

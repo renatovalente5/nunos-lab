@@ -20,7 +20,8 @@ test('enquadrar: as casas ficam todas dentro das folgas, e a caixa toca uma dela
     [358, 280, FOLGAS_DO_MAPA],
     [520, 400, FOLGAS_DO_MAPA],
     [320, 320, FOLGAS_DO_MAPA],
-    [335, 352, FOLGAS_DO_MAPA_VIVO],
+    [335, 419, FOLGAS_DO_MAPA_VIVO],
+    [362, 453, FOLGAS_DO_MAPA_VIVO],
   ];
   for (const [w, h, FOLGAS] of tamanhos) {
     const e = enquadrar(casas, w, h, FOLGAS)!;
