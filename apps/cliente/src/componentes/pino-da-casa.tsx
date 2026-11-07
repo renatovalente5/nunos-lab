@@ -18,7 +18,12 @@ export const LARGURA_DO_PINO = 150;
  */
 export function PinoDaCasa({ nome, escolhido }: { nome: string; escolhido: boolean }) {
   return (
-    <View style={{ width: LARGURA_DO_PINO, height: 2 * ALTURA_DO_PINO, alignItems: 'center' }}>
+    // Sem «collapsable», o React Native funde esta caixa (só tem medidas) e o pino do iPhone ficava
+    // com o tamanho do quadrado: desenhado 62 pontos ao lado do sítio, e sem responder ao toque.
+    <View
+      collapsable={false}
+      style={{ width: LARGURA_DO_PINO, height: 2 * ALTURA_DO_PINO, alignItems: 'center' }}
+    >
       {escolhido && (
         <View
           style={{
