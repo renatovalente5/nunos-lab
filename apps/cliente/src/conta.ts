@@ -115,8 +115,12 @@ async function pedir<T = void>(
     }
     if (r.status === 401 && !caminho.startsWith('/entrar')) {
       // O «eu» de quem saiu sai da cache: senão ficava à vista quando a conta seguinte entrasse.
-      aoPerderSessao?.();
-      guardarSessao(null);
+      // Só se a sessão guardada ainda for a deste pedido: um 401 atrasado de quem já saiu não
+      // pode tirar a sessão de quem entrou depois no mesmo aparelho.
+      if (sessao() === t) {
+        aoPerderSessao?.();
+        guardarSessao(null);
+      }
       throw new ErroDaConta('sessao');
     }
     if (!r.ok) {
@@ -173,8 +177,11 @@ function lerEuGuardado(): ClienteEu | undefined {
 }
 
 async function buscarEu(): Promise<ClienteEu> {
+  const usada = sessao();
   const eu = await pedir<ClienteEu>('');
-  guardarNoArmazem(CHAVE_DO_EU, JSON.stringify(eu));
+  // Saiu (ou entrou outra conta) com o pedido a caminho: o «eu» de quem já não está não se grava,
+  // senão a conta seguinte neste aparelho via o cartão da anterior até chegar o seu.
+  if (sessao() === usada) guardarNoArmazem(CHAVE_DO_EU, JSON.stringify(eu));
   return eu;
 }
 
