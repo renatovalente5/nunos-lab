@@ -98,10 +98,20 @@ export function quantoAndarParaCaber(
 }
 
 /**
+ * Na web o balão vai dentro da caixa do pino, que cresce para o lado dele: o MapKit só conta os
+ * toques dentro da caixa (um toque no balão, fora dela, fechava-o). Quanto cresce por cima e
+ * por baixo; o MapKit segura a caixa pelo fundo, que desce o que ela crescer por baixo.
+ */
+export function caixaComBalao(porBaixo: boolean) {
+  return porBaixo
+    ? { cima: 0, baixo: cimoDoBalao(true) + ALTURA_DO_BALAO - ALTURA_DO_PINO }
+    : { cima: -cimoDoBalao(false) - ALTURA_DO_PINO, baixo: 0 };
+}
+
+/**
  * Um pino com o nome por baixo, numa caixa com a ponta a meio da altura: os mapas vivos põem o
  * meio da caixa no sítio, e na imagem a caixa sobe metade (ALTURA_DO_PINO). O escolhido ganha um
- * aro creme (o Renato escolheu o 5). Na web o balão vem dentro da caixa, a sair dela por cima ou
- * por baixo: a caixa não muda de tamanho e o MapKit não a mexe.
+ * aro creme (o Renato escolheu o 5). Com o balão (só na web), a caixa cresce para o lado dele.
  */
 export function PinoDaCasa({
   nome,
@@ -114,18 +124,24 @@ export function PinoDaCasa({
   balao?: ReactNode;
   balaoPorBaixo?: boolean;
 }) {
+  const { cima, baixo } = balao ? caixaComBalao(balaoPorBaixo) : { cima: 0, baixo: 0 };
   return (
     // Sem «collapsable», o React Native funde esta caixa (só tem medidas) e o pino do iPhone ficava
     // com o tamanho do quadrado: desenhado 62 pontos ao lado do sítio, e sem responder ao toque.
     <View
       collapsable={false}
-      style={{ width: LARGURA_DO_PINO, height: 2 * ALTURA_DO_PINO, alignItems: 'center' }}
+      style={{
+        width: LARGURA_DO_PINO,
+        height: cima + 2 * ALTURA_DO_PINO + baixo,
+        paddingTop: cima,
+        alignItems: 'center',
+      }}
     >
       {escolhido && (
         <View
           style={{
             position: 'absolute',
-            top: -5,
+            top: cima - 5,
             width: ICONE + 2 * ARO + 10,
             height: ALTURA_DO_PINO + 4,
             borderRadius: 12,
@@ -202,7 +218,7 @@ export function PinoDaCasa({
         <View
           style={{
             position: 'absolute',
-            top: ALTURA_DO_PINO + cimoDoBalao(balaoPorBaixo),
+            top: cima + ALTURA_DO_PINO + cimoDoBalao(balaoPorBaixo),
             width: LARGURA_DO_PINO,
             alignItems: 'center',
           }}

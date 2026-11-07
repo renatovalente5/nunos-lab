@@ -5,7 +5,14 @@ import {
   type Loja,
   type PontoNoMapa,
 } from '@nunos-lab/dominio';
-import { useEffect, useEffectEvent, useRef, type ComponentRef } from 'react';
+import {
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  type ComponentRef,
+  type ReactNode,
+} from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { View } from 'react-native';
 import { API, PRAZO_DO_PEDIDO } from '../dados';
@@ -16,6 +23,7 @@ import {
   LARGURA_DO_PINO,
   PinoDaCasa,
   balaoPorBaixo,
+  caixaComBalao,
   quantoAndarParaCaber,
   temBalao,
 } from './pino-da-casa';
@@ -27,6 +35,8 @@ export const HA_MAPA_VIVO = true;
 type Anotacao = {
   selected: boolean;
   coordinate: object;
+  size: { width: number; height: number };
+  anchorOffset: DOMPoint;
   addEventListener(tipo: 'select' | 'deselect', f: () => void): void;
 };
 type Mapa = {
@@ -104,6 +114,12 @@ function carregarMapKit(): Promise<MapKit> {
 
 type Pino = { anotacao: Anotacao; raiz: Root; loja: Loja };
 
+/** Corre `feito` depois de o React pôr o pino na página: só então se muda a caixa no MapKit. */
+function DepoisDePintar({ feito, children }: { feito: () => void; children: ReactNode }) {
+  useLayoutEffect(feito);
+  return children;
+}
+
 export function MapaVivo({
   lojas,
   largura,
@@ -123,17 +139,29 @@ export function MapaVivo({
   const pintar = useEffectEvent((porBaixo: boolean) => {
     for (const [id, p] of pinos.current) {
       const aberto = id === aberta;
+      const comBalao = aberto && temBalao(p.loja);
+      const { cima, baixo } = comBalao ? caixaComBalao(porBaixo) : { cima: 0, baixo: 0 };
       p.raiz.render(
-        <PinoDaCasa
-          nome={p.loja.nome}
-          escolhido={aberto}
-          balao={
-            aberto && temBalao(p.loja) ? (
-              <BalaoDaCasa loja={p.loja} aoIr={() => aoIrA(p.loja)} emBaixo={porBaixo} />
-            ) : undefined
-          }
-          balaoPorBaixo={porBaixo}
-        />,
+        <DepoisDePintar
+          feito={() => {
+            p.anotacao.size = {
+              width: LARGURA_DO_PINO,
+              height: cima + 2 * ALTURA_DO_PINO + baixo,
+            };
+            p.anotacao.anchorOffset = new DOMPoint(0, -(ALTURA_DO_PINO + baixo));
+          }}
+        >
+          <PinoDaCasa
+            nome={p.loja.nome}
+            escolhido={aberto}
+            balao={
+              comBalao ? (
+                <BalaoDaCasa loja={p.loja} aoIr={() => aoIrA(p.loja)} emBaixo={porBaixo} />
+              ) : undefined
+            }
+            balaoPorBaixo={porBaixo}
+          />
+        </DepoisDePintar>,
       );
       if (p.anotacao.selected !== aberto) p.anotacao.selected = aberto;
     }
