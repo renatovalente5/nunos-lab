@@ -8,6 +8,8 @@ import {
   fraseDoCartao,
   fraseDoCorteOferecido,
   normalizarCodigo,
+  recompensaNaLingua,
+  type Lingua,
 } from '@nunos-lab/dominio';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -40,17 +42,20 @@ import {
   T,
   cor,
   raio,
+  useLingua,
+  useTextosDaUi,
   vibrar,
 } from '@nunos-lab/ui';
+import { useTextos, type Textos } from '../../textos';
 
-function haQuanto(unix: number): string {
+function haQuanto(unix: number, t: Textos, lingua: Lingua): string {
   // Dias de calendário em Lisboa: ontem às 23 h é «ontem», não «hoje».
   const dias = diasEntre(diaEmLisboa(unix * 1000), diaEmLisboa());
-  if (dias === 0) return 'hoje';
-  if (dias === 1) return 'ontem';
-  if (dias < 14) return `há ${dias} dias`;
-  if (dias < 60) return `há ${Math.round(dias / 7)} semanas`;
-  return dataCurta(diaEmLisboa(unix * 1000), diaEmLisboa());
+  if (dias === 0) return t.ficha.hoje;
+  if (dias === 1) return t.ficha.ontem;
+  if (dias < 14) return t.ficha.haDias(dias);
+  if (dias < 60) return t.ficha.haSemanas(Math.round(dias / 7));
+  return dataCurta(diaEmLisboa(unix * 1000), diaEmLisboa(), lingua);
 }
 
 /**
@@ -71,6 +76,9 @@ type Feito = {
 
 export default function Ficha() {
   const { codigo, semLeitura } = useLocalSearchParams<{ codigo: string; semLeitura?: string }>();
+  const t = useTextos();
+  const ui = useTextosDaUi();
+  const lingua = useLingua();
   const margens = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const consultas = useQueryClient();
@@ -241,7 +249,9 @@ export default function Ficha() {
         carimbos: ficha.cartao.carimbos,
         objectivo: ficha.cartao.objectivo,
         completo: false,
-        recompensa: `${ficha.recompensas[0]?.recompensa ?? 'Recompensa'} entregue`,
+        recompensa: t.ficha.recompensaEntregue(
+          ficha.recompensas[0] && recompensaNaLingua(ficha.recompensas[0].recompensa, lingua),
+        ),
       });
       Animated.spring(escala, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
       concluir();
@@ -255,6 +265,9 @@ export default function Ficha() {
     const d = new Date(unix * 1000);
     return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
+  // A prenda entregue: «às 15:12» hoje, «a 3 nov» noutro dia.
+  const prendaEntregueHoje =
+    !!ficha?.prendaEntregue && diaEmLisboa(ficha.prendaEntregue.quando * 1000) === diaEmLisboa();
 
   return (
     <View style={{ flex: 1, backgroundColor: cor.fundo, paddingTop: margens.top }}>
@@ -269,7 +282,7 @@ export default function Ficha() {
         <Pressable
           onPress={sair}
           role="button"
-          aria-label="Fechar"
+          aria-label={ui.fechar}
           hitSlop={8}
           style={({ pressed }) => ({
             width: 40,
@@ -292,7 +305,7 @@ export default function Ficha() {
       {!ficha && isPending && (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <T v="legenda" style={{ color: cor.texto2 }}>
-            A abrir…
+            {t.geral.aAbrir}
           </T>
         </View>
       )}
@@ -316,14 +329,14 @@ export default function Ficha() {
             </T>
           )}
           {semRemedio(error) ? (
-            <Botao nome="Fechar" secundario onPress={sair} />
+            <Botao nome={ui.fechar} secundario onPress={sair} />
           ) : (
             <>
               {/* Sem rede carimba-se na mesma: a fila leva o código, a chave e a casa, e envia depois. */}
               {error instanceof ErroDaBalcao && error.codigo === 'rede' && codigoOk && !!casa && (
-                <Botao nome="Carimbar sem rede" onPress={guardarSemRede} />
+                <Botao nome={t.ficha.carimbarSemRede} onPress={guardarSemRede} />
               )}
-              <Botao nome="Tentar outra vez" secundario onPress={() => refetch()} />
+              <Botao nome={ui.tentarOutraVez} secundario onPress={() => refetch()} />
             </>
           )}
         </View>
@@ -361,8 +374,8 @@ export default function Ficha() {
               (feito.recompensa && !feito.completo
                 ? feito.recompensa
                 : feito.completo
-                  ? 'Cartão completo'
-                  : `${feito.carimbos} de ${feito.objectivo}`)}
+                  ? t.ficha.cartaoCompleto
+                  : t.geral.carimbosDe(feito.carimbos, feito.objectivo))}
           </T>
           {!!feito.nome && (
             <T v="subtitulo" style={{ color: cor.texto2, marginTop: 8, textAlign: 'center' }}>
@@ -371,12 +384,12 @@ export default function Ficha() {
           )}
           {feito.completo && feito.recompensa && (
             <T v="subtitulo" style={{ color: cor.texto2, marginTop: 8, textAlign: 'center' }}>
-              {fraseDoCorteOferecido(feito.recompensa)}
+              {fraseDoCorteOferecido(feito.recompensa, lingua)}
             </T>
           )}
           {estado === 'na-fila' && (
             <T v="legenda" style={{ color: cor.texto2, marginTop: 10 }}>
-              Sem rede: guardado, envia-se depois.
+              {t.ficha.semRedeGuardado}
             </T>
           )}
           {feito.cupao && (
@@ -396,18 +409,19 @@ export default function Ficha() {
                 v="legenda"
                 style={{ color: cor.texto2, letterSpacing: 1.2, textTransform: 'uppercase' }}
               >
-                Saiu um cupão
+                {t.ficha.saiuUmCupao}
               </T>
               <T v="subtitulo" style={{ textAlign: 'center' }}>
                 {feito.cupao.destaque} · {feito.cupao.titulo}
               </T>
               <T v="legenda" style={{ color: cor.texto2 }}>
-                {feito.cupao.parceiro} · até {dataCurta(feito.cupao.validoAte, diaEmLisboa())}
+                {feito.cupao.parceiro} ·{' '}
+                {t.ficha.ate(dataCurta(feito.cupao.validoAte, diaEmLisboa(), lingua))}
               </T>
             </View>
           )}
           <View style={{ marginTop: 28 }}>
-            <Botao nome="Concluir" onPress={sair} />
+            <Botao nome={t.geral.concluir} onPress={sair} />
           </View>
         </View>
       )}
@@ -423,7 +437,7 @@ export default function Ficha() {
             <View style={{ paddingHorizontal: MARGEM, paddingTop: 24, gap: 6 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <T v="titulo" numberOfLines={1} style={{ flexShrink: 1 }}>
-                  {ficha.cliente.nome || 'Sem nome'}
+                  {ficha.cliente.nome || t.geral.semNome}
                 </T>
                 {ficha.cliente.aniversario && (
                   <View
@@ -439,13 +453,17 @@ export default function Ficha() {
                   >
                     <Icone nome="bolo" tamanho={16} cor={cor.sobreClaro} espessura={2.2} />
                     <T v="legenda" style={{ color: cor.sobreClaro }}>
-                      Faz anos
+                      {t.ficha.fazAnos}
                     </T>
                   </View>
                 )}
               </View>
               <T v="legenda" style={{ color: cor.texto2 }}>
-                {`Cliente desde ${new Date(ficha.cliente.criadoEm * 1000).getFullYear()} · ${ficha.cliente.cortes} ${ficha.cliente.cortes === 1 ? 'corte' : 'cortes'}${ficha.cartao.numero > 1 ? ` · ${ficha.cartao.numero - 1} ${ficha.cartao.numero === 2 ? 'cartão completo' : 'cartões completos'}` : ''}`}
+                {t.ficha.clienteDesde(
+                  new Date(ficha.cliente.criadoEm * 1000).getFullYear(),
+                  ficha.cliente.cortes,
+                  ficha.cartao.numero - 1,
+                )}
               </T>
             </View>
 
@@ -469,18 +487,18 @@ export default function Ficha() {
             >
               <T v="destaque">{carimbos}</T>
               <T v="forte" style={{ color: cor.texto2, fontSize: 18 }}>
-                de {ficha.cartao.objectivo}
+                {t.ficha.deObjectivo(ficha.cartao.objectivo)}
               </T>
               {/* Aos 9 a faixa creme já diz «Este corte é grátis»: «O próximo corte é grátis» aqui contradizia-a. */}
               {carimbos !== ficha.cartao.objectivo - 1 && (
                 <T v="legenda" style={{ color: cor.texto2, marginLeft: 8 }}>
-                  {fraseDoCartao(carimbos, ficha.cartao)}
+                  {fraseDoCartao(carimbos, ficha.cartao, lingua)}
                 </T>
               )}
             </View>
             {naFila > 0 && (
               <T v="legenda" style={{ color: cor.texto2, paddingHorizontal: MARGEM, marginTop: 6 }}>
-                {naFila === 1 ? '1 carimbo por enviar' : `${naFila} carimbos por enviar`}
+                {t.ficha.porEnviar(naFila)}
               </T>
             )}
 
@@ -496,8 +514,14 @@ export default function Ficha() {
               <Icone nome="relogio" tamanho={16} cor={cor.texto2} espessura={2} />
               <T v="legenda" style={{ color: cor.texto2 }}>
                 {ficha.ultima
-                  ? `Última visita ${haQuanto(ficha.ultima.quando)}${ficha.ultima.loja ? ` · ${ficha.ultima.loja}` : ''}${ficha.ultima.pessoa ? ` · ${ficha.ultima.pessoa}` : ''}`
-                  : 'Primeira visita'}
+                  ? [
+                      t.ficha.ultimaVisita(haQuanto(ficha.ultima.quando, t, lingua)),
+                      ficha.ultima.loja,
+                      ficha.ultima.pessoa,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
+                  : t.ficha.primeiraVisita}
               </T>
             </View>
 
@@ -516,7 +540,7 @@ export default function Ficha() {
                 <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
                   <Icone nome="bolo" tamanho={18} cor={cor.sobreClaro} espessura={2.2} />
                   <T v="forte" style={{ flex: 1, color: cor.sobreClaro }}>
-                    Prenda de anos: {ficha.prenda}
+                    {t.ficha.prendaDeAnos(ficha.prenda)}
                   </T>
                 </View>
                 {/* Entregar fica registado (quem e quando): a prenda é uma por ano. */}
@@ -534,7 +558,7 @@ export default function Ficha() {
                   })}
                 >
                   <T v="forte" style={{ color: cor.claro, fontSize: 15 }}>
-                    Entregar a prenda
+                    {t.ficha.entregarAPrenda}
                   </T>
                 </Pressable>
               </View>
@@ -551,11 +575,17 @@ export default function Ficha() {
               >
                 <Icone nome="bolo" tamanho={16} cor={cor.texto2} espessura={2} />
                 <T v="legenda" style={{ color: cor.texto2, flex: 1 }}>
-                  {`Prenda de anos entregue ${
-                    diaEmLisboa(ficha.prendaEntregue.quando * 1000) === diaEmLisboa()
-                      ? `às ${hora(ficha.prendaEntregue.quando)}`
-                      : `a ${dataCurta(diaEmLisboa(ficha.prendaEntregue.quando * 1000), diaEmLisboa())}`
-                  }${ficha.prendaEntregue.pessoa ? ` por ${ficha.prendaEntregue.pessoa}` : ''}`}
+                  {t.ficha.prendaEntregue(
+                    prendaEntregueHoje
+                      ? hora(ficha.prendaEntregue.quando)
+                      : dataCurta(
+                          diaEmLisboa(ficha.prendaEntregue.quando * 1000),
+                          diaEmLisboa(),
+                          lingua,
+                        ),
+                    prendaEntregueHoje,
+                    ficha.prendaEntregue.pessoa,
+                  )}
                 </T>
               </View>
             )}
@@ -578,7 +608,7 @@ export default function Ficha() {
               >
                 <Icone nome="presente" tamanho={18} cor={cor.sobreClaro} espessura={2.2} />
                 <T v="forte" style={{ flex: 1, color: cor.sobreClaro }}>
-                  {fraseDesteCorte(ficha.cartao.recompensa)}
+                  {fraseDesteCorte(ficha.cartao.recompensa, lingua)}
                 </T>
               </View>
             )}
@@ -599,10 +629,14 @@ export default function Ficha() {
                 <Icone nome="atencao" tamanho={18} cor={cor.texto} espessura={2} />
                 <T v="legenda" style={{ flex: 1 }}>
                   {ultimoDeHoje
-                    ? `Já carimbado hoje às ${hora(ultimoDeHoje.quando)}${ultimoDeHoje.pessoa ? ` por ${ultimoDeHoje.pessoa}` : ''}.`
+                    ? t.ficha.jaCarimbadoAs(hora(ultimoDeHoje.quando), ultimoDeHoje.pessoa)
                     : entregue
-                      ? `${ficha.cartao.recompensa || 'Prémio'} entregue hoje às ${hora(entregue.quando)}${entregue.pessoa ? ` por ${entregue.pessoa}` : ''}. Não leva carimbo.`
-                      : 'Já carimbado hoje.'}
+                      ? t.ficha.premioEntregueHoje(
+                          recompensaNaLingua(ficha.cartao.recompensa, lingua),
+                          hora(entregue.quando),
+                          entregue.pessoa,
+                        )
+                      : t.ficha.jaCarimbado}
                 </T>
               </View>
             )}
@@ -637,7 +671,7 @@ export default function Ficha() {
               >
                 <Icone nome="presente" tamanho={22} cor={cor.sobreClaro} espessura={2.2} />
                 <T v="forte" style={{ color: cor.sobreClaro, fontSize: 17 }}>
-                  Entregar: {ficha.recompensas[0]!.recompensa.toLowerCase()}
+                  {t.ficha.entregar(recompensaNaLingua(ficha.recompensas[0]!.recompensa, lingua))}
                 </T>
               </Pressable>
             )}
@@ -687,10 +721,10 @@ export default function Ficha() {
                 }}
               >
                 {aviso || precisaConfirmar
-                  ? 'Carimbar na mesma'
+                  ? t.ficha.carimbarNaMesma
                   : estado === 'a-enviar'
-                    ? 'A carimbar…'
-                    : 'Carimbar'}
+                    ? t.ficha.aCarimbar
+                    : t.ficha.carimbar}
               </T>
             </Pressable>
             {erro && (

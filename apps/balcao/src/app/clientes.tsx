@@ -4,10 +4,13 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { mensagemDe, pedir } from '../sessao';
-import { Campo, Ecra, Grupo, Icone, MARGEM, Separador, T, cor } from '@nunos-lab/ui';
+import { Campo, Ecra, Grupo, Icone, MARGEM, Separador, T, cor, useLingua } from '@nunos-lab/ui';
+import { useTextos } from '../textos';
 
 /** Procurar um cliente pelo nome, pelo email ou pelo código (quando não há QR à mão). */
 export default function Clientes() {
+  const t = useTextos();
+  const lingua = useLingua();
   const [texto, setTexto] = useState('');
   const [q, setQ] = useState('');
   useEffect(() => {
@@ -30,7 +33,7 @@ export default function Clientes() {
         <Pressable
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
           role="button"
-          aria-label="Voltar"
+          aria-label={t.geral.voltar}
           hitSlop={8}
           style={({ pressed }) => ({
             width: 40,
@@ -44,14 +47,14 @@ export default function Clientes() {
           <Icone nome="voltar" tamanho={21} espessura={2.2} />
         </Pressable>
         <T v="titulo" role="heading" aria-level={1}>
-          Procurar
+          {t.procurar.titulo}
         </T>
       </View>
       <View style={{ paddingHorizontal: MARGEM, marginTop: 20 }}>
         <Campo
           value={texto}
           onChangeText={setTexto}
-          placeholder="Nome, email ou código"
+          placeholder={t.procurar.pista}
           autoFocus
           autoCorrect={false}
           autoCapitalize="none"
@@ -82,14 +85,14 @@ export default function Clientes() {
                 >
                   <View style={{ flex: 1 }}>
                     <T v="forte" numberOfLines={1}>
-                      {k.nome || 'Sem nome'}
+                      {k.nome || t.geral.semNome}
                     </T>
                     <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }} numberOfLines={1}>
                       {[
                         k.email,
                         k.ultimo
-                          ? dataCurta(diaEmLisboa(k.ultimo * 1000), diaEmLisboa())
-                          : 'sem visitas',
+                          ? dataCurta(diaEmLisboa(k.ultimo * 1000), diaEmLisboa(), lingua)
+                          : t.procurar.semVisitas,
                       ]
                         .filter(Boolean)
                         .join(' · ')}
@@ -107,7 +110,7 @@ export default function Clientes() {
       )}
       {data && data.length === 0 && q.length >= 2 && (
         <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 30 }}>
-          Ninguém com «{q}».
+          {t.procurar.ninguem(q)}
         </T>
       )}
       {!!error && (

@@ -6,10 +6,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconeDaLanterna } from '../componentes/lanterna';
 import { Leitor } from '../componentes/leitor';
 import { useEu } from '../sessao';
-import { Botao, Campo, Icone, LARGURA_MAXIMA, MARGEM, T, cor } from '@nunos-lab/ui';
+import { Botao, Campo, Icone, LARGURA_MAXIMA, MARGEM, T, cor, useTextosDaUi } from '@nunos-lab/ui';
+import { useTextos } from '../textos';
 
 /** A câmara a ecrã inteiro (com a lanterna para o fim do dia); por baixo, o código escrito à mão. */
 export default function Ler() {
+  const t = useTextos();
+  const ui = useTextosDaUi();
   const margens = useSafeAreaInsets();
   const [texto, setTexto] = useState('');
   const [erro, setErro] = useState<string | null>(null);
@@ -21,7 +24,7 @@ export default function Ler() {
   const abrir = (lido: string) => {
     const codigo = codigoLido(lido);
     if (!codigo) {
-      setErro('Isso não é um cartão do Nuno’s Lab.');
+      setErro(t.ler.naoECartao);
       return;
     }
     setActivo(false);
@@ -69,7 +72,7 @@ export default function Ler() {
       <Pressable
         onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
         role="button"
-        aria-label="Fechar"
+        aria-label={ui.fechar}
         style={({ pressed }) => ({
           position: 'absolute',
           top: margens.top + 12,
@@ -88,7 +91,7 @@ export default function Ler() {
         <Pressable
           onPress={() => setLanterna((v) => !v)}
           role="button"
-          aria-label="Lanterna"
+          aria-label={t.ler.lanterna}
           aria-pressed={lanterna}
           style={({ pressed }) => ({
             position: 'absolute',
@@ -130,7 +133,7 @@ export default function Ler() {
         }}
       >
         <T v="legenda" style={{ color: cor.texto2 }}>
-          {semCamara ? 'Escreve o código' : 'Ou escreve o código'}
+          {semCamara ? t.ler.escreveOCodigo : t.ler.ouEscreveOCodigo}
         </T>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1 }}>
@@ -149,7 +152,7 @@ export default function Ler() {
               erro={erro}
             />
           </View>
-          <Botao nome="Abrir" onPress={() => abrir(texto)} />
+          <Botao nome={t.ler.abrir} onPress={() => abrir(texto)} />
         </View>
       </View>
     </View>

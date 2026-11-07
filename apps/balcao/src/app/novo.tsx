@@ -12,12 +12,14 @@ import { Platform, Pressable, Share, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { ErroDaBalcao, chaveNova, mensagemDe, pedir, useCasa, useEu } from '../sessao';
 import { Botao, Campo, Ecra, Icone, Interruptor, MARGEM, T, cor } from '@nunos-lab/ui';
+import { useTextos } from '../textos';
 
 /** A app do cliente, para ir na mensagem com o código. */
 const LIGACAO_DA_APP = 'https://renatovalente5.github.io/nunos-lab/';
 
 /** Um cliente novo ao balcão: o nome, o email para entrar na app depois, e o 1.º carimbo. */
 export default function Novo() {
+  const t = useTextos();
   const { data: eu } = useEu();
   const casa = useCasa(eu);
   const consultas = useQueryClient();
@@ -35,9 +37,9 @@ export default function Novo() {
   const criar = async () => {
     if (aEnviar) return;
     const e: typeof erro = {};
-    if (!limparNome(nome)) e.nome = 'O nome faz falta.';
+    if (!limparNome(nome)) e.nome = t.novo.faltaONome;
     const emailLimpo = email.trim() ? normalizarEmail(email) : null;
-    if (email.trim() && !emailLimpo) e.email = 'Esse email não está certo.';
+    if (email.trim() && !emailLimpo) e.email = t.novo.emailErrado;
     setErro(e);
     if (e.nome || e.email || !casa) return;
     setAEnviar(true);
@@ -82,7 +84,7 @@ export default function Novo() {
 
   /** O código para o cliente levar: a folha de partilha, ou copiado quando o browser não a tem. */
   const partilhar = async (codigo: string) => {
-    const texto = `O teu cartão Nuno's Lab: ${codigoCurto(codigo)}. A app: ${LIGACAO_DA_APP}`;
+    const texto = t.novo.mensagem(codigoCurto(codigo), LIGACAO_DA_APP);
     try {
       if (Platform.OS !== 'web') {
         await Share.share({ message: texto });
@@ -105,7 +107,7 @@ export default function Novo() {
         <Pressable
           onPress={voltar}
           role="button"
-          aria-label="Voltar"
+          aria-label={t.geral.voltar}
           hitSlop={8}
           style={({ pressed }) => ({
             width: 40,
@@ -119,7 +121,7 @@ export default function Novo() {
           <Icone nome="voltar" tamanho={21} espessura={2.2} />
         </Pressable>
         <T v="titulo" role="heading" aria-level={1}>
-          Cliente novo
+          {t.novo.titulo}
         </T>
       </View>
       {feito ? (
@@ -145,26 +147,24 @@ export default function Novo() {
           </T>
           <T v="corpo" style={{ color: cor.texto2, textAlign: 'center' }}>
             {feito.cartao.carimbos > 0
-              ? `${feito.cartao.carimbos} de ${feito.cartao.objectivo}. `
+              ? `${t.geral.carimbosDe(feito.cartao.carimbos, feito.cartao.objectivo)}. `
               : ''}
-            {email.trim()
-              ? 'Entra na app com esse email e encontra o cartão.'
-              : 'Para ter o cartão na app, entra com a Apple ou a Google.'}
+            {email.trim() ? t.novo.entraComOEmail : t.novo.entraComAppleOuGoogle}
           </T>
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
             <Botao
-              nome={copiado ? 'Copiado' : 'Partilhar'}
+              nome={copiado ? t.novo.copiado : t.novo.partilhar}
               icone="partilhar"
               secundario
               onPress={() => partilhar(feito.cliente.codigo)}
             />
-            <Botao nome="Concluir" onPress={voltar} />
+            <Botao nome={t.geral.concluir} onPress={voltar} />
           </View>
         </View>
       ) : (
         <View style={{ paddingHorizontal: MARGEM, marginTop: 26, gap: 16 }}>
           <Campo
-            rotulo="Nome"
+            rotulo={t.novo.nome}
             value={nome}
             onChangeText={setNome}
             autoCapitalize="words"
@@ -173,7 +173,7 @@ export default function Novo() {
             erro={erro.nome}
           />
           <Campo
-            rotulo="Email (para entrar na app)"
+            rotulo={t.novo.email}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -191,11 +191,15 @@ export default function Novo() {
               marginTop: 4,
             }}
           >
-            <T v="forte">Carimbar já</T>
-            <Interruptor ligado={carimbarJa} mudar={setCarimbarJa} rotulo="Carimbar já" />
+            <T v="forte">{t.novo.carimbarJa}</T>
+            <Interruptor ligado={carimbarJa} mudar={setCarimbarJa} rotulo={t.novo.carimbarJa} />
           </View>
           <View style={{ marginTop: 8 }}>
-            <Botao nome={aEnviar ? 'A guardar…' : 'Guardar'} ocupado={aEnviar} onPress={criar} />
+            <Botao
+              nome={aEnviar ? t.novo.aGuardar : t.novo.guardar}
+              ocupado={aEnviar}
+              onPress={criar}
+            />
           </View>
           {erro.geral && (
             <T v="legenda" role="alert" style={{ color: '#E07A72', textAlign: 'center' }}>

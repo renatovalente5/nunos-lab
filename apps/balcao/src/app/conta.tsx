@@ -11,12 +11,27 @@ import {
   useCasa,
   useEu,
 } from '../sessao';
-import { Ecra, Grupo, Icone, MARGEM, OpcaoDaFolha, Rotulo, T, cor } from '@nunos-lab/ui';
+import { LINGUAS, NOME_DA_LINGUA } from '@nunos-lab/dominio';
+import {
+  Ecra,
+  Grupo,
+  Icone,
+  MARGEM,
+  OpcaoDaFolha,
+  Rotulo,
+  T,
+  cor,
+  escolherLingua,
+  useLingua,
+  useTextosDaUi,
+} from '@nunos-lab/ui';
+import { useTextos } from '../textos';
 
-const PAPEL = { dono: 'Dono', barbeiro: 'Barbeiro', parceiro: 'Parceiro' } as const;
-
-/** A casa em que este aparelho carimba, quem está a usar, e sair. */
+/** A casa em que este aparelho carimba, a língua, quem está a usar, e sair. */
 export default function Conta() {
+  const t = useTextos();
+  const ui = useTextosDaUi();
+  const lingua = useLingua();
   const { data: eu } = useEu();
   const casa = useCasa(eu);
   const consultas = useQueryClient();
@@ -30,11 +45,9 @@ export default function Conta() {
       (p) => p.pessoaId === undefined || p.pessoaId === eu?.pessoa.id,
     ).length;
     const sim = await confirmar({
-      titulo: 'Sair deste aparelho?',
-      detalhe: porEnviar
-        ? `Há ${porEnviar} ${porEnviar === 1 ? 'carimbo' : 'carimbos'} por enviar.`
-        : undefined,
-      accao: 'Sair',
+      titulo: t.conta.sairPergunta,
+      detalhe: porEnviar ? t.conta.porEnviar(porEnviar) : undefined,
+      accao: t.conta.sair,
     });
     if (!sim) return;
     try {
@@ -57,7 +70,7 @@ export default function Conta() {
         <Pressable
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
           role="button"
-          aria-label="Voltar"
+          aria-label={t.geral.voltar}
           hitSlop={8}
           style={({ pressed }) => ({
             width: 40,
@@ -71,7 +84,7 @@ export default function Conta() {
           <Icone nome="voltar" tamanho={21} espessura={2.2} />
         </Pressable>
         <T v="titulo" role="heading" aria-level={1}>
-          {eu?.pessoa.nome ?? 'Conta'}
+          {eu?.pessoa.nome ?? t.geral.conta}
         </T>
       </View>
       {eu && (
@@ -79,14 +92,14 @@ export default function Conta() {
           v="legenda"
           style={{ color: cor.texto2, paddingHorizontal: MARGEM, marginTop: 6, marginLeft: 54 }}
         >
-          {PAPEL[eu.pessoa.papel]}
+          {t.conta.papel[eu.pessoa.papel]}
           {eu.parceiro ? ` · ${eu.parceiro.nome}` : ''}
         </T>
       )}
 
       {eu && eu.pessoa.papel !== 'parceiro' && (
         <>
-          <Rotulo>{podeMudar ? 'Casa onde estou a carimbar' : 'A minha casa'}</Rotulo>
+          <Rotulo>{podeMudar ? t.conta.casaOndeCarimbo : t.conta.aMinhaCasa}</Rotulo>
           <Grupo>
             {eu.lojas
               .filter((l) => podeMudar || l.id === casa)
@@ -103,7 +116,20 @@ export default function Conta() {
         </>
       )}
 
-      <Rotulo>Sessão</Rotulo>
+      <Rotulo>{ui.lingua}</Rotulo>
+      <Grupo>
+        {LINGUAS.map((l, i) => (
+          <OpcaoDaFolha
+            key={l}
+            nome={NOME_DA_LINGUA[l]}
+            escolhida={l === lingua}
+            separador={i > 0}
+            onPress={() => escolherLingua(l)}
+          />
+        ))}
+      </Grupo>
+
+      <Rotulo>{t.conta.sessao}</Rotulo>
       <Grupo>
         <Pressable
           onPress={sair}
@@ -118,7 +144,7 @@ export default function Conta() {
           })}
         >
           <Icone nome="sair" tamanho={20} cor={cor.texto2} espessura={2} />
-          <T v="forte">Sair deste aparelho</T>
+          <T v="forte">{t.conta.sairDesteAparelho}</T>
         </Pressable>
       </Grupo>
       {folhaDeConfirmacao}

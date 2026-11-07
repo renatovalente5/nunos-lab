@@ -2,6 +2,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useRef } from 'react';
 import { Linking, View } from 'react-native';
 import { Botao, T, cor } from '@nunos-lab/ui';
+import { useTextos } from '../textos';
 
 /** A câmara no telemóvel: a expo-camera lê o QR sozinha. */
 export function Leitor({
@@ -19,6 +20,7 @@ export function Leitor({
   /** A câmara abriu: o ecrã fica a saber se pode mostrar o botão da lanterna. */
   aoAbrir?: (capacidades: { lanterna: boolean }) => void;
 }) {
+  const t = useTextos();
   const [permissao, pedir] = useCameraPermissions();
   const ultimo = useRef<string>('');
   useEffect(() => {
@@ -30,12 +32,12 @@ export function Leitor({
         style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32 }}
       >
         <T v="legenda" style={{ color: cor.texto2, textAlign: 'center' }}>
-          A app precisa da câmara para ler o cartão.
+          {t.camara.precisa}
         </T>
-        {permissao?.canAskAgain && <Botao nome="Permitir a câmara" onPress={() => pedir()} />}
+        {permissao?.canAskAgain && <Botao nome={t.camara.permitir} onPress={() => pedir()} />}
         {permissao && !permissao.canAskAgain && (
           <Botao
-            nome="Abrir as definições"
+            nome={t.camara.abrirDefinicoes}
             onPress={() => Linking.openSettings().catch(() => {})}
           />
         )}

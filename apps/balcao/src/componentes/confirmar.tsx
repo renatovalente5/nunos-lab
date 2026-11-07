@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Botao, Folha, MARGEM } from '@nunos-lab/ui';
+import { useTextos } from '../textos';
 
 type Pergunta = {
   titulo: string;
@@ -15,6 +16,7 @@ type Pergunta = {
  * botão que faz. O Alert do React Native não existe na web; a folha sobe nas duas.
  */
 export function useConfirmacao(): [(p: Pergunta) => Promise<boolean>, ReactNode] {
+  const t = useTextos();
   const [pergunta, setPergunta] = useState<Pergunta | null>(null);
   const responder = useRef<(sim: boolean) => void>(() => {});
   const perguntar = useCallback(
@@ -38,7 +40,7 @@ export function useConfirmacao(): [(p: Pergunta) => Promise<boolean>, ReactNode]
     >
       <View style={{ paddingHorizontal: MARGEM, paddingTop: 10 }}>
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Botao nome="Deixar" secundario largo onPress={() => fechar(false)} />
+          <Botao nome={t.confirmar.deixar} secundario largo onPress={() => fechar(false)} />
           <Botao nome={pergunta?.accao ?? ''} largo onPress={() => fechar(true)} />
         </View>
       </View>

@@ -6,7 +6,6 @@ import type { C } from './ambiente.ts';
 export const agora = (): number => Math.floor(Date.now() / 1000);
 export const DIA = 86_400;
 
-/** Uma recusa com código: a app e o backoffice traduzem o código para texto. */
 /** A língua de um pedido da app (`?lingua=en`); sem ela, ou outra qualquer, o português. */
 export function linguaDoPedido(c: {
   req: { query: (nome: string) => string | undefined };
@@ -15,6 +14,7 @@ export function linguaDoPedido(c: {
   return eLingua(l) ? l : 'pt';
 }
 
+/** Uma recusa com código: a app e o backoffice traduzem o código para texto. */
 export function recusar(
   estado: 400 | 401 | 403 | 404 | 409 | 413 | 415 | 429,
   codigo: string,

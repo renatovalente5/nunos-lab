@@ -1,4 +1,10 @@
-import { codigoCurto, dataCurta, diaEmLisboa, type UltimoCarimbo } from '@nunos-lab/dominio';
+import {
+  codigoCurto,
+  dataCurta,
+  diaEmLisboa,
+  type Lingua,
+  type UltimoCarimbo,
+} from '@nunos-lab/dominio';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
@@ -25,9 +31,11 @@ import {
 import {
   Botao,
   BotaoDaApple,
+  BotaoDaLingua,
   BotaoDoGoogle,
   CONTINUO,
   Ecra,
+  FolhaDaLingua,
   Grupo,
   Icone,
   MARGEM,
@@ -36,7 +44,9 @@ import {
   T,
   cor,
   raio,
+  useLingua,
 } from '@nunos-lab/ui';
+import { useTextos } from '../textos';
 
 const palavra = require('../../assets/marca/palavra.png');
 
@@ -63,7 +73,7 @@ export default function Inicio() {
   }, []);
   const [entrada, setEntrada] = useState<{
     estado: 'parado' | 'a-entrar' | 'erro';
-    mensagem?: string;
+    erro?: unknown;
   }>({
     estado: 'parado',
   });
@@ -80,7 +90,7 @@ export default function Inicio() {
           guardarSessao(r.sessao);
           setEntrada({ estado: 'parado' });
         })
-        .catch((e) => setEntrada({ estado: 'erro', mensagem: mensagemDe(e) }));
+        .catch((e) => setEntrada({ estado: 'erro', erro: e }));
     };
     tentar();
     if (Platform.OS === 'web') {
@@ -89,7 +99,7 @@ export default function Inicio() {
     }
   }, []);
   if (!temSessao || entrada.estado === 'a-entrar')
-    return <Entrar estado={entrada.estado} mensagem={entrada.mensagem} />;
+    return <Entrar estado={entrada.estado} erroDaLigacao={entrada.erro} />;
   return <Dia />;
 }
 
@@ -101,6 +111,8 @@ function Dia() {
 }
 
 function HojeParceiro() {
+  const t = useTextos();
+  const lingua = useLingua();
   const { data: eu } = useEu();
   const { data: hoje, refetch } = useHojeParceiro(!!eu);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -128,16 +140,16 @@ function HojeParceiro() {
             v="legenda"
             style={{ color: cor.texto3, letterSpacing: 1.2, textTransform: 'uppercase' }}
           >
-            Parceiro Nuno's Lab
+            {t.parceiro.parceiroDoNunosLab}
           </T>
           <T v="titulo" numberOfLines={1}>
-            {eu?.parceiro?.nome ?? 'Parceiro'}
+            {eu?.parceiro?.nome ?? t.parceiro.parceiro}
           </T>
         </View>
         <Pressable
           onPress={() => router.push('/conta')}
           role="link"
-          aria-label="Conta"
+          aria-label={t.geral.conta}
           hitSlop={6}
           style={({ pressed }) => ({
             width: 40,
@@ -155,13 +167,13 @@ function HojeParceiro() {
       </View>
 
       <View style={{ paddingHorizontal: MARGEM, marginTop: 22, flexDirection: 'row', gap: 10 }}>
-        <Numero valor={hoje?.validacoes ?? 0} nome="Validações hoje" />
+        <Numero valor={hoje?.validacoes ?? 0} nome={t.parceiro.validacoesHoje} />
       </View>
       <View style={{ paddingHorizontal: MARGEM, marginTop: 18 }}>
         <Pressable
           onPress={() => router.push('/ler')}
           role="button"
-          aria-label="Ler o cartão"
+          aria-label={t.geral.lerOCartao}
           style={({ pressed }) => ({
             height: 72,
             borderRadius: raio.grupo,
@@ -176,7 +188,7 @@ function HojeParceiro() {
         >
           <Icone nome="camara" tamanho={26} cor={cor.sobreClaro} espessura={2.4} />
           <T v="subtitulo" style={{ color: cor.sobreClaro }}>
-            Ler o cartão
+            {t.geral.lerOCartao}
           </T>
         </Pressable>
       </View>
@@ -191,7 +203,7 @@ function HojeParceiro() {
       )}
       {hoje && hoje.ultimos.length > 0 && (
         <>
-          <Rotulo>Hoje</Rotulo>
+          <Rotulo>{t.geral.hoje}</Rotulo>
           <Grupo>
             {hoje.ultimos.map((u, i) => {
               const podeAnular =
@@ -218,7 +230,7 @@ function HojeParceiro() {
                         {u.destaque} · {u.titulo}
                       </T>
                       <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
-                        {[hora(u.quando), u.cliente || 'cliente', u.pessoa]
+                        {[hora(u.quando), u.cliente || t.parceiro.cliente, u.pessoa]
                           .filter(Boolean)
                           .join(' · ')}
                       </T>
@@ -227,7 +239,7 @@ function HojeParceiro() {
                       <Pressable
                         onPress={() => anular(u.id)}
                         role="button"
-                        aria-label="Anular"
+                        aria-label={t.geral.anular}
                         hitSlop={8}
                         style={({ pressed }) => ({
                           paddingHorizontal: 10,
@@ -236,7 +248,7 @@ function HojeParceiro() {
                           backgroundColor: pressed ? cor.linha : cor.superficieAlta,
                         })}
                       >
-                        <T v="legenda">Anular</T>
+                        <T v="legenda">{t.geral.anular}</T>
                       </Pressable>
                     )}
                   </View>
@@ -248,26 +260,32 @@ function HojeParceiro() {
       )}
       {hoje && hoje.ultimos.length === 0 && (
         <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 40 }}>
-          {dataCurta(hoje.dia, diaEmLisboa())} · ainda sem validações
+          {t.parceiro.semValidacoes(dataCurta(hoje.dia, diaEmLisboa(), lingua))}
         </T>
       )}
     </Ecra>
   );
 }
 
-function Entrar({ estado, mensagem }: { estado: string; mensagem?: string }) {
-  const [erro, setErro] = useState<string | null>(null);
+function Entrar({ estado, erroDaLigacao }: { estado: string; erroDaLigacao?: unknown }) {
+  const t = useTextos();
+  const [erro, setErro] = useState<unknown>(null);
+  const [aEscolherLingua, setAEscolherLingua] = useState(false);
   const correr = async (f: () => Promise<{ sessao: string }>) => {
     setErro(null);
     try {
       guardarSessao((await f()).sessao);
     } catch (e) {
-      setErro(mensagemDe(e));
+      setErro(e);
     }
   };
+  const falhou = erro !== null || estado === 'erro';
   return (
     <Ecra comBarra={false}>
-      <View style={{ paddingHorizontal: MARGEM, paddingTop: 40, alignItems: 'center', gap: 14 }}>
+      <View style={{ paddingHorizontal: MARGEM, flexDirection: 'row', justifyContent: 'flex-end' }}>
+        <BotaoDaLingua onPress={() => setAEscolherLingua(true)} />
+      </View>
+      <View style={{ paddingHorizontal: MARGEM, paddingTop: 4, alignItems: 'center', gap: 14 }}>
         <PalavraDaMarca />
         <T
           v="legenda"
@@ -277,7 +295,7 @@ function Entrar({ estado, mensagem }: { estado: string; mensagem?: string }) {
         </T>
         <View style={{ height: 30 }} />
         {estado === 'a-entrar' ? (
-          <T v="forte">A entrar…</T>
+          <T v="forte">{t.entrar.aEntrar}</T>
         ) : (
           <>
             {APPLE_CLIENTE ? (
@@ -300,18 +318,17 @@ function Entrar({ estado, mensagem }: { estado: string; mensagem?: string }) {
               />
             ) : null}
             <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 10 }}>
-              {Platform.OS === 'web'
-                ? 'Entra com a conta que o Nuno registou,\nou abre a ligação que te mandaram.'
-                : 'Entra com a conta que o Nuno registou.'}
+              {Platform.OS === 'web' ? t.entrar.comAContaOuALigacao : t.entrar.comAConta}
             </T>
           </>
         )}
-        {(erro || estado === 'erro') && (
+        {falhou && (
           <T v="legenda" role="alert" style={{ color: '#E07A72', textAlign: 'center' }}>
-            {erro ?? mensagem}
+            {mensagemDe(erro !== null ? erro : erroDaLigacao)}
           </T>
         )}
       </View>
+      <FolhaDaLingua aberta={aEscolherLingua} fechar={() => setAEscolherLingua(false)} />
     </Ecra>
   );
 }
@@ -334,14 +351,16 @@ function hora(unix: number): string {
   return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-/** «15:12» hoje; «ontem 15:12» ou «3 nov 15:12» quando o toque foi noutro dia. */
-function quandoCurto(ms: number): string {
+/** «15:12» hoje; «3 nov 15:12» quando o toque foi noutro dia. */
+function quandoCurto(ms: number, lingua: Lingua): string {
   const dia = diaEmLisboa(ms);
   const h = hora(Math.floor(ms / 1000));
-  return dia === diaEmLisboa() ? h : `${dataCurta(dia, diaEmLisboa())} ${h}`;
+  return dia === diaEmLisboa() ? h : `${dataCurta(dia, diaEmLisboa(), lingua)} ${h}`;
 }
 
 function Hoje() {
+  const t = useTextos();
+  const lingua = useLingua();
   const { data: eu } = useEu();
   const casa = useCasa(eu);
   const { data: hoje, refetch } = useHoje(casa, !!eu);
@@ -354,8 +373,8 @@ function Hoje() {
   const anular = async (u: UltimoCarimbo) => {
     // Uma pastilha pequena, com pressa e uma mão: a pergunta antes custa menos do que o engano.
     const sim = await confirmar({
-      titulo: `Anular o carimbo de ${u.cliente || 'sem nome'} das ${hora(u.quando)}?`,
-      accao: 'Anular',
+      titulo: t.inicio.anularOCarimbo(u.cliente || '', hora(u.quando)),
+      accao: t.geral.anular,
     });
     if (!sim) return;
     setAviso(null);
@@ -391,7 +410,7 @@ function Hoje() {
         <Pressable
           onPress={() => router.push('/conta')}
           role="link"
-          aria-label="Casa e conta"
+          aria-label={t.inicio.casaEConta}
           style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexShrink: 1 })}
         >
           <T
@@ -412,7 +431,7 @@ function Hoje() {
         <Pressable
           onPress={() => router.push('/conta')}
           role="link"
-          aria-label="Conta"
+          aria-label={t.geral.conta}
           hitSlop={6}
           style={({ pressed }) => ({
             width: 40,
@@ -430,16 +449,16 @@ function Hoje() {
       </View>
 
       <View style={{ paddingHorizontal: MARGEM, marginTop: 22, flexDirection: 'row', gap: 10 }}>
-        <Numero valor={hoje?.carimbos ?? 0} nome="Carimbos" />
-        <Numero valor={hoje?.novos ?? 0} nome="Novos" />
-        <Numero valor={hoje?.recompensas ?? 0} nome="Prémios" />
+        <Numero valor={hoje?.carimbos ?? 0} nome={t.inicio.carimbos} />
+        <Numero valor={hoje?.novos ?? 0} nome={t.inicio.novos} />
+        <Numero valor={hoje?.recompensas ?? 0} nome={t.inicio.premios} />
       </View>
 
       <View style={{ paddingHorizontal: MARGEM, marginTop: 18, gap: 10 }}>
         <Pressable
           onPress={() => router.push('/ler')}
           role="button"
-          aria-label="Ler o cartão"
+          aria-label={t.geral.lerOCartao}
           style={({ pressed }) => ({
             height: 72,
             borderRadius: raio.grupo,
@@ -454,19 +473,19 @@ function Hoje() {
         >
           <Icone nome="camara" tamanho={26} cor={cor.sobreClaro} espessura={2.4} />
           <T v="subtitulo" style={{ color: cor.sobreClaro }}>
-            Ler o cartão
+            {t.geral.lerOCartao}
           </T>
         </Pressable>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <Botao
-            nome="Procurar"
+            nome={t.inicio.procurar}
             icone="procurar"
             secundario
             largo
             onPress={() => router.push('/clientes')}
           />
           <Botao
-            nome="Cliente novo"
+            nome={t.inicio.clienteNovo}
             icone="mais"
             secundario
             largo
@@ -474,17 +493,18 @@ function Hoje() {
           />
         </View>
         {eu?.pessoa.papel === 'dono' && (
-          <Botao nome="Resumo" icone="grafico" secundario onPress={() => router.push('/resumo')} />
+          <Botao
+            nome={t.inicio.resumo}
+            icone="grafico"
+            secundario
+            onPress={() => router.push('/resumo')}
+          />
         )}
       </View>
 
       {naFila > 0 && (
         <T v="legenda" style={{ color: cor.texto2, textAlign: 'center', marginTop: 16 }}>
-          {motivo
-            ? `${naFila} por enviar · ${motivoCurto(motivo)}`
-            : naFila === 1
-              ? '1 carimbo guardado, a enviar…'
-              : `${naFila} carimbos guardados, a enviar…`}
+          {motivo ? t.inicio.porEnviar(naFila, motivoCurto(motivo)) : t.inicio.aEnviar(naFila)}
         </T>
       )}
       {aviso && (
@@ -499,7 +519,7 @@ function Hoje() {
 
       {recusas.length > 0 && (
         <>
-          <Rotulo>Não entraram</Rotulo>
+          <Rotulo>{t.inicio.naoEntraram}</Rotulo>
           <Grupo>
             {recusas.map((r, i) => (
               <View key={r.chave}>
@@ -527,13 +547,13 @@ function Hoje() {
                       {r.nome || codigoCurto(r.codigo)}
                     </T>
                     <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }} numberOfLines={1}>
-                      {quandoCurto(r.quando)} · {motivoCurto(r.motivo)}
+                      {quandoCurto(r.quando, lingua)} · {motivoCurto(r.motivo)}
                     </T>
                   </View>
                   <Pressable
                     onPress={() => dispensarRecusa(r.chave)}
                     role="button"
-                    aria-label={`Dispensar ${r.nome || codigoCurto(r.codigo)}`}
+                    aria-label={t.inicio.dispensarDe(r.nome || codigoCurto(r.codigo))}
                     hitSlop={8}
                     style={({ pressed }) => ({
                       paddingHorizontal: 10,
@@ -542,7 +562,7 @@ function Hoje() {
                       backgroundColor: pressed ? cor.linha : cor.superficieAlta,
                     })}
                   >
-                    <T v="legenda">Dispensar</T>
+                    <T v="legenda">{t.inicio.dispensar}</T>
                   </Pressable>
                 </Pressable>
               </View>
@@ -553,7 +573,7 @@ function Hoje() {
 
       {hoje && hoje.ultimos.length > 0 && (
         <>
-          <Rotulo>Hoje</Rotulo>
+          <Rotulo>{t.geral.hoje}</Rotulo>
           <Grupo>
             {hoje.ultimos.map((u, i) => {
               // Quem carimbou anula até ao instante que o servidor diz; o dono sempre.
@@ -587,10 +607,10 @@ function Hoje() {
                         numberOfLines={1}
                         style={u.anulado ? { textDecorationLine: 'line-through' } : null}
                       >
-                        {u.cliente || 'Sem nome'}
+                        {u.cliente || t.geral.semNome}
                       </T>
                       <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
-                        {[hora(u.quando), u.pessoa, u.repetido ? 'repetido' : null]
+                        {[hora(u.quando), u.pessoa, u.repetido ? t.inicio.repetido : null]
                           .filter(Boolean)
                           .join(' · ')}
                       </T>
@@ -605,7 +625,7 @@ function Hoje() {
                       <Pressable
                         onPress={() => anular(u)}
                         role="button"
-                        aria-label="Anular"
+                        aria-label={t.geral.anular}
                         hitSlop={8}
                         style={({ pressed }) => ({
                           paddingHorizontal: 10,
@@ -614,7 +634,7 @@ function Hoje() {
                           backgroundColor: pressed ? cor.linha : cor.superficieAlta,
                         })}
                       >
-                        <T v="legenda">Anular</T>
+                        <T v="legenda">{t.geral.anular}</T>
                       </Pressable>
                     )}
                   </Pressable>
@@ -626,7 +646,7 @@ function Hoje() {
       )}
       {hoje && hoje.ultimos.length === 0 && (
         <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 40 }}>
-          {dataCurta(hoje.dia, diaEmLisboa())} · ainda sem carimbos
+          {t.inicio.semCarimbos(dataCurta(hoje.dia, diaEmLisboa(), lingua))}
         </T>
       )}
       {folhaDeConfirmacao}

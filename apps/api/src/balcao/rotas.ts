@@ -11,6 +11,7 @@ import {
   MINUTOS_PARA_ANULAR,
   inicioDoPeriodo,
   motivoDaVantagem,
+  naLingua,
   codigoValido,
   diaEmLisboa,
   normalizarCodigo,
@@ -29,6 +30,7 @@ import {
   type ResultadoDoCarimbo,
   type ResumoDaBalcao,
   type UltimoCarimbo,
+  type Lingua,
 } from '@nunos-lab/dominio';
 import type { Ambiente, C } from '../ambiente.ts';
 import { emailCurto, fazAnosHoje, temPrendaHoje, textoDeBusca } from '@nunos-lab/dominio';
@@ -43,7 +45,7 @@ import {
   type LinhaCartao,
 } from '../programa.ts';
 import { anularCarimbo } from '../carimbos.ts';
-import { DIA, agora, corpo, recusar, traduzirErroDaBase } from '../util.ts';
+import { DIA, agora, corpo, linguaDoPedido, recusar, traduzirErroDaBase } from '../util.ts';
 import { nomeLimpo } from '../nomes.ts';
 import { tocarPasse } from '../wallet/servico.ts';
 import type { LinhaPromocao } from '../linhas.ts';
@@ -120,6 +122,7 @@ const VISITA = `SELECT x.id, x.criado_em AS quando, l.nome AS loja, e.nome AS pe
 async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
   const db = c.env.DB;
   const hoje = diaEmLisboa();
+  const lingua = linguaDoPedido(c);
   let cartao = await cartaoActual(db, cliente.id);
   if (!cartao) {
     await novoCartao(db, cliente.id, 1, await lerPrograma(db)).run();
@@ -167,7 +170,7 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
       temPrendaHoje(cliente.aniversario, cliente.aniversario_desde, hoje, agora()) &&
       programaDeHoje.aniversario &&
       !prendaEntregue
-        ? programaDeHoje.aniversario
+        ? naLingua(lingua, programaDeHoje.aniversario, programaDeHoje.aniversarioEn)
         : null,
     prendaEntregue,
     cliente: {
@@ -178,8 +181,13 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
       cortes: (cortes!.results[0] as { n: number }).n,
       aniversario: fazAnos,
     },
-    cartao: cartaoPublico(cartao),
-    recompensas: recompensas!.results as FichaDoBalcao['recompensas'],
+    cartao: cartaoPublico(cartao, lingua),
+    recompensas: (
+      recompensas!.results as (FichaDoBalcao['recompensas'][number] & { recompensa_en: string })[]
+    ).map(({ recompensa_en, ...r }) => ({
+      ...r,
+      recompensa: naLingua(lingua, r.recompensa, recompensa_en),
+    })),
     ultima: (ultima!.results[0] as FichaDoBalcao['ultima']) ?? null,
     hoje: { carimbos: hojeLinhas.length, ultimo: hojeLinhas[0] ?? null, entregue: entregueHoje },
   };
@@ -298,11 +306,17 @@ async function lojaDe(c: C, lojaId: number): Promise<number> {
  * parceiro activo, com restantes), sorteada pelo peso, que o cliente ainda
  * não tenha por usar. Vale até «surpresa_dias» dias.
  */
-async function sortearCupao(db: D1Database, clienteId: number, carimboId: number, hoje: string) {
+async function sortearCupao(
+  db: D1Database,
+  clienteId: number,
+  carimboId: number,
+  hoje: string,
+  lingua: Lingua,
+) {
   const saco = (
     await db
       .prepare(
-        `SELECT p.id, p.parceiro_id, p.destaque, p.titulo, p.surpresa_dias, p.surpresa_peso, p.surpresa_restantes, pa.nome AS parceiro
+        `SELECT p.id, p.parceiro_id, p.destaque, p.destaque_en, p.titulo, p.titulo_en, p.surpresa_dias, p.surpresa_peso, p.surpresa_restantes, pa.nome AS parceiro
          FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
          WHERE p.surpresa = 1 AND p.activa = 1 AND pa.activo = 1
            AND (p.inicio IS NULL OR p.inicio <= ?1) AND (p.fim IS NULL OR p.fim >= ?1)
@@ -314,7 +328,9 @@ async function sortearCupao(db: D1Database, clienteId: number, carimboId: number
         id: number;
         parceiro_id: number;
         destaque: string;
+        destaque_en: string;
         titulo: string;
+        titulo_en: string;
         surpresa_dias: number;
         surpresa_peso: number;
         surpresa_restantes: number | null;
@@ -351,8 +367,8 @@ async function sortearCupao(db: D1Database, clienteId: number, carimboId: number
     .run();
   return {
     parceiro: escolhida.parceiro,
-    destaque: escolhida.destaque,
-    titulo: escolhida.titulo,
+    destaque: naLingua(lingua, escolhida.destaque, escolhida.destaque_en),
+    titulo: naLingua(lingua, escolhida.titulo, escolhida.titulo_en),
     validoAte,
   };
 }
@@ -360,6 +376,7 @@ async function sortearCupao(db: D1Database, clienteId: number, carimboId: number
 /** O resultado de um carimbo já feito (a mesma chave a chegar outra vez). */
 async function resultadoDe(c: C, carimboId: number): Promise<ResultadoDoCarimbo> {
   const db = c.env.DB;
+  const lingua = linguaDoPedido(c);
   const x = await db
     .prepare(
       `SELECT x.id, x.cartao_id, x.criado_em, c.completo_em, c.usado_em,
@@ -377,7 +394,7 @@ async function resultadoDe(c: C, carimboId: number): Promise<ResultadoDoCarimbo>
   if (!x) recusar(404, 'nao_existe');
   const cartao = await db
     .prepare(
-      `SELECT c.id, c.cliente_id, c.numero, c.objectivo, c.recompensa, c.iniciado_em, c.completo_em, c.usado_em,
+      `SELECT c.id, c.cliente_id, c.numero, c.objectivo, c.recompensa, c.recompensa_en, c.iniciado_em, c.completo_em, c.usado_em,
        (SELECT count(*) FROM carimbos y WHERE y.cartao_id = c.id AND y.anulado_em IS NULL) AS carimbos
        FROM cartoes c WHERE c.id = ?`,
     )
@@ -387,18 +404,32 @@ async function resultadoDe(c: C, carimboId: number): Promise<ResultadoDoCarimbo>
   const completo = !!x.completo_em && x.id === x.ultimo_id;
   const cupao = await db
     .prepare(
-      `SELECT pa.nome AS parceiro, p.destaque, p.titulo, k.valido_ate AS validoAte FROM cupoes k
+      `SELECT pa.nome AS parceiro, p.destaque, p.destaque_en, p.titulo, p.titulo_en, k.valido_ate AS validoAte FROM cupoes k
        JOIN promocoes p ON p.id = k.promocao_id JOIN parceiros pa ON pa.id = k.parceiro_id WHERE k.carimbo_id = ?`,
     )
     .bind(x.id)
-    .first<{ parceiro: string; destaque: string; titulo: string; validoAte: string }>();
+    .first<{
+      parceiro: string;
+      destaque: string;
+      destaque_en: string;
+      titulo: string;
+      titulo_en: string;
+      validoAte: string;
+    }>();
   return {
     carimboId: x.id,
-    cartao: cartaoPublico(cartao!),
+    cartao: cartaoPublico(cartao!, lingua),
     completo,
-    recompensa: completo ? cartao!.recompensa : null,
+    recompensa: completo ? naLingua(lingua, cartao!.recompensa, cartao!.recompensa_en) : null,
     anulavelAte: x.criado_em + MINUTOS_PARA_ANULAR * 60,
-    cupao: cupao ?? null,
+    cupao: cupao
+      ? {
+          parceiro: cupao.parceiro,
+          destaque: naLingua(lingua, cupao.destaque, cupao.destaque_en),
+          titulo: naLingua(lingua, cupao.titulo, cupao.titulo_en),
+          validoAte: cupao.validoAte,
+        }
+      : null,
   };
 }
 
@@ -556,15 +587,16 @@ async function carimbar(
   const carimbosAgora = (r[3]!.results[0] as { n: number }).n;
   tocarPasse(c, cliente.id);
   // O cupão é um extra: um erro no sorteio nunca falha um carimbo já gravado.
-  const cupao = await sortearCupao(db, cliente.id, novo.id, hoje).catch((e) => {
+  const lingua = linguaDoPedido(c);
+  const cupao = await sortearCupao(db, cliente.id, novo.id, hoje, lingua).catch((e) => {
     console.error('cupao', e);
     return null;
   });
   return {
     carimboId: novo.id,
-    cartao: { ...cartaoPublico(cartao), carimbos: carimbosAgora },
+    cartao: { ...cartaoPublico(cartao, lingua), carimbos: carimbosAgora },
     completo: completa,
-    recompensa: completa ? cartao.recompensa : null,
+    recompensa: completa ? naLingua(lingua, cartao.recompensa, cartao.recompensa_en) : null,
     anulavelAte: novo.criado_em + MINUTOS_PARA_ANULAR * 60,
     cupao,
   };
@@ -993,6 +1025,7 @@ async function fichaDoParceiro(
 ): Promise<FichaDoParceiro> {
   const db = c.env.DB;
   const hoje = diaEmLisboa();
+  const lingua = linguaDoPedido(c);
   const promos = (await consultaDasVantagens(db, parceiroId, hoje).all<LinhaPromocao>()).results;
   const activo = await clienteActivo(db, cliente.id);
   const contagens = promos.length
@@ -1014,9 +1047,9 @@ async function fichaDoParceiro(
     const total = (contagens[i * 2 + 1]!.results[0] as { n: number }).n;
     return {
       id: p.id,
-      destaque: p.destaque,
-      titulo: p.titulo,
-      detalhe: p.detalhe,
+      destaque: naLingua(lingua, p.destaque, p.destaque_en),
+      titulo: naLingua(lingua, p.titulo, p.titulo_en),
+      detalhe: naLingua(lingua, p.detalhe, p.detalhe_en),
       limitePorCliente: p.limite_por_cliente,
       periodoDoLimite: p.periodo_do_limite,
       usadas,
@@ -1034,7 +1067,7 @@ async function fichaDoParceiro(
   const cupoes = (
     await db
       .prepare(
-        `SELECT k.id AS cupaoId, k.valido_ate AS validoAte, p.id, p.destaque, p.titulo, p.detalhe FROM cupoes k
+        `SELECT k.id AS cupaoId, k.valido_ate AS validoAte, p.id, p.destaque, p.destaque_en, p.titulo, p.titulo_en, p.detalhe, p.detalhe_en FROM cupoes k
          JOIN promocoes p ON p.id = k.promocao_id
          WHERE k.cliente_id = ? AND k.parceiro_id = ? AND k.usado_em IS NULL AND k.valido_ate >= ? ORDER BY k.valido_ate`,
       )
@@ -1044,14 +1077,17 @@ async function fichaDoParceiro(
         validoAte: string;
         id: number;
         destaque: string;
+        destaque_en: string;
         titulo: string;
+        titulo_en: string;
         detalhe: string;
+        detalhe_en: string;
       }>()
   ).results.map((k): VantagemDoParceiro => ({
     id: k.id,
-    destaque: k.destaque,
-    titulo: k.titulo,
-    detalhe: k.detalhe,
+    destaque: naLingua(lingua, k.destaque, k.destaque_en),
+    titulo: naLingua(lingua, k.titulo, k.titulo_en),
+    detalhe: naLingua(lingua, k.detalhe, k.detalhe_en),
     limitePorCliente: 1,
     periodoDoLimite: 'sempre',
     motivo: 'ok',
@@ -1076,21 +1112,23 @@ rotasDaBalcao.get('/ficha-parceiro/:codigo', async (c) => {
   return c.json(await fichaDoParceiro(c, parceiroId, cliente));
 });
 
-const VALE = `SELECT v.id, v.criado_em AS quando, v.promocao_id AS promocaoId, p.destaque, p.titulo,
+const VALE = `SELECT v.id, v.criado_em AS quando, v.promocao_id AS promocaoId, p.destaque, p.destaque_en, p.titulo, p.titulo_en,
     k.nome AS cliente, k.codigo, e.nome AS pessoa, v.anulado_em, v.parceiro_id, v.cliente_id
   FROM vales v JOIN promocoes p ON p.id = v.promocao_id JOIN clientes k ON k.id = v.cliente_id
   LEFT JOIN equipa e ON e.id = v.pessoa_id`;
 type LinhaVale = Omit<Vale, 'anulado'> & {
+  destaque_en: string;
+  titulo_en: string;
   anulado_em: number | null;
   parceiro_id: number;
   cliente_id: number;
 };
-const valePublico = (v: LinhaVale): Vale => ({
+const valePublico = (v: LinhaVale, lingua: Lingua): Vale => ({
   id: v.id,
   quando: v.quando,
   promocaoId: v.promocaoId,
-  destaque: v.destaque,
-  titulo: v.titulo,
+  destaque: naLingua(lingua, v.destaque, v.destaque_en),
+  titulo: naLingua(lingua, v.titulo, v.titulo_en),
   cliente: v.cliente.trim().split(/\s+/)[0] ?? '',
   codigo: v.codigo,
   pessoa: v.pessoa,
@@ -1111,6 +1149,7 @@ rotasDaBalcao.post('/validar', async (c) => {
   );
   const db = c.env.DB;
   const pessoa = c.get('pessoa');
+  const lingua = linguaDoPedido(c);
   const cliente = await clientePorCodigo(c, codigo);
   const repetido = await db.prepare(`${VALE} WHERE v.chave = ?`).bind(chave).first<LinhaVale>();
   if (repetido) {
@@ -1118,7 +1157,7 @@ rotasDaBalcao.post('/validar', async (c) => {
     if (repetido.parceiro_id !== parceiroId || repetido.cliente_id !== cliente.id)
       recusar(409, 'repetido');
     return c.json({
-      vale: valePublico(repetido),
+      vale: valePublico(repetido, lingua),
       ficha: await fichaDoParceiro(c, parceiroId, cliente),
     });
   }
@@ -1166,11 +1205,14 @@ rotasDaBalcao.post('/validar', async (c) => {
   } catch (e) {
     if (e instanceof HTTPException) throw e;
     const outra = await db.prepare(`${VALE} WHERE v.chave = ?`).bind(chave).first<LinhaVale>();
-    if (outra) return c.json({ vale: valePublico(outra), ficha });
+    if (outra) return c.json({ vale: valePublico(outra, lingua), ficha });
     traduzirErroDaBase(e);
   }
   const vale = await db.prepare(`${VALE} WHERE v.id = ?`).bind(novo!.id).first<LinhaVale>();
-  return c.json({ vale: valePublico(vale!), ficha: await fichaDoParceiro(c, parceiroId, cliente) });
+  return c.json({
+    vale: valePublico(vale!, lingua),
+    ficha: await fichaDoParceiro(c, parceiroId, cliente),
+  });
 });
 
 /** Anular uma validação: quem a fez, nos 10 minutos seguintes. */
@@ -1202,6 +1244,7 @@ rotasDaBalcao.get('/hoje-parceiro', async (c) => {
   const parceiroId = exigirParceiro(c);
   const db = c.env.DB;
   const hoje = diaEmLisboa();
+  const lingua = linguaDoPedido(c);
   const [n, ultimos] = await db.batch([
     db
       .prepare(
@@ -1215,7 +1258,7 @@ rotasDaBalcao.get('/hoje-parceiro', async (c) => {
   const r: HojeDoParceiro = {
     dia: hoje,
     validacoes: (n!.results[0] as { n: number }).n,
-    ultimos: (ultimos!.results as LinhaVale[]).map(valePublico),
+    ultimos: (ultimos!.results as LinhaVale[]).map((v) => valePublico(v, lingua)),
   };
   return c.json(r);
 });

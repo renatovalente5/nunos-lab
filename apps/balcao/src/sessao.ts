@@ -19,7 +19,13 @@ import type {
 import { getRandomBytes } from 'expo-crypto';
 import { router } from 'expo-router';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
-import { guardar as guardarNoArmazem, lerSincrono } from '@nunos-lab/ui';
+import {
+  CHAVE_DA_LINGUA,
+  guardar as guardarNoArmazem,
+  lerSincrono,
+  linguaActual,
+} from '@nunos-lab/ui';
+import { textos } from './textos';
 
 export const API = (
   process.env.EXPO_PUBLIC_API ?? 'https://nunos-lab.renato-lima-valente-dcb.workers.dev'
@@ -43,6 +49,7 @@ const escrever = (chave: string, valor: string | null) => guardarNoArmazem(chave
 
 /** As chaves que a app guarda no aparelho (o telemóvel carrega-as ao arrancar). */
 export const CHAVES_DO_ARMAZEM = [
+  CHAVE_DA_LINGUA,
   CHAVE_DO_EU,
   CHAVE_DA_CASA,
   CHAVE_DA_FILA,
@@ -93,55 +100,19 @@ export function useCasaGuardada(): number | null {
   );
 }
 
-const MENSAGENS: Record<string, string> = {
-  sessao: 'A sessão acabou. Entra outra vez.',
-  ligacao_invalida: 'Esta ligação já foi usada ou caducou. Pede outra no backoffice.',
-  google_invalido: 'O Google não confirmou a entrada.',
-  apple_invalido: 'A Apple não confirmou a entrada.',
-  apple_desligado: 'Entrar com a Apple ainda não está disponível.',
-  sem_acesso: 'Esta conta não está na equipa. Pede ao Nuno para a juntar.',
-  email_escondido:
-    'A Apple não partilhou o teu email, e é por ele que a equipa te conhece. Entra outra vez com a Apple e escolhe «Partilhar o meu email», ou entra com o Google.',
-  muitas_tentativas: 'Demasiadas tentativas. Espera um minuto.',
-  codigo_invalido: 'Código errado.',
-  cartao_desconhecido: 'Este código não é de nenhum cartão.',
-  outra_casa: 'Este cartão não se carimba nesta casa com a tua conta.',
-  so_barbearia: 'A tua conta não carimba.',
-  proprio_cartao: 'É o teu cartão. Pede a outro barbeiro.',
-  entregue_hoje: 'O prémio foi entregue hoje: o corte do prémio não leva carimbo.',
-  so_parceiro: 'A tua conta não valida vantagens.',
-  parceiro_desligado: "Este parceiro está desligado no Nuno's Lab. Fala com a barbearia.",
-  ja_usou: 'Já usou hoje.',
-  limite_do_cliente: 'Este cliente chegou ao limite.',
-  limite_total: 'Esta vantagem esgotou.',
-  cliente_inactivo: 'Sem corte no último ano: não vale.',
-  cupao_usado: 'Esse cupão já foi usado ou caducou.',
-  so_dono: 'Só o dono vê isto.',
-  ja_anulado: 'Já estava anulado.',
-  tarde_para_anular: 'Já passaram 10 minutos: só o Nuno anula.',
-  de_outra_pessoa: 'Foi outra pessoa que carimbou: só ela, ou o Nuno, anula.',
-  recompensa_usada: 'A recompensa deste cartão já foi entregue.',
-  cartao_seguinte: 'O cartão seguinte já tem carimbos.',
-  email_ja_tem_cartao: 'Esse email já tem cartão. Procura o cliente.',
-  limite_do_dia: 'Já tinha o carimbo de hoje.',
-  repetido: 'Esse carimbo já tinha entrado.',
-  nao_existe: 'Isso não existe.',
-  json: 'O pedido chegou mal formado. Tenta outra vez.',
-  sem_prenda: 'Hoje não há prenda para este cliente.',
-  prenda_entregue: 'A prenda deste ano já foi entregue.',
-  invalido: 'Há algo por corrigir.',
-  grande: 'O pedido é demasiado grande.',
-  referencia: 'Isso já não existe. Recarrega.',
-  rede: 'Sem ligação.',
-  interno: 'Algo correu mal. Tenta outra vez.',
-};
+/** O texto de um código de recusa, na língua de agora (os códigos estão em textos/: «erros»). */
+function textoDoCodigo(codigo: string): string {
+  const erros = textos().erros;
+  const texto = Object.prototype.hasOwnProperty.call(erros, codigo) ? erros[codigo] : undefined;
+  return typeof texto === 'string' ? texto : erros.interno;
+}
 
 export class ErroDaBalcao extends Error {
   constructor(
     public codigo: string,
     public dados: Record<string, unknown> = {},
   ) {
-    super(MENSAGENS[codigo] ?? MENSAGENS.interno);
+    super(textoDoCodigo(codigo));
   }
 }
 /** Um erro que voltar a pedir não resolve: a conta não tem esse papel, a casa é outra, o código não é de ninguém. */
@@ -149,11 +120,11 @@ export const semRemedio = (e: unknown) =>
   e instanceof ErroDaBalcao &&
   ['so_parceiro', 'so_barbearia', 'outra_casa', 'cartao_desconhecido'].includes(e.codigo);
 
+/** A mensagem de um erro na língua de agora (mudar de língua muda também o erro à vista). */
 export const mensagemDe = (e: unknown) =>
-  e instanceof ErroDaBalcao ? e.message : (MENSAGENS.interno as string);
+  textoDoCodigo(e instanceof ErroDaBalcao ? e.codigo : 'interno');
 /** A primeira frase da mensagem («Sem ligação»), para caber numa linha ao lado de um número. */
-export const motivoCurto = (codigo: string) =>
-  (MENSAGENS[codigo] ?? MENSAGENS.interno ?? '').split('.')[0] ?? '';
+export const motivoCurto = (codigo: string) => textoDoCodigo(codigo).split('.')[0] ?? '';
 
 /** Com rede fraca o sistema só desiste ao fim de ~60 s; 8 s chegam para a API e deixam o balcão seguir. */
 const TEMPO_LIMITE = 8000;
@@ -190,7 +161,9 @@ async function pedirAgora<T>(
   if (corpo !== undefined) cabecalhos['Content-Type'] = 'application/json';
   let r: Response;
   try {
-    r = await fetch(`${API}/api/balcao${caminho}`, {
+    // O que vem da API (o prémio, a prenda, as vantagens) na língua da app.
+    const lingua = `${caminho.includes('?') ? '&' : '?'}lingua=${linguaActual()}`;
+    r = await fetch(`${API}/api/balcao${caminho}${lingua}`, {
       method: metodo,
       headers: cabecalhos,
       body: corpo !== undefined ? JSON.stringify(corpo) : undefined,

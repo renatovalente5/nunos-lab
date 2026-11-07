@@ -5,18 +5,24 @@ import {
   Manrope_800ExtraBold,
   useFonts,
 } from '@expo-google-fonts/manrope';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Stack, usePathname, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { fixarLingua, Botao, T, carregarArmazem, cor } from '@nunos-lab/ui';
+import {
+  Botao,
+  T,
+  carregarArmazem,
+  cor,
+  useLangDaPagina,
+  useLingua,
+  useTextosDaUi,
+} from '@nunos-lab/ui';
 import { CHAVES_DO_ARMAZEM, CHAVES_SECRETAS, haEscritaEmCurso } from '../sessao';
-
-// Até a for partners ter as frases em inglês (a fase 2), as peças partilhadas ficam em português.
-fixarLingua('pt');
+import { useTextos } from '../textos';
 
 const consultas = new QueryClient();
 
@@ -77,6 +83,21 @@ function Actualizacoes() {
   return null;
 }
 
+/** Outra língua escolhida: o que veio da API (as vantagens, o prémio, a prenda) pede-se outra vez nela. */
+function ConsultasNaLingua() {
+  const lingua = useLingua();
+  const consultas = useQueryClient();
+  const primeira = useRef(true);
+  useEffect(() => {
+    if (primeira.current) {
+      primeira.current = false;
+      return;
+    }
+    void consultas.invalidateQueries({ queryKey: ['balcao'] });
+  }, [lingua, consultas]);
+  return null;
+}
+
 export default function Raiz() {
   const [prontas, erro] = useFonts({
     Manrope_500Medium,
@@ -88,12 +109,14 @@ export default function Raiz() {
   useEffect(() => {
     carregarArmazem(CHAVES_DO_ARMAZEM, CHAVES_SECRETAS).finally(() => setArmazemPronto(true));
   }, []);
+  useLangDaPagina();
   if ((!prontas && !erro) || !armazemPronto)
     return <View style={{ flex: 1, backgroundColor: cor.fundo }} />;
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={consultas}>
         <StatusBar style="light" />
+        <ConsultasNaLingua />
         {COM_ACTUALIZACOES && <Actualizacoes />}
         <Stack
           screenOptions={{ headerShown: false, contentStyle: { backgroundColor: cor.fundo } }}
@@ -108,6 +131,8 @@ export default function Raiz() {
  * trocou), recarrega a página uma vez; se voltar a falhar, diz e deixa tentar.
  */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const t = useTextos();
+  const ui = useTextosDaUi();
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     const chave = 'nunoslab:recarregou';
@@ -132,15 +157,15 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
         gap: 14,
       }}
     >
-      <T v="titulo">Algo correu mal</T>
+      <T v="titulo">{t.erroDoEcra.titulo}</T>
       <T v="legenda" style={{ color: cor.texto2, textAlign: 'center' }}>
-        A app não conseguiu abrir este ecrã.
+        {t.erroDoEcra.texto}
       </T>
       <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', fontSize: 11 }}>
         {String(error?.message ?? error).slice(0, 160)}
       </T>
       <Botao
-        nome="Tentar outra vez"
+        nome={ui.tentarOutraVez}
         onPress={() => {
           if (Platform.OS === 'web') location.reload();
           else void retry();

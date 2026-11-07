@@ -2,6 +2,7 @@ import jsQR from 'jsqr';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { View } from 'react-native';
 import { T, cor } from '@nunos-lab/ui';
+import { useTextos } from '../textos';
 
 /**
  * A câmara na web: um <video> com a câmara de trás, e o jsQR a ler uns dez
@@ -24,6 +25,7 @@ export function Leitor({
   /** A câmara abriu: o ecrã fica a saber se pode mostrar o botão da lanterna. */
   aoAbrir?: (capacidades: { lanterna: boolean }) => void;
 }) {
+  const t = useTextos();
   const caixa = useRef<ComponentRef<typeof View>>(null);
   const [estado, setEstado] = useState<'a-abrir' | 'aberta' | 'sem-camara'>('a-abrir');
   const ultimo = useRef(aoLer);
@@ -117,7 +119,7 @@ export function Leitor({
       {estado !== 'aberta' && (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <T v="legenda" style={{ color: cor.texto2 }}>
-            {estado === 'a-abrir' ? 'A abrir a câmara…' : 'Sem acesso à câmara.'}
+            {estado === 'a-abrir' ? t.camara.aAbrir : t.camara.semAcesso}
           </T>
         </View>
       )}

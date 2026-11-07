@@ -12,18 +12,26 @@ import { Animated, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { chaveNova, mensagemDe, semRemedio, useFichaParceiro, validar } from '../../sessao';
-import { Botao, CONTINUO, Icone, LARGURA_MAXIMA, MARGEM, T, cor, raio } from '@nunos-lab/ui';
-
-const MOTIVO: Record<Exclude<VantagemDoParceiro['motivo'], 'ok'>, string> = {
-  ja_usou: 'Já usou hoje',
-  limite_do_cliente: 'Chegou ao limite',
-  limite_total: 'Esgotada',
-  cliente_inactivo: 'Só para clientes activos',
-};
+import {
+  Botao,
+  CONTINUO,
+  Icone,
+  LARGURA_MAXIMA,
+  MARGEM,
+  T,
+  cor,
+  raio,
+  useLingua,
+  useTextosDaUi,
+} from '@nunos-lab/ui';
+import { useTextos } from '../../textos';
 
 /** O cartão lido pelo parceiro: o nome próprio, se é cliente activo, e as vantagens a validar. */
 export default function ValeDoParceiro() {
   const { codigo } = useLocalSearchParams<{ codigo: string }>();
+  const t = useTextos();
+  const ui = useTextosDaUi();
+  const lingua = useLingua();
   const margens = useSafeAreaInsets();
   const consultas = useQueryClient();
   const { data: ficha, error, refetch, isPending } = useFichaParceiro(codigo ?? '');
@@ -85,7 +93,7 @@ export default function ValeDoParceiro() {
           <Pressable
             onPress={sair}
             role="button"
-            aria-label="Fechar"
+            aria-label={ui.fechar}
             hitSlop={8}
             style={({ pressed }) => ({
               width: 40,
@@ -108,7 +116,7 @@ export default function ValeDoParceiro() {
         {!ficha && isPending && (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <T v="legenda" style={{ color: cor.texto2 }}>
-              A abrir…
+              {t.geral.aAbrir}
             </T>
           </View>
         )}
@@ -126,9 +134,9 @@ export default function ValeDoParceiro() {
               {mensagemDe(error)}
             </T>
             {semRemedio(error) ? (
-              <Botao nome="Fechar" secundario onPress={sair} />
+              <Botao nome={ui.fechar} secundario onPress={sair} />
             ) : (
-              <Botao nome="Tentar outra vez" secundario onPress={() => refetch()} />
+              <Botao nome={ui.tentarOutraVez} secundario onPress={() => refetch()} />
             )}
           </View>
         )}
@@ -156,13 +164,13 @@ export default function ValeDoParceiro() {
               <Icone nome="certo" tamanho={56} cor={cor.sobreClaro} espessura={2.6} />
             </Animated.View>
             <T v="titulo" style={{ marginTop: 28, textAlign: 'center' }}>
-              Validado
+              {t.vale.validado}
             </T>
             <T v="subtitulo" style={{ color: cor.texto2, marginTop: 8, textAlign: 'center' }}>
               {semPartir(feito.destaque)} · {semPartir(feito.titulo)} · {hora(feito.quando)}
             </T>
             <View style={{ marginTop: 28 }}>
-              <Botao nome="Concluir" onPress={sair} />
+              <Botao nome={t.geral.concluir} onPress={sair} />
             </View>
           </View>
         )}
@@ -171,7 +179,7 @@ export default function ValeDoParceiro() {
           <View style={{ flex: 1 }}>
             <View style={{ paddingHorizontal: MARGEM, paddingTop: 24, gap: 10 }}>
               <T v="titulo" numberOfLines={1}>
-                {ficha.cliente.nome || 'Cliente'}
+                {ficha.cliente.nome || t.vale.cliente}
               </T>
               <View style={{ flexDirection: 'row' }}>
                 <View
@@ -195,9 +203,7 @@ export default function ValeDoParceiro() {
                     v="legenda"
                     style={{ color: ficha.cliente.activo ? cor.sobreClaro : cor.texto2 }}
                   >
-                    {ficha.cliente.activo
-                      ? "Cliente activo do Nuno's Lab"
-                      : 'Sem corte no último ano'}
+                    {ficha.cliente.activo ? t.vale.clienteActivo : t.vale.semCorteNoUltimoAno}
                   </T>
                 </View>
               </View>
@@ -213,14 +219,14 @@ export default function ValeDoParceiro() {
             >
               {ficha.vantagens.length === 0 && (
                 <T v="corpo" style={{ color: cor.texto2, textAlign: 'center', marginTop: 20 }}>
-                  Sem vantagens para validar hoje.
+                  {t.vale.semVantagens}
                 </T>
               )}
               {ficha.vantagens.map((v) => {
                 const pode = v.motivo === 'ok';
                 const limite = v.cupaoId
-                  ? `Cupão · até ${dataCurta(v.validoAte!, diaEmLisboa())}`
-                  : limiteEmTexto(v);
+                  ? t.vale.cupaoAte(dataCurta(v.validoAte!, diaEmLisboa(), lingua))
+                  : limiteEmTexto(v, lingua);
                 return (
                   <View
                     key={v.cupaoId ? `c${v.cupaoId}` : v.id}
@@ -237,7 +243,7 @@ export default function ValeDoParceiro() {
                     <T v="tituloCartao">{semPartir(v.titulo)}</T>
                     {(limite || v.usadas > 0) && (
                       <T v="legenda" style={{ color: cor.texto2 }}>
-                        {[limite, v.usadas > 0 ? `já usou ${v.usadas}` : null]
+                        {[limite, v.usadas > 0 ? t.vale.jaUsou(v.usadas) : null]
                           .filter(Boolean)
                           .join(' · ')}
                       </T>
@@ -266,9 +272,9 @@ export default function ValeDoParceiro() {
                       >
                         {pode
                           ? estado === 'a-enviar'
-                            ? 'A validar…'
-                            : 'Validar'
-                          : MOTIVO[v.motivo as keyof typeof MOTIVO]}
+                            ? t.vale.aValidar
+                            : t.vale.validar
+                          : t.vale.motivo[v.motivo as keyof typeof t.vale.motivo]}
                       </T>
                     </Pressable>
                   </View>

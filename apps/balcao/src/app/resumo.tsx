@@ -17,12 +17,9 @@ import {
   cor,
   raio,
 } from '@nunos-lab/ui';
+import { useTextos } from '../textos';
 
-const PERIODOS = [
-  ['hoje', 'Hoje'],
-  ['semana', 'Semana'],
-  ['mes', 'Mês'],
-] as const;
+const PERIODOS = ['hoje', 'semana', 'mes'] as const;
 
 function hora(unix: number | null): string {
   if (!unix) return '';
@@ -32,19 +29,21 @@ function hora(unix: number | null): string {
 
 /** O resumo do dono: os carimbos, por casa e por pessoa, hoje, na semana ou no mês. */
 export default function Resumo() {
+  const t = useTextos();
   const { data: eu } = useEu();
-  const [periodo, setPeriodo] = useState<(typeof PERIODOS)[number][0]>('hoje');
+  const [periodo, setPeriodo] = useState<(typeof PERIODOS)[number]>('hoje');
   const [casa, setCasa] = useState<number | null>(null);
   const [aEscolherCasa, setAEscolherCasa] = useState(false);
   const dono = eu?.pessoa.papel === 'dono';
   const { data: r, error } = useResumo(periodo, casa, dono);
-  const todasAsCasas = eu?.lojas.length === 3 ? 'As três casas' : 'Todas as casas';
+  const todasAsCasas = eu?.lojas.length === 3 ? t.resumo.asTresCasas : t.resumo.todasAsCasas;
   const nomeDaCasa =
-    casa === null ? todasAsCasas : (eu?.lojas.find((l) => l.id === casa)?.nome ?? 'Esta casa');
+    casa === null
+      ? todasAsCasas
+      : (eu?.lojas.find((l) => l.id === casa)?.nome ?? t.resumo.estaCasa);
   // O período de agora está a meio: uma percentagem contra o anterior inteiro mentia («▼ 92 %» às
   // 9 da manhã). Fica só o número do período anterior, sem setas.
-  const anterior =
-    periodo === 'hoje' ? 'ontem' : periodo === 'semana' ? 'a semana anterior' : 'o mês anterior';
+  const anterior = t.resumo.anterior[periodo];
   return (
     <Ecra comBarra={false}>
       <View
@@ -53,7 +52,7 @@ export default function Resumo() {
         <Pressable
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
           role="button"
-          aria-label="Voltar"
+          aria-label={t.geral.voltar}
           hitSlop={8}
           style={({ pressed }) => ({
             width: 40,
@@ -67,7 +66,7 @@ export default function Resumo() {
           <Icone nome="voltar" tamanho={21} espessura={2.2} />
         </Pressable>
         <T v="titulo" role="heading" aria-level={1}>
-          Resumo
+          {t.resumo.titulo}
         </T>
       </View>
 
@@ -82,7 +81,7 @@ export default function Resumo() {
         }}
         role="tablist"
       >
-        {PERIODOS.map(([valor, nome]) => (
+        {PERIODOS.map((valor) => (
           <Pressable
             key={valor}
             onPress={() => setPeriodo(valor)}
@@ -100,7 +99,7 @@ export default function Resumo() {
               v="forte"
               style={{ fontSize: 14, color: periodo === valor ? cor.texto : cor.texto2 }}
             >
-              {nome}
+              {t.resumo.periodos[valor]}
             </T>
           </Pressable>
         ))}
@@ -111,7 +110,7 @@ export default function Resumo() {
           <Pressable
             onPress={() => setAEscolherCasa(true)}
             role="button"
-            aria-label={`Casa: ${nomeDaCasa}. Mudar.`}
+            aria-label={t.resumo.mudarDeCasa(nomeDaCasa)}
             style={({ pressed }) => ({
               flexDirection: 'row',
               alignItems: 'center',
@@ -136,8 +135,8 @@ export default function Resumo() {
         </View>
       )}
       {eu && eu.lojas.length > 1 && (
-        <Folha aberta={aEscolherCasa} fechar={() => setAEscolherCasa(false)} titulo="Casa">
-          <CartaoDaFolha role="radiogroup" aria-label="Casa">
+        <Folha aberta={aEscolherCasa} fechar={() => setAEscolherCasa(false)} titulo={t.resumo.casa}>
+          <CartaoDaFolha role="radiogroup" aria-label={t.resumo.casa}>
             <OpcaoDaFolha
               nome={todasAsCasas}
               escolhida={casa === null}
@@ -164,7 +163,7 @@ export default function Resumo() {
 
       {eu && !dono && (
         <T v="legenda" style={{ color: cor.texto2, textAlign: 'center', marginTop: 40 }}>
-          Só o dono vê o resumo.
+          {t.resumo.soODono}
         </T>
       )}
       {!!error && (
@@ -183,15 +182,15 @@ export default function Resumo() {
               {r.carimbos}
             </T>
             <T v="corpo" style={{ color: cor.texto2, marginTop: 2 }}>
-              carimbos
+              {t.resumo.carimbos(r.carimbos)}
               {r.anterior > 0 ? ` · ${anterior}: ${r.anterior}` : ''}
             </T>
           </View>
           <View style={{ paddingHorizontal: MARGEM, marginTop: 18, flexDirection: 'row', gap: 10 }}>
             {[
-              [r.novos, 'Novos'],
-              [r.recompensas, 'Prémios'],
-              [r.emRisco, 'Em risco'],
+              [r.novos, t.resumo.novos],
+              [r.recompensas, t.resumo.premios],
+              [r.emRisco, t.resumo.emRisco],
             ].map(([v, n]) => (
               <View
                 key={String(n)}
@@ -215,7 +214,7 @@ export default function Resumo() {
             ))}
           </View>
 
-          <Rotulo>Por casa</Rotulo>
+          <Rotulo>{t.resumo.porCasa}</Rotulo>
           <Grupo>
             {r.porLoja.map((l, i) => {
               const maior = Math.max(1, ...r.porLoja.map((x) => x.n));
@@ -250,7 +249,7 @@ export default function Resumo() {
             })}
           </Grupo>
 
-          <Rotulo>Equipa</Rotulo>
+          <Rotulo>{t.resumo.equipa}</Rotulo>
           <Grupo>
             {r.porPessoa.map((p, i) => (
               <View key={p.id}>
