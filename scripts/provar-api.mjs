@@ -2085,6 +2085,34 @@ await passo('um cupão valida-se só na promoção dele, e só uma vez', async (
     });
 });
 
+await passo('nomes sem o que não se vê, e o programa de agora no /api/app', async () => {
+  // Colado de outro sítio, um nome só de invisíveis passava e ficava em branco no cartão e no balcão (7 nov).
+  const c = await (await entrarTeste('google', 'invisivel-1', null, { nome: 'Antes' })).json();
+  const perfil = (nome) =>
+    pedir('/api/eu/perfil', { method: 'PATCH', token: c.sessao, body: json({ nome }) });
+  assert.equal((await perfil('\u200B\u200B\u200B')).status, 400, 'só invisíveis não é um nome');
+  assert.equal((await perfil('\u200D')).status, 400, 'só um juntor não é um nome');
+  assert.equal((await perfil('Ana\u200B  Maria\u202E')).status, 200);
+  assert.equal(
+    (await euDe(c.sessao)).eu.nome,
+    'Ana Maria',
+    'os invisíveis saem e os espaços juntam-se',
+  );
+  const novo = await pedir('/api/balcao/clientes', {
+    method: 'POST',
+    token: tokenDono,
+    body: json({ nome: '\u200B', email: null }),
+  });
+  assert.equal(novo.status, 400, 'o cliente novo também');
+  // O cartão de quem ainda não entrou promete o programa de agora.
+  const programa = await (await pedir('/api/bo/programa', { token })).json();
+  const dadosDaApp = await (await pedir('/api/app')).json();
+  assert.deepEqual(dadosDaApp.programa, {
+    objectivo: programa.objectivo,
+    recompensa: programa.recompensa,
+  });
+});
+
 await passo('sair termina a sessão', async () => {
   assert.equal((await pedir('/api/bo/sair', { method: 'POST', token })).status, 204);
   assert.equal((await pedir('/api/bo/eu', { token })).status, 401);
