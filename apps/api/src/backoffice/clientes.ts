@@ -383,11 +383,12 @@ rotasDosClientes.delete('/clientes/:id', async (c) => {
   const id = idDaMorada(c);
   const db = c.env.DB;
   const cliente = await db
-    .prepare('SELECT nome FROM clientes WHERE id = ? AND apagado_em IS NULL')
+    .prepare('SELECT codigo FROM clientes WHERE id = ? AND apagado_em IS NULL')
     .bind(id)
-    .first<{ nome: string }>();
+    .first<{ codigo: string }>();
   if (!cliente) recusar(404, 'nao_existe');
   await apagarConta(c, id);
-  await db.batch([registar(c, 'cliente.apagado', cliente.nome)]);
+  // O histórico guarda-se 3 anos: de uma conta apagada fica o código, e não o nome.
+  await db.batch([registar(c, 'cliente.apagado', cliente.codigo)]);
   return c.body(null, 204);
 });
