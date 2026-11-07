@@ -44,6 +44,7 @@ import {
 } from '../programa.ts';
 import { anularCarimbo } from '../carimbos.ts';
 import { DIA, agora, corpo, recusar, traduzirErroDaBase } from '../util.ts';
+import { nomeLimpo } from '../nomes.ts';
 import { tocarPasse } from '../wallet/servico.ts';
 import type { LinhaPromocao } from '../linhas.ts';
 
@@ -634,7 +635,7 @@ rotasDaBalcao.post('/clientes', async (c) => {
   const p = await corpo(
     c,
     z.object({
-      nome: z.string().trim().min(1).max(LIMITES_DO_PROGRAMA.nomeDoCliente),
+      nome: nomeLimpo(LIMITES_DO_PROGRAMA.nomeDoCliente),
       email: z.string().trim().max(254).nullish(),
       carimbo: Carimbo.omit({ codigo: true, semLeitura: true, confirmar: true }).nullish(),
     }),

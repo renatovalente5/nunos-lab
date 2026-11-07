@@ -10,7 +10,13 @@
  *  4. senão, nasce uma conta nova com o primeiro cartão.
  * Duas contas com o mesmo email mas sem prova nunca se juntam às escondidas.
  */
-import { donaDaCaixa, eEmailDeRelay, textoDeBusca, type Programa } from '@nunos-lab/dominio';
+import {
+  donaDaCaixa,
+  eEmailDeRelay,
+  limparNome,
+  textoDeBusca,
+  type Programa,
+} from '@nunos-lab/dominio';
 import { codigoNovo, novoCartao } from '../programa.ts';
 import { recusar } from '../util.ts';
 
@@ -23,6 +29,19 @@ export type IdentidadeProvada = {
 };
 
 type Encontrada = { id: number; cliente_id: number };
+
+/**
+ * O nome que a Apple ou a Google dão, como se vê (limparNome), até 40 unidades sem partir um
+ * emoji ao meio. Nunca recusa a entrada: um nome vazio mostra «O teu cartão».
+ */
+function nomeDaIdentidade(id: IdentidadeProvada): string {
+  let nome = '';
+  for (const letra of limparNome(id.nome)) {
+    if (nome.length + letra.length > 40) break;
+    nome += letra;
+  }
+  return nome.trim();
+}
 
 export function emailProvado(id: IdentidadeProvada): string | null {
   return id.email && id.emailVerificado && !eEmailDeRelay(id.email) ? id.email : null;
@@ -76,7 +95,7 @@ export async function entrarComIdentidade(
             .prepare(
               "UPDATE clientes SET email = coalesce(email, ?), nome = CASE WHEN nome = '' THEN ? ELSE nome END, busca = CASE WHEN nome = '' THEN ? ELSE busca END WHERE id = ?",
             )
-            .bind(email, id.nome.slice(0, 40), textoDeBusca(id.nome.slice(0, 40)), irma.cliente_id),
+            .bind(email, nomeDaIdentidade(id), textoDeBusca(nomeDaIdentidade(id)), irma.cliente_id),
         ]);
       } catch (e) {
         const ganhou = await quemGanhou(db, id, e);
@@ -95,7 +114,7 @@ export async function entrarComIdentidade(
   const codigo = await codigoNovo(db);
   const cliente = await db
     .prepare('INSERT INTO clientes (codigo, nome, email, busca) VALUES (?, ?, ?, ?) RETURNING id')
-    .bind(codigo, id.nome.slice(0, 40), email, textoDeBusca(id.nome.slice(0, 40)))
+    .bind(codigo, nomeDaIdentidade(id), email, textoDeBusca(nomeDaIdentidade(id)))
     .first<{ id: number }>();
   if (!cliente) throw new Error('A conta não nasceu');
   let identidade;

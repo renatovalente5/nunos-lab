@@ -11,6 +11,7 @@ import {
 import type { Ambiente } from '../ambiente.ts';
 import { lerPrograma } from '../programa.ts';
 import { refrescarPasses } from '../wallet/servico.ts';
+import { nomeLimpo } from '../nomes.ts';
 import {
   DIA,
   aleatorio,
@@ -155,7 +156,7 @@ async function lerEquipa(db: D1Database): Promise<PessoaDaEquipaNoBackoffice[]> 
 rotasDaFidelidade.get('/equipa', async (c) => c.json(await lerEquipa(c.env.DB)));
 
 const PessoaPedida = z.object({
-  nome: z.string().trim().min(1).max(LIMITES.pessoa),
+  nome: nomeLimpo(LIMITES.pessoa),
   email: z.string().trim().max(254).nullable(),
   papel: z.enum(['dono', 'barbeiro', 'parceiro']),
   lojaId: z.number().int().positive().nullable(),

@@ -23,6 +23,7 @@ import {
   traduzirErroDaBase,
 } from '../util.ts';
 import { conferirCredencialGoogle } from './google.ts';
+import { nomeLimpo } from '../nomes.ts';
 
 /**
  * Entrar no backoffice faz-se de duas formas:
@@ -190,7 +191,7 @@ rotasDosAcessos.post('/acessos', async (c) => {
     c,
     z.union([
       z.object({ adminId: z.number().int().positive() }),
-      z.object({ nome: z.string().trim().min(1).max(LIMITES.pessoa) }),
+      z.object({ nome: nomeLimpo(LIMITES.pessoa) }),
     ]),
   );
   const db = c.env.DB;
@@ -286,10 +287,7 @@ const EmailDoGoogle = z
 
 /** Dar acesso a uma pessoa nova: o nome e o email da conta Google com que vai entrar. */
 rotasDosAcessos.post('/pessoas', async (c) => {
-  const p = await corpo(
-    c,
-    z.object({ nome: z.string().trim().min(1).max(LIMITES.pessoa), email: EmailDoGoogle }),
-  );
+  const p = await corpo(c, z.object({ nome: nomeLimpo(LIMITES.pessoa), email: EmailDoGoogle }));
   const db = c.env.DB;
   try {
     const [nova] = await db.batch([

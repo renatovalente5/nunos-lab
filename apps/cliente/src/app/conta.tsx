@@ -1,4 +1,4 @@
-import { type FormaDeEntrar, type Loja } from '@nunos-lab/dominio';
+import { limparNome, type FormaDeEntrar, type Loja } from '@nunos-lab/dominio';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
@@ -311,7 +311,7 @@ export default function Conta() {
           <Botao
             nome="Guardar"
             onPress={() => {
-              const nome = texto.trim();
+              const nome = limparNome(texto);
               if (!nome) return setErro('Escreve o teu nome.');
               correr(
                 () => conta.perfil({ nome }),

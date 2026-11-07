@@ -19,6 +19,7 @@ import { emRisco } from '../balcao/rotas.ts';
 import { anularCarimbo } from '../carimbos.ts';
 import { apagarConta } from '../cliente/apagar.ts';
 import { DIA, agora, corpo, idDaMorada, recusar, registar, traduzirErroDaBase } from '../util.ts';
+import { nomeLimpo } from '../nomes.ts';
 import { tocarPasse } from '../wallet/servico.ts';
 
 export const rotasDosClientes = new Hono<Ambiente>();
@@ -203,7 +204,7 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
 rotasDosClientes.get('/clientes/:id', async (c) => c.json(await lerFicha(c, idDaMorada(c))));
 
 const ClientePedido = z.object({
-  nome: z.string().trim().min(1).max(LIMITES_DO_PROGRAMA.nomeDoCliente).optional(),
+  nome: nomeLimpo(LIMITES_DO_PROGRAMA.nomeDoCliente).optional(),
   /** O email dado ao balcão (null: tirar): quem o provar na app fica com este cartão. */
   email: z.string().trim().max(254).nullable().optional(),
   aniversario: z

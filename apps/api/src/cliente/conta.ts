@@ -29,6 +29,7 @@ import {
   type LinhaCartao,
 } from '../programa.ts';
 import { DIA, agora, corpo, idDaMorada, recusar } from '../util.ts';
+import { nomeLimpo } from '../nomes.ts';
 import { entrarComIdentidade, juntarIdentidade, type IdentidadeProvada } from './identidade.ts';
 import { apagarConta } from './apagar.ts';
 import { abrirSessaoDoCliente } from './sessao.ts';
@@ -272,7 +273,7 @@ async function lerEu(c: C): Promise<ClienteEu> {
 rotasDaConta.get('/', async (c) => c.json(await lerEu(c)));
 
 const Perfil = z.object({
-  nome: z.string().trim().min(1).max(LIMITES_DO_PROGRAMA.nomeDoCliente).optional(),
+  nome: nomeLimpo(LIMITES_DO_PROGRAMA.nomeDoCliente).optional(),
   aniversario: z
     .string()
     .nullable()

@@ -1,6 +1,7 @@
 import {
   codigoCurto,
   codigoValido,
+  limparNome,
   normalizarEmail,
   type FichaDoBalcao,
   type ResultadoDoCarimbo,
@@ -34,7 +35,7 @@ export default function Novo() {
   const criar = async () => {
     if (aEnviar) return;
     const e: typeof erro = {};
-    if (!nome.trim()) e.nome = 'O nome faz falta.';
+    if (!limparNome(nome)) e.nome = 'O nome faz falta.';
     const emailLimpo = email.trim() ? normalizarEmail(email) : null;
     if (email.trim() && !emailLimpo) e.email = 'Esse email não está certo.';
     setErro(e);
@@ -46,7 +47,7 @@ export default function Novo() {
         {
           metodo: 'POST',
           corpo: {
-            nome: nome.trim(),
+            nome: limparNome(nome),
             email: emailLimpo,
             carimbo: carimbarJa
               ? {

@@ -10,6 +10,7 @@ import {
   eDiaValido,
   estadoDaPromocao,
   fazAnosHoje,
+  limparNome,
   ligacaoDoTelefone,
   normalizarDestaque,
   normalizarEmail,
@@ -302,4 +303,14 @@ test('um telefone com hífens, pontos ou parênteses é arrumado, não recusado'
   assert.equal(normalizarTelefone('912-345-678'), '912 345 678');
   assert.equal(normalizarTelefone('(+351) 912.345.678'), '+351 912 345 678');
   assert.equal(normalizarTelefone('912 345 67a'), null);
+});
+
+test('um nome perde o que não se vê, e só invisíveis não é nome', () => {
+  assert.equal(limparNome('\u200B\u200B\u200B'), '');
+  assert.equal(limparNome('\u200D'), '');
+  assert.equal(limparNome('  Ana \u200B  Maria\u00A0 '), 'Ana Maria');
+  assert.equal(limparNome('\u202Eetnelav'), 'etnelav');
+  assert.equal(limparNome('Zé \u{1F468}\u200D\u{1F466}'), 'Zé \u{1F468}\u200D\u{1F466}');
+  assert.equal(limparNome('😀 Zé Ñandú'), '😀 Zé Ñandú');
+  assert.equal(limparNome(limparNome(' a\u200Eb ')), 'ab');
 });
