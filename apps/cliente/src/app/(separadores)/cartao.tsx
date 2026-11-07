@@ -44,9 +44,21 @@ import {
   useTextosDaUi,
 } from '@nunos-lab/ui';
 import { useTextos } from '../../textos';
-// Os selos oficiais, tal como a Apple e a Google os entregam (a 3x): não se redesenham nem se recolorem.
-const seloApple = require('../../../assets/selos/adicionar-a-carteira-apple.png');
-const seloGoogle = require('../../../assets/selos/adicionar-a-carteira-google.png');
+// Os selos oficiais, tal como a Apple e a Google os entregam (a 3x), na língua da app: não se
+// redesenham nem se recolorem. A largura é a do PNG, para 144 px de altura.
+const SELOS = {
+  pt: {
+    apple: { fonte: require('../../../assets/selos/adicionar-a-carteira-apple.png'), largura: 491 },
+    google: {
+      fonte: require('../../../assets/selos/adicionar-a-carteira-google.png'),
+      largura: 628,
+    },
+  },
+  en: {
+    apple: { fonte: require('../../../assets/selos/add-to-apple-wallet.png'), largura: 455 },
+    google: { fonte: require('../../../assets/selos/add-to-google-wallet.png'), largura: 521 },
+  },
+} as const;
 
 // Array.from: um emoji não se parte a meio.
 const primeiraLetra = (palavra?: string) => Array.from(palavra ?? '')[0] ?? '';
@@ -423,7 +435,7 @@ function Carteiras({ apple, google }: { apple: boolean; google: boolean }) {
   );
 }
 
-/** Um selo: a imagem oficial, com a largura na proporção do PNG (491×144 e 628×144). */
+/** Um selo: a imagem oficial da língua da app, com a largura na proporção do PNG. */
 function Selo({
   qual,
   nome,
@@ -435,6 +447,7 @@ function Selo({
   aAbrir: 'apple' | 'google' | null;
   abrir: (qual: 'apple' | 'google') => void;
 }) {
+  const selo = SELOS[useLingua()][qual];
   return (
     <Pressable
       onPress={() => abrir(qual)}
@@ -446,11 +459,8 @@ function Selo({
       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
     >
       <Image
-        source={qual === 'apple' ? seloApple : seloGoogle}
-        style={{
-          width: (ALTURA_DO_SELO * (qual === 'apple' ? 491 : 628)) / 144,
-          height: ALTURA_DO_SELO,
-        }}
+        source={selo.fonte}
+        style={{ width: (ALTURA_DO_SELO * selo.largura) / 144, height: ALTURA_DO_SELO }}
         resizeMode="contain"
         accessibilityIgnoresInvertColors
       />
