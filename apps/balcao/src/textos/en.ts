@@ -51,8 +51,6 @@ export const en: Textos = {
     carimbarSemRede: 'Stamp offline',
     cartaoCompleto: 'Card complete',
     semRedeGuardado: 'No connection. Saved to send later.',
-    saiuUmCupao: 'Surprise coupon',
-    ate: (dia) => `until ${dia}`,
     fazAnos: 'Birthday',
     clienteDesde: (ano, cortes, completos) =>
       `Client since ${ano} · ${cortes} ${cortes === 1 ? 'haircut' : 'haircuts'}${
@@ -91,7 +89,6 @@ export const en: Textos = {
     clienteActivo: 'Active Nuno’s Lab client',
     semCorteNoUltimoAno: 'No haircut in the last year',
     semVantagens: 'No perks to validate today.',
-    cupaoAte: (dia) => `Coupon · until ${dia}`,
     jaUsou: (n) => (n === 1 ? 'used once' : `used ${n} times`),
     aValidar: 'Validating…',
     validar: 'Validate',
@@ -182,7 +179,6 @@ export const en: Textos = {
     limite_do_cliente: 'This client has reached the limit.',
     limite_total: 'This perk has run out.',
     cliente_inactivo: 'Only for clients with a haircut in the past 12 months.',
-    cupao_usado: 'That coupon has already been used or has expired.',
     so_dono: 'Only the owner can see this.',
     ja_anulado: 'This has already been undone.',
     tarde_para_anular: 'It’s been more than 10 minutes. Only Nuno can undo it now.',

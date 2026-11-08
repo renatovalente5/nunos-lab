@@ -949,9 +949,8 @@ dialog.folha::backdrop {
   opacity: 0.82;
   margin-top: 6px;
 }
-/* «Mostra o cartão ao balcão · 1 por dia» e «Sai como cupão surpresa»: linhas discretas, como a app as há-de mostrar. */
-.previsao .vale,
-.previsao .surpresa {
+/* «Mostra o cartão ao balcão · 1 por dia»: uma linha discreta, como a app a há-de mostrar. */
+.previsao .vale {
   font-size: 13px;
   font-weight: 600;
   opacity: 0.72;

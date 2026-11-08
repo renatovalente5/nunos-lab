@@ -255,9 +255,9 @@ export function horaDe(unix: number): string {
 
 /**
  * Uma vantagem na página do parceiro. As condições longas abrem com um toque.
- * Com validação, diz que o cartão se mostra ao balcão — só quando o parceiro
- * vai aceitar: senão, porque não (sem corte no último ano, limite gasto) — e,
- * depois de validada hoje, a que horas foi.
+ * Diz que o cartão se mostra ao balcão (qualquer vantagem se valida ao ler o cartão,
+ * se o parceiro quiser) — só quando o parceiro vai aceitar: senão, porque não (sem
+ * corte no último ano, limite gasto) — e, depois de validada hoje, a que horas foi.
  */
 export function CartaoDaPromocao({
   promocao,
@@ -287,7 +287,7 @@ export function CartaoDaPromocao({
   const esgotada = promocao.limitePorCliente !== null && usadas >= promocao.limitePorCliente;
   const usada = !inactivo && (esgotada || !!usadaHoje);
   const validade = validadeEmTexto(promocao, hoje, lingua);
-  const limite = promocao.validar ? limiteEmTexto(promocao, lingua) : null;
+  const limite = limiteEmTexto(promocao, lingua);
   const longo = promocao.detalhe.length > 90;
   const conteudo = (
     <>
@@ -344,37 +344,35 @@ export function CartaoDaPromocao({
           </View>
         </View>
       )}
-      {promocao.validar && (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-            marginTop: 12,
-            paddingTop: 12,
-            borderTopWidth: 1,
-            borderTopColor: cor.linha,
-          }}
-        >
-          <Icone
-            nome={usada ? 'certo' : 'cartao'}
-            tamanho={16}
-            cor={usada ? cor.texto : cor.texto2}
-            espessura={2.2}
-          />
-          <T v="legenda" style={{ color: usada ? cor.texto : cor.texto2 }}>
-            {inactivo
-              ? t.promocao.soActivos
-              : usadaHoje
-                ? t.promocao.usadaHoje(horaDe(usadaHoje))
-                : esgotada
-                  ? t.promocao.jaUsaste[promocao.periodoDoLimite]
-                  : temCartao
-                    ? t.promocao.mostraOCartao
-                    : t.promocao.comOCartao}
-          </T>
-        </View>
-      )}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          marginTop: 12,
+          paddingTop: 12,
+          borderTopWidth: 1,
+          borderTopColor: cor.linha,
+        }}
+      >
+        <Icone
+          nome={usada ? 'certo' : 'cartao'}
+          tamanho={16}
+          cor={usada ? cor.texto : cor.texto2}
+          espessura={2.2}
+        />
+        <T v="legenda" style={{ color: usada ? cor.texto : cor.texto2 }}>
+          {inactivo
+            ? t.promocao.soActivos
+            : usadaHoje
+              ? t.promocao.usadaHoje(horaDe(usadaHoje))
+              : esgotada
+                ? t.promocao.jaUsaste[promocao.periodoDoLimite]
+                : temCartao
+                  ? t.promocao.mostraOCartao
+                  : t.promocao.comOCartao}
+        </T>
+      </View>
     </>
   );
   const estilo = {

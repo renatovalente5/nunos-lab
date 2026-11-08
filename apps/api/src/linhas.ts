@@ -48,15 +48,11 @@ export type LinhaPromocao = {
   fim: string | null;
   em_destaque: number;
   activa: number;
-  validar: number;
+  // As colunas validar e surpresa* (e a tabela cupoes) ficam na base, sem uso, desde 8 nov 2026.
   limite_por_cliente: number | null;
   periodo_do_limite: PeriodoDoLimite;
   limite_total: number | null;
   so_clientes_activos: number;
-  surpresa: number;
-  surpresa_dias: number;
-  surpresa_peso: number;
-  surpresa_restantes: number | null;
   ordem: number;
   criada_em: number;
   alterada_em: number;
@@ -107,11 +103,13 @@ export function promocaoPublica(l: LinhaPromocao, lingua: Lingua = 'pt'): Promoc
     inicio: l.inicio,
     fim: l.fim,
     emDestaque: l.em_destaque === 1,
-    validar: l.validar === 1,
-    limitePorCliente: l.validar === 1 ? l.limite_por_cliente : null,
+    // Qualquer promoção se valida ao ler o cartão, e o saco das surpresas saiu (o Renato, 8 nov):
+    // validar e surpresa ficam pelas apps instaladas antes disso, que os lêem.
+    validar: true,
+    limitePorCliente: l.limite_por_cliente,
     periodoDoLimite: l.periodo_do_limite,
-    soClientesActivos: l.validar === 1 && l.so_clientes_activos === 1,
-    surpresa: l.surpresa === 1,
+    soClientesActivos: l.so_clientes_activos === 1,
+    surpresa: false,
   };
 }
 

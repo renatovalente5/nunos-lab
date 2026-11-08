@@ -150,7 +150,6 @@ function lerEuGuardado(): ClienteEu | undefined {
       'formas',
       'sessoes',
       'vales',
-      'cupoes',
     ];
     const inteiro =
       !!eu &&

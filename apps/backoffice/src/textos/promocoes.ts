@@ -1,15 +1,10 @@
-import { numero, plural } from '../util';
+import { plural } from '../util';
 
 /** As frases desta página: o português é a fonte; o inglês (britânico) tem as mesmas chaves. */
 export const pt = {
   // A linha de uma promoção (aqui e na página do parceiro).
   emDestaque: 'Em destaque',
-  valida: (limite: string | null): string => (limite ? `Valida · ${limite}` : 'Valida'),
   validacoes: (n: number) => plural(n, 'validação', 'validações'),
-  surpresa: (dias: number) => `Surpresa · ${plural(dias, 'dia', 'dias')}`,
-  cupoes: (n: number) => plural(n, 'cupão', 'cupões'),
-  esgotado: 'Esgotado',
-  faltam: (n: number) => `Faltam ${numero(n)}`,
   parceiroPausado: 'Parceiro pausado',
   // A lista.
   promocaoPausada: 'Promoção pausada',
@@ -35,17 +30,11 @@ export const pt = {
   porEmDestaqueDe: (titulo: string) => `Pôr ${titulo} em destaque`,
   porEmDestaque: 'Pôr em destaque',
   // O editor.
-  /** O que vai junto ao apagar: «Saem também 3 validações e 2 cupões por usar.». */
-  vaoJunto: (validacoes: number, cupoes: number) =>
-    `${validacoes + cupoes === 1 ? 'Sai' : 'Saem'} também ${[
-      validacoes > 0 && plural(validacoes, 'validação', 'validações'),
-      cupoes > 0 && `${plural(cupoes, 'cupão', 'cupões')} por usar`,
-    ]
-      .filter(Boolean)
-      .join(' e ')}.`,
+  /** O que vai junto ao apagar: «Saem também 3 validações.». */
+  vaoJunto: (validacoes: number) =>
+    `${validacoes === 1 ? 'Sai' : 'Saem'} também ${plural(validacoes, 'validação', 'validações')}.`,
   fimAntesDoInicio: 'O fim tem de ser no dia do início ou depois.',
   limitesErrados: 'Os limites: de 1 a 100 por cliente, de 1 a 100 000 no total.',
-  sacoErrado: 'O saco: de 1 a 365 dias, peso de 1 a 100, até 100 000 a sair.',
   faltamCampos: 'Faltam campos obrigatórios.',
   guardado: 'Guardado',
   criada: 'Promoção criada',
@@ -58,7 +47,7 @@ export const pt = {
   apagar: 'Apagar',
   apagada: 'Promoção apagada',
   escolheOParceiro: 'Escolhe o parceiro',
-  vaoComEla: 'As validações e os cupões vão com ela para o parceiro novo.',
+  vaoComEla: 'As validações vão com ela para o parceiro novo.',
   emGrande: 'Em grande',
   /** Os exemplos dos campos em português são conteúdo em português; os dos campos em inglês, em inglês. */
   emGrandeExemplo: 'ex.: −10%',
@@ -83,33 +72,18 @@ export const pt = {
   ligada: 'Mostrar na app',
   ligadaAjuda: 'Desliga para a esconder sem a apagar.',
   emDestaqueAjuda: 'Aparece na faixa de cor no topo das Vantagens. Melhor com 1 a 3 de cada vez.',
-  naAppDoParceiro: 'Na app for partners do parceiro',
-  validar: 'O parceiro valida ao ler o cartão',
-  validarAjuda: 'Desligado, basta mostrar a app.',
+  aoLerOCartao: 'Ao ler o cartão',
   porCliente: 'Por cliente',
   semLimite: 'Vazio: sem limite.',
   periodo: 'Período',
   noTotal: 'No total',
   soActivos: 'Só clientes activos',
   soActivosAjuda: 'Corte no último ano.',
-  noSaco: 'No saco das surpresas',
-  saiComoCupao: 'Sai como cupão ao carimbar',
-  saiComoCupaoAjuda: 'Não aparece na lista; sai sorteada a quem corta o cabelo.',
-  valeDurante: 'Vale durante',
-  dias: 'dias',
-  peso: 'Peso no sorteio',
-  pesoAjuda: 'Mais peso, sai mais vezes.',
-  quantos: 'Quantos podem sair',
 };
 
 export const en: typeof pt = {
   emDestaque: 'Featured',
-  valida: (limite) => (limite ? `Card scan · ${limite}` : 'Card scan'),
   validacoes: (n) => plural(n, 'validation', 'validations'),
-  surpresa: (dias) => `Surprise · valid ${plural(dias, 'day', 'days')}`,
-  cupoes: (n) => plural(n, 'coupon', 'coupons'),
-  esgotado: 'None left',
-  faltam: (n) => `${numero(n)} left`,
   parceiroPausado: 'Partner paused',
   promocaoPausada: 'Perk paused',
   promocaoLigada: 'Perk switched on',
@@ -133,16 +107,9 @@ export const en: typeof pt = {
   tirarDoDestaque: (titulo) => `Stop featuring ${titulo}`,
   porEmDestaqueDe: (titulo) => `Feature ${titulo}`,
   porEmDestaque: 'Feature',
-  vaoJunto: (validacoes, cupoes) =>
-    `${[
-      validacoes > 0 && plural(validacoes, 'validation', 'validations'),
-      cupoes > 0 && plural(cupoes, 'unused coupon', 'unused coupons'),
-    ]
-      .filter(Boolean)
-      .join(' and ')} will be deleted too.`,
+  vaoJunto: (validacoes) => `${plural(validacoes, 'validation', 'validations')} will be deleted too.`,
   fimAntesDoInicio: 'The end date must be on or after the start date.',
   limitesErrados: 'Limits: 1 to 100 per client, 1 to 100,000 in total.',
-  sacoErrado: 'Surprise bag: 1 to 365 days, weight 1 to 100, and up to 100,000 coupons.',
   faltamCampos: 'Fill in the required fields.',
   guardado: 'Saved',
   criada: 'Perk created',
@@ -155,7 +122,7 @@ export const en: typeof pt = {
   apagar: 'Delete',
   apagada: 'Perk deleted',
   escolheOParceiro: 'Choose a partner',
-  vaoComEla: 'Its validations and coupons move with it to the new partner.',
+  vaoComEla: 'Its validations move with it to the new partner.',
   emGrande: 'Headline',
   emGrandeExemplo: 'e.g. −10%',
   emGrandeExemploEn: 'e.g. Free',
@@ -179,21 +146,11 @@ export const en: typeof pt = {
   ligada: 'Show in the app',
   ligadaAjuda: 'Turn off to hide it without deleting it.',
   emDestaqueAjuda: 'Shows in the colour banner at the top of Perks. Best with 1 to 3 at a time.',
-  naAppDoParceiro: 'In the partner app',
-  validar: 'Partner scans the card',
-  validarAjuda: 'When off, showing the app is enough.',
+  aoLerOCartao: 'When the card is scanned',
   porCliente: 'Per client',
   semLimite: 'Leave blank for no limit.',
   periodo: 'Period',
   noTotal: 'In total',
   soActivos: 'Active clients only',
   soActivosAjuda: 'Had a haircut in the last year.',
-  noSaco: 'In the surprise bag',
-  saiComoCupao: 'Can be drawn as a coupon when a card is stamped',
-  saiComoCupaoAjuda: 'Hidden from the list. Drawn at random for clients when they get a haircut.',
-  valeDurante: 'Valid for',
-  dias: 'days',
-  peso: 'Weight in the draw',
-  pesoAjuda: "The higher the weight, the more often it's drawn.",
-  quantos: 'Coupons available',
 };

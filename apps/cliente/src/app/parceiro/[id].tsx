@@ -1,5 +1,4 @@
 import {
-  dataCurta,
   diaEmLisboa,
   inicioDoPeriodo,
   ligacaoDoInstagram,
@@ -19,7 +18,6 @@ import { abrir, contar, definirTitulo, ligacaoParaPartilhar, useDados } from '..
 import {
   Botao,
   BotaoRedondo,
-  CONTINUO,
   cor,
   Ecra,
   Esqueleto,
@@ -32,7 +30,6 @@ import {
   SemLigacao,
   Separador,
   T,
-  useLingua,
 } from '@nunos-lab/ui';
 import { useTextos } from '../../textos';
 
@@ -72,7 +69,6 @@ function BotaoSobreACapa({
 
 export default function PaginaDoParceiro() {
   const t = useTextos();
-  const lingua = useLingua();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isError, isFetching, dataUpdatedAt, refetch } = useDados();
   const temSessao = useTemSessao();
@@ -228,38 +224,6 @@ export default function PaginaDoParceiro() {
         </View>
       )}
 
-      {eu?.cupoes
-        .filter((k) => k.parceiroId === p.id && !k.usadoEm)
-        .map((k) => (
-          <View
-            key={k.id}
-            style={{
-              marginHorizontal: MARGEM,
-              marginTop: 24,
-              padding: 18,
-              borderRadius: raio.grupo,
-              backgroundColor: cor.claro,
-              ...CONTINUO,
-            }}
-          >
-            <T
-              v="legenda"
-              style={{
-                color: 'rgba(10,10,10,0.6)',
-                letterSpacing: 1.2,
-                textTransform: 'uppercase',
-              }}
-            >
-              {t.parceiro.oTeuCupao}
-            </T>
-            <T v="subtitulo" style={{ color: cor.sobreClaro, marginTop: 4 }}>
-              {semPartir(k.destaque)} · {semPartir(k.titulo)}
-            </T>
-            <T v="legenda" style={{ color: 'rgba(10,10,10,0.6)', marginTop: 6 }}>
-              {t.parceiro.cupaoAte(dataCurta(k.validoAte, diaEmLisboa(), lingua))}
-            </T>
-          </View>
-        ))}
       <Rotulo>
         {p.promocoes.length === 1 ? t.parceiro.aTuaVantagem : t.parceiro.asTuasVantagens}
       </Rotulo>

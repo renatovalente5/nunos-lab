@@ -28,15 +28,18 @@ export type PromocaoPublica = {
   inicio: string | null;
   fim: string | null;
   emDestaque: boolean;
-  /** O parceiro valida ao ler o cartão (senão basta mostrar a app). */
-  validar: boolean;
-  /** Quantas vezes cada cliente pode usar (null: sem limite), no período. */
+  /**
+   * Sempre true: qualquer promoção se valida ao ler o cartão, se o parceiro quiser; senão basta
+   * mostrar a app (o Renato, 8 nov 2026). Fica pelas apps instaladas antes disso, que o lêem.
+   */
+  validar: true;
+  /** Quantas vezes cada cliente pode usar (null: sem limite), no período: conta ao ler o cartão. */
   limitePorCliente: number | null;
   periodoDoLimite: PeriodoDoLimite;
   /** Só para quem cortou o cabelo no último ano. */
   soClientesActivos: boolean;
-  /** Está no saco das surpresas: sai sorteada ao carimbar, como cupão com validade. */
-  surpresa: boolean;
+  /** Sempre false: o saco das surpresas saiu (8 nov 2026). Fica pelas apps instaladas antes disso. */
+  surpresa: false;
 };
 
 export type ContactosDoParceiro = {
@@ -136,11 +139,6 @@ export type Promocao = PromocaoPublica & {
   /** Para toda a gente (null: sem limite), e quantas já foram usadas. */
   limiteTotal: number | null;
   validacoes: number;
-  /** O saco: dias de validade do cupão, o peso no sorteio, quantos restam (null: sem limite), quantos saíram. */
-  surpresaDias: number;
-  surpresaPeso: number;
-  surpresaRestantes: number | null;
-  cupoes: number;
   /** O parceiro está desligado: a promoção, mesmo ligada, não está na app. */
   parceiroPausado: boolean;
   activa: boolean;
@@ -275,24 +273,10 @@ export type ClienteEu = {
    * Apple já está nalgum iPhone (há aparelhos registados): aí o selo sai.
    */
   wallet: { apple: boolean; google: boolean; appleNaCarteira: boolean };
-  /** Os cupões surpresa por usar (válidos) e os usados há pouco. */
-  cupoes: CupaoDoCliente[];
+  /** Sempre vazia: o saco das surpresas saiu (8 nov 2026). Fica pelas apps instaladas antes disso. */
+  cupoes: never[];
   /** A prenda de anos do programa: faz anos hoje, deu a data há 30 dias ou mais, e ainda não a levou este ano. */
   prenda: string | null;
-};
-
-export type CupaoDoCliente = {
-  id: number;
-  parceiroId: number;
-  parceiro: string;
-  promocaoId: number;
-  destaque: string;
-  titulo: string;
-  detalhe: string;
-  emitidoEm: number;
-  /** O último dia em que vale («AAAA-MM-DD»). */
-  validoAte: string;
-  usadoEm: number | null;
 };
 
 export type ValeDoCliente = {
@@ -368,8 +352,8 @@ export type ResultadoDoCarimbo = {
   completo: boolean;
   recompensa: string | null;
   anulavelAte: number;
-  /** O cupão surpresa que saiu com este carimbo (para o barbeiro dizer ao cliente). */
-  cupao: { parceiro: string; destaque: string; titulo: string; validoAte: string } | null;
+  /** Sempre null: o saco das surpresas saiu (8 nov 2026). Fica pelas for partners de antes disso. */
+  cupao: null;
 };
 
 export type UltimoCarimbo = {
@@ -442,9 +426,6 @@ export type VantagemDoParceiro = {
   motivo: 'ok' | 'ja_usou' | 'limite_do_cliente' | 'limite_total' | 'cliente_inactivo';
   /** Quantas vezes este cliente a usou no período do limite. */
   usadas: number;
-  /** Um cupão surpresa deste cliente (vale uma vez, até ao dia). */
-  cupaoId?: number;
-  validoAte?: string;
 };
 
 export type FichaDoParceiro = {
@@ -589,8 +570,5 @@ export type Metricas = {
     semValidacoes: { id: number; nome: string }[];
     /** Pela casa do cliente. */
     porCasa: { id: number; nome: string; n: number }[];
-    /** Os cupões surpresa: quantos saíram e quantos foram usados, no período. */
-    cupoesSaidos: number;
-    cupoesUsados: number;
   };
 };

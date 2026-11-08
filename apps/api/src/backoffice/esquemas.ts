@@ -91,9 +91,8 @@ export const Promocao = z.object({
   fim: dia,
   emDestaque: z.boolean(),
   activa: z.boolean(),
-  // Os vales (0005): opcionais, para quem ainda não os conhece; o POST põe as predefinições,
+  // As regras de quando o parceiro lê o cartão (0005): opcionais; o POST põe as predefinições,
   // e o PATCH só mexe no que vier.
-  validar: z.boolean().optional(),
   limitePorCliente: z
     .number()
     .int()
@@ -110,11 +109,6 @@ export const Promocao = z.object({
     .nullable()
     .optional(),
   soClientesActivos: z.boolean().optional(),
-  // O saco das surpresas (0007).
-  surpresa: z.boolean().optional(),
-  surpresaDias: z.number().int().min(1).max(365).optional(),
-  surpresaPeso: z.number().int().min(1).max(100).optional(),
-  surpresaRestantes: z.number().int().min(0).max(100_000).nullable().optional(),
 });
 
 export const COLUNAS_DA_PROMOCAO = {
@@ -129,15 +123,10 @@ export const COLUNAS_DA_PROMOCAO = {
   fim: 'fim',
   emDestaque: 'em_destaque',
   activa: 'activa',
-  validar: 'validar',
   limitePorCliente: 'limite_por_cliente',
   periodoDoLimite: 'periodo_do_limite',
   limiteTotal: 'limite_total',
   soClientesActivos: 'so_clientes_activos',
-  surpresa: 'surpresa',
-  surpresaDias: 'surpresa_dias',
-  surpresaPeso: 'surpresa_peso',
-  surpresaRestantes: 'surpresa_restantes',
 } as const satisfies Record<keyof z.output<typeof Promocao>, string>;
 
 export const Categoria = z.object({

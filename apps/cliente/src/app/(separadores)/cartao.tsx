@@ -236,47 +236,6 @@ export default function Cartao() {
             </View>
           )}
 
-          {eu.cupoes.length > 0 && (
-            <>
-              <Rotulo>{t.cartao.osTeusCupoes}</Rotulo>
-              <Grupo>
-                {eu.cupoes.map((k, i) => (
-                  <View key={k.id}>
-                    {i > 0 && <Separador />}
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        paddingHorizontal: 16,
-                        paddingVertical: 14,
-                        gap: 12,
-                        opacity: k.usadoEm ? 0.5 : 1,
-                      }}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <T v="forte" numberOfLines={1}>
-                          {k.destaque} · {k.titulo}
-                        </T>
-                        <T
-                          v="legenda"
-                          style={{ color: cor.texto2, marginTop: 2 }}
-                          numberOfLines={1}
-                        >
-                          {k.parceiro}
-                        </T>
-                      </View>
-                      <T v="legenda" style={{ color: cor.texto2 }}>
-                        {k.usadoEm
-                          ? t.cartao.usado
-                          : t.cartao.ate(dataCurta(k.validoAte, diaEmLisboa(), lingua))}
-                      </T>
-                    </View>
-                  </View>
-                ))}
-              </Grupo>
-            </>
-          )}
-
           {eu.visitas.length > 0 && (
             <>
               <Rotulo>{t.cartao.ultimasVisitas}</Rotulo>

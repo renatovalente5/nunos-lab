@@ -56,8 +56,6 @@ export const pt = {
     carimbarSemRede: 'Carimbar sem rede',
     cartaoCompleto: 'Cartão completo',
     semRedeGuardado: 'Sem rede: guardado, envia-se depois.',
-    saiuUmCupao: 'Saiu um cupão',
-    ate: (dia: string) => `até ${dia}`,
     fazAnos: 'Faz anos',
     clienteDesde: (ano: number, cortes: number, completos: number) =>
       `Cliente desde ${ano} · ${cortes} ${cortes === 1 ? 'corte' : 'cortes'}${
@@ -97,7 +95,6 @@ export const pt = {
     clienteActivo: 'Cliente activo do Nuno’s Lab',
     semCorteNoUltimoAno: 'Sem corte no último ano',
     semVantagens: 'Sem vantagens para validar hoje.',
-    cupaoAte: (dia: string) => `Cupão · até ${dia}`,
     jaUsou: (n: number) => `já usou ${n}`,
     aValidar: 'A validar…',
     validar: 'Validar',
@@ -188,7 +185,6 @@ export const pt = {
     limite_do_cliente: 'Este cliente chegou ao limite.',
     limite_total: 'Esta vantagem esgotou.',
     cliente_inactivo: 'Sem corte no último ano: não vale.',
-    cupao_usado: 'Esse cupão já foi usado ou caducou.',
     so_dono: 'Só o dono vê isto.',
     ja_anulado: 'Já estava anulado.',
     tarde_para_anular: 'Já passaram 10 minutos: só o Nuno anula.',

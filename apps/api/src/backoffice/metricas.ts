@@ -173,7 +173,7 @@ rotasDasMetricas.get('/metricas', async (c) => {
            (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.promocao_id = p.id AND v.dia BETWEEN ?1 AND ?2 AND v.anulado_em IS NULL AND k.exemplo = 0 ${lojaId ? 'AND k.loja_id = ?3' : ''}) AS n,
            (SELECT count(*) FROM vales v WHERE v.promocao_id = p.id AND v.anulado_em IS NULL ${semExemplos('v')}) AS total
          FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
-         WHERE p.validar = 1 OR EXISTS (SELECT 1 FROM vales v WHERE v.promocao_id = p.id)
+         WHERE p.activa = 1 OR EXISTS (SELECT 1 FROM vales v WHERE v.promocao_id = p.id)
          ORDER BY n DESC, total DESC, pa.nome LIMIT 40`,
       )
       .bind(de, ate, ...l),
@@ -184,14 +184,7 @@ rotasDasMetricas.get('/metricas', async (c) => {
          FROM lojas lj ORDER BY lj.ordem, lj.id`,
       )
       .bind(de, ate),
-    // 23 cupões saídos e usados no período
-    db
-      .prepare(
-        `SELECT sum(k.emitido_em >= ?1 AND k.emitido_em < ?2) AS saidos, sum(k.usado_em >= ?1 AND k.usado_em < ?2) AS usados
-         FROM cupoes k JOIN clientes c ON c.id = k.cliente_id WHERE c.exemplo = 0 ${lojaId ? 'AND c.loja_id = ?3' : ''}`,
-      )
-      .bind(inicioDoDia(de), inicioDoDia(somarDias(ate, 1)), ...l),
-    // 24 contas
+    // 23 contas
     db.prepare(
       `SELECT count(*) AS total,
          sum(EXISTS (SELECT 1 FROM identidades i WHERE i.cliente_id = k.id AND i.tipo = 'apple')) AS apple,
@@ -288,7 +281,7 @@ rotasDasMetricas.get('/metricas', async (c) => {
     repetidos: number | null;
     sem_leitura: number | null;
   };
-  const contas = r[24]!.results[0] as {
+  const contas = r[23]!.results[0] as {
     total: number;
     apple: number | null;
     google: number | null;
@@ -365,8 +358,6 @@ rotasDasMetricas.get('/metricas', async (c) => {
         .filter((x) => x.n === 0)
         .map((x) => ({ id: x.id, nome: x.nome })),
       porCasa: r[22]!.results as Metricas['parcerias']['porCasa'],
-      cupoesSaidos: Number((r[23]!.results[0] as { saidos: number | null }).saidos ?? 0),
-      cupoesUsados: Number((r[23]!.results[0] as { usados: number | null }).usados ?? 0),
     },
   };
   return c.json(m);

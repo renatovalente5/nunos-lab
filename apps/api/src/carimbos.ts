@@ -53,14 +53,6 @@ export async function anularCarimbo(
     db
       .prepare('UPDATE carimbos SET anulado_em = unixepoch(), anulado_por = ? WHERE id = ?')
       .bind(quem.pessoaId, x.id),
-    // O cupão que saiu com este carimbo, se ainda não foi usado, volta ao saco.
-    db
-      .prepare(
-        `UPDATE promocoes SET surpresa_restantes = surpresa_restantes + 1
-         WHERE surpresa_restantes IS NOT NULL AND id IN (SELECT promocao_id FROM cupoes WHERE carimbo_id = ? AND usado_em IS NULL)`,
-      )
-      .bind(x.id),
-    db.prepare('DELETE FROM cupoes WHERE carimbo_id = ? AND usado_em IS NULL').bind(x.id),
   ];
   if (x.completo_em && x.carimbos - 1 < x.objectivo) {
     // Entregue à parte («Entregar»), já não se anula; entregue pelo próprio 10.º carimbo, anula-se com ele.

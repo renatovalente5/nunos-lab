@@ -40,7 +40,6 @@ import {
   MARGEM,
   T,
   cor,
-  raio,
   useLingua,
   useTextosDaUi,
   vibrar,
@@ -67,7 +66,6 @@ type Feito = {
   objectivo: number;
   completo: boolean;
   recompensa: string | null;
-  cupao?: { parceiro: string; destaque: string; titulo: string; validoAte: string } | null;
   /** Sem ficha nem nada guardado (sem rede), o título é o código: «1 de 10» seria inventado. */
   titulo?: string;
   nome?: string;
@@ -156,18 +154,17 @@ export default function Ficha() {
         });
       } else {
         setEstado('feito');
-        vibrar(r.resultado.completo || r.resultado.cupao ? 'festa' : 'feito');
+        vibrar(r.resultado.completo ? 'festa' : 'feito');
         setFeito({
           carimbos: r.resultado.cartao.carimbos,
           objectivo: r.resultado.cartao.objectivo,
           completo: r.resultado.completo,
           recompensa: r.resultado.recompensa,
-          cupao: r.resultado.cupao,
         });
       }
       Animated.spring(escala, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
-      // Com um prémio ou um cupão fica até «Concluir»: o barbeiro tem de o dizer ao cliente.
-      if (!('resultado' in r && (r.resultado.completo || r.resultado.cupao))) concluir();
+      // Com um prémio fica até «Concluir»: o barbeiro tem de o dizer ao cliente.
+      if (!('resultado' in r && r.resultado.completo)) concluir();
     } catch (e) {
       if (
         e instanceof ErroDaBalcao &&
@@ -390,34 +387,6 @@ export default function Ficha() {
             <T v="legenda" style={{ color: cor.texto2, marginTop: 10 }}>
               {t.ficha.semRedeGuardado}
             </T>
-          )}
-          {feito.cupao && (
-            <View
-              style={{
-                marginTop: 24,
-                paddingHorizontal: 18,
-                paddingVertical: 14,
-                borderRadius: raio.grupo,
-                backgroundColor: cor.superficie,
-                alignItems: 'center',
-                gap: 4,
-                ...CONTINUO,
-              }}
-            >
-              <T
-                v="legenda"
-                style={{ color: cor.texto2, letterSpacing: 1.2, textTransform: 'uppercase' }}
-              >
-                {t.ficha.saiuUmCupao}
-              </T>
-              <T v="subtitulo" style={{ textAlign: 'center' }}>
-                {feito.cupao.destaque} · {feito.cupao.titulo}
-              </T>
-              <T v="legenda" style={{ color: cor.texto2 }}>
-                {feito.cupao.parceiro} ·{' '}
-                {t.ficha.ate(dataCurta(feito.cupao.validoAte, diaEmLisboa(), lingua))}
-              </T>
-            </View>
           )}
           <View style={{ marginTop: 28 }}>
             <Botao nome={t.geral.concluir} onPress={sair} />

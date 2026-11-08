@@ -17,7 +17,7 @@ import {
   type Promocao,
 } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
 import {
   AreaDeTexto,
@@ -44,8 +44,7 @@ import { numero, parametro } from '../util';
 /**
  * O conteúdo de uma linha de promoção: o texto grande, o título e, por baixo,
  * o período e só as etiquetas que o interruptor não diz (agendada, terminou,
- * valida ao balcão e quantas vezes já validou, está no saco das surpresas e
- * quantos cupões saíram).
+ * o limite ao ler o cartão e quantas vezes já validou).
  */
 export function ConteudoDaPromocao({
   p,
@@ -58,7 +57,7 @@ export function ConteudoDaPromocao({
 }) {
   const t = useTextos();
   const lingua = useLingua();
-  const limite = p.validar ? limiteEmTexto(p, lingua) : null;
+  const limite = limiteEmTexto(p, lingua);
   return (
     <>
       <span className="promocao-grande">{p.destaque}</span>
@@ -69,30 +68,17 @@ export function ConteudoDaPromocao({
           {periodoEmTexto(p, hoje, lingua)}
         </div>
         {(p.emDestaque ||
-          p.validar ||
+          limite ||
           p.validacoes > 0 ||
-          p.surpresa ||
-          p.cupoes > 0 ||
           p.estado === 'agendada' ||
           p.estado === 'terminada' ||
           (p.activa && p.parceiroPausado)) && (
           <div className="etiquetas">
             {p.emDestaque && <Etiqueta semPonto>{t.promocoes.emDestaque}</Etiqueta>}
-            {p.validar && <Etiqueta semPonto>{t.promocoes.valida(limite)}</Etiqueta>}
+            {limite && <Etiqueta semPonto>{limite}</Etiqueta>}
             {p.validacoes > 0 && (
               <Etiqueta semPonto>{t.promocoes.validacoes(p.validacoes)}</Etiqueta>
             )}
-            {p.surpresa && <Etiqueta semPonto>{t.promocoes.surpresa(p.surpresaDias)}</Etiqueta>}
-            {p.cupoes > 0 && <Etiqueta semPonto>{t.promocoes.cupoes(p.cupoes)}</Etiqueta>}
-            {p.surpresa &&
-              p.surpresaRestantes !== null &&
-              (p.surpresaRestantes === 0 ? (
-                <Etiqueta tom="fraco" semPonto>
-                  {t.promocoes.esgotado}
-                </Etiqueta>
-              ) : (
-                <Etiqueta semPonto>{t.promocoes.faltam(p.surpresaRestantes)}</Etiqueta>
-              ))}
             {(p.estado === 'agendada' || p.estado === 'terminada') && (
               <EtiquetaDoEstado estado={p.estado} />
             )}
@@ -317,17 +303,11 @@ type FormularioDaPromocao = {
   fim: string;
   emDestaque: boolean;
   activa: boolean;
-  validar: boolean;
-  /** Os limites tal como se escrevem no campo; vazio: sem limite. */
+  /** Os limites ao ler o cartão, tal como se escrevem no campo; vazio: sem limite. */
   limitePorCliente: string;
   periodoDoLimite: PeriodoDoLimite;
   limiteTotal: string;
   soClientesActivos: boolean;
-  surpresa: boolean;
-  /** O saco, tal como se escreve nos campos; «quantos podem sair» vazio: sem limite. */
-  surpresaDias: string;
-  surpresaPeso: string;
-  surpresaRestantes: string;
 };
 
 /** Um limite escrito no campo: vazio é «sem limite» (null); fora do intervalo ou partido, NaN. */
@@ -335,18 +315,6 @@ function limiteEscrito(texto: string, { min, max }: { min: number; max: number }
   if (!texto.trim()) return null;
   const n = Number(texto);
   return Number.isInteger(n) && n >= min && n <= max ? n : NaN;
-}
-
-/** O saco das surpresas: o que a API aceita para os dias, o peso e quantos podem sair. */
-const LIMITES_DO_SACO = {
-  dias: { min: 1, max: 365 },
-  peso: { min: 1, max: 100 },
-  restantes: { min: 0, max: 100_000 },
-} as const;
-
-/** Um número que tem de estar escrito: vazio, partido ou fora do intervalo, NaN. */
-function numeroEscrito(texto: string, intervalo: { min: number; max: number }): number {
-  return limiteEscrito(texto, intervalo) ?? NaN;
 }
 
 /**
@@ -383,17 +351,11 @@ export function EditorDePromocao({
           fim: promocao.fim ?? '',
           emDestaque: promocao.emDestaque,
           activa: promocao.activa,
-          validar: promocao.validar,
           limitePorCliente:
             promocao.limitePorCliente === null ? '' : String(promocao.limitePorCliente),
           periodoDoLimite: promocao.periodoDoLimite,
           limiteTotal: promocao.limiteTotal === null ? '' : String(promocao.limiteTotal),
           soClientesActivos: promocao.soClientesActivos,
-          surpresa: promocao.surpresa,
-          surpresaDias: String(promocao.surpresaDias),
-          surpresaPeso: String(promocao.surpresaPeso),
-          surpresaRestantes:
-            promocao.surpresaRestantes === null ? '' : String(promocao.surpresaRestantes),
         }
       : {
           parceiroId: parceiroFixo?.id ?? parceiroInicial,
@@ -407,23 +369,15 @@ export function EditorDePromocao({
           fim: '',
           emDestaque: false,
           activa: true,
-          validar: false,
           limitePorCliente: '',
           periodoDoLimite: 'dia',
           limiteTotal: '',
           soClientesActivos: true,
-          surpresa: false,
-          surpresaDias: '30',
-          surpresaPeso: '1',
-          surpresaRestantes: '',
         },
   );
   const [f, setF] = useState(inicial);
   const sujo = JSON.stringify(f) !== JSON.stringify(inicial);
   const [erros, setErros] = useState<string[]>([]);
-  // A primeira vez que se liga a validação propõem-se as predefinições («1 por dia», só
-  // clientes activos: a API devolve-as vazias enquanto está desligada); depois fica o que se escreveu.
-  const propos = useRef(promocao?.validar ?? false);
   const { correr, aCorrer } = useAccao();
   const avisar = useAvisar();
   const { confirmar, dialogo } = useConfirmar();
@@ -433,36 +387,13 @@ export function EditorDePromocao({
       setF((x) => ({ ...x, [k]: v }));
       setErros((e) => e.filter((c) => c !== k));
     };
-  const ligarValidacao = (ligada: boolean) => {
-    mudar('validar')(ligada);
-    setErros((e) => e.filter((c) => c !== 'limitePorCliente' && c !== 'limiteTotal'));
-    if (ligada && !propos.current) {
-      propos.current = true;
-      setF((x) => ({
-        ...x,
-        limitePorCliente: '1',
-        periodoDoLimite: 'dia',
-        soClientesActivos: true,
-      }));
-    }
-  };
-  const ligarSurpresa = (ligado: boolean) => {
-    mudar('surpresa')(ligado);
-    setErros((e) =>
-      e.filter((c) => c !== 'surpresaDias' && c !== 'surpresaPeso' && c !== 'surpresaRestantes'),
-    );
-  };
   const limitePorCliente = limiteEscrito(f.limitePorCliente, LIMITES_DOS_VALES.porCliente);
   const limiteTotal = limiteEscrito(f.limiteTotal, LIMITES_DOS_VALES.total);
-  const surpresaDias = numeroEscrito(f.surpresaDias, LIMITES_DO_SACO.dias);
-  const surpresaPeso = numeroEscrito(f.surpresaPeso, LIMITES_DO_SACO.peso);
-  const surpresaRestantes = limiteEscrito(f.surpresaRestantes, LIMITES_DO_SACO.restantes);
   const parceiro = parceiroFixo ?? parceiros?.find((p) => p.id === f.parceiroId) ?? null;
   const onde = useOnde(parceiro);
-  // Já validou ou já saiu como cupão: o que se apaga ou se muda de parceiro leva isso junto.
-  const comHistorico = !!promocao && (promocao.validacoes > 0 || promocao.cupoes > 0);
-  const vaoJunto =
-    promocao && comHistorico ? t.promocoes.vaoJunto(promocao.validacoes, promocao.cupoes) : '';
+  // Já validou: o que se apaga ou se muda de parceiro leva isso junto.
+  const comHistorico = !!promocao && promocao.validacoes > 0;
+  const vaoJunto = promocao && comHistorico ? t.promocoes.vaoJunto(promocao.validacoes) : '';
   const fimDoMes = (() => {
     const [a, m] = hoje.split('-').map(Number) as [number, number];
     return new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10);
@@ -475,11 +406,8 @@ export function EditorDePromocao({
       !f.titulo.trim() && 'titulo',
     ].filter(Boolean) as string[];
     if (f.inicio && f.fim && f.inicio > f.fim) faltam.push('fim');
-    if (f.validar && Number.isNaN(limitePorCliente)) faltam.push('limitePorCliente');
-    if (f.validar && Number.isNaN(limiteTotal)) faltam.push('limiteTotal');
-    if (f.surpresa && Number.isNaN(surpresaDias)) faltam.push('surpresaDias');
-    if (f.surpresa && Number.isNaN(surpresaPeso)) faltam.push('surpresaPeso');
-    if (f.surpresa && Number.isNaN(surpresaRestantes)) faltam.push('surpresaRestantes');
+    if (Number.isNaN(limitePorCliente)) faltam.push('limitePorCliente');
+    if (Number.isNaN(limiteTotal)) faltam.push('limiteTotal');
     if (faltam.length) {
       setErros(faltam);
       avisar(
@@ -487,11 +415,7 @@ export function EditorDePromocao({
           ? t.promocoes.fimAntesDoInicio
           : faltam.includes('limitePorCliente') || faltam.includes('limiteTotal')
             ? t.promocoes.limitesErrados
-            : faltam.includes('surpresaDias') ||
-                faltam.includes('surpresaPeso') ||
-                faltam.includes('surpresaRestantes')
-              ? t.promocoes.sacoErrado
-              : t.promocoes.faltamCampos,
+            : t.promocoes.faltamCampos,
         true,
       );
       return;
@@ -502,17 +426,8 @@ export function EditorDePromocao({
       destaqueEn: normalizarDestaque(f.destaqueEn),
       inicio: f.inicio || null,
       fim: f.fim || null,
-      limitePorCliente: f.validar ? limitePorCliente : null,
-      limiteTotal: f.validar ? limiteTotal : null,
-      // Com o saco desligado os números ficam como estão na API, e voltam quando se liga.
-      surpresaDias: f.surpresa ? surpresaDias : undefined,
-      surpresaPeso: f.surpresa ? surpresaPeso : undefined,
-      // «Quantos podem sair» só vai quando se escreveu outro número: reenviar o
-      // que veio repunha na base os cupões que entretanto saíram.
-      surpresaRestantes:
-        f.surpresa && !(promocao && surpresaRestantes === promocao.surpresaRestantes)
-          ? surpresaRestantes
-          : undefined,
+      limitePorCliente,
+      limiteTotal,
     };
     try {
       if (promocao) await pedir(`/api/bo/promocoes/${promocao.id}`, { metodo: 'PATCH', corpo });
@@ -698,111 +613,49 @@ export function EditorDePromocao({
           </div>
           <div className="cartao recheado formulario" style={{ boxShadow: 'none' }}>
             <div className="campo">
-              <span className="rotulo-campo">{t.promocoes.naAppDoParceiro}</span>
-              <Interruptor
-                ligado={f.validar}
-                mudar={ligarValidacao}
-                rotulo={t.promocoes.validar}
-                ajuda={t.promocoes.validarAjuda}
+              <span className="rotulo-campo">{t.promocoes.aoLerOCartao}</span>
+            </div>
+            <div className="duas-colunas">
+              <Campo
+                rotulo={t.promocoes.porCliente}
+                tipo="number"
+                valor={f.limitePorCliente}
+                mudar={mudar('limitePorCliente')}
+                minimo={LIMITES_DOS_VALES.porCliente.min}
+                maximo={LIMITES_DOS_VALES.porCliente.max}
+                modoDeTeclado="numeric"
+                erro={erros.includes('limitePorCliente')}
+                ajuda={t.promocoes.semLimite}
+              />
+              <Seletor<PeriodoDoLimite>
+                rotulo={t.promocoes.periodo}
+                valor={f.periodoDoLimite}
+                mudar={(v) => mudar('periodoDoLimite')(v ?? 'dia')}
+                opcoes={PERIODOS_DO_LIMITE.map((p) => ({
+                  valor: p,
+                  nome: nomeDoPeriodo(p, lingua),
+                }))}
               />
             </div>
-            {f.validar && (
-              <>
-                <div className="duas-colunas">
-                  <Campo
-                    rotulo={t.promocoes.porCliente}
-                    tipo="number"
-                    valor={f.limitePorCliente}
-                    mudar={mudar('limitePorCliente')}
-                    minimo={LIMITES_DOS_VALES.porCliente.min}
-                    maximo={LIMITES_DOS_VALES.porCliente.max}
-                    modoDeTeclado="numeric"
-                    erro={erros.includes('limitePorCliente')}
-                    ajuda={t.promocoes.semLimite}
-                  />
-                  <Seletor<PeriodoDoLimite>
-                    rotulo={t.promocoes.periodo}
-                    valor={f.periodoDoLimite}
-                    mudar={(v) => mudar('periodoDoLimite')(v ?? 'dia')}
-                    opcoes={PERIODOS_DO_LIMITE.map((p) => ({
-                      valor: p,
-                      nome: nomeDoPeriodo(p, lingua),
-                    }))}
-                  />
-                </div>
-                <div className="duas-colunas">
-                  <Campo
-                    rotulo={t.promocoes.noTotal}
-                    tipo="number"
-                    valor={f.limiteTotal}
-                    mudar={mudar('limiteTotal')}
-                    minimo={LIMITES_DOS_VALES.total.min}
-                    maximo={LIMITES_DOS_VALES.total.max}
-                    modoDeTeclado="numeric"
-                    erro={erros.includes('limiteTotal')}
-                    ajuda={t.promocoes.semLimite}
-                  />
-                </div>
-                <Interruptor
-                  ligado={f.soClientesActivos}
-                  mudar={mudar('soClientesActivos')}
-                  rotulo={t.promocoes.soActivos}
-                  ajuda={t.promocoes.soActivosAjuda}
-                />
-              </>
-            )}
-          </div>
-          <div className="cartao recheado formulario" style={{ boxShadow: 'none' }}>
-            <div className="campo">
-              <span className="rotulo-campo">{t.promocoes.noSaco}</span>
-              <Interruptor
-                ligado={f.surpresa}
-                mudar={ligarSurpresa}
-                rotulo={t.promocoes.saiComoCupao}
-                ajuda={t.promocoes.saiComoCupaoAjuda}
+            <div className="duas-colunas">
+              <Campo
+                rotulo={t.promocoes.noTotal}
+                tipo="number"
+                valor={f.limiteTotal}
+                mudar={mudar('limiteTotal')}
+                minimo={LIMITES_DOS_VALES.total.min}
+                maximo={LIMITES_DOS_VALES.total.max}
+                modoDeTeclado="numeric"
+                erro={erros.includes('limiteTotal')}
+                ajuda={t.promocoes.semLimite}
               />
             </div>
-            {f.surpresa && (
-              <>
-                <div className="duas-colunas">
-                  <Campo
-                    rotulo={t.promocoes.valeDurante}
-                    tipo="number"
-                    valor={f.surpresaDias}
-                    mudar={mudar('surpresaDias')}
-                    minimo={LIMITES_DO_SACO.dias.min}
-                    maximo={LIMITES_DO_SACO.dias.max}
-                    modoDeTeclado="numeric"
-                    erro={erros.includes('surpresaDias')}
-                    ajuda={t.promocoes.dias}
-                  />
-                  <Campo
-                    rotulo={t.promocoes.peso}
-                    tipo="number"
-                    valor={f.surpresaPeso}
-                    mudar={mudar('surpresaPeso')}
-                    minimo={LIMITES_DO_SACO.peso.min}
-                    maximo={LIMITES_DO_SACO.peso.max}
-                    modoDeTeclado="numeric"
-                    erro={erros.includes('surpresaPeso')}
-                    ajuda={t.promocoes.pesoAjuda}
-                  />
-                </div>
-                <div className="duas-colunas">
-                  <Campo
-                    rotulo={t.promocoes.quantos}
-                    tipo="number"
-                    valor={f.surpresaRestantes}
-                    mudar={mudar('surpresaRestantes')}
-                    minimo={LIMITES_DO_SACO.restantes.min}
-                    maximo={LIMITES_DO_SACO.restantes.max}
-                    modoDeTeclado="numeric"
-                    erro={erros.includes('surpresaRestantes')}
-                    ajuda={t.promocoes.semLimite}
-                  />
-                </div>
-              </>
-            )}
+            <Interruptor
+              ligado={f.soClientesActivos}
+              mudar={mudar('soClientesActivos')}
+              rotulo={t.promocoes.soActivos}
+              ajuda={t.promocoes.soActivosAjuda}
+            />
           </div>
           <PrevisaoDaPromocao
             parceiro={parceiro}
@@ -812,19 +665,13 @@ export function EditorDePromocao({
             inicio={f.inicio || null}
             fim={f.fim || null}
             hoje={hoje}
-            validar={f.validar}
-            surpresa={f.surpresa}
-            limite={
-              f.validar
-                ? limiteEmTexto(
-                    {
-                      limitePorCliente: Number.isNaN(limitePorCliente) ? null : limitePorCliente,
-                      periodoDoLimite: f.periodoDoLimite,
-                    },
-                    lingua,
-                  )
-                : null
-            }
+            limite={limiteEmTexto(
+              {
+                limitePorCliente: Number.isNaN(limitePorCliente) ? null : limitePorCliente,
+                periodoDoLimite: f.periodoDoLimite,
+              },
+              lingua,
+            )}
           />
         </div>
       </Folha>

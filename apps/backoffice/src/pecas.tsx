@@ -918,9 +918,7 @@ export function PrevisaoDaPromocao({
   inicio,
   fim,
   hoje,
-  validar = false,
   limite = null,
-  surpresa = false,
 }: {
   parceiro: { nome: string; cor: string; logotipo: string | null; capa: string | null } | null;
   destaque: string;
@@ -930,11 +928,8 @@ export function PrevisaoDaPromocao({
   fim: string | null;
   hoje: string;
   icone?: IconeDaCategoria;
-  /** O parceiro valida ao ler o cartão: a app pede para o mostrar, com o limite («1 por dia»). */
-  validar?: boolean;
+  /** O limite ao ler o cartão («1 por dia»), ao lado do «Mostra o cartão ao balcão». */
   limite?: string | null;
-  /** Está no saco das surpresas: sai como cupão ao carimbar. */
-  surpresa?: boolean;
 }) {
   const t = useTextos();
   const lingua = useLingua();
@@ -954,16 +949,13 @@ export function PrevisaoDaPromocao({
         <div className="fundo-capa">
           <div className="grande">{semPartir(destaque || '−10%')}</div>
           <div className="titulo-previsao">{semPartir(titulo || t.geral.previsao.titulo)}</div>
-          {validar && (
-            <div className="vale">
-              {semPartir(
-                limite
-                  ? `${t.geral.previsao.mostraOCartao} · ${limite}`
-                  : t.geral.previsao.mostraOCartao,
-              )}
-            </div>
-          )}
-          {surpresa && <div className="surpresa">{t.geral.previsao.surpresa}</div>}
+          <div className="vale">
+            {semPartir(
+              limite
+                ? `${t.geral.previsao.mostraOCartao} · ${limite}`
+                : t.geral.previsao.mostraOCartao,
+            )}
+          </div>
           {validade && <div className="validade">{validade}</div>}
         </div>
       </div>

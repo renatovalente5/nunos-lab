@@ -55,7 +55,7 @@ export const pt = {
   porGuardar: 'Alterações por guardar',
   apagarPergunta: (nome: string) => `Apagar ${nome}?`,
   apagarTexto: (promocoes: number) =>
-    `O parceiro, ${promocoes === 0 ? '' : promocoes === 1 ? 'a promoção, ' : `as ${numero(promocoes)} promoções, `}as pessoas da equipa ligadas a ele, as validações e os cupões saem. Não se desfaz. Para tirar só por uns tempos, desliga «Mostrar na app».`,
+    `O parceiro, ${promocoes === 0 ? '' : promocoes === 1 ? 'a promoção, ' : `as ${numero(promocoes)} promoções, `}as pessoas da equipa ligadas a ele e as validações saem. Não se desfaz. Para tirar só por uns tempos, desliga «Mostrar na app».`,
   apagar: 'Apagar',
   apagado: 'Parceiro apagado',
   apagarParceiro: 'Apagar parceiro',
@@ -114,7 +114,7 @@ export const en: typeof pt = {
   porGuardar: 'Unsaved changes',
   apagarPergunta: (nome) => `Delete ${nome}?`,
   apagarTexto: (promocoes) =>
-    `The partner, ${promocoes === 0 ? '' : promocoes === 1 ? 'its perk, ' : `its ${numero(promocoes)} perks, `}its team members, validations and coupons will be deleted. This can't be undone. To hide it for a while, switch off “Show in the app” instead.`,
+    `The partner, ${promocoes === 0 ? '' : promocoes === 1 ? 'its perk, ' : `its ${numero(promocoes)} perks, `}its team members and validations will be deleted. This can't be undone. To hide it for a while, switch off “Show in the app” instead.`,
   apagar: 'Delete',
   apagado: 'Partner deleted',
   apagarParceiro: 'Delete partner',

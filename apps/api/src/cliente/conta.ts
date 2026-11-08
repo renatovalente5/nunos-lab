@@ -141,7 +141,7 @@ type LinhaCliente = {
 };
 
 /** As versões inglesas que vêm com as vantagens do cliente (vazias: o português). */
-type ComIngles = { destaque_en: string; titulo_en: string; detalhe_en?: string };
+type ComIngles = { destaque_en: string; titulo_en: string };
 
 async function lerEu(c: C): Promise<ClienteEu> {
   const { id, sessao } = c.get('cliente');
@@ -192,15 +192,6 @@ async function lerEu(c: C): Promise<ClienteEu> {
           'SELECT 1 AS activo FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL AND criado_em > unixepoch() - ? LIMIT 1',
         )
         .bind(id, DIAS_DE_CLIENTE_ACTIVO * DIA),
-      db
-        .prepare(
-          `SELECT k.id, pa.id AS parceiroId, pa.nome AS parceiro, p.id AS promocaoId, p.destaque, p.titulo, p.detalhe,
-             p.destaque_en, p.titulo_en, p.detalhe_en, k.emitido_em AS emitidoEm, k.valido_ate AS validoAte, k.usado_em AS usadoEm
-           FROM cupoes k JOIN promocoes p ON p.id = k.promocao_id JOIN parceiros pa ON pa.id = k.parceiro_id
-           WHERE k.cliente_id = ? AND ((k.usado_em IS NULL AND k.valido_ate >= ?) OR k.usado_em > unixepoch() - 30 * 86400)
-           ORDER BY k.usado_em IS NOT NULL, k.valido_ate, k.emitido_em DESC LIMIT 30`,
-        )
-        .bind(id, diaEmLisboa()),
       db
         .prepare('SELECT 1 FROM prendas WHERE cliente_id = ? AND ano = ?')
         .bind(id, Number(diaEmLisboa().slice(0, 4))),
@@ -278,21 +269,15 @@ async function lerEu(c: C): Promise<ClienteEu> {
     wallet: {
       apple: appleLigada(c.env),
       google: googleLigada(c.env),
-      appleNaCarteira: r[11]!.results.length > 0,
+      appleNaCarteira: r[10]!.results.length > 0,
     },
-    cupoes: (r[9]!.results as (ClienteEu['cupoes'][number] & ComIngles)[]).map(
-      ({ destaque_en, titulo_en, detalhe_en, ...k }) => ({
-        ...k,
-        destaque: naLingua(lingua, k.destaque, destaque_en),
-        titulo: naLingua(lingua, k.titulo, titulo_en),
-        detalhe: naLingua(lingua, k.detalhe, detalhe_en),
-      }),
-    ),
+    // O saco das surpresas saiu (8 nov 2026); as apps de antes lêem a lista, vazia.
+    cupoes: [],
     // A prenda só com a data dada há 30 dias ou mais (senão mudava-se na véspera), e uma vez por ano.
     prenda:
       temPrendaHoje(cliente.aniversario, cliente.aniversario_desde, diaEmLisboa(), agora()) &&
       programa.aniversario &&
-      r[10]!.results.length === 0
+      r[9]!.results.length === 0
         ? naLingua(lingua, programa.aniversario, programa.aniversarioEn)
         : null,
   };

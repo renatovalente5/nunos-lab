@@ -288,7 +288,6 @@ export const validar = (corpo: {
   codigo: string;
   promocaoId: number;
   chave: string;
-  cupaoId?: number;
 }) => pedir<{ vale: Vale; ficha: FichaDoParceiro }>('/validar', { metodo: 'POST', corpo });
 
 /** Entregar a prenda de anos: a API devolve a ficha já com a prenda marcada como entregue. */

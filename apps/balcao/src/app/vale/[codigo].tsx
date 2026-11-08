@@ -1,7 +1,5 @@
 import {
   codigoCurto,
-  dataCurta,
-  diaEmLisboa,
   limiteEmTexto,
   semPartir,
   type VantagemDoParceiro,
@@ -54,14 +52,12 @@ export default function ValeDoParceiro() {
     if (!ficha || estado === 'a-enviar') return;
     setEstado('a-enviar');
     setErro(null);
-    const chaveDe = v.cupaoId ?? v.id;
-    if (!chaves.current.has(chaveDe)) chaves.current.set(chaveDe, chaveNova());
+    if (!chaves.current.has(v.id)) chaves.current.set(v.id, chaveNova());
     try {
       const r = await validar({
         codigo: ficha.cliente.codigo,
         promocaoId: v.id,
-        chave: chaves.current.get(chaveDe)!,
-        cupaoId: v.cupaoId,
+        chave: chaves.current.get(v.id)!,
       });
       setFeito({ destaque: r.vale.destaque, titulo: r.vale.titulo, quando: r.vale.quando });
       setEstado('feito');
@@ -224,12 +220,10 @@ export default function ValeDoParceiro() {
               )}
               {ficha.vantagens.map((v) => {
                 const pode = v.motivo === 'ok';
-                const limite = v.cupaoId
-                  ? t.vale.cupaoAte(dataCurta(v.validoAte!, diaEmLisboa(), lingua))
-                  : limiteEmTexto(v, lingua);
+                const limite = limiteEmTexto(v, lingua);
                 return (
                   <View
-                    key={v.cupaoId ? `c${v.cupaoId}` : v.id}
+                    key={v.id}
                     style={{
                       backgroundColor: cor.superficie,
                       borderRadius: raio.grupo,

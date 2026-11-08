@@ -301,78 +301,6 @@ async function lojaDe(c: C, lojaId: number): Promise<number> {
   return lojaId;
 }
 
-/**
- * O cupão surpresa: ao carimbar, sai uma das promoções do saco (activas, do
- * parceiro activo, com restantes), sorteada pelo peso, que o cliente ainda
- * não tenha por usar. Vale até «surpresa_dias» dias.
- */
-async function sortearCupao(
-  db: D1Database,
-  clienteId: number,
-  carimboId: number,
-  hoje: string,
-  lingua: Lingua,
-) {
-  const saco = (
-    await db
-      .prepare(
-        `SELECT p.id, p.parceiro_id, p.destaque, p.destaque_en, p.titulo, p.titulo_en, p.surpresa_dias, p.surpresa_peso, p.surpresa_restantes, pa.nome AS parceiro
-         FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
-         WHERE p.surpresa = 1 AND p.activa = 1 AND pa.activo = 1
-           AND (p.inicio IS NULL OR p.inicio <= ?1) AND (p.fim IS NULL OR p.fim >= ?1)
-           AND (p.surpresa_restantes IS NULL OR p.surpresa_restantes > 0)
-           AND NOT EXISTS (SELECT 1 FROM cupoes k WHERE k.promocao_id = p.id AND k.cliente_id = ?2 AND k.usado_em IS NULL AND k.valido_ate >= ?1)`,
-      )
-      .bind(hoje, clienteId)
-      .all<{
-        id: number;
-        parceiro_id: number;
-        destaque: string;
-        destaque_en: string;
-        titulo: string;
-        titulo_en: string;
-        surpresa_dias: number;
-        surpresa_peso: number;
-        surpresa_restantes: number | null;
-        parceiro: string;
-      }>()
-  ).results;
-  if (!saco.length) return null;
-  let sorte = Math.random() * saco.reduce((s, p) => s + p.surpresa_peso, 0);
-  let escolhida = saco[saco.length - 1]!;
-  for (const p of saco) {
-    sorte -= p.surpresa_peso;
-    if (sorte < 0) {
-      escolhida = p;
-      break;
-    }
-  }
-  const validoAte = somarDias(hoje, escolhida.surpresa_dias);
-  // O saco desce primeiro, e só se ainda havia: dois carimbos ao mesmo segundo
-  // no último cupão dão um cupão e um «sem cupão», não um erro.
-  if (escolhida.surpresa_restantes !== null) {
-    const desceu = await db
-      .prepare(
-        'UPDATE promocoes SET surpresa_restantes = surpresa_restantes - 1 WHERE id = ? AND surpresa_restantes > 0',
-      )
-      .bind(escolhida.id)
-      .run();
-    if (!desceu.meta.changes) return null;
-  }
-  await db
-    .prepare(
-      'INSERT INTO cupoes (promocao_id, parceiro_id, cliente_id, carimbo_id, valido_ate) VALUES (?, ?, ?, ?, ?)',
-    )
-    .bind(escolhida.id, escolhida.parceiro_id, clienteId, carimboId, validoAte)
-    .run();
-  return {
-    parceiro: escolhida.parceiro,
-    destaque: naLingua(lingua, escolhida.destaque, escolhida.destaque_en),
-    titulo: naLingua(lingua, escolhida.titulo, escolhida.titulo_en),
-    validoAte,
-  };
-}
-
 /** O resultado de um carimbo já feito (a mesma chave a chegar outra vez). */
 async function resultadoDe(c: C, carimboId: number): Promise<ResultadoDoCarimbo> {
   const db = c.env.DB;
@@ -402,34 +330,14 @@ async function resultadoDe(c: C, carimboId: number): Promise<ResultadoDoCarimbo>
     .first<LinhaCartao>();
   // Só o carimbo que completou o cartão (o último) é «completo»: uma chave antiga reenviada não festeja um prémio.
   const completo = !!x.completo_em && x.id === x.ultimo_id;
-  const cupao = await db
-    .prepare(
-      `SELECT pa.nome AS parceiro, p.destaque, p.destaque_en, p.titulo, p.titulo_en, k.valido_ate AS validoAte FROM cupoes k
-       JOIN promocoes p ON p.id = k.promocao_id JOIN parceiros pa ON pa.id = k.parceiro_id WHERE k.carimbo_id = ?`,
-    )
-    .bind(x.id)
-    .first<{
-      parceiro: string;
-      destaque: string;
-      destaque_en: string;
-      titulo: string;
-      titulo_en: string;
-      validoAte: string;
-    }>();
   return {
     carimboId: x.id,
     cartao: cartaoPublico(cartao!, lingua),
     completo,
     recompensa: completo ? naLingua(lingua, cartao!.recompensa, cartao!.recompensa_en) : null,
     anulavelAte: x.criado_em + MINUTOS_PARA_ANULAR * 60,
-    cupao: cupao
-      ? {
-          parceiro: cupao.parceiro,
-          destaque: naLingua(lingua, cupao.destaque, cupao.destaque_en),
-          titulo: naLingua(lingua, cupao.titulo, cupao.titulo_en),
-          validoAte: cupao.validoAte,
-        }
-      : null,
+    // O saco das surpresas saiu (8 nov 2026); as for partners de antes lêem o campo.
+    cupao: null,
   };
 }
 
@@ -586,19 +494,14 @@ async function carimbar(
   const completa = r[2]!.meta.changes === 1;
   const carimbosAgora = (r[3]!.results[0] as { n: number }).n;
   tocarPasse(c, cliente.id);
-  // O cupão é um extra: um erro no sorteio nunca falha um carimbo já gravado.
   const lingua = linguaDoPedido(c);
-  const cupao = await sortearCupao(db, cliente.id, novo.id, hoje, lingua).catch((e) => {
-    console.error('cupao', e);
-    return null;
-  });
   return {
     carimboId: novo.id,
     cartao: { ...cartaoPublico(cartao, lingua), carimbos: carimbosAgora },
     completo: completa,
     recompensa: completa ? naLingua(lingua, cartao.recompensa, cartao.recompensa_en) : null,
     anulavelAte: novo.criado_em + MINUTOS_PARA_ANULAR * 60,
-    cupao,
+    cupao: null,
   };
 }
 
@@ -1006,12 +909,15 @@ async function clienteActivo(db: D1Database, clienteId: number): Promise<boolean
   return !!r;
 }
 
-/** As promoções deste parceiro que se validam e que valem hoje. */
+/**
+ * As promoções deste parceiro que valem hoje: todas se validam ao ler o cartão, se o parceiro
+ * quiser; senão basta mostrar a app (o Renato, 8 nov 2026).
+ */
 function consultaDasVantagens(db: D1Database, parceiroId: number, hoje: string) {
   return db
     .prepare(
       `SELECT p.* FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
-       WHERE p.parceiro_id = ?1 AND pa.activo = 1 AND p.activa = 1 AND p.validar = 1
+       WHERE p.parceiro_id = ?1 AND pa.activo = 1 AND p.activa = 1
          AND (p.inicio IS NULL OR p.inicio <= ?2) AND (p.fim IS NULL OR p.fim >= ?2)
        ORDER BY p.ordem, p.id`,
     )
@@ -1064,37 +970,6 @@ async function fichaDoParceiro(
       ),
     };
   });
-  const cupoes = (
-    await db
-      .prepare(
-        `SELECT k.id AS cupaoId, k.valido_ate AS validoAte, p.id, p.destaque, p.destaque_en, p.titulo, p.titulo_en, p.detalhe, p.detalhe_en FROM cupoes k
-         JOIN promocoes p ON p.id = k.promocao_id
-         WHERE k.cliente_id = ? AND k.parceiro_id = ? AND k.usado_em IS NULL AND k.valido_ate >= ? ORDER BY k.valido_ate`,
-      )
-      .bind(cliente.id, parceiroId, hoje)
-      .all<{
-        cupaoId: number;
-        validoAte: string;
-        id: number;
-        destaque: string;
-        destaque_en: string;
-        titulo: string;
-        titulo_en: string;
-        detalhe: string;
-        detalhe_en: string;
-      }>()
-  ).results.map((k): VantagemDoParceiro => ({
-    id: k.id,
-    destaque: naLingua(lingua, k.destaque, k.destaque_en),
-    titulo: naLingua(lingua, k.titulo, k.titulo_en),
-    detalhe: naLingua(lingua, k.detalhe, k.detalhe_en),
-    limitePorCliente: 1,
-    periodoDoLimite: 'sempre',
-    motivo: 'ok',
-    usadas: 0,
-    cupaoId: k.cupaoId,
-    validoAte: k.validoAte,
-  }));
   return {
     cliente: {
       id: cliente.id,
@@ -1102,7 +977,7 @@ async function fichaDoParceiro(
       nome: cliente.nome.trim().split(/\s+/)[0] ?? '',
       activo,
     },
-    vantagens: [...cupoes, ...vantagens],
+    vantagens,
   };
 }
 
@@ -1138,13 +1013,12 @@ const valePublico = (v: LinhaVale, lingua: Lingua): Vale => ({
 /** Validar uma vantagem: idempotente pela chave; recusa com o motivo quando não pode. */
 rotasDaBalcao.post('/validar', async (c) => {
   const parceiroId = exigirParceiro(c);
-  const { codigo, promocaoId, chave, cupaoId } = await corpo(
+  const { codigo, promocaoId, chave } = await corpo(
     c,
     z.object({
       codigo: z.string().min(1).max(20),
       promocaoId: z.number().int().positive(),
       chave: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
-      cupaoId: z.number().int().positive().optional(),
     }),
   );
   const db = c.env.DB;
@@ -1162,46 +1036,17 @@ rotasDaBalcao.post('/validar', async (c) => {
     });
   }
   const ficha = await fichaDoParceiro(c, parceiroId, cliente);
-  // Com cupaoId é o cupão (uma vez); sem ele, a vantagem permanente.
-  const vantagem = ficha.vantagens.find((v) =>
-    cupaoId ? v.cupaoId === cupaoId : v.id === promocaoId && !v.cupaoId,
-  );
-  if (!vantagem) recusar(cupaoId ? 409 : 400, cupaoId ? 'cupao_usado' : 'referencia');
-  // Com cupão, a promoção é a do cupão: o pedido não a escolhe.
-  if (cupaoId && promocaoId !== vantagem.id) recusar(400, 'referencia');
+  const vantagem = ficha.vantagens.find((v) => v.id === promocaoId);
+  if (!vantagem) recusar(400, 'referencia');
   if (vantagem.motivo !== 'ok') recusar(409, vantagem.motivo);
   let novo: { id: number } | null = null;
   try {
-    const r = await db.batch([
-      db
-        .prepare(
-          'INSERT INTO vales (promocao_id, parceiro_id, cliente_id, pessoa_id, chave, dia, cupao_id) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id',
-        )
-        .bind(
-          vantagem.id,
-          parceiroId,
-          cliente.id,
-          pessoa.id,
-          chave,
-          diaEmLisboa(),
-          cupaoId ?? null,
-        ),
-      ...(cupaoId
-        ? [
-            db
-              .prepare(
-                'UPDATE cupoes SET usado_em = unixepoch(), vale_id = (SELECT id FROM vales WHERE chave = ?) WHERE id = ? AND usado_em IS NULL',
-              )
-              .bind(chave, cupaoId),
-          ]
-        : []),
-    ]);
-    novo = r[0]!.results[0] as { id: number };
-    // O cupão já tinha sido gasto por outro pedido ao mesmo tempo: o vale acabado de nascer sai.
-    if (cupaoId && !r[1]!.meta.changes) {
-      await db.prepare('DELETE FROM vales WHERE id = ?').bind(novo.id).run();
-      recusar(409, 'cupao_usado');
-    }
+    novo = await db
+      .prepare(
+        'INSERT INTO vales (promocao_id, parceiro_id, cliente_id, pessoa_id, chave, dia) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
+      )
+      .bind(vantagem.id, parceiroId, cliente.id, pessoa.id, chave, diaEmLisboa())
+      .first<{ id: number }>();
   } catch (e) {
     if (e instanceof HTTPException) throw e;
     const outra = await db.prepare(`${VALE} WHERE v.chave = ?`).bind(chave).first<LinhaVale>();
@@ -1229,14 +1074,9 @@ rotasDaBalcao.post('/anular-vale', async (c) => {
   if (v.anulado_em) recusar(409, 'ja_anulado');
   if (v.pessoa_id !== pessoa.id) recusar(403, 'de_outra_pessoa');
   if (v.criado_em < agora() - MINUTOS_PARA_ANULAR * 60) recusar(409, 'tarde_para_anular');
-  await c.env.DB.batch([
-    c.env.DB.prepare(
-      'UPDATE vales SET anulado_em = unixepoch(), anulado_por = ? WHERE id = ?',
-    ).bind(pessoa.id, valeId),
-    c.env.DB.prepare('UPDATE cupoes SET usado_em = NULL, vale_id = NULL WHERE vale_id = ?').bind(
-      valeId,
-    ),
-  ]);
+  await c.env.DB.prepare('UPDATE vales SET anulado_em = unixepoch(), anulado_por = ? WHERE id = ?')
+    .bind(pessoa.id, valeId)
+    .run();
   return c.body(null, 204);
 });
 
