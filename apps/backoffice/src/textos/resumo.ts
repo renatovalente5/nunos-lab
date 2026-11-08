@@ -36,7 +36,6 @@ export const pt = {
   maisVistos: 'Parceiros mais vistos',
   contactosDe: (n: number) => plural(n, 'contacto', 'contactos'),
   vistas: (n: number) => plural(n, 'vista', 'vistas'),
-  semVisitas: 'Ainda sem visitas neste período.',
   toquesPorLoja: 'Toques em «Marcar», por loja',
 };
 
@@ -74,6 +73,5 @@ export const en: typeof pt = {
   maisVistos: 'Most viewed partners',
   contactosDe: (n) => plural(n, 'contact', 'contacts'),
   vistas: (n) => plural(n, 'view', 'views'),
-  semVisitas: 'No views in this period yet.',
   toquesPorLoja: 'Taps on “Book”, by shop',
 };

@@ -18,6 +18,15 @@ export function Resumo() {
   });
   const { correr } = useAccao();
   const { confirmar, dialogo } = useConfirmar();
+  // Tudo a zero (ainda sem parceiros nem promoções): o cartão «Na app agora» não diz nada.
+  const algoNaApp =
+    !!r &&
+    r.parceiros.naApp +
+      r.promocoes.naApp +
+      r.promocoes.agendadas +
+      r.promocoes.pausadas +
+      r.parceiros.pausados >
+      0;
 
   return (
     <>
@@ -137,67 +146,69 @@ export function Resumo() {
               </ul>
             </div>
 
-            <div className="cartao">
-              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>{t.resumo.naAppAgora}</div>
-              <ul className="lista">
-                <LinhaDeConta
-                  href="#/parceiros"
-                  nome={t.geral.seccoes.parceiros}
-                  valor={r.parceiros.naApp}
-                />
-                <LinhaDeConta
-                  href="#/promocoes"
-                  nome={t.geral.seccoes.promocoes}
-                  valor={r.promocoes.naApp}
-                />
-                <LinhaDeConta
-                  href="#/promocoes"
-                  nome={t.resumo.agendadas}
-                  valor={r.promocoes.agendadas}
-                  detalhe={t.resumo.entramSozinhas}
-                />
-                <LinhaDeConta
-                  href="#/promocoes"
-                  nome={t.resumo.pausadas}
-                  valor={r.promocoes.pausadas}
-                />
-                <LinhaDeConta
-                  href="#/parceiros"
-                  nome={t.resumo.parceirosPausados}
-                  valor={r.parceiros.pausados}
-                />
-              </ul>
-            </div>
-          </div>
-
-          <div className="grelha duas" style={{ marginTop: 14 }}>
-            <div className="cartao">
-              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>{t.resumo.maisVistos}</div>
-              {r.maisVistos.length ? (
+            {algoNaApp && (
+              <div className="cartao">
+                <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>
+                  {t.resumo.naAppAgora}
+                </div>
                 <ul className="lista">
-                  {r.maisVistos.map((p, i) => (
-                    <li key={p.id}>
-                      <a className="linha" href={`#/parceiros/${p.id}`}>
-                        <span style={{ width: 22, color: 'var(--tinta-3)', fontWeight: 800 }}>
-                          {i + 1}
-                        </span>
-                        <div className="meio">
-                          <div className="titulo-linha">{p.nome}</div>
-                          <div className="detalhe">{t.resumo.contactosDe(p.contactos)}</div>
-                        </div>
-                        <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {t.resumo.vistas(p.vistas)}
-                        </strong>
-                      </a>
-                    </li>
-                  ))}
+                  <LinhaDeConta
+                    href="#/parceiros"
+                    nome={t.geral.seccoes.parceiros}
+                    valor={r.parceiros.naApp}
+                  />
+                  <LinhaDeConta
+                    href="#/promocoes"
+                    nome={t.geral.seccoes.promocoes}
+                    valor={r.promocoes.naApp}
+                  />
+                  <LinhaDeConta
+                    href="#/promocoes"
+                    nome={t.resumo.agendadas}
+                    valor={r.promocoes.agendadas}
+                    detalhe={t.resumo.entramSozinhas}
+                  />
+                  <LinhaDeConta
+                    href="#/promocoes"
+                    nome={t.resumo.pausadas}
+                    valor={r.promocoes.pausadas}
+                  />
+                  <LinhaDeConta
+                    href="#/parceiros"
+                    nome={t.resumo.parceirosPausados}
+                    valor={r.parceiros.pausados}
+                  />
                 </ul>
-              ) : (
-                <p className="detalhe" style={{ padding: '0 20px 18px', color: 'var(--tinta-2)' }}>
-                  {t.resumo.semVisitas}
-                </p>
-              )}
-            </div>
+              </div>
+            )}
+
+            {r.maisVistos.length > 0 && (
+              <div className="cartao">
+                <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>
+                  {t.resumo.maisVistos}
+                </div>
+                {r.maisVistos.length ? (
+                  <ul className="lista">
+                    {r.maisVistos.map((p, i) => (
+                      <li key={p.id}>
+                        <a className="linha" href={`#/parceiros/${p.id}`}>
+                          <span style={{ width: 22, color: 'var(--tinta-3)', fontWeight: 800 }}>
+                            {i + 1}
+                          </span>
+                          <div className="meio">
+                            <div className="titulo-linha">{p.nome}</div>
+                            <div className="detalhe">{t.resumo.contactosDe(p.contactos)}</div>
+                          </div>
+                          <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
+                            {t.resumo.vistas(p.vistas)}
+                          </strong>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            )}
             <div className="cartao">
               <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>
                 {t.resumo.toquesPorLoja}

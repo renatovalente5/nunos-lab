@@ -49,6 +49,9 @@ export const pt = {
   mostrarNaAppAjuda: 'Desligado, o parceiro e as promoções dele saem da app.',
   novaPromocao: 'Nova promoção',
   aindaSemPromocoes: 'Ainda sem promoções',
+  resumoDasPromocoes: (n: number, naApp: number) =>
+    n ? `${n} ${n === 1 ? 'promoção' : 'promoções'} · ${naApp} na app` : 'Nenhuma',
+  porPreencher: 'Por preencher',
   semPromocaoLigada: 'Sem uma promoção ligada, o parceiro não aparece na app.',
   criarParceiro: 'Criar parceiro',
   guardar: 'Guardar',
@@ -108,6 +111,9 @@ export const en: typeof pt = {
   mostrarNaAppAjuda: 'When off, the partner and its perks are hidden from the app.',
   novaPromocao: 'New perk',
   aindaSemPromocoes: 'No perks yet',
+  resumoDasPromocoes: (n, naApp) =>
+    n ? `${n} ${n === 1 ? 'perk' : 'perks'} · ${naApp} in the app` : 'None',
+  porPreencher: 'Not filled in',
   semPromocaoLigada: 'Switch on a perk to show this partner in the app.',
   criarParceiro: 'Create partner',
   guardar: 'Save',

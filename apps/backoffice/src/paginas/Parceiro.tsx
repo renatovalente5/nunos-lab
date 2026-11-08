@@ -24,6 +24,7 @@ import {
   Esqueleto,
   Etiqueta,
   fundoDaCapa,
+  Gaveta,
   GrupoEmIngles,
   Icone,
   Interruptor,
@@ -103,6 +104,8 @@ function doParceiro(p: ParceiroDoContrato): Formulario {
     activo: p.activo,
   };
 }
+
+const DOS_CONTACTOS = ['morada', 'telefone', 'instagram', 'site', 'horario'];
 
 export function Parceiro({ id }: { id: string }) {
   const t = useTextos();
@@ -347,81 +350,6 @@ export function Parceiro({ id }: { id: string }) {
                 erro={erros.includes('capa')}
               />
             </div>
-          </div>
-
-          <h2 className="seccao">{t.parceiro.contactos}</h2>
-          <div className="cartao recheado formulario">
-            <Campo
-              rotulo={t.parceiro.morada}
-              valor={f.morada}
-              mudar={mudar('morada')}
-              max={LIMITES.morada}
-              ajuda={t.parceiro.moradaAjuda}
-            />
-            <div className="duas-colunas">
-              <Campo
-                rotulo={t.parceiro.telefone}
-                tipo="tel"
-                valor={f.telefone}
-                mudar={mudar('telefone')}
-                max={LIMITES.telefone}
-                erro={erros.includes('telefone')}
-                erroTexto={t.parceiro.razoes.telefone}
-              />
-              <Campo
-                rotulo="Instagram"
-                valor={f.instagram}
-                mudar={mudar('instagram')}
-                max={200}
-                erro={erros.includes('instagram')}
-                erroTexto={t.parceiro.razoes.instagram}
-                placeholder={t.parceiro.conta}
-              />
-            </div>
-            <Campo
-              rotulo={t.parceiro.site}
-              tipo="url"
-              valor={f.site}
-              mudar={mudar('site')}
-              max={LIMITES.site}
-              erro={erros.includes('site')}
-              erroTexto={t.parceiro.razoes.site}
-              placeholder={t.parceiro.siteExemplo}
-            />
-            <Campo
-              rotulo={t.parceiro.horario}
-              valor={f.horario}
-              mudar={mudar('horario')}
-              max={LIMITES.horario}
-              placeholder={t.parceiro.horarioExemplo}
-            />
-          </div>
-
-          <GrupoEmIngles
-            seccao
-            pares={[
-              { campo: 'descricao', pt: f.descricao, definir: mudar('descricaoEn'), onde },
-              { campo: 'horario', pt: f.horario, definir: mudar('horarioEn'), onde },
-            ]}
-          >
-            <AreaDeTexto
-              rotulo={t.parceiro.descricao}
-              valor={f.descricaoEn}
-              mudar={mudar('descricaoEn')}
-              max={LIMITES.descricao}
-              erro={erros.includes('descricaoEn')}
-            />
-            <Campo
-              rotulo={t.parceiro.horario}
-              valor={f.horarioEn}
-              mudar={mudar('horarioEn')}
-              max={LIMITES.horario}
-              placeholder={t.parceiro.horarioExemploEn}
-            />
-          </GrupoEmIngles>
-
-          <h2 className="seccao">{t.parceiro.naApp}</h2>
-          <div className="cartao recheado">
             <Interruptor
               ligado={f.activo}
               mudar={mudar('activo')}
@@ -430,26 +358,104 @@ export function Parceiro({ id }: { id: string }) {
             />
           </div>
 
-          {!novo && (
-            <>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                }}
-              >
-                <h2 className="seccao">{t.geral.seccoes.promocoes}</h2>
-                <button
-                  type="button"
-                  className="botao secundario pequeno"
-                  onClick={() => setEditor({ promocao: null })}
-                >
-                  <Icone nome="mais" tamanho={16} /> {t.parceiro.novaPromocao}
-                </button>
+          <div className="gavetas">
+            <Gaveta
+              id="parceiro.contactos"
+              titulo={t.parceiro.contactos}
+              resumo={
+                [
+                  f.morada && t.parceiro.morada,
+                  f.telefone && t.parceiro.telefone,
+                  f.instagram && 'Instagram',
+                  f.site && t.parceiro.site,
+                  f.horario && t.parceiro.horario,
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || t.parceiro.porPreencher
+              }
+              erro={DOS_CONTACTOS.some((c) => erros.includes(c))}
+            >
+              <div className="formulario">
+                <Campo
+                  rotulo={t.parceiro.morada}
+                  valor={f.morada}
+                  mudar={mudar('morada')}
+                  max={LIMITES.morada}
+                  ajuda={t.parceiro.moradaAjuda}
+                />
+                <div className="duas-colunas">
+                  <Campo
+                    rotulo={t.parceiro.telefone}
+                    tipo="tel"
+                    valor={f.telefone}
+                    mudar={mudar('telefone')}
+                    max={LIMITES.telefone}
+                    erro={erros.includes('telefone')}
+                    erroTexto={t.parceiro.razoes.telefone}
+                  />
+                  <Campo
+                    rotulo="Instagram"
+                    valor={f.instagram}
+                    mudar={mudar('instagram')}
+                    max={200}
+                    erro={erros.includes('instagram')}
+                    erroTexto={t.parceiro.razoes.instagram}
+                    placeholder={t.parceiro.conta}
+                  />
+                </div>
+                <Campo
+                  rotulo={t.parceiro.site}
+                  tipo="url"
+                  valor={f.site}
+                  mudar={mudar('site')}
+                  max={LIMITES.site}
+                  erro={erros.includes('site')}
+                  erroTexto={t.parceiro.razoes.site}
+                  placeholder={t.parceiro.siteExemplo}
+                />
+                <Campo
+                  rotulo={t.parceiro.horario}
+                  valor={f.horario}
+                  mudar={mudar('horario')}
+                  max={LIMITES.horario}
+                  placeholder={t.parceiro.horarioExemplo}
+                />
               </div>
-              <div className="cartao">
+            </Gaveta>
+
+            <GrupoEmIngles
+              seccao
+              pares={[
+                { campo: 'descricao', pt: f.descricao, definir: mudar('descricaoEn'), onde },
+                { campo: 'horario', pt: f.horario, definir: mudar('horarioEn'), onde },
+              ]}
+            >
+              <AreaDeTexto
+                rotulo={t.parceiro.descricao}
+                valor={f.descricaoEn}
+                mudar={mudar('descricaoEn')}
+                max={LIMITES.descricao}
+                erro={erros.includes('descricaoEn')}
+              />
+              <Campo
+                rotulo={t.parceiro.horario}
+                valor={f.horarioEn}
+                mudar={mudar('horarioEn')}
+                max={LIMITES.horario}
+                placeholder={t.parceiro.horarioExemploEn}
+              />
+            </GrupoEmIngles>
+
+            {!novo && (
+              <Gaveta
+                id="parceiro.promocoes"
+                titulo={t.geral.seccoes.promocoes}
+                resumo={t.parceiro.resumoDasPromocoes(
+                  promocoes.length,
+                  promocoes.filter((p) => p.estado === 'activa').length,
+                )}
+                lista
+              >
                 {promocoes.length ? (
                   <ListaArrastavel
                     itens={promocoes}
@@ -483,9 +489,18 @@ export function Parceiro({ id }: { id: string }) {
                     {t.parceiro.semPromocaoLigada}
                   </Vazio>
                 )}
-              </div>
-            </>
-          )}
+                <div className="pe-gaveta">
+                  <button
+                    type="button"
+                    className="botao secundario"
+                    onClick={() => setEditor({ promocao: null })}
+                  >
+                    <Icone nome="mais" tamanho={18} /> {t.parceiro.novaPromocao}
+                  </button>
+                </div>
+              </Gaveta>
+            )}
+          </div>
 
           <div className="gravar">
             <button

@@ -15,6 +15,7 @@ import {
   Esqueleto,
   Etiqueta,
   Folha,
+  Gaveta,
   Icone,
   Interruptor,
   Segmentado,
@@ -26,6 +27,7 @@ import {
 } from '../pecas';
 import { useTextos } from '../textos';
 import { haQuanto, nomeDoAparelho, plural } from '../util';
+import { GavetaDosAcessos } from './Acessos';
 
 /** A Balcão, onde quer que esteja publicada. */
 const BALCAO = (import.meta.env.VITE_BALCAO as string).replace(/\/$/, '');
@@ -225,23 +227,22 @@ export function Equipa() {
         </button>
       </div>
 
-      {!equipa.data ? (
-        <Esqueleto />
-      ) : !grupos.length ? (
-        <div className="cartao">
-          <Vazio titulo={t.equipa.semEquipa} />
-        </div>
-      ) : (
-        grupos.map((g, i) => (
-          <section key={g.chave} aria-labelledby={`grupo-${g.chave}`}>
-            <h2
-              className="seccao"
-              id={`grupo-${g.chave}`}
-              style={i === 0 ? { marginTop: 0 } : undefined}
+      <div className="gavetas">
+        {!equipa.data ? (
+          <Esqueleto />
+        ) : !grupos.length ? (
+          <div className="cartao">
+            <Vazio titulo={t.equipa.semEquipa} />
+          </div>
+        ) : (
+          grupos.map((g) => (
+            <Gaveta
+              key={g.chave}
+              id={`equipa.${g.chave}`}
+              titulo={g.nome}
+              resumo={g.pessoas.map((p) => p.nome).join(' · ')}
+              lista
             >
-              {g.nome}
-            </h2>
-            <div className="cartao">
               <ul className="lista">
                 {g.pessoas.map((p) => (
                   <li key={p.id}>
@@ -285,10 +286,11 @@ export function Equipa() {
                   </li>
                 ))}
               </ul>
-            </div>
-          </section>
-        ))
-      )}
+            </Gaveta>
+          ))
+        )}
+        <GavetaDosAcessos />
+      </div>
 
       <Folha
         aberta={!!f}

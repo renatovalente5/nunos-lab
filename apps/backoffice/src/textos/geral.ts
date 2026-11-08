@@ -8,12 +8,9 @@ export const pt = {
     metricas: 'Métricas',
     clientes: 'Clientes',
     equipa: 'Equipa',
-    fidelidade: 'Fidelidade',
     parceiros: 'Parceiros',
     promocoes: 'Promoções',
-    categorias: 'Categorias',
     barbearia: 'Barbearia',
-    acessos: 'Acessos',
     historico: 'Histórico',
   },
   seccoesRotulo: 'Secções',
@@ -65,7 +62,7 @@ export const pt = {
   },
   emIngles: {
     titulo: 'Em inglês',
-    resumo: 'Traduz-se sozinho ao guardar. Abre para ver ou mudar.',
+    resumo: 'Traduz-se sozinho ao guardar.',
     ajuda:
       'Ao guardar, o que estiver vazio traduz-se. Se mudares o português, o inglês volta a traduzir-se, a não ser que também o mudes.',
     traduzir: 'Traduzir do português',
@@ -162,12 +159,9 @@ export const en: typeof pt = {
     metricas: 'Metrics',
     clientes: 'Clients',
     equipa: 'Team',
-    fidelidade: 'Loyalty',
     parceiros: 'Partners',
     promocoes: 'Perks',
-    categorias: 'Categories',
     barbearia: 'Barbershop',
-    acessos: 'Access',
     historico: 'History',
   },
   seccoesRotulo: 'Sections',
@@ -218,7 +212,7 @@ export const en: typeof pt = {
   },
   emIngles: {
     titulo: 'In English',
-    resumo: 'Translated automatically when you save. Open to see or change it.',
+    resumo: 'Translated automatically when you save.',
     ajuda:
       'When you save, empty fields are translated. If you change the Portuguese, the English is translated again, unless you edit it too.',
     traduzir: 'Translate from Portuguese',

@@ -1,9 +1,7 @@
 /** As frases desta página: o português é a fonte; o inglês (britânico) tem as mesmas chaves. */
 export const pt = {
-  subtitulo: 'O cartão de carimbos e a recompensa.',
   camposPorCorrigir: 'Há campos por corrigir.',
-  guardado: 'Guardado',
-  programa: 'Programa',
+  carimbos: (n: number) => `${n} carimbos`,
   objectivo: 'Carimbos para a recompensa',
   objectivoAjuda: 'Os cartões já começados completam-se com o número com que começaram.',
   recompensa: 'Recompensa',
@@ -17,15 +15,11 @@ export const pt = {
   aniversarioExemplo: 'ex.: Barba grátis',
   aniversarioExemploEn: 'ex.: Free beard trim',
   aniversarioAjuda: 'Vazio: sem prenda de anos.',
-  guardar: 'Guardar',
-  porGuardar: 'Alterações por guardar',
 };
 
 export const en: typeof pt = {
-  subtitulo: 'The stamp card and the reward.',
   camposPorCorrigir: 'Some fields need fixing.',
-  guardado: 'Saved',
-  programa: 'Programme',
+  carimbos: (n) => `${n} stamps`,
   objectivo: 'Stamps needed for the reward',
   objectivoAjuda: 'Cards already started keep the number they started with.',
   recompensa: 'Reward',
@@ -38,6 +32,4 @@ export const en: typeof pt = {
   aniversarioExemplo: 'e.g. Barba grátis',
   aniversarioExemploEn: 'e.g. Free beard trim',
   aniversarioAjuda: 'Leave blank for no birthday gift.',
-  guardar: 'Save',
-  porGuardar: 'Unsaved changes',
 };

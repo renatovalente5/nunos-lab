@@ -1,10 +1,13 @@
 /** As frases desta página: o português é a fonte; o inglês (britânico) tem as mesmas chaves. */
 export const pt = {
-  subtitulo: 'O separador «Barbearia» da app: as lojas, as marcações e as redes.',
+  subtitulo: 'O aviso, o cartão, as lojas e as redes que a app mostra.',
   lojaSemNome: 'Cada loja precisa de um nome.',
   coordenadasErradas: 'Coordenadas: latitude e longitude, como «40.884, -8.452».',
   guardado: 'Guardado',
   aviso: 'Aviso no topo da app',
+  semAviso: 'Sem aviso',
+  ateCurto: (dia: string) => `até ${dia}`,
+  cartao: 'Cartão de fidelidade',
   texto: 'Texto',
   /** Um exemplo do aviso em português (o campo é o português). */
   avisoExemplo: 'ex.: Novos parceiros esta semana',
@@ -14,6 +17,8 @@ export const pt = {
   ateVazio: 'Vazio: fica até o tirares.',
   lojas: 'Lojas',
   lojaNova: 'Loja nova',
+  semMorada: 'Sem morada',
+  tirarEstaLoja: 'Tirar esta loja',
   tirarPergunta: (nome: string) => `Tirar ${nome || 'a loja'}?`,
   tirarTexto:
     'Só sai uma casa que nunca teve carimbos, clientes, equipa nem parceiros. Não se desfaz.',
@@ -23,13 +28,13 @@ export const pt = {
   telefoneErrado: 'Um telefone com 9 a 15 algarismos (ex.: 912 345 678).',
   morada: 'Morada',
   coordenadas: 'Coordenadas',
-  coordenadasAjuda:
-    'Latitude e longitude: para o mapa da app e para o passe da Wallet aparecer no ecrã bloqueado perto da casa.',
+  coordenadasAjuda: 'Para o mapa da app e para a Wallet aparecer perto da loja.',
   marcacao: 'Ligação de marcação',
   marcacaoErrada: 'Uma ligação https://… (a página da Fresha desta loja).',
-  marcacaoAjuda: 'A página da Fresha de cada loja. O botão «Marcar» abre-a.',
+  marcacaoAjuda: 'A página da Fresha da loja: o botão «Marcar» abre-a.',
   juntarLoja: 'Juntar loja',
   redes: 'Redes e contactos',
+  porPreencher: 'Por preencher',
   instagramErrado: 'Põe só a conta (ex.: @nunoslab), não a ligação de uma publicação.',
   conta: '@conta',
   tiktokErrado: 'Uma ligação https://www.tiktok.com/@…',
@@ -42,11 +47,14 @@ export const pt = {
 };
 
 export const en: typeof pt = {
-  subtitulo: "The app's “Barbershop” tab: the shops, bookings and social media.",
+  subtitulo: 'The notice, card, shops and social links the app shows.',
   lojaSemNome: 'Each shop needs a name.',
   coordenadasErradas: 'Coordinates: latitude and longitude, like “40.884, -8.452”.',
   guardado: 'Saved',
   aviso: 'Notice at the top of the app',
+  semAviso: 'No notice',
+  ateCurto: (dia) => `until ${dia}`,
+  cartao: 'Loyalty card',
   texto: 'Text',
   avisoExemplo: 'e.g. Novos parceiros esta semana',
   avisoExemploEn: 'e.g. New partners this week',
@@ -55,6 +63,8 @@ export const en: typeof pt = {
   ateVazio: 'Leave blank to show it until you remove it.',
   lojas: 'Shops',
   lojaNova: 'New shop',
+  semMorada: 'No address',
+  tirarEstaLoja: 'Remove this shop',
   tirarPergunta: (nome) => `Remove ${nome || 'the shop'}?`,
   tirarTexto:
     "You can only remove a shop that has never had stamps, clients, team members or partners. This can't be undone.",
@@ -64,13 +74,13 @@ export const en: typeof pt = {
   telefoneErrado: 'A phone number with 9 to 15 digits (e.g. 912 345 678).',
   morada: 'Address',
   coordenadas: 'Coordinates',
-  coordenadasAjuda:
-    "Latitude and longitude, for the app's map and to show the Wallet pass on the Lock Screen near the shop.",
+  coordenadasAjuda: "For the app's map and to show the Wallet pass near the shop.",
   marcacao: 'Booking link',
   marcacaoErrada: "An https://… link (this shop's Fresha page).",
-  marcacaoAjuda: "Each shop's Fresha page. The “Book” button opens it.",
+  marcacaoAjuda: "The shop's Fresha page, opened by the “Book” button.",
   juntarLoja: 'Add shop',
   redes: 'Social media and contacts',
+  porPreencher: 'Not filled in',
   instagramErrado: 'Just the username (e.g. @nunoslab), not a link to a post.',
   conta: '@username',
   tiktokErrado: 'An https://www.tiktok.com/@… link.',

@@ -16,6 +16,7 @@ import {
 } from '../pecas';
 import { useLingua } from '../lingua';
 import { useTextos } from '../textos';
+import { GavetaDasCategorias } from './Categorias';
 
 type Filtro = 'todos' | 'app' | 'sem' | 'pausados' | 'exemplos';
 
@@ -208,6 +209,9 @@ export function Parceiros() {
           </ul>
         </div>
       )}
+      <div className="gavetas depois-da-lista">
+        <GavetaDasCategorias />
+      </div>
       {dialogo}
     </>
   );

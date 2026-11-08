@@ -2,7 +2,7 @@ import { plural } from '../util';
 
 /** As frases desta página: o português é a fonte; o inglês (britânico) tem as mesmas chaves. */
 export const pt = {
-  subtitulo: 'Os filtros por cima dos parceiros, na app, por esta ordem.',
+  titulo: 'Categorias',
   nova: 'Nova categoria',
   vazio: 'Ainda sem categorias',
   editarDe: (nome: string) => `Editar ${nome}`,
@@ -21,7 +21,7 @@ export const pt = {
 };
 
 export const en: typeof pt = {
-  subtitulo: 'The filters above the partners in the app, in this order.',
+  titulo: 'Categories',
   nova: 'New category',
   vazio: 'No categories yet',
   editarDe: (nome) => `Edit ${nome}`,

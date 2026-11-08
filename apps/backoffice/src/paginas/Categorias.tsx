@@ -9,6 +9,7 @@ import {
   EscolhaDoDesenho,
   Esqueleto,
   Folha,
+  Gaveta,
   GrupoEmIngles,
   Icone,
   useAccao,
@@ -17,9 +18,12 @@ import {
   Vazio,
 } from '../pecas';
 import { useTextos } from '../textos';
+import { useRota } from '../util';
 
-export function Categorias() {
+/** As categorias dos parceiros: eram uma página e passaram a gaveta dos Parceiros (8 nov). */
+export function GavetaDasCategorias() {
   const t = useTextos();
+  const rota = useRota();
   const { data } = useQuery({
     queryKey: ['categorias'],
     queryFn: () => pedir<CategoriaComContagem[]>('/api/bo/categorias'),
@@ -52,35 +56,18 @@ export function Categorias() {
 
   return (
     <>
-      <div className="cabecalho">
-        <div>
-          <h1>{t.geral.seccoes.categorias}</h1>
-          <p className="subtitulo">{t.categorias.subtitulo}</p>
-        </div>
-        <button
-          type="button"
-          className="botao"
-          onClick={() =>
-            setEditar({
-              id: null,
-              nome: '',
-              nomeEn: '',
-              icone: 'outro',
-              parceiros: 0,
-            })
-          }
-        >
-          <Icone nome="mais" tamanho={18} /> {t.categorias.nova}
-        </button>
-      </div>
-      {!data ? (
-        <Esqueleto />
-      ) : !data.length ? (
-        <div className="cartao">
+      <Gaveta
+        id="parceiros.categorias"
+        titulo={t.categorias.titulo}
+        resumo={data?.map((k) => k.nome).join(' · ')}
+        abertaDeInicio={rota[0] === 'categorias'}
+        lista
+      >
+        {!data ? (
+          <Esqueleto />
+        ) : !data.length ? (
           <Vazio titulo={t.categorias.vazio} />
-        </div>
-      ) : (
-        <div className="cartao">
+        ) : (
           <ListaArrastavel
             itens={data}
             chave={(k) => k.id}
@@ -117,8 +104,25 @@ export function Categorias() {
               </>
             )}
           />
+        )}
+        <div className="pe-gaveta">
+          <button
+            type="button"
+            className="botao secundario"
+            onClick={() =>
+              setEditar({
+                id: null,
+                nome: '',
+                nomeEn: '',
+                icone: 'outro',
+                parceiros: 0,
+              })
+            }
+          >
+            <Icone nome="mais" tamanho={18} /> {t.categorias.nova}
+          </button>
         </div>
-      )}
+      </Gaveta>
 
       <Folha
         aberta={!!editar}

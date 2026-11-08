@@ -10,7 +10,7 @@ import { useState, type ReactNode } from 'react';
 import { pedir } from '../api';
 import { Grafico } from '../grafico';
 import { useLingua } from '../lingua';
-import { Esqueleto, Numero, Segmentado, Vazio } from '../pecas';
+import { Esqueleto, Gaveta, Numero, Segmentado, Vazio } from '../pecas';
 import { useTextos } from '../textos';
 import { euros, haQuanto, mesPorExtenso, numero, percentagem, plural } from '../util';
 
@@ -93,6 +93,10 @@ export function Metricas() {
   const temPorCasa = m ? m.parcerias.porCasa.some((c) => c.n > 0) : false;
   // Só os parceiros com validações agora ou no período anterior; os outros vão na lista «sem validações».
   const porParceiro = m ? m.parcerias.porParceiro.filter((p) => p.n > 0 || p.anterior > 0) : [];
+  // A hora com mais carimbos, para o resumo do mapa de calor fechado.
+  const pico = (m?.mapaDeCalor ?? [])
+    .flatMap((horas, d) => horas.map((n, h) => ({ n, d, h })))
+    .reduce((a, b) => (b.n > a.n ? b : a), { n: 0, d: 0, h: 0 });
 
   return (
     <>
@@ -194,19 +198,35 @@ export function Metricas() {
             </div>
           </div>
 
-          <h2 className="seccao">{t.metricas.movimento}</h2>
-          <div className="cartao recheado">
-            {m.totais.carimbos > 0 ? (
-              <Grafico dados={m.porDia} hoje={hoje} nome={t.metricas.carimbos} rotulos="semanal" />
-            ) : (
-              <Vazio titulo={t.metricas.semCarimbos} />
-            )}
-          </div>
+          <div className="gavetas" style={{ marginTop: 28 }}>
+            <Gaveta
+              id="metricas.movimento"
+              titulo={t.metricas.movimento}
+              resumo={plural(
+                m.totais.carimbos,
+                t.metricas.palavras.carimbo,
+                t.metricas.palavras.carimbos,
+              )}
+            >
+              {m.totais.carimbos > 0 ? (
+                <Grafico
+                  dados={m.porDia}
+                  hoje={hoje}
+                  nome={t.metricas.carimbos}
+                  rotulos="semanal"
+                />
+              ) : (
+                <Vazio titulo={t.metricas.semCarimbos} />
+              )}
+            </Gaveta>
 
-          {m.porLoja.length > 0 && (
-            <>
-              <h2 className="seccao">{t.metricas.porCasa}</h2>
-              <div className="cartao">
+            {m.porLoja.length > 0 && (
+              <Gaveta
+                id="metricas.porCasa"
+                titulo={t.metricas.porCasa}
+                resumo={m.porLoja.map((l) => `${l.nome} ${numero(l.n)}`).join(' · ')}
+                lista
+              >
                 {m.porLoja.length ? (
                   <Barras
                     linhas={m.porLoja.map((l) => ({
@@ -226,14 +246,22 @@ export function Metricas() {
                     }))}
                   />
                 ) : null}
-              </div>
-            </>
-          )}
+              </Gaveta>
+            )}
 
-          {totalDoMapa > 0 && (
-            <>
-              <h2 className="seccao">{t.metricas.mapaDeCalor}</h2>
-              <div className="cartao recheado">
+            {totalDoMapa > 0 && (
+              <Gaveta
+                id="metricas.mapaDeCalor"
+                titulo={t.metricas.mapaDeCalor}
+                resumo={
+                  pico.n > 0
+                    ? t.metricas.pico(
+                        t.metricas.diasDaSemana[pico.d] ?? '',
+                        t.metricas.hora(pico.h),
+                      )
+                    : undefined
+                }
+              >
                 {totalDoMapa > 0 ? (
                   <div className="calor" role="img" aria-label={t.metricas.mapaDeCalorRotulo}>
                     <div />
@@ -261,14 +289,20 @@ export function Metricas() {
                     ))}
                   </div>
                 ) : null}
-              </div>
-            </>
-          )}
+              </Gaveta>
+            )}
 
-          {m.porPessoa.length > 0 && (
-            <>
-              <h2 className="seccao">{t.geral.seccoes.equipa}</h2>
-              <div className="cartao">
+            {m.porPessoa.length > 0 && (
+              <Gaveta
+                id="metricas.equipa"
+                titulo={t.geral.seccoes.equipa}
+                resumo={m.porPessoa
+                  .filter((p) => p.n > 0)
+                  .slice(0, 3)
+                  .map((p) => `${p.nome} ${numero(p.n)}`)
+                  .join(' · ')}
+                lista
+              >
                 {m.porPessoa.length ? (
                   <div className="rola">
                     <table className="quadro">
@@ -309,251 +343,287 @@ export function Metricas() {
                     </table>
                   </div>
                 ) : null}
-              </div>
-            </>
-          )}
-
-          <h2 className="seccao">{t.metricas.parcerias}</h2>
-          <div className="grelha tres">
-            <Numero
-              rotulo={t.metricas.validacoes}
-              valor={m.parcerias.validacoes}
-              nota={
-                <Variacao
-                  actual={m.parcerias.validacoes}
-                  anterior={m.parcerias.validacoesAnterior}
-                />
-              }
-            />
-            <Numero
-              rotulo={t.metricas.clientesUnicos}
-              valor={m.parcerias.clientesUnicos}
-              nota={t.metricas.noPeriodo}
-            />
-            <Numero
-              rotulo={t.metricas.comParcerias}
-              valor={
-                m.clientes.total > 0
-                  ? percentagem(m.parcerias.clientesComParcerias / m.clientes.total)
-                  : '—'
-              }
-              nota={t.metricas.comParceriasNota(
-                numero(m.parcerias.clientesComParcerias),
-                plural(m.clientes.total, t.metricas.palavras.cliente, t.metricas.palavras.clientes),
-              )}
-            />
-            {m.parcerias.cupoesSaidos > 0 && (
-              <>
-                <Numero
-                  rotulo={t.metricas.cupoesSaidos}
-                  valor={m.parcerias.cupoesSaidos}
-                  nota={t.metricas.noPeriodo}
-                />
-                <Numero
-                  rotulo={t.metricas.cupoesUsados}
-                  valor={m.parcerias.cupoesUsados}
-                  nota={t.metricas.noPeriodo}
-                />
-              </>
+              </Gaveta>
             )}
-          </div>
-          {(porParceiro.length > 0 || temPorCasa) && (
-            <div className="grelha duas" style={{ marginTop: 14, alignItems: 'start' }}>
-              {porParceiro.length > 0 && (
-                <div className="cartao">
-                  <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>
-                    {t.metricas.porParceiro}
-                  </div>
-                  {porParceiro.length ? (
-                    <Barras
-                      linhas={porParceiro.map((p) => ({
-                        chave: p.id,
-                        nome: p.nome,
-                        n: p.n,
-                        detalhe: (
-                          <>
-                            {plural(
-                              p.clientes,
-                              t.metricas.palavras.cliente,
-                              t.metricas.palavras.clientes,
-                            )}{' '}
-                            · <Variacao actual={p.n} anterior={p.anterior} curta />
-                          </>
-                        ),
-                      }))}
+
+            <Gaveta
+              id="metricas.parcerias"
+              titulo={t.metricas.parcerias}
+              resumo={[
+                plural(
+                  m.parcerias.validacoes,
+                  t.metricas.palavras.validacao,
+                  t.metricas.palavras.validacoes,
+                ),
+                plural(
+                  m.parcerias.clientesUnicos,
+                  t.metricas.palavras.cliente,
+                  t.metricas.palavras.clientes,
+                ),
+              ].join(' · ')}
+            >
+              <div className="grelha tres">
+                <Numero
+                  rotulo={t.metricas.validacoes}
+                  valor={m.parcerias.validacoes}
+                  nota={
+                    <Variacao
+                      actual={m.parcerias.validacoes}
+                      anterior={m.parcerias.validacoesAnterior}
                     />
-                  ) : null}
-                  {m.parcerias.semValidacoes.length > 0 && (
-                    <p
-                      className="detalhe"
-                      style={{
-                        margin: 0,
-                        padding: '4px 20px 18px',
-                        color: 'var(--tinta-3)',
-                        fontSize: 13.5,
-                      }}
-                    >
-                      {t.metricas.semValidacoes(
-                        m.parcerias.semValidacoes.map((p) => p.nome).join(', '),
+                  }
+                />
+                <Numero
+                  rotulo={t.metricas.clientesUnicos}
+                  valor={m.parcerias.clientesUnicos}
+                  nota={t.metricas.noPeriodo}
+                />
+                <Numero
+                  rotulo={t.metricas.comParcerias}
+                  valor={
+                    m.clientes.total > 0
+                      ? percentagem(m.parcerias.clientesComParcerias / m.clientes.total)
+                      : '—'
+                  }
+                  nota={t.metricas.comParceriasNota(
+                    numero(m.parcerias.clientesComParcerias),
+                    plural(
+                      m.clientes.total,
+                      t.metricas.palavras.cliente,
+                      t.metricas.palavras.clientes,
+                    ),
+                  )}
+                />
+                {m.parcerias.cupoesSaidos > 0 && (
+                  <>
+                    <Numero
+                      rotulo={t.metricas.cupoesSaidos}
+                      valor={m.parcerias.cupoesSaidos}
+                      nota={t.metricas.noPeriodo}
+                    />
+                    <Numero
+                      rotulo={t.metricas.cupoesUsados}
+                      valor={m.parcerias.cupoesUsados}
+                      nota={t.metricas.noPeriodo}
+                    />
+                  </>
+                )}
+              </div>
+              {(porParceiro.length > 0 || temPorCasa) && (
+                <div className="grelha duas" style={{ marginTop: 14, alignItems: 'start' }}>
+                  {porParceiro.length > 0 && (
+                    <div className="cartao">
+                      <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>
+                        {t.metricas.porParceiro}
+                      </div>
+                      {porParceiro.length ? (
+                        <Barras
+                          linhas={porParceiro.map((p) => ({
+                            chave: p.id,
+                            nome: p.nome,
+                            n: p.n,
+                            detalhe: (
+                              <>
+                                {plural(
+                                  p.clientes,
+                                  t.metricas.palavras.cliente,
+                                  t.metricas.palavras.clientes,
+                                )}{' '}
+                                · <Variacao actual={p.n} anterior={p.anterior} curta />
+                              </>
+                            ),
+                          }))}
+                        />
+                      ) : null}
+                      {m.parcerias.semValidacoes.length > 0 && (
+                        <p
+                          className="detalhe"
+                          style={{
+                            margin: 0,
+                            padding: '4px 20px 18px',
+                            color: 'var(--tinta-3)',
+                            fontSize: 13.5,
+                          }}
+                        >
+                          {t.metricas.semValidacoes(
+                            m.parcerias.semValidacoes.map((p) => p.nome).join(', '),
+                          )}
+                        </p>
                       )}
-                    </p>
+                    </div>
+                  )}
+                  {temPorCasa && (
+                    <div className="cartao">
+                      <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>
+                        {t.metricas.pelaCasaDoCliente}
+                      </div>
+                      {m.parcerias.porCasa.some((c) => c.n > 0) ? (
+                        <Barras
+                          linhas={m.parcerias.porCasa.map((c) => ({
+                            chave: c.id,
+                            nome: c.nome,
+                            n: c.n,
+                          }))}
+                        />
+                      ) : null}
+                    </div>
                   )}
                 </div>
               )}
-              {temPorCasa && (
-                <div className="cartao">
+              {m.parcerias.porPromocao.length > 0 && (
+                <div className="cartao" style={{ marginTop: 14 }}>
                   <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>
-                    {t.metricas.pelaCasaDoCliente}
+                    {t.metricas.porVantagem}
                   </div>
-                  {m.parcerias.porCasa.some((c) => c.n > 0) ? (
-                    <Barras
-                      linhas={m.parcerias.porCasa.map((c) => ({
-                        chave: c.id,
-                        nome: c.nome,
-                        n: c.n,
-                      }))}
-                    />
+                  {m.parcerias.porPromocao.length ? (
+                    <div className="rola">
+                      <table className="quadro">
+                        <thead>
+                          <tr>
+                            <th scope="col">{t.metricas.parceiro}</th>
+                            <th scope="col">{t.metricas.vantagem}</th>
+                            <th scope="col" className="num">
+                              {t.metricas.colunaNoPeriodo}
+                            </th>
+                            <th scope="col" className="num">
+                              {t.metricas.total}
+                            </th>
+                            <th scope="col" className="num">
+                              {t.metricas.limite}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {m.parcerias.porPromocao.map((p) => (
+                            <tr key={p.id}>
+                              <td className="forte">{p.parceiro}</td>
+                              <td>
+                                <span className="forte">{p.destaque}</span> {p.titulo}
+                              </td>
+                              <td className="num forte">{numero(p.n)}</td>
+                              <td className="num">{numero(p.total)}</td>
+                              <td className="num">
+                                {p.limiteTotal === null
+                                  ? '—'
+                                  : t.metricas.deTotal(numero(p.total), numero(p.limiteTotal))}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   ) : null}
                 </div>
               )}
-            </div>
-          )}
-          {m.parcerias.porPromocao.length > 0 && (
-            <div className="cartao" style={{ marginTop: 14 }}>
-              <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>
-                {t.metricas.porVantagem}
+            </Gaveta>
+            <Gaveta
+              id="metricas.clientes"
+              titulo={t.geral.seccoes.clientes}
+              resumo={[
+                plural(m.clientes.total, t.metricas.palavras.cliente, t.metricas.palavras.clientes),
+                t.metricas.activosEm30(numero(m.clientes.activos30)),
+              ].join(' · ')}
+            >
+              <div className="grelha quatro">
+                <Numero
+                  rotulo={t.geral.seccoes.clientes}
+                  valor={m.clientes.total}
+                  nota={t.metricas.emVariasCasas(numero(m.clientes.variasCasas))}
+                />
+                <Numero
+                  rotulo={t.metricas.activos(t.metricas.dias(30))}
+                  valor={m.clientes.activos30}
+                />
+                <Numero
+                  rotulo={t.metricas.activos(t.metricas.dias(90))}
+                  valor={m.clientes.activos90}
+                />
+                <Numero
+                  rotulo={t.metricas.activos(t.metricas.dias(365))}
+                  valor={m.clientes.activos365}
+                />
+                <Numero
+                  rotulo={t.metricas.frequencia}
+                  valor={m.clientes.frequencia === null ? '—' : m.clientes.frequencia}
+                  nota={
+                    m.clientes.frequencia === null
+                      ? t.metricas.aindaSemDados
+                      : t.metricas.diasEntreVisitas
+                  }
+                />
+                <Numero
+                  rotulo={t.metricas.retorno}
+                  valor={m.clientes.retorno === null ? '—' : percentagem(m.clientes.retorno)}
+                  nota={
+                    m.clientes.retorno === null
+                      ? t.metricas.aindaSemDados
+                      : t.metricas.voltamEm60Dias
+                  }
+                />
+                <Numero rotulo={t.metricas.emRisco} valor={m.clientes.emRisco} />
+                <Numero
+                  rotulo={t.metricas.perdidos}
+                  valor={m.clientes.perdidos}
+                  nota={t.metricas.semVirHa180Dias}
+                />
               </div>
-              {m.parcerias.porPromocao.length ? (
-                <div className="rola">
-                  <table className="quadro">
-                    <thead>
-                      <tr>
-                        <th scope="col">{t.metricas.parceiro}</th>
-                        <th scope="col">{t.metricas.vantagem}</th>
-                        <th scope="col" className="num">
-                          {t.metricas.colunaNoPeriodo}
-                        </th>
-                        <th scope="col" className="num">
-                          {t.metricas.total}
-                        </th>
-                        <th scope="col" className="num">
-                          {t.metricas.limite}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {m.parcerias.porPromocao.map((p) => (
-                        <tr key={p.id}>
-                          <td className="forte">{p.parceiro}</td>
-                          <td>
-                            <span className="forte">{p.destaque}</span> {p.titulo}
-                          </td>
-                          <td className="num forte">{numero(p.n)}</td>
-                          <td className="num">{numero(p.total)}</td>
-                          <td className="num">
-                            {p.limiteTotal === null
-                              ? '—'
-                              : t.metricas.deTotal(numero(p.total), numero(p.limiteTotal))}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : null}
-            </div>
-          )}
-
-          <h2 className="seccao">{t.geral.seccoes.clientes}</h2>
-          <div className="grelha quatro">
-            <Numero
-              rotulo={t.geral.seccoes.clientes}
-              valor={m.clientes.total}
-              nota={t.metricas.emVariasCasas(numero(m.clientes.variasCasas))}
-            />
-            <Numero rotulo={t.metricas.activos(t.metricas.dias(30))} valor={m.clientes.activos30} />
-            <Numero rotulo={t.metricas.activos(t.metricas.dias(90))} valor={m.clientes.activos90} />
-            <Numero
-              rotulo={t.metricas.activos(t.metricas.dias(365))}
-              valor={m.clientes.activos365}
-            />
-            <Numero
-              rotulo={t.metricas.frequencia}
-              valor={m.clientes.frequencia === null ? '—' : m.clientes.frequencia}
-              nota={
-                m.clientes.frequencia === null
-                  ? t.metricas.aindaSemDados
-                  : t.metricas.diasEntreVisitas
-              }
-            />
-            <Numero
-              rotulo={t.metricas.retorno}
-              valor={m.clientes.retorno === null ? '—' : percentagem(m.clientes.retorno)}
-              nota={
-                m.clientes.retorno === null ? t.metricas.aindaSemDados : t.metricas.voltamEm60Dias
-              }
-            />
-            <Numero rotulo={t.metricas.emRisco} valor={m.clientes.emRisco} />
-            <Numero
-              rotulo={t.metricas.perdidos}
-              valor={m.clientes.perdidos}
-              nota={t.metricas.semVirHa180Dias}
-            />
-          </div>
-          {m.clientes.total > 0 && (
-            <div className="grelha duas" style={{ marginTop: 14, alignItems: 'start' }}>
-              <div className="cartao">
-                <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>
-                  {t.metricas.distribuicao}
-                </div>
-                {m.clientes.total > 0 ? (
-                  <Barras
-                    linhas={m.clientes.distribuicao.map((d) => ({
-                      chave: d.faixa,
-                      nome: t.metricas.cortesNaFaixa(d.faixa),
-                      n: d.n,
-                    }))}
-                  />
-                ) : null}
-              </div>
-              {m.clientes.top.length > 0 && (
-                <div className="cartao">
-                  <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>
-                    {t.metricas.top10}
+              {m.clientes.total > 0 && (
+                <div className="grelha duas" style={{ marginTop: 14, alignItems: 'start' }}>
+                  <div className="cartao">
+                    <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>
+                      {t.metricas.distribuicao}
+                    </div>
+                    {m.clientes.total > 0 ? (
+                      <Barras
+                        linhas={m.clientes.distribuicao.map((d) => ({
+                          chave: d.faixa,
+                          nome: t.metricas.cortesNaFaixa(d.faixa),
+                          n: d.n,
+                        }))}
+                      />
+                    ) : null}
                   </div>
-                  {m.clientes.top.length ? (
-                    <ul className="lista">
-                      {m.clientes.top.map((k, i) => (
-                        <li key={k.id}>
-                          <a className="linha" href={`#/clientes/${k.id}`}>
-                            <span style={{ width: 22, color: 'var(--tinta-3)', fontWeight: 800 }}>
-                              {i + 1}
-                            </span>
-                            <div className="meio">
-                              <div className="titulo-linha">{k.nome}</div>
-                              <div className="detalhe">{t.metricas.ultimo(haQuanto(k.ultimo))}</div>
-                            </div>
-                            <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
-                              {plural(
-                                k.cortes,
-                                t.metricas.palavras.corte,
-                                t.metricas.palavras.cortes,
-                              )}
-                            </strong>
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
+                  {m.clientes.top.length > 0 && (
+                    <div className="cartao">
+                      <div style={{ padding: '18px 20px 6px', fontWeight: 800 }}>
+                        {t.metricas.top10}
+                      </div>
+                      {m.clientes.top.length ? (
+                        <ul className="lista">
+                          {m.clientes.top.map((k, i) => (
+                            <li key={k.id}>
+                              <a className="linha" href={`#/clientes/${k.id}`}>
+                                <span
+                                  style={{ width: 22, color: 'var(--tinta-3)', fontWeight: 800 }}
+                                >
+                                  {i + 1}
+                                </span>
+                                <div className="meio">
+                                  <div className="titulo-linha">{k.nome}</div>
+                                  <div className="detalhe">
+                                    {t.metricas.ultimo(haQuanto(k.ultimo))}
+                                  </div>
+                                </div>
+                                <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
+                                  {plural(
+                                    k.cortes,
+                                    t.metricas.palavras.corte,
+                                    t.metricas.palavras.cortes,
+                                  )}
+                                </strong>
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
+            </Gaveta>
 
-          {coortesComGente && (
-            <>
-              <h2 className="seccao">{t.metricas.coortes}</h2>
-              <div className="cartao">
+            {coortesComGente && (
+              <Gaveta id="metricas.coortes" titulo={t.metricas.coortes} lista>
                 {coortesComGente ? (
                   <div className="rola">
                     <table className="quadro coortes">
@@ -600,21 +670,26 @@ export function Metricas() {
                     </table>
                   </div>
                 ) : null}
-              </div>
-            </>
-          )}
+              </Gaveta>
+            )}
 
-          <h2 className="seccao">{t.metricas.contas}</h2>
-          <div className="grelha quatro">
-            <Numero rotulo="Apple" valor={m.contas.apple} pequeno />
-            <Numero rotulo="Google" valor={m.contas.google} pequeno />
-            <Numero rotulo={t.metricas.email} valor={m.contas.email} pequeno />
-            <Numero
-              rotulo={t.metricas.soBalcao}
-              valor={m.contas.soBalcao}
-              pequeno
-              nota={t.metricas.semApp}
-            />
+            <Gaveta
+              id="metricas.contas"
+              titulo={t.metricas.contas}
+              resumo={`Apple ${numero(m.contas.apple)} · Google ${numero(m.contas.google)} · ${t.metricas.email} ${numero(m.contas.email)}`}
+            >
+              <div className="grelha quatro">
+                <Numero rotulo="Apple" valor={m.contas.apple} pequeno />
+                <Numero rotulo="Google" valor={m.contas.google} pequeno />
+                <Numero rotulo={t.metricas.email} valor={m.contas.email} pequeno />
+                <Numero
+                  rotulo={t.metricas.soBalcao}
+                  valor={m.contas.soBalcao}
+                  pequeno
+                  nota={t.metricas.semApp}
+                />
+              </div>
+            </Gaveta>
           </div>
         </>
       )}

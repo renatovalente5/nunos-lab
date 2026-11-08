@@ -8,7 +8,7 @@ import {
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { pedir } from '../api';
 import { etiquetaDaLingua, useLingua } from '../lingua';
-import { Esqueleto, Vazio } from '../pecas';
+import { Esqueleto, Gaveta, Vazio } from '../pecas';
 import { useTextos, type Textos } from '../textos';
 import { accao, alvoDoRegisto, haQuanto } from '../util';
 
@@ -57,12 +57,19 @@ export function Historico() {
           <Vazio titulo={t.historico.vazio} />
         </div>
       ) : (
-        dias.map(({ dia, entradas: doDia }, i) => (
-          <section key={dia} aria-labelledby={`dia-${i}`}>
-            <h2 className="seccao" id={`dia-${i}`} style={i === 0 ? { marginTop: 0 } : undefined}>
-              {dia}
-            </h2>
-            <div className="cartao">
+        <div className="gavetas">
+          {dias.map(({ dia, entradas: doDia }, i) => (
+            // Cada dia numa gaveta: o mais recente aberto, os outros com quantas alterações e quem.
+            <Gaveta
+              key={dia}
+              titulo={dia}
+              resumo={[
+                t.historico.alteracoes(doDia.length),
+                [...new Set(doDia.map((e) => e.quem ?? t.historico.instalacao))].join(', '),
+              ].join(' · ')}
+              abertaDeInicio={i === 0}
+              lista
+            >
               <ul className="lista">
                 {doDia.map((e) => (
                   <li key={e.id}>
@@ -87,9 +94,9 @@ export function Historico() {
                   </li>
                 ))}
               </ul>
-            </div>
-          </section>
-        ))
+            </Gaveta>
+          ))}
+        </div>
       )}
       {q.hasNextPage && (
         <div style={{ marginTop: 14 }}>

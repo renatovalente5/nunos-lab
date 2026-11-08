@@ -33,6 +33,7 @@ export const pt = {
   /** De domingo (0) a sábado (6), curtos. */
   diasDaSemana: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
   hora: (h: number) => `${h}h`,
+  pico: (dia: string, hora: string) => `Mais movimento: ${dia}, ${hora}`,
   /** «Seg · 14h: 3 carimbos» (os carimbos já vêm com o plural()). */
   celula: (dia: string, hora: number, carimbos: string) => `${dia} · ${hora}h: ${carimbos}`,
   // A equipa.
@@ -61,6 +62,7 @@ export const pt = {
   emVariasCasas: (n: string) => `${n} em várias casas`,
   /** «Activos · 30 dias» (o período vem de dias()). */
   activos: (periodo: string) => `Activos · ${periodo}`,
+  activosEm30: (n: string) => `${n} activos em 30 dias`,
   frequencia: 'Frequência',
   aindaSemDados: 'ainda sem dados',
   diasEntreVisitas: 'dias entre visitas',
@@ -92,6 +94,8 @@ export const pt = {
     cortes: 'cortes',
     usada: 'usada',
     usadas: 'usadas',
+    validacao: 'validação',
+    validacoes: 'validações',
   },
 };
 
@@ -123,6 +127,7 @@ export const en: typeof pt = {
   mapaDeCalorRotulo: 'Stamps by day of the week and hour',
   diasDaSemana: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
   hora: (h) => String(h).padStart(2, '0'),
+  pico: (dia, hora) => `Busiest: ${dia} ${hora}:00`,
   celula: (dia, hora, carimbos) => `${dia} ${String(hora).padStart(2, '0')}:00 · ${carimbos}`,
   nome: 'Name',
   recompensas: 'Rewards',
@@ -145,6 +150,7 @@ export const en: typeof pt = {
   deTotal: (n, de) => `${n} of ${de}`,
   emVariasCasas: (n) => `${n} at more than one shop`,
   activos: (periodo) => `Active · ${periodo}`,
+  activosEm30: (n) => `${n} active in 30 days`,
   frequencia: 'Frequency',
   aindaSemDados: 'no data yet',
   diasEntreVisitas: 'days between visits',
@@ -172,5 +178,7 @@ export const en: typeof pt = {
     cortes: 'haircuts',
     usada: 'used',
     usadas: 'used',
+    validacao: 'validation',
+    validacoes: 'validations',
   },
 };

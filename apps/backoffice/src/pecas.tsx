@@ -485,31 +485,117 @@ export function GrupoEmIngles({
       setATraduzir(false);
     }
   };
+  const conteudo = (
+    <div className="formulario">
+      <div className="ajuda">{t.geral.emIngles.ajuda}</div>
+      {children}
+      <div className="linha-traduzir">
+        <button
+          type="button"
+          className="botao secundario"
+          disabled={aTraduzir || !comTexto.length}
+          onClick={() => void traduzir()}
+        >
+          {aTraduzir ? t.geral.emIngles.aTraduzir : t.geral.emIngles.traduzir}
+        </button>
+        {erro && (
+          <span className="ajuda erro" role="alert">
+            {erro}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+  // Uma secção da página: é uma gaveta como as outras (8 nov).
+  if (seccao)
+    return (
+      <Gaveta titulo={t.geral.emIngles.titulo} resumo={t.geral.emIngles.resumo}>
+        {conteudo}
+      </Gaveta>
+    );
   return (
-    <details className={seccao ? 'em-ingles seccao' : 'em-ingles'}>
+    <details className="em-ingles">
       <summary>
         <span className="rotulo-campo">{t.geral.emIngles.titulo}</span>
         <span className="ajuda">{t.geral.emIngles.resumo}</span>
       </summary>
-      <div className="formulario">
-        <div className="ajuda">{t.geral.emIngles.ajuda}</div>
-        {children}
-        <div className="linha-traduzir">
-          <button
-            type="button"
-            className="botao secundario"
-            disabled={aTraduzir || !comTexto.length}
-            onClick={() => void traduzir()}
-          >
-            {aTraduzir ? t.geral.emIngles.aTraduzir : t.geral.emIngles.traduzir}
-          </button>
-          {erro && (
-            <span className="ajuda erro" role="alert">
-              {erro}
-            </span>
-          )}
-        </div>
-      </div>
+      {conteudo}
+    </details>
+  );
+}
+
+// ——— gavetas: secções que abrem e fecham ———
+
+const CHAVE_DAS_GAVETAS = 'nunoslab:backoffice:gavetas';
+
+function gavetasAbertas(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(CHAVE_DAS_GAVETAS) ?? '[]') as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Uma secção que abre e fecha (o Renato, 8 nov: «mais dropdowns, para ver a página toda de uma
+ * vez»). Fechada, é uma linha com o título e um resumo; aberta, mostra o que tem dentro. Com `id`,
+ * fica como se deixou neste aparelho; com um erro lá dentro, abre-se sozinha.
+ */
+export function Gaveta({
+  id,
+  titulo,
+  resumo,
+  erro = false,
+  interior = false,
+  abertaDeInicio = false,
+  lista = false,
+  children,
+}: {
+  /** Para ficar aberta da próxima vez: «barbearia.lojas». */
+  id?: string;
+  titulo: ReactNode;
+  resumo?: ReactNode;
+  erro?: boolean;
+  /** Dentro de outra gaveta (as lojas, uma a uma): uma linha, sem cartão à volta. */
+  interior?: boolean;
+  /** Abre logo (uma loja acabada de juntar, ou quem chega por uma morada antiga como #/fidelidade). */
+  abertaDeInicio?: boolean;
+  /** O que tem dentro é uma lista: encosta às margens (como num cartão), com o botão no `.pe-gaveta`. */
+  lista?: boolean;
+  children: ReactNode;
+}) {
+  const [aberta, setAberta] = useState(
+    () => abertaDeInicio || (id ? gavetasAbertas().has(id) : false),
+  );
+  useEffect(() => {
+    if (erro) setAberta(true);
+  }, [erro]);
+  const mudar = (agora: boolean) => {
+    setAberta(agora);
+    if (!id) return;
+    const abertas = gavetasAbertas();
+    if (agora) abertas.add(id);
+    else abertas.delete(id);
+    try {
+      localStorage.setItem(CHAVE_DAS_GAVETAS, JSON.stringify([...abertas]));
+    } catch {
+      // Sem armazenamento (navegação privada): abre e fecha na mesma, só não se lembra.
+    }
+  };
+  const Titulo = interior ? 'h3' : 'h2';
+  return (
+    <details
+      className={interior ? 'gaveta interior' : 'gaveta'}
+      open={aberta}
+      onToggle={(e) => {
+        if (e.currentTarget.open !== aberta) mudar(e.currentTarget.open);
+      }}
+    >
+      <summary>
+        <Titulo>{titulo}</Titulo>
+        {resumo && <span className="resumo">{resumo}</span>}
+      </summary>
+      <div className={lista ? 'corpo-gaveta sem-margem' : 'corpo-gaveta'}>{children}</div>
     </details>
   );
 }

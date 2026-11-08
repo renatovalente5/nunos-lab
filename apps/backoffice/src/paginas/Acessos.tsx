@@ -14,13 +14,14 @@ import {
   Esqueleto,
   Etiqueta,
   Folha,
+  Gaveta,
   Icone,
   useAccao,
   useAvisar,
   useConfirmar,
 } from '../pecas';
 import { useTextos } from '../textos';
-import { haQuanto, nomeDoAparelho } from '../util';
+import { haQuanto, nomeDoAparelho, useRota } from '../util';
 
 /** A ligação monta-se com a morada deste backoffice, onde quer que ele esteja publicado. */
 function ligacaoDe(codigo: string): string {
@@ -29,10 +30,12 @@ function ligacaoDe(codigo: string): string {
 
 /**
  * Quem entra no backoffice. Cada pessoa entra com a conta Google do email que
- * aqui está; a ligação de acesso fica para quem não tiver conta Google.
+ * aqui está; a ligação de acesso fica para quem não tiver conta Google. Era uma
+ * página («Acessos») e passou a gaveta da Equipa (8 nov): as pessoas num sítio só.
  */
-export function Acessos() {
+export function GavetaDosAcessos() {
   const t = useTextos();
+  const rota = useRota();
   const lingua = useLingua();
   const { data } = useQuery({
     queryKey: ['acessos'],
@@ -107,29 +110,18 @@ export function Acessos() {
 
   return (
     <>
-      <div className="cabecalho">
-        <div>
-          <h1>{t.geral.seccoes.acessos}</h1>
-          <p className="subtitulo">{t.acessos.subtitulo}</p>
-        </div>
-        <button
-          type="button"
-          className="botao"
-          onClick={() => {
-            setErroDoEmail(false);
-            setNova({ nome: '', email: '' });
-          }}
-        >
-          <Icone nome="mais" tamanho={18} /> {t.acessos.darAcessoAAlguem}
-        </button>
-      </div>
-
-      {!data ? (
-        <Esqueleto />
-      ) : (
-        <div className="formulario">
-          {data.map((p) => (
-            <div key={p.id} className="cartao">
+      <Gaveta
+        id="equipa.backoffice"
+        titulo={t.acessos.titulo}
+        resumo={data?.map((p) => p.nome).join(' · ')}
+        abertaDeInicio={rota[0] === 'acessos'}
+        lista
+      >
+        {!data ? (
+          <Esqueleto />
+        ) : (
+          data.map((p) => (
+            <div key={p.id} className="pessoa-com-aparelhos">
               <div
                 style={{
                   display: 'flex',
@@ -240,9 +232,21 @@ export function Acessos() {
                 )}
               </ul>
             </div>
-          ))}
+          ))
+        )}
+        <div className="pe-gaveta">
+          <button
+            type="button"
+            className="botao secundario"
+            onClick={() => {
+              setErroDoEmail(false);
+              setNova({ nome: '', email: '' });
+            }}
+          >
+            <Icone nome="mais" tamanho={18} /> {t.acessos.darAcessoAAlguem}
+          </button>
         </div>
-      )}
+      </Gaveta>
 
       <Folha
         aberta={nova !== null}

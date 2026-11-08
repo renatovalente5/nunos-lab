@@ -37,6 +37,8 @@ export const pt = {
     semLeitura: 'Sem leitura',
     anular: 'Anular',
     vazio: 'Ainda sem carimbos',
+    resumo: (n: number, ultimo: string) =>
+      `${n} ${n === 1 ? 'carimbo' : 'carimbos'} · último ${ultimo}`,
   },
   apagar: {
     pergunta: (nome: string) =>
@@ -101,6 +103,7 @@ export const en: typeof pt = {
     semLeitura: 'Not scanned',
     anular: 'Undo',
     vazio: 'No stamps yet',
+    resumo: (n, ultimo) => `${n} ${n === 1 ? 'stamp' : 'stamps'} · last ${ultimo}`,
   },
   apagar: {
     pergunta: (nome) => (nome ? `Delete ${nome}'s account?` : "Delete this client's account?"),

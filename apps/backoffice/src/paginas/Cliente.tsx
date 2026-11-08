@@ -16,6 +16,7 @@ import {
   Esqueleto,
   Etiqueta,
   Folha,
+  Gaveta,
   Icone,
   Seletor,
   Vazio,
@@ -95,6 +96,11 @@ export function Cliente({ id }: { id: string }) {
         <Esqueleto linhas={6} />
       </>
     );
+  // O cartão de agora (o de número mais alto), para o resumo da gaveta fechada.
+  const cartaoActual = c.cartoes.reduce<(typeof c.cartoes)[number] | null>(
+    (a, k) => (!a || k.numero > a.numero ? k : a),
+    null,
+  );
   const casa = barbearia.data?.lojas.find((l) => l.id === c.lojaId)?.nome;
   const guardarFicha = (f: FichaDoCliente) => consultas.setQueryData(['cliente', id], f);
 
@@ -246,93 +252,114 @@ export function Cliente({ id }: { id: string }) {
         </dl>
       </div>
 
-      <h2 className="seccao">{t.cliente.cartoes.titulo}</h2>
-      <div className="cartao">
-        {c.cartoes.length ? (
-          <ul className="lista">
-            {c.cartoes.map((k) => {
-              const usado = k.usadoEm !== null;
-              const completo = k.completoEm !== null;
-              return (
-                <li key={k.id}>
+      <div className="gavetas" style={{ marginTop: 28 }}>
+        <Gaveta
+          id="cliente.cartoes"
+          titulo={t.cliente.cartoes.titulo}
+          resumo={
+            cartaoActual
+              ? `${t.cliente.cartoes.cartao(cartaoActual.numero)} · ${t.cliente.cartoes.carimbosDe(cartaoActual.carimbos, cartaoActual.objectivo)}`
+              : t.cliente.cartoes.vazio
+          }
+          lista
+        >
+          {c.cartoes.length ? (
+            <ul className="lista">
+              {c.cartoes.map((k) => {
+                const usado = k.usadoEm !== null;
+                const completo = k.completoEm !== null;
+                return (
+                  <li key={k.id}>
+                    <div className="linha">
+                      <div className="meio">
+                        <div className="titulo-linha">
+                          {t.cliente.cartoes.cartao(k.numero)}
+                          <span style={{ fontWeight: 600, color: 'var(--tinta-2)' }}>
+                            {' '}
+                            · {t.cliente.cartoes.carimbosDe(k.carimbos, k.objectivo)}
+                          </span>
+                        </div>
+                        <div className="detalhe">
+                          {recompensaNaLingua(k.recompensa, lingua)} ·{' '}
+                          {t.cliente.cartoes.desde(diaDe(k.iniciadoEm, hoje, lingua))}
+                          {completo &&
+                            ` · ${t.cliente.cartoes.completoA(diaDe(k.completoEm!, hoje, lingua))}`}
+                          {usado &&
+                            ` · ${t.cliente.cartoes.usadoA(diaDe(k.usadoEm!, hoje, lingua), k.usadoLoja, k.usadoPor)}`}
+                        </div>
+                      </div>
+                      {usado ? (
+                        <Etiqueta>{t.cliente.cartoes.usado}</Etiqueta>
+                      ) : completo ? (
+                        <Etiqueta tom="bom">{t.cliente.cartoes.porUsar}</Etiqueta>
+                      ) : (
+                        <Etiqueta semPonto>{t.cliente.cartoes.emCurso}</Etiqueta>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <Vazio titulo={t.cliente.cartoes.vazio} />
+          )}
+        </Gaveta>
+
+        <Gaveta
+          id="cliente.historico"
+          titulo={t.cliente.historico.titulo}
+          resumo={
+            c.historico.length
+              ? t.cliente.historico.resumo(
+                  c.historico.length,
+                  diaDe(Math.max(...c.historico.map((h) => h.quando)), hoje, lingua),
+                )
+              : t.cliente.historico.vazio
+          }
+          lista
+        >
+          {c.historico.length ? (
+            <ul className="lista">
+              {c.historico.map((h) => (
+                <li key={h.id}>
                   <div className="linha">
                     <div className="meio">
                       <div className="titulo-linha">
-                        {t.cliente.cartoes.cartao(k.numero)}
-                        <span style={{ fontWeight: 600, color: 'var(--tinta-2)' }}>
-                          {' '}
-                          · {t.cliente.cartoes.carimbosDe(k.carimbos, k.objectivo)}
-                        </span>
+                        {diaDe(h.quando, hoje, lingua)} · {horaDe(h.quando)}
                       </div>
                       <div className="detalhe">
-                        {recompensaNaLingua(k.recompensa, lingua)} ·{' '}
-                        {t.cliente.cartoes.desde(diaDe(k.iniciadoEm, hoje, lingua))}
-                        {completo &&
-                          ` · ${t.cliente.cartoes.completoA(diaDe(k.completoEm!, hoje, lingua))}`}
-                        {usado &&
-                          ` · ${t.cliente.cartoes.usadoA(diaDe(k.usadoEm!, hoje, lingua), k.usadoLoja, k.usadoPor)}`}
+                        {[h.loja, h.pessoa, t.cliente.cartoes.cartao(h.cartaoNumero)]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </div>
                     </div>
-                    {usado ? (
-                      <Etiqueta>{t.cliente.cartoes.usado}</Etiqueta>
-                    ) : completo ? (
-                      <Etiqueta tom="bom">{t.cliente.cartoes.porUsar}</Etiqueta>
-                    ) : (
-                      <Etiqueta semPonto>{t.cliente.cartoes.emCurso}</Etiqueta>
-                    )}
+                    <div className="lado">
+                      {h.anuladoEm !== null && (
+                        <Etiqueta tom="mau">{t.cliente.historico.anulado(h.anuladoPor)}</Etiqueta>
+                      )}
+                      {h.repetido && (
+                        <Etiqueta tom="atencao">{t.cliente.historico.repetido}</Etiqueta>
+                      )}
+                      {h.semLeitura && <Etiqueta>{t.cliente.historico.semLeitura}</Etiqueta>}
+                      {h.anuladoEm === null && !c.apagado && (
+                        <button
+                          type="button"
+                          className="botao secundario pequeno"
+                          disabled={aCorrer}
+                          onClick={() => anular(h)}
+                        >
+                          {t.cliente.historico.anular}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <Vazio titulo={t.cliente.cartoes.vazio} />
-        )}
-      </div>
-
-      <h2 className="seccao">{t.cliente.historico.titulo}</h2>
-      <div className="cartao">
-        {c.historico.length ? (
-          <ul className="lista">
-            {c.historico.map((h) => (
-              <li key={h.id}>
-                <div className="linha">
-                  <div className="meio">
-                    <div className="titulo-linha">
-                      {diaDe(h.quando, hoje, lingua)} · {horaDe(h.quando)}
-                    </div>
-                    <div className="detalhe">
-                      {[h.loja, h.pessoa, t.cliente.cartoes.cartao(h.cartaoNumero)]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </div>
-                  </div>
-                  <div className="lado">
-                    {h.anuladoEm !== null && (
-                      <Etiqueta tom="mau">{t.cliente.historico.anulado(h.anuladoPor)}</Etiqueta>
-                    )}
-                    {h.repetido && (
-                      <Etiqueta tom="atencao">{t.cliente.historico.repetido}</Etiqueta>
-                    )}
-                    {h.semLeitura && <Etiqueta>{t.cliente.historico.semLeitura}</Etiqueta>}
-                    {h.anuladoEm === null && !c.apagado && (
-                      <button
-                        type="button"
-                        className="botao secundario pequeno"
-                        disabled={aCorrer}
-                        onClick={() => anular(h)}
-                      >
-                        {t.cliente.historico.anular}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Vazio titulo={t.cliente.historico.vazio} />
-        )}
+              ))}
+            </ul>
+          ) : (
+            <Vazio titulo={t.cliente.historico.vazio} />
+          )}
+        </Gaveta>
       </div>
 
       <Folha

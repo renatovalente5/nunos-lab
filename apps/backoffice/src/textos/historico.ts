@@ -5,6 +5,7 @@ export const pt = {
   // Os dias que separam o histórico (os outros, «20 out», vêm do domínio).
   hoje: 'Hoje',
   ontem: 'Ontem',
+  alteracoes: (n: number) => `${n} ${n === 1 ? 'alteração' : 'alterações'}`,
   /** Quem fez o que ninguém fez: o sistema, ao instalar. */
   instalacao: 'Sistema',
   verMaisAntigos: 'Ver mais antigos',
@@ -15,6 +16,7 @@ export const en: typeof pt = {
   vazio: 'No history yet',
   hoje: 'Today',
   ontem: 'Yesterday',
+  alteracoes: (n) => `${n} ${n === 1 ? 'change' : 'changes'}`,
   instalacao: 'System',
   verMaisAntigos: 'Show older',
 };

@@ -1,6 +1,6 @@
 /** As frases desta página: o português é a fonte; o inglês (britânico) tem as mesmas chaves. */
 export const pt = {
-  subtitulo: 'Quem entra no backoffice, e em que aparelhos.',
+  titulo: 'Acesso ao backoffice',
   darAcessoAAlguem: 'Dar acesso a alguém',
   // A lista: cada pessoa, os seus aparelhos e as ligações por usar.
   tu: 'Tu',
@@ -51,7 +51,7 @@ export const pt = {
 };
 
 export const en: typeof pt = {
-  subtitulo: 'Who can sign in to the backoffice, and on which devices.',
+  titulo: 'Backoffice access',
   darAcessoAAlguem: 'Give someone access',
   tu: 'You',
   soPorLigacao: 'Signs in with a link',

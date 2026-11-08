@@ -3,13 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { ErroDaApi, guardarSessao, mensagemDe, pedir, sessao } from './api';
 import { BotaoDoGoogle, CLIENTE_GOOGLE, emailDoToken } from './google';
-import { Acessos } from './paginas/Acessos';
 import { Barbearia } from './paginas/Barbearia';
-import { Categorias } from './paginas/Categorias';
 import { Cliente } from './paginas/Cliente';
 import { Clientes } from './paginas/Clientes';
 import { Equipa } from './paginas/Equipa';
-import { Fidelidade } from './paginas/Fidelidade';
 import { Metricas } from './paginas/Metricas';
 import { Parceiro } from './paginas/Parceiro';
 import { Parceiros } from './paginas/Parceiros';
@@ -31,15 +28,23 @@ const SECCOES: {
   { caminho: '', nome: 'resumo', icone: 'resumo' },
   { caminho: 'metricas', nome: 'metricas', icone: 'metricas' },
   { caminho: 'clientes', nome: 'clientes', icone: 'clientes' },
-  { caminho: 'equipa', nome: 'equipa', icone: 'equipa' },
-  { caminho: 'fidelidade', nome: 'fidelidade', icone: 'fidelidade' },
   { caminho: 'parceiros', nome: 'parceiros', icone: 'parceiros' },
   { caminho: 'promocoes', nome: 'promocoes', icone: 'promocoes' },
-  { caminho: 'categorias', nome: 'categorias', icone: 'categorias' },
   { caminho: 'barbearia', nome: 'barbearia', icone: 'barbearia' },
-  { caminho: 'acessos', nome: 'acessos', icone: 'acessos' },
+  { caminho: 'equipa', nome: 'equipa', icone: 'equipa' },
   { caminho: 'historico', nome: 'historico', icone: 'registo' },
 ];
+
+/**
+ * Moradas antigas: «registo» era o nome do Histórico; Fidelidade, Acessos e Categorias passaram a
+ * gavetas de outras páginas (8 nov), que as abrem logo quando se chega por aqui.
+ */
+const MORADAS_ANTIGAS: Record<string, string> = {
+  registo: 'historico',
+  fidelidade: 'barbearia',
+  acessos: 'equipa',
+  categorias: 'parceiros',
+};
 
 /** A língua: um botão com a outra, dita na própria língua («English», «Português»). Um toque muda. */
 function BotaoDaLingua({ className }: { className: string }) {
@@ -163,7 +168,7 @@ function Casca() {
   const rota = useRota();
   const eu = useQuery({ queryKey: ['eu'], queryFn: () => pedir<Eu>('/api/bo/eu') });
   const principal = useRef<HTMLElement>(null);
-  const actual = rota[0] === 'registo' ? 'historico' : (rota[0] ?? '');
+  const actual = MORADAS_ANTIGAS[rota[0] ?? ''] ?? rota[0] ?? '';
   useEffect(() => {
     principal.current?.scrollTo?.(0, 0);
     window.scrollTo(0, 0);
@@ -189,15 +194,11 @@ function Casca() {
   else if (actual === 'clientes' && rota[1]) pagina = <Cliente key={rota[1]} id={rota[1]} />;
   else if (actual === 'clientes') pagina = <Clientes />;
   else if (actual === 'equipa') pagina = <Equipa />;
-  else if (actual === 'fidelidade') pagina = <Fidelidade />;
   else if (actual === 'parceiros' && rota[1]) pagina = <Parceiro key={rota[1]} id={rota[1]} />;
   else if (actual === 'parceiros') pagina = <Parceiros />;
   else if (actual === 'promocoes') pagina = <Promocoes />;
-  else if (actual === 'categorias') pagina = <Categorias />;
   else if (actual === 'barbearia') pagina = <Barbearia />;
-  else if (actual === 'acessos') pagina = <Acessos />;
-  // «registo» era o nome antigo: as moradas antigas continuam a abrir.
-  else if (actual === 'historico' || actual === 'registo') pagina = <Historico />;
+  else if (actual === 'historico') pagina = <Historico />;
   else pagina = <Resumo />;
 
   return (

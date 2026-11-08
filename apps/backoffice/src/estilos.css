@@ -1592,10 +1592,6 @@ details.em-ingles {
   background: var(--superficie);
   padding: 14px 18px;
 }
-details.em-ingles.seccao {
-  margin-top: 28px;
-  box-shadow: var(--sombra);
-}
 details.em-ingles > summary {
   list-style: none;
   cursor: pointer;
@@ -1608,7 +1604,7 @@ details.em-ingles > summary {
 details.em-ingles > summary::-webkit-details-marker {
   display: none;
 }
-/* A seta à direita: aponta para baixo quando abre. */
+/* A seta à direita, como a das gavetas: para baixo fechada, para cima aberta. */
 details.em-ingles > summary::after {
   content: '';
   position: absolute;
@@ -1616,15 +1612,15 @@ details.em-ingles > summary::after {
   top: 50%;
   width: 8px;
   height: 8px;
-  margin-top: -5px;
+  margin-top: -6px;
   border-right: 2px solid var(--tinta-2);
   border-bottom: 2px solid var(--tinta-2);
-  transform: rotate(-45deg);
+  transform: rotate(45deg);
   transition: transform 0.15s;
 }
 details.em-ingles[open] > summary::after {
-  margin-top: -7px;
-  transform: rotate(45deg);
+  margin-top: -2px;
+  transform: rotate(-135deg);
 }
 details.em-ingles > summary .rotulo-campo {
   font-weight: 700;
@@ -1654,4 +1650,171 @@ details.em-ingles > .formulario {
 }
 .linha-traduzir .erro {
   color: var(--mau);
+}
+
+/* ——— gavetas: secções que abrem e fecham (8 nov) ——— */
+details.gaveta {
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+}
+details.gaveta + details.gaveta,
+.gavetas > * + * {
+  margin-top: 12px;
+}
+details.gaveta > summary {
+  list-style: none;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  min-height: 56px;
+  padding: 16px 52px 16px 20px;
+  border-radius: var(--raio);
+}
+details.gaveta > summary::-webkit-details-marker {
+  display: none;
+}
+/* A seta à direita, como a do «Em inglês»: aponta para baixo quando abre. */
+details.gaveta > summary::after {
+  content: '';
+  position: absolute;
+  right: 22px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -6px;
+  border-right: 2px solid var(--tinta-2);
+  border-bottom: 2px solid var(--tinta-2);
+  transform: rotate(45deg);
+  transition: transform 0.15s;
+}
+details.gaveta[open] > summary::after {
+  margin-top: -2px;
+  transform: rotate(-135deg);
+}
+details.gaveta > summary:hover {
+  background: var(--superficie-2);
+}
+details.gaveta > summary:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: -2px;
+}
+details.gaveta > summary > h2,
+details.gaveta > summary > h3 {
+  margin: 0;
+  flex: none;
+  max-width: 60%;
+  font-size: 17px;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+  color: var(--tinta);
+}
+details.gaveta > summary > .resumo {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  color: var(--tinta-3);
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+details.gaveta[open] > summary {
+  border-bottom: 1px solid var(--linha);
+  border-radius: var(--raio) var(--raio) 0 0;
+}
+details.gaveta > .corpo-gaveta {
+  padding: 20px;
+}
+/* Uma gaveta dentro de outra (cada loja): uma linha da lista, sem cartão. */
+details.gaveta.interior {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+}
+details.gaveta.interior > summary {
+  min-height: 52px;
+  padding: 14px 44px 14px 4px;
+  border-radius: 10px;
+}
+details.gaveta.interior > summary::after {
+  right: 14px;
+}
+details.gaveta.interior > summary > h3 {
+  font-size: 15.5px;
+  font-weight: 700;
+}
+details.gaveta.interior[open] > summary {
+  border-bottom: 0;
+}
+details.gaveta.interior > .corpo-gaveta {
+  padding: 4px 4px 20px;
+}
+@media (max-width: 640px) {
+  details.gaveta > summary {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: 14px 44px 14px 16px;
+  }
+  details.gaveta > summary::after {
+    right: 18px;
+  }
+  details.gaveta > summary > h2,
+  details.gaveta > summary > h3 {
+    max-width: none;
+  }
+  details.gaveta > summary > .resumo {
+    text-align: left;
+  }
+  details.gaveta > .corpo-gaveta {
+    padding: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  details.gaveta > summary::after {
+    transition: none;
+  }
+}
+/* As lojas dentro da gaveta «Lojas»: uma por linha, com a pega à esquerda. */
+.linhas-de-gavetas > .arrastavel + .arrastavel {
+  border-top: 1px solid var(--linha);
+}
+.com-pega {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+}
+.com-pega > .pega {
+  margin-top: 4px;
+}
+.com-pega > details {
+  flex: 1;
+  min-width: 0;
+}
+details.gaveta > .corpo-gaveta.sem-margem {
+  padding: 0;
+}
+.pe-gaveta {
+  padding: 14px 18px;
+  border-top: 1px solid var(--linha);
+}
+.pessoa-com-aparelhos + .pessoa-com-aparelhos {
+  border-top: 1px solid var(--linha);
+}
+/* Dentro de uma gaveta, os cartões (as métricas, os números) ficam sem sombra: a gaveta já é o cartão. */
+.corpo-gaveta .cartao {
+  box-shadow: none;
+}
+.gavetas.depois-da-lista {
+  margin-top: 28px;
+}
+/* Aberta, o que está dentro diz o mesmo que o resumo: o resumo sai. */
+details.gaveta[open] > summary > .resumo {
+  visibility: hidden;
 }
