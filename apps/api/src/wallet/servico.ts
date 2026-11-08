@@ -3,7 +3,7 @@
  * marcar o passe como mudado (e avisar a Apple e a Google), e os segredos.
  */
 import type { Programa } from '@nunos-lab/dominio';
-import { codigoCurto, textoDoQr } from '@nunos-lab/dominio';
+import { codigoCurto, eLingua, recompensaNaLingua, textoDoQr } from '@nunos-lab/dominio';
 import type { C } from '../ambiente.ts';
 import { cartaoActual, lerPrograma } from '../programa.ts';
 import { agora, aleatorio, hex, sha256 } from '../util.ts';
@@ -94,10 +94,12 @@ export async function cartaoParaOPasse(
   programa?: Programa,
 ): Promise<(CartaoDoPasse & { lojasIds: number[] }) | null> {
   const cliente = await db
-    .prepare('SELECT id, codigo, nome FROM clientes WHERE id = ? AND apagado_em IS NULL')
+    .prepare('SELECT id, codigo, nome, lingua FROM clientes WHERE id = ? AND apagado_em IS NULL')
     .bind(clienteId)
-    .first<{ id: number; codigo: string; nome: string }>();
+    .first<{ id: number; codigo: string; nome: string; lingua: string | null }>();
   if (!cliente) return null;
+  // O passe sai na língua da conta (a da app); sem ela, em português.
+  const lingua = eLingua(cliente.lingua) ? cliente.lingua : 'pt';
   const p = programa ?? (await lerPrograma(db));
   const cartao = await cartaoActual(db, clienteId);
   const [passe, porUsar, cortes, ultima, lojas, defs] = await db.batch([
@@ -134,13 +136,17 @@ export async function cartaoParaOPasse(
     lat: number | null;
     lng: number | null;
   }[];
+  // Em inglês: o prémio escrito no backoffice, ou «Corte grátis» e «50% de desconto» traduzidos.
+  const recompensaPt = cartao?.recompensa ?? p.recompensa;
+  const recompensaEn = ((cartao ? cartao.recompensa_en : p.recompensaEn) ?? '').trim();
   return {
     serie,
     codigo: cliente.codigo,
     nome: cliente.nome,
     carimbos: cartao?.carimbos ?? 0,
     objectivo: cartao?.objectivo ?? p.objectivo,
-    recompensa: cartao?.recompensa ?? p.recompensa,
+    recompensa:
+      lingua === 'en' ? recompensaEn || recompensaNaLingua(recompensaPt, 'en') : recompensaPt,
     porUsar: (porUsar!.results[0] as { n: number }).n,
     cortes: (cortes!.results[0] as { n: number }).n,
     ultima: (ultima!.results[0] as CartaoDoPasse['ultima']) ?? null,
@@ -149,6 +155,7 @@ export async function cartaoParaOPasse(
     site: d.get('site') ?? '',
     instagram: d.get('instagram') ?? '',
     whatsapp: d.get('whatsapp') ?? '',
+    lingua,
   };
 }
 
@@ -184,6 +191,7 @@ export function cartaoDaGoogle(env: Env, c: CartaoDoPasse): CartaoDaGoogle {
     porUsar: c.porUsar,
     cortes: c.cortes,
     hero: `${env.ORIGEM_DA_API}/api/wallet/imagem/${VERSAO_DO_DESENHO}/${c.objectivo}/${c.carimbos}/hero.png`,
+    lingua: c.lingua,
   };
 }
 

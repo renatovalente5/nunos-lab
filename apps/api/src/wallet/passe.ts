@@ -4,11 +4,13 @@ import {
   fraseDoCorteOferecido,
   fraseDoProximo,
   textoDoQr,
+  type Lingua,
 } from '@nunos-lab/dominio';
 import { buffer, deBase64, hex, utf8 } from './bytes.ts';
 import { assinarManifesto } from './cms.ts';
 import { imagensDoCartao } from './grelha.ts';
 import { IMAGENS_DO_PASSE } from './imagens.ts';
+import { TEXTOS_DO_PASSE } from './textos.ts';
 import { zipar } from './zip.ts';
 
 /**
@@ -39,6 +41,8 @@ export type CartaoDoPasse = {
   site: string;
   instagram: string;
   whatsapp: string;
+  /** A língua da conta (a da app); sem ela, o português. */
+  lingua?: Lingua;
 };
 
 export type ConfiguracaoDoPasse = {
@@ -56,8 +60,8 @@ const RGB = (hex6: string) => {
   return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
 };
 
-const dataCurta = (unix: number) =>
-  new Date(unix * 1000).toLocaleDateString('pt-PT', {
+const dataCurta = (unix: number, etiqueta: string) =>
+  new Date(unix * 1000).toLocaleDateString(etiqueta, {
     day: 'numeric',
     month: 'short',
     timeZone: 'Europe/Lisbon',
@@ -68,33 +72,39 @@ const minuscula = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 const semFormato = (s: string) => s.replace(/%/g, '%%');
 
 export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
+  const lingua = c.lingua ?? 'pt';
+  const t = TEXTOS_DO_PASSE[lingua];
   const faltam = Math.max(0, c.objectivo - c.carimbos);
-  const recompensa = c.recompensa.trim() || 'Prémio';
+  const recompensa = c.recompensa.trim() || t.premio;
   // O aviso no ecrã bloqueado: «Carimbo novo: 7 de 10»; no 10.º, que o cartão está
   // completo; a zeros (a entrega do prémio, ou anulado o único) nada — era «Carimbo novo: 0 de 10».
   const carimbos = {
     key: 'carimbos',
-    label: 'CARIMBOS',
-    value: `${c.carimbos} de ${c.objectivo}`,
+    label: t.carimbos,
+    value: t.carimbosDe(c.carimbos, c.objectivo),
     ...(c.carimbos > 0 && c.carimbos >= c.objectivo
       ? {
-          changeMessage: `Cartão completo (%@): ${semFormato(minuscula(fraseDoCorteOferecido(recompensa)))}`,
+          changeMessage: t.avisoCompleto(
+            semFormato(minuscula(fraseDoCorteOferecido(recompensa, lingua))),
+          ),
         }
       : c.carimbos > 0 && c.carimbos === c.objectivo - 1
         ? {
-            changeMessage: `Carimbo novo: %@ · ${semFormato(minuscula(fraseDoProximo(recompensa)))}`,
+            changeMessage: t.avisoNovoEProximo(
+              semFormato(minuscula(fraseDoProximo(recompensa, lingua))),
+            ),
           }
         : c.carimbos > 0
-          ? { changeMessage: 'Carimbo novo: %@' }
+          ? { changeMessage: t.avisoNovo }
           : {}),
   };
-  const cliente = c.nome ? [{ key: 'nome', label: 'CLIENTE', value: c.nome }] : [];
+  const cliente = c.nome ? [{ key: 'nome', label: t.cliente, value: c.nome }] : [];
   const porUsar =
     c.porUsar > 0
       ? [
           {
             key: 'porUsar',
-            label: 'POR USAR',
+            label: t.porUsar,
             value: c.porUsar === 1 ? recompensa : `${c.porUsar} × ${recompensa}`,
           },
         ]
@@ -110,8 +120,8 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
       ? [
           {
             key: 'ultima',
-            label: 'Última visita',
-            value: [dataCurta(c.ultima.quando), c.ultima.loja, c.ultima.pessoa]
+            label: t.ultimaVisita,
+            value: [dataCurta(c.ultima.quando, t.etiqueta), c.ultima.loja, c.ultima.pessoa]
               .filter(Boolean)
               .join(' · '),
           },
@@ -119,18 +129,22 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
       : []),
     {
       key: 'como',
-      label: 'Como funciona',
-      value: `Um carimbo por corte. Ao ${c.objectivo}.º, ${minuscula(recompensa)}.`,
+      label: t.comoFunciona,
+      value: t.como(c.objectivo, minuscula(recompensa)),
     },
     ...(c.lojas.length
-      ? [{ key: 'casas', label: 'As casas', value: c.lojas.map((l) => l.nome).join(' · ') }]
+      ? [{ key: 'casas', label: t.asCasas, value: c.lojas.map((l) => l.nome).join(' · ') }]
       : []),
-    ...(contacto ? [{ key: 'contacto', label: 'Contacto', value: contacto }] : []),
-    ...(c.site ? [{ key: 'site', label: 'Site', value: c.site }] : []),
+    ...(contacto ? [{ key: 'contacto', label: t.contacto, value: contacto }] : []),
+    ...(c.site ? [{ key: 'site', label: t.site, value: c.site }] : []),
     ...(c.instagram
       ? [{ key: 'instagram', label: 'Instagram', value: `instagram.com/${c.instagram}` }]
       : []),
-    { key: 'privacidade', label: 'Privacidade', value: `${cfg.origemDaApp}/privacidade/` },
+    {
+      key: 'privacidade',
+      label: t.privacidade,
+      value: `${cfg.origemDaApp}/privacidade/${lingua === 'en' ? '?lingua=en' : ''}`,
+    },
   ];
   const codigo = {
     format: 'PKBarcodeFormatQR',
@@ -144,7 +158,7 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
     teamIdentifier: cfg.equipa,
     serialNumber: c.serie,
     organizationName: "Nuno's Lab",
-    description: "Cartão Nuno's Lab",
+    description: t.descricao,
     backgroundColor: RGB('#0A0A0A'),
     foregroundColor: RGB('#F4F1EC'),
     labelColor: RGB('#A9A49C'),
@@ -159,7 +173,7 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
       .map((l) => ({
         latitude: l.lat,
         longitude: l.lng,
-        relevantText: `Nuno's Lab ${l.nome}: mostra o cartão.`,
+        relevantText: t.mostraOCartao(l.nome),
       })),
     // O iOS 26 e anteriores: a faixa com as casas (strip.png) por cima da linha
     // de campos, e o código em baixo. Sem campos principais, para a faixa ficar limpa.
@@ -170,7 +184,7 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
         {
           key: 'faltam',
           label: recompensa.toUpperCase(),
-          value: fraseDoCartao(c.carimbos, { objectivo: c.objectivo, recompensa: '' }),
+          value: fraseDoCartao(c.carimbos, { objectivo: c.objectivo, recompensa: '' }, lingua),
         },
         ...porUsar,
       ],
@@ -187,23 +201,23 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
         ...(c.nome ? [{ key: 'nome', value: c.nome }] : []),
         porUsar[0] ??
           (faltam === 0
-            ? { key: 'cartao', label: 'CARTÃO', value: 'Completo' }
-            : { key: 'faltam', label: faltam === 1 ? 'FALTA' : 'FALTAM', value: String(faltam) }),
+            ? { key: 'cartao', label: t.cartao, value: t.completo }
+            : { key: 'faltam', label: t.faltam(faltam), value: String(faltam) }),
       ],
       footerFields: [
         {
           key: 'rodape',
           value:
             c.porUsar > 0
-              ? `Tens ${c.porUsar === 1 ? '' : `${c.porUsar} × `}${minuscula(recompensa)} por usar`
+              ? t.tensPorUsar(c.porUsar, minuscula(recompensa))
               : faltam === 0
-                ? 'Cartão completo'
+                ? t.cartaoCompleto
                 : faltam === 1
-                  ? fraseDoProximo(recompensa)
-                  : `${recompensa} ao ${c.objectivo}.º`,
+                  ? fraseDoProximo(recompensa, lingua)
+                  : t.aoObjectivo(recompensa, c.objectivo),
         },
       ],
-      backFields: [{ key: 'cortes', label: 'Cortes', value: String(c.cortes) }, ...costas],
+      backFields: [{ key: 'cortes', label: t.cortes, value: String(c.cortes) }, ...costas],
     },
   };
 }

@@ -12,7 +12,19 @@ import { guardar, lerSincrono } from './armazem';
 export const CHAVE_DA_LINGUA = 'nunoslab:lingua';
 
 let doAparelho: Lingua | null = null;
-let fixa: Lingua | null = null;
+/**
+ * Uma ligação com «?lingua=en» (a ficha da loja, o verso do passe) abre nessa língua, só nesta
+ * visita: não fica guardada. Escolher outra no globo tira-a.
+ */
+let daLigacao: Lingua | null = (() => {
+  if (Platform.OS !== 'web') return null;
+  try {
+    const l = new URLSearchParams(globalThis.location?.search ?? '').get('lingua');
+    return eLingua(l) ? l : null;
+  } catch {
+    return null;
+  }
+})();
 const ouvintes = new Set<() => void>();
 
 export function linguaDoAparelho(): Lingua {
@@ -31,21 +43,16 @@ export function linguaDoAparelho(): Lingua {
   return doAparelho;
 }
 
-/** A língua de agora: a fixa (uma app ainda só em português), a escolhida, ou a do aparelho. */
+/** A língua de agora: a da ligação (nesta visita), a escolhida, ou a do aparelho. */
 export function linguaActual(): Lingua {
-  if (fixa) return fixa;
+  if (daLigacao) return daLigacao;
   const escolhida = lerSincrono(CHAVE_DA_LINGUA);
   return eLingua(escolhida) ? escolhida : linguaDoAparelho();
 }
 
 export function escolherLingua(lingua: Lingua): void {
+  daLigacao = null;
   guardar(CHAVE_DA_LINGUA, lingua);
-  ouvintes.forEach((f) => f());
-}
-
-/** Uma app que ainda não tem as frases em inglês: as peças partilhadas ficam em português. */
-export function fixarLingua(lingua: Lingua): void {
-  fixa = lingua;
   ouvintes.forEach((f) => f());
 }
 

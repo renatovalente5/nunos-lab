@@ -1,4 +1,6 @@
+import type { Lingua } from '@nunos-lab/dominio';
 import { assinarJwt } from './jwt.ts';
+import { TEXTOS_DO_PASSE } from './textos.ts';
 
 /**
  * A Google Wallet: um cartão de fidelidade (loyaltyObject) de uma classe
@@ -20,15 +22,24 @@ export type CartaoDaGoogle = {
   cortes: number;
   /** A imagem com a grelha dos carimbos, num URL só deste estado (a Google guarda-a por URL). */
   hero: string;
+  /** A língua da conta (a da app); sem ela, o português. */
+  lingua?: Lingua;
 };
 
 export const classeId = (emissor: string) => `${emissor}.nunoslab-cartao`;
+
+/** O nome do programa é da classe (de todos): a Google mostra o inglês aos telemóveis em inglês. */
+const NOME_DO_PROGRAMA = {
+  defaultValue: { language: 'pt-PT', value: TEXTOS_DO_PASSE.pt.descricao },
+  translatedValues: [{ language: 'en', value: TEXTOS_DO_PASSE.en.descricao }],
+};
 
 export function classe(emissor: string, origemDaApp: string) {
   return {
     id: classeId(emissor),
     issuerName: "Nuno's Lab",
-    programName: "Cartão Nuno's Lab",
+    programName: TEXTOS_DO_PASSE.pt.descricao,
+    localizedProgramName: NOME_DO_PROGRAMA,
     reviewStatus: 'UNDER_REVIEW',
     hexBackgroundColor: '#0A0A0A',
     programLogo: {
@@ -40,33 +51,34 @@ export function classe(emissor: string, origemDaApp: string) {
 }
 
 export function objeto(emissor: string, c: CartaoDaGoogle) {
+  const t = TEXTOS_DO_PASSE[c.lingua ?? 'pt'];
   return {
     id: c.id,
     classId: classeId(emissor),
     state: 'ACTIVE',
     accountId: c.codigo,
-    accountName: c.nome || 'Cliente',
+    accountName: c.nome || t.clienteGoogle,
     loyaltyPoints: {
-      label: 'Carimbos',
-      balance: { string: `${c.carimbos} de ${c.objectivo}` },
+      label: t.carimbosGoogle,
+      balance: { string: t.carimbosDe(c.carimbos, c.objectivo) },
     },
     secondaryLoyaltyPoints:
       c.porUsar > 0
-        ? { label: 'Por usar', balance: { string: `${c.porUsar} × ${c.recompensa}` } }
+        ? { label: t.porUsarGoogle, balance: { string: `${c.porUsar} × ${c.recompensa}` } }
         : undefined,
     barcode: { type: 'QR_CODE', value: c.qr, alternateText: c.codigo },
     heroImage: {
       sourceUri: { uri: c.hero },
       contentDescription: {
-        defaultValue: { language: 'pt-PT', value: `${c.carimbos} de ${c.objectivo} carimbos` },
+        defaultValue: { language: t.etiqueta, value: t.carimbosNaImagem(c.carimbos, c.objectivo) },
       },
     },
     textModulesData: [
-      { id: 'cortes', header: 'Cortes', body: String(c.cortes) },
+      { id: 'cortes', header: t.cortes, body: String(c.cortes) },
       {
         id: 'como',
-        header: 'Como funciona',
-        body: `Um carimbo por corte. Ao ${c.objectivo}.º, ${c.recompensa.toLowerCase()}.`,
+        header: t.comoFunciona,
+        body: t.como(c.objectivo, c.recompensa.toLowerCase()),
       },
     ],
   };
@@ -152,6 +164,17 @@ export async function actualizarObjeto(
     });
     if (!criada.ok && criada.status !== 409)
       throw new Error(`A classe não se criou: ${criada.status}`);
+  } else if (classeR.ok) {
+    // A classe de antes do inglês (7 nov) ganha o nome do programa em inglês. Falhar aqui não pára o objecto.
+    const actual = (await classeR.json().catch(() => ({}))) as { localizedProgramName?: unknown };
+    if (!actual.localizedProgramName)
+      await fetch(`${API}/loyaltyClass/${encodeURIComponent(classeId(emissor))}`, {
+        method: 'PATCH',
+        headers: cabecalhos,
+        body: JSON.stringify({ localizedProgramName: NOME_DO_PROGRAMA }),
+      })
+        .then((r) => !r.ok && console.error('classe da google', r.status))
+        .catch((e) => console.error('classe da google', e));
   }
   const existe = await fetch(`${API}/loyaltyObject/${encodeURIComponent(c.id)}`, {
     headers: cabecalhos,

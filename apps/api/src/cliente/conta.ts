@@ -298,7 +298,26 @@ async function lerEu(c: C): Promise<ClienteEu> {
   };
 }
 
-rotasDaConta.get('/', async (c) => c.json(await lerEu(c)));
+/**
+ * A conta fica com a língua em que a app está (a escolhida, ou a do telemóvel): o passe da carteira
+ * sai nela, e refaz-se quando muda. As apps de antes do inglês não a mandam: fica como estava.
+ */
+async function guardarLingua(c: C) {
+  if (!c.req.query('lingua')) return;
+  const lingua = linguaDoPedido(c);
+  const { id } = c.get('cliente');
+  const r = await c.env.DB.prepare(
+    'UPDATE clientes SET lingua = ? WHERE id = ? AND lingua IS NOT ?',
+  )
+    .bind(lingua, id, lingua)
+    .run();
+  if (r.meta.changes) tocarPasse(c, id);
+}
+
+rotasDaConta.get('/', async (c) => {
+  await guardarLingua(c);
+  return c.json(await lerEu(c));
+});
 
 const Perfil = z.object({
   nome: nomeLimpo(LIMITES_DO_PROGRAMA.nomeDoCliente).optional(),
@@ -348,7 +367,8 @@ rotasDaConta.patch('/perfil', async (c) => {
     .prepare(`UPDATE clientes SET ${partes.join(', ')} WHERE id = ?`)
     .bind(...valores, id)
     .run();
-  if (p.nome !== undefined) tocarPasse(c, id);
+  // O nome e a língua estão no passe.
+  if (p.nome !== undefined || p.lingua !== undefined) tocarPasse(c, id);
   return c.json(await lerEu(c));
 });
 

@@ -1,0 +1,9 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Nuno's Partner",
+    "NSCameraUsageDescription": "The app uses the camera to scan the client's card."
+  },
+  "android": {
+    "app_name": "Nuno's Partner"
+  }
+}

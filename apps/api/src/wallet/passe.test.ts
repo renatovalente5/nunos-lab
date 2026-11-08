@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { objeto } from './google.ts';
 import { passJson, type CartaoDoPasse } from './passe.ts';
 
 const cartao: CartaoDoPasse = {
@@ -107,4 +108,62 @@ test('sem nome, não há campo do cliente nem título no poster', () => {
   const p = passJson({ ...cartao, nome: '' }, cfg);
   assert.equal(p.storeCard.secondaryFields[0]!.key, 'faltam');
   assert.equal(p.posterGeneric.primaryFields.length, 1);
+});
+
+test('em inglês (a língua da conta), o passe diz o mesmo em inglês', () => {
+  const en = { ...cartao, recompensa: 'Free haircut', lingua: 'en' as const };
+  const p = passJson(en, cfg);
+  assert.equal(p.description, "Nuno's Lab card");
+  assert.equal(p.storeCard.headerFields[0]!.label, 'STAMPS');
+  assert.equal(p.storeCard.headerFields[0]!.value, '7 of 10');
+  assert.deepEqual(
+    p.storeCard.secondaryFields.map((f) => [f.label, f.value]),
+    [
+      ['CLIENT', 'Renato'],
+      ['FREE HAIRCUT', '3 to go'],
+    ],
+  );
+  assert.deepEqual(p.posterGeneric.primaryFields[1], { key: 'faltam', label: 'TO GO', value: '3' });
+  assert.equal(p.posterGeneric.footerFields[0]!.value, 'Free haircut at 10 stamps');
+  const costas = Object.fromEntries(p.storeCard.backFields.map((f) => [f.key, f.value]));
+  assert.equal(costas.como, 'One stamp per haircut. At 10 stamps, free haircut.');
+  assert.equal(costas.privacidade, 'https://app.local/nunos-lab/privacidade/?lingua=en');
+  assert.equal(p.locations[0]!.relevantText, "Nuno's Lab Nogueira do Cravo: show your card.");
+  const aviso = (carimbos: number) =>
+    passJson({ ...en, carimbos }, cfg).storeCard.headerFields[0]!.changeMessage;
+  assert.equal(aviso(7), 'New stamp: %@');
+  assert.equal(aviso(9), 'New stamp: %@ · your next haircut is free');
+  assert.equal(aviso(10), 'Card complete (%@): this haircut was free');
+  // Um «%» do prémio escreve-se «%%» no aviso da Apple.
+  assert.equal(
+    passJson({ ...en, recompensa: '50% off', carimbos: 9 }, cfg).storeCard.headerFields[0]!
+      .changeMessage,
+    'New stamp: %@ · your next haircut is 50%% off',
+  );
+});
+
+test('na Google Wallet, o cartão também sai na língua da conta', () => {
+  const base = {
+    id: 'e.nl-1',
+    codigo: 'JMP7 ZT8A',
+    qr: 'x',
+    nome: '',
+    carimbos: 7,
+    objectivo: 10,
+    porUsar: 2,
+    cortes: 12,
+    hero: 'https://api.local/hero.png',
+  };
+  const pt = objeto('e', { ...base, recompensa: 'Corte grátis' });
+  assert.equal(pt.accountName, 'Cliente');
+  assert.deepEqual(pt.loyaltyPoints, { label: 'Carimbos', balance: { string: '7 de 10' } });
+  const en = objeto('e', { ...base, recompensa: 'Free haircut', lingua: 'en' });
+  assert.equal(en.accountName, 'Client');
+  assert.deepEqual(en.loyaltyPoints, { label: 'Stamps', balance: { string: '7 of 10' } });
+  assert.deepEqual(en.secondaryLoyaltyPoints, {
+    label: 'To use',
+    balance: { string: '2 × Free haircut' },
+  });
+  assert.equal(en.heroImage.contentDescription.defaultValue.language, 'en-GB');
+  assert.equal(en.textModulesData[1]!.body, 'One stamp per haircut. At 10 stamps, free haircut.');
 });

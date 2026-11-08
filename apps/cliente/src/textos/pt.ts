@@ -131,7 +131,7 @@ export const pt = {
     titulo: 'Privacidade',
     paragrafos: [
       'A app mostra as vantagens dos parceiros do Nuno’s Lab e, se quiseres, o teu cartão de carimbos. Sem conta, não pede nada: não usa cookies nem tem publicidade.',
-      'Com conta (Apple, Google ou email), o Nuno’s Lab guarda o teu nome, o email, a data de anos se a deres, a língua que escolheste, e os carimbos: em que casa, com quem e quando. É o que faz o cartão funcionar. A Apple e a Google só confirmam quem és; não recebem os teus carimbos.',
+      'Com conta (Apple, Google ou email), o Nuno’s Lab guarda o teu nome, o email, a data de anos se a deres, a língua em que usas a app, e os carimbos: em que casa, com quem e quando. É o que faz o cartão funcionar. A Apple e a Google só confirmam quem és; não recebem os teus carimbos.',
       'Se puseres o cartão na Apple Wallet ou na Google Wallet, o cartão (o nome, os carimbos, o código) fica também nessa carteira e actualiza-se a cada corte; a Apple e a Google tratam-no pelas regras delas.',
       'Podes mudar ou apagar a conta na app, a qualquer altura. Ao apagar, o que é teu sai; ficam só contagens sem nome, para os números da barbearia.',
       'Para o Nuno saber o que interessa, a app conta, sem saber quem és, quantas vezes é aberta e quantas vezes cada parceiro é visto ou contactado. Fica só o dia e o número.',

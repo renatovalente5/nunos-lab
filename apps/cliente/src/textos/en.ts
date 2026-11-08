@@ -129,7 +129,7 @@ export const en: Textos = {
     titulo: 'Privacy',
     paragrafos: [
       'The app shows the perks from Nuno’s Lab partners and, if you want, your stamp card. Without an account it asks for nothing: it uses no cookies and has no ads.',
-      'With an account (Apple, Google or email), Nuno’s Lab keeps your name, your email, your birthday if you give it, the language you chose, and your stamps: at which shop, with whom and when. That is what makes the card work. Apple and Google only confirm who you are; they do not receive your stamps.',
+      'With an account (Apple, Google or email), Nuno’s Lab keeps your name, your email, your birthday if you give it, the language you use the app in, and your stamps: at which shop, with whom and when. That is what makes the card work. Apple and Google only confirm who you are; they do not receive your stamps.',
       'If you add the card to Apple Wallet or Google Wallet, the card (your name, stamps and code) is also kept in that wallet and updates with every haircut; Apple and Google handle it under their own rules.',
       'You can change or delete your account in the app at any time. When you delete it, everything that is yours is removed; only nameless counts remain, for the barbershop’s figures.',
       'So that Nuno knows what people are interested in, the app counts, without knowing who you are, how often it is opened and how often each partner is viewed or contacted. Only the day and the number are kept.',
