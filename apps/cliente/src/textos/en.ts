@@ -20,6 +20,8 @@ export const en: Textos = {
   vantagens: {
     emDestaque: 'Featured',
     parceiros: 'Partners',
+    semCorteHaUmAno: 'Visit one of our barbershops to get your perks back',
+    aindaSemCorte: 'Visit one of our barbershops to get your perks',
     categorias: 'Categories',
     tudo: 'All',
     emBreve: 'New perks coming soon',
@@ -27,7 +29,6 @@ export const en: Textos = {
   promocao: {
     verTudo: 'Show more',
     menos: 'Show less',
-    soActivos: 'Only if you’ve had a haircut in the past 12 months',
     usadaHoje: (hora) => `Used today at ${hora}`,
     jaUsaste: {
       dia: 'Already used today',

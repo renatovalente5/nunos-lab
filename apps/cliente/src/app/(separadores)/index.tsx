@@ -9,6 +9,7 @@ import {
   iconeDe,
   LinhaDoParceiro,
 } from '../../componentes/cartoes';
+import { useEu, useTemSessao } from '../../conta';
 import { definirTitulo, useDados } from '../../dados';
 import { useTextos } from '../../textos';
 import {
@@ -24,6 +25,7 @@ import {
   T,
   cor,
   raio,
+  type NomeDoIcone,
 } from '@nunos-lab/ui';
 /** Um desvanecimento no lado direito de uma fila que rola, a dizer que continua (só na web). */
 function FadeDireita() {
@@ -64,9 +66,37 @@ function EsqueletoDasVantagens() {
   );
 }
 
+/** Uma faixa no topo das Vantagens: o aviso do Nuno, ou o de quem não corta o cabelo há mais de um ano. */
+function Faixa({ icone, texto, topo }: { icone: NomeDoIcone; texto: string; topo: number }) {
+  return (
+    <View
+      style={{
+        marginHorizontal: MARGEM,
+        marginTop: topo,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: cor.superficie,
+        borderRadius: raio.grupo,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        ...CONTINUO,
+      }}
+      role="status"
+    >
+      <Icone nome={icone} tamanho={20} espessura={2} />
+      <T v="forte" style={{ flex: 1, fontSize: 15 }}>
+        {texto}
+      </T>
+    </View>
+  );
+}
+
 export default function Vantagens() {
   const t = useTextos();
   const { data, isPending, isError, refetch } = useDados();
+  const temSessao = useTemSessao();
+  const { data: eu } = useEu();
   const [categoria, setCategoria] = useState<number | null>(null);
   const { width, fontScale } = useWindowDimensions();
   useEffect(() => definirTitulo(t.titulos.vantagens), [t]);
@@ -109,8 +139,19 @@ export default function Vantagens() {
       pathname: '/parceiro/[id]',
       params: { id: String(p.id), ...(pr ? { p: String(pr.id) } : {}) },
     });
-  // O primeiro bloco fica a 18 do cabeçalho, como nos outros separadores; depois do aviso, a 14.
-  const primeiro = data?.aviso ? 14 : 18;
+  // Sem corte no último ano, as vantagens só para activos não valem: o aviso diz como as ter (o
+  // Renato, 8 nov) — «de novo» a quem já cortou. Só se alguma promoção pedir cliente activo.
+  const avisoDoCorte =
+    temSessao &&
+    !!eu &&
+    !eu.activo &&
+    (data?.parceiros ?? []).some((p) => p.promocoes.some((pr) => pr.soClientesActivos))
+      ? eu.cortes > 0
+        ? t.vantagens.semCorteHaUmAno
+        : t.vantagens.aindaSemCorte
+      : null;
+  // O primeiro bloco fica a 18 do cabeçalho, como nos outros separadores; depois de um aviso, a 14.
+  const primeiro = data?.aviso || avisoDoCorte ? 14 : 18;
 
   return (
     <Ecra>
@@ -128,27 +169,9 @@ export default function Vantagens() {
         }
       />
 
-      {!!data?.aviso && (
-        <View
-          style={{
-            marginHorizontal: MARGEM,
-            marginTop: 18,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 12,
-            backgroundColor: cor.superficie,
-            borderRadius: raio.grupo,
-            paddingHorizontal: 16,
-            paddingVertical: 14,
-            ...CONTINUO,
-          }}
-          role="status"
-        >
-          <Icone nome="aviso" tamanho={20} espessura={2} />
-          <T v="forte" style={{ flex: 1, fontSize: 15 }}>
-            {data.aviso}
-          </T>
-        </View>
+      {!!data?.aviso && <Faixa icone="aviso" texto={data.aviso} topo={18} />}
+      {avisoDoCorte && (
+        <Faixa icone="tesoura" texto={avisoDoCorte} topo={data?.aviso ? 10 : 18} />
       )}
 
       {!data && isPending && <EsqueletoDasVantagens />}

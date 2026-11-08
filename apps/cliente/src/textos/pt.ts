@@ -17,6 +17,8 @@ export const pt = {
   vantagens: {
     emDestaque: 'Em destaque',
     parceiros: 'Parceiros',
+    semCorteHaUmAno: 'Visita uma barbearia para teres acesso aos descontos de novo',
+    aindaSemCorte: 'Visita uma barbearia para teres acesso aos descontos',
     categorias: 'Categorias',
     tudo: 'Tudo',
     emBreve: 'Novas vantagens em breve',
@@ -24,7 +26,6 @@ export const pt = {
   promocao: {
     verTudo: 'Ver tudo',
     menos: 'Ver menos',
-    soActivos: 'Só para clientes com corte no último ano',
     usadaHoje: (hora: string) => `Usada hoje às ${hora}`,
     jaUsaste: {
       dia: 'Já usaste hoje',

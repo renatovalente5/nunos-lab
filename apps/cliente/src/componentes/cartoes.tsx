@@ -256,8 +256,9 @@ export function horaDe(unix: number): string {
 /**
  * Uma vantagem na página do parceiro. As condições longas abrem com um toque.
  * Diz que o cartão se mostra ao balcão (qualquer vantagem se valida ao ler o cartão,
- * se o parceiro quiser) — só quando o parceiro vai aceitar: senão, porque não (sem
- * corte no último ano, limite gasto) — e, depois de validada hoje, a que horas foi.
+ * se o parceiro quiser) — só quando o parceiro vai aceitar: senão, porque não (limite
+ * gasto) — e, depois de validada hoje, a que horas foi. A quem não corta o cabelo há
+ * mais de um ano não diz nada: o aviso está no topo das Vantagens (o Renato, 8 nov).
  */
 export function CartaoDaPromocao({
   promocao,
@@ -344,35 +345,35 @@ export function CartaoDaPromocao({
           </View>
         </View>
       )}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 8,
-          marginTop: 12,
-          paddingTop: 12,
-          borderTopWidth: 1,
-          borderTopColor: cor.linha,
-        }}
-      >
-        <Icone
-          nome={usada ? 'certo' : 'cartao'}
-          tamanho={16}
-          cor={usada ? cor.texto : cor.texto2}
-          espessura={2.2}
-        />
-        <T v="legenda" style={{ color: usada ? cor.texto : cor.texto2 }}>
-          {inactivo
-            ? t.promocao.soActivos
-            : usadaHoje
+      {!inactivo && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            marginTop: 12,
+            paddingTop: 12,
+            borderTopWidth: 1,
+            borderTopColor: cor.linha,
+          }}
+        >
+          <Icone
+            nome={usada ? 'certo' : 'cartao'}
+            tamanho={16}
+            cor={usada ? cor.texto : cor.texto2}
+            espessura={2.2}
+          />
+          <T v="legenda" style={{ color: usada ? cor.texto : cor.texto2 }}>
+            {usadaHoje
               ? t.promocao.usadaHoje(horaDe(usadaHoje))
               : esgotada
                 ? t.promocao.jaUsaste[promocao.periodoDoLimite]
                 : temCartao
                   ? t.promocao.mostraOCartao
                   : t.promocao.comOCartao}
-        </T>
-      </View>
+          </T>
+        </View>
+      )}
     </>
   );
   const estilo = {
