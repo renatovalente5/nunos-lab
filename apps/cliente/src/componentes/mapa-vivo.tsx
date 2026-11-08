@@ -6,7 +6,7 @@ import {
   type PontoNoMapa,
 } from '@nunos-lab/dominio';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import {
   ALTURA_DO_BALAO,
@@ -17,6 +17,7 @@ import {
   quantoAndarParaCaber,
   temBalao,
 } from './pino-da-casa';
+import { BotaoDeRecentrar, saiuDoInicio } from './recentrar';
 
 /**
  * O mapa vivo no telemóvel. No iPhone é o dos Mapas da Apple, do próprio sistema (sem chave).
@@ -52,6 +53,8 @@ export function MapaVivo({ lojas, largura, altura, aberta, escolher, aoIr }: Pro
     };
   }, [lojas, largura, altura]);
   const escolhida = lojas.find((l) => l.id === aberta && temBalao(l)) ?? null;
+  // O cliente tirou o mapa do enquadramento do início: aparece o botão de voltar.
+  const [mexido, setMexido] = useState(false);
   // De que lado abre o balão, que depende de onde estão as outras casas no ecrã.
   const [balao, setBalao] = useState<{ id: number; porBaixo: boolean } | null>(null);
 
@@ -83,48 +86,76 @@ export function MapaVivo({ lojas, largura, altura, aberta, escolher, aoIr }: Pro
   }, [escolhida, lojas, largura, altura]);
 
   return (
-    <MapView
-      ref={mapa}
-      style={{ width: largura, height: altura }}
-      initialRegion={regiao}
-      userInterfaceStyle="dark"
-      showsPointsOfInterests={false}
-      pitchEnabled={false}
-      rotateEnabled={false}
-      showsCompass={false}
-      toolbarEnabled={false}
-      // Um toque no mapa, fora dos pinos, fecha o balão.
-      onPress={(ev) => {
-        if (ev.nativeEvent.action !== 'marker-press') escolher(null);
-      }}
-    >
-      {lojas.map((l) => (
-        <Marker
-          key={l.id}
-          coordinate={{ latitude: l.lat!, longitude: l.lng! }}
-          onPress={() => escolher(l.id)}
-          stopPropagation
-          anchor={{ x: 0.5, y: 0.5 }}
-          zIndex={aberta === l.id ? 1 : 0}
-          accessibilityLabel={l.nome}
-        >
-          <PinoDaCasa nome={l.nome} escolhido={aberta === l.id} />
-        </Marker>
-      ))}
-      {/* O balão é um marcador à parte, que só existe aberto: o do pino não encolhe depois de crescer. */}
-      {escolhida && balao?.id === escolhida.id && (
-        <Marker
-          key={`balao-${escolhida.id}-${balao.porBaixo}`}
-          coordinate={{ latitude: escolhida.lat!, longitude: escolhida.lng! }}
-          onPress={() => {}}
-          stopPropagation
-          // O MapKit põe o meio do marcador no sítio: desce (ou sobe) até ao meio do balão.
-          centerOffset={{ x: 0, y: cimoDoBalao(balao.porBaixo) + ALTURA_DO_BALAO / 2 }}
-          zIndex={2}
-        >
-          <BalaoDaCasa loja={escolhida} aoIr={() => aoIr(escolhida)} emBaixo={balao.porBaixo} />
-        </Marker>
-      )}
-    </MapView>
+    <View style={{ width: largura, height: altura }}>
+      <MapView
+        ref={mapa}
+        style={{ width: largura, height: altura }}
+        initialRegion={regiao}
+        onRegionChangeComplete={(r) => {
+          if (!regiao) return;
+          setMexido(
+            saiuDoInicio(
+              {
+                lat: r.latitude,
+                lng: r.longitude,
+                latDelta: r.latitudeDelta,
+                lngDelta: r.longitudeDelta,
+              },
+              {
+                lat: regiao.latitude,
+                lng: regiao.longitude,
+                latDelta: regiao.latitudeDelta,
+                lngDelta: regiao.longitudeDelta,
+              },
+            ),
+          );
+        }}
+        userInterfaceStyle="dark"
+        showsPointsOfInterests={false}
+        pitchEnabled={false}
+        rotateEnabled={false}
+        showsCompass={false}
+        toolbarEnabled={false}
+        // Um toque no mapa, fora dos pinos, fecha o balão.
+        onPress={(ev) => {
+          if (ev.nativeEvent.action !== 'marker-press') escolher(null);
+        }}
+      >
+        {lojas.map((l) => (
+          <Marker
+            key={l.id}
+            coordinate={{ latitude: l.lat!, longitude: l.lng! }}
+            onPress={() => escolher(l.id)}
+            stopPropagation
+            anchor={{ x: 0.5, y: 0.5 }}
+            zIndex={aberta === l.id ? 1 : 0}
+            accessibilityLabel={l.nome}
+          >
+            <PinoDaCasa nome={l.nome} escolhido={aberta === l.id} />
+          </Marker>
+        ))}
+        {/* O balão é um marcador à parte, que só existe aberto: o do pino não encolhe depois de crescer. */}
+        {escolhida && balao?.id === escolhida.id && (
+          <Marker
+            key={`balao-${escolhida.id}-${balao.porBaixo}`}
+            coordinate={{ latitude: escolhida.lat!, longitude: escolhida.lng! }}
+            onPress={() => {}}
+            stopPropagation
+            // O MapKit põe o meio do marcador no sítio: desce (ou sobe) até ao meio do balão.
+            centerOffset={{ x: 0, y: cimoDoBalao(balao.porBaixo) + ALTURA_DO_BALAO / 2 }}
+            zIndex={2}
+          >
+            <BalaoDaCasa loja={escolhida} aoIr={() => aoIr(escolhida)} emBaixo={balao.porBaixo} />
+          </Marker>
+        )}
+      </MapView>
+      <BotaoDeRecentrar
+        visivel={mexido}
+        onPress={() => {
+          escolher(null);
+          if (regiao) mapa.current?.animateToRegion(regiao, 350);
+        }}
+      />
+    </View>
   );
 }

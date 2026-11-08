@@ -11,6 +11,7 @@ import {
   useEffectEvent,
   useLayoutEffect,
   useRef,
+  useState,
   type ComponentRef,
   type ReactNode,
 } from 'react';
@@ -19,6 +20,7 @@ import { View } from 'react-native';
 import { linguaActual, useLingua } from '@nunos-lab/ui';
 import { API, PRAZO_DO_PEDIDO } from '../dados';
 import type { PropsDoMapaVivo } from './mapa-vivo';
+import { BotaoDeRecentrar, saiuDoInicio, type Enquadramento } from './recentrar';
 import {
   ALTURA_DO_PINO,
   BalaoDaCasa,
@@ -43,6 +45,12 @@ type Anotacao = {
 };
 type Mapa = {
   center: object;
+  region: {
+    center: { latitude: number; longitude: number };
+    span: { latitudeDelta: number; longitudeDelta: number };
+  };
+  setRegionAnimated(regiao: object, animar: boolean): void;
+  addEventListener(tipo: 'region-change-end', f: () => void): void;
   addAnnotations(a: Anotacao[]): void;
   convertCoordinateToPointOnPage(sitio: object): DOMPoint;
   convertPointOnPageToCoordinate(ponto: DOMPoint): object;
@@ -134,6 +142,10 @@ export function MapaVivo({
   const caixa = useRef<ComponentRef<typeof View>>(null);
   const pinos = useRef(new Map<number, Pino>());
   const mapaFeito = useRef<Mapa | null>(null);
+  // O enquadramento do início e o MapKit, para o botão de voltar a ele.
+  const inicio = useRef<Enquadramento | null>(null);
+  const mkFeito = useRef<MapKit | null>(null);
+  const [mexido, setMexido] = useState(false);
   // As etiquetas do mapa, o logótipo e o «Legal» mudam com a língua da app, sem refazer o mapa.
   const lingua = useLingua();
   useEffect(() => {
@@ -224,6 +236,23 @@ export function MapaVivo({
             new mk.CoordinateSpan(r.latDelta, r.lngDelta),
           ),
         });
+        inicio.current = { lat: r.lat, lng: r.lng, latDelta: r.latDelta, lngDelta: r.lngDelta };
+        mkFeito.current = mk;
+        const feito = mapa;
+        feito.addEventListener('region-change-end', () => {
+          const g = feito.region;
+          setMexido(
+            saiuDoInicio(
+              {
+                lat: g.center.latitude,
+                lng: g.center.longitude,
+                latDelta: g.span.latitudeDelta,
+                lngDelta: g.span.longitudeDelta,
+              },
+              { lat: r.lat, lng: r.lng, latDelta: r.latDelta, lngDelta: r.lngDelta },
+            ),
+          );
+        });
         const anotacoes = lojas.map((l) => {
           const no = document.createElement('div');
           const raiz = createRoot(no);
@@ -260,5 +289,25 @@ export function MapaVivo({
 
   useEffect(() => abrirBalao(), [aberta]);
 
-  return <View ref={caixa} style={{ width: largura, height: altura }} />;
+  const recentrar = () => {
+    const m = mapaFeito.current;
+    const mk = mkFeito.current;
+    const i = inicio.current;
+    escolher(null);
+    if (m && mk && i)
+      m.setRegionAnimated(
+        new mk.CoordinateRegion(
+          new mk.Coordinate(i.lat, i.lng),
+          new mk.CoordinateSpan(i.latDelta, i.lngDelta),
+        ),
+        true,
+      );
+  };
+
+  return (
+    <View style={{ width: largura, height: altura }}>
+      <View ref={caixa} style={{ width: largura, height: altura }} />
+      <BotaoDeRecentrar visivel={mexido} onPress={recentrar} />
+    </View>
+  );
 }

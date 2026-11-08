@@ -7,7 +7,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ClienteEu, Lingua } from '@nunos-lab/dominio';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { Linking, Platform } from 'react-native';
-import { guardar as guardarNoArmazem, lerSincrono, linguaActual, useLingua } from '@nunos-lab/ui';
+import {
+  cabecalhoDoAparelho,
+  guardar as guardarNoArmazem,
+  lerSincrono,
+  linguaActual,
+  useLingua,
+} from '@nunos-lab/ui';
 import { CHAVE_DO_CARTAO_VISTO } from './carimbos-novos';
 import { API, PRAZO_DO_PEDIDO } from './dados';
 import { textos } from './textos';
@@ -83,7 +89,8 @@ async function pedir<T = void>(
   caminho: string,
   { metodo = 'GET', corpo }: { metodo?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; corpo?: unknown } = {},
 ): Promise<T> {
-  const cabecalhos: Record<string, string> = {};
+  // O nome do aparelho (só nas apps nativas): a lista das sessões na Conta.
+  const cabecalhos: Record<string, string> = cabecalhoDoAparelho();
   const t = sessao();
   if (t) cabecalhos.Authorization = `Bearer ${t}`;
   if (corpo !== undefined) cabecalhos['Content-Type'] = 'application/json';
@@ -244,6 +251,8 @@ export function useConta() {
     tirarForma: (id: number) =>
       pedir<ClienteEu>(`/formas/${id}`, { metodo: 'DELETE' }).then(actualizar),
     sairDasOutras: () => pedir<ClienteEu>('/sair-das-outras', { metodo: 'POST' }).then(actualizar),
+    terminarSessao: (id: number) =>
+      pedir<ClienteEu>(`/sessoes/${id}/terminar`, { metodo: 'POST' }).then(actualizar),
     sair: async () => {
       try {
         await pedir('/sair', { metodo: 'POST' });

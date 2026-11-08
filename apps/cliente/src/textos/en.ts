@@ -88,8 +88,18 @@ export const en: Textos = {
     tirar: 'Remove',
     juntarOutraForma: 'Add another method',
     sessoes: 'Sessions',
-    soEsteAparelho: 'Only this device',
-    aparelhos: (n) => `${n} devices`,
+    esteAparelho: 'This device',
+    aparelhoSemNome: 'Device',
+    usado: (dias, data) =>
+      dias <= 0
+        ? 'Used today'
+        : dias === 1
+          ? 'Used yesterday'
+          : dias < 7
+            ? `Used ${dias} days ago`
+            : `Used on ${data}`,
+    terminar: 'Remove',
+    terminarSessao: (aparelho) => `Remove the session: ${aparelho}`,
     terminarAsOutras: 'Sign out the others',
     sair: 'Sign out',
     mais: 'More',
@@ -156,6 +166,7 @@ export const en: Textos = {
     irA: (casa) => `Directions to ${casa}`,
     mapaComAsCasas: 'Map of the shops',
     mapasDaApple: 'Apple Maps',
+    verTodas: 'Show all barbershops',
   },
   naoEncontrado: { texto: "This page doesn't exist", verAsVantagens: 'See the perks' },
   erroDoEcra: { titulo: 'Something went wrong', texto: "The app couldn't open this screen." },

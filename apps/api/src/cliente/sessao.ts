@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from 'hono';
 import { DIAS_DA_SESSAO_DO_CLIENTE, DIAS_MAXIMOS_DA_SESSAO } from '@nunos-lab/dominio';
 import type { Ambiente, C } from '../ambiente.ts';
-import { DIA, agora, aleatorio, aparelhoDe, blob, recusar, sha256 } from '../util.ts';
+import { DIA, agora, aleatorio, aparelhoDoPedido, blob, recusar, sha256 } from '../util.ts';
 
 /** A guarda das rotas /api/eu: o testemunho da app, no cabeçalho, de uma conta que existe. */
 export const exigirCliente: MiddlewareHandler<Ambiente> = async (c, next) => {
@@ -9,7 +9,7 @@ export const exigirCliente: MiddlewareHandler<Ambiente> = async (c, next) => {
   const testemunho = cabecalho.startsWith('Bearer ') ? cabecalho.slice(7).trim() : '';
   if (!/^[A-Za-z0-9_-]{43}$/.test(testemunho)) recusar(401, 'sessao');
   const linha = await c.env.DB.prepare(
-    `SELECT s.id, s.cliente_id, s.vista_em, s.criada_em, s.identidade_id, k.codigo
+    `SELECT s.id, s.cliente_id, s.vista_em, s.criada_em, s.identidade_id, s.aparelho, k.codigo
      FROM sessoes_de_cliente s JOIN clientes k ON k.id = s.cliente_id
      WHERE s.resumo = ? AND s.revogada_em IS NULL AND s.expira_em > unixepoch()
        AND s.criada_em > unixepoch() - ? AND k.apagado_em IS NULL`,
@@ -22,18 +22,21 @@ export const exigirCliente: MiddlewareHandler<Ambiente> = async (c, next) => {
       vista_em: number;
       criada_em: number;
       identidade_id: number | null;
+      aparelho: string;
       codigo: string;
     }>();
   if (!linha) recusar(401, 'sessao');
-  if (linha.vista_em < agora() - 3600) {
+  // A app nativa diz o nome do aparelho: as sessões antigas, que ficaram «Aparelho», ganham-no já.
+  const aparelho = c.req.header('X-Aparelho') ? aparelhoDoPedido(c) : linha.aparelho;
+  if (linha.vista_em < agora() - 3600 || aparelho !== linha.aparelho) {
     const db = c.env.DB;
     c.executionCtx.waitUntil(
       db.batch([
         db
           .prepare(
-            'UPDATE sessoes_de_cliente SET vista_em = unixepoch(), expira_em = unixepoch() + ? WHERE id = ?',
+            'UPDATE sessoes_de_cliente SET vista_em = unixepoch(), expira_em = unixepoch() + ?, aparelho = ? WHERE id = ?',
           )
-          .bind(DIAS_DA_SESSAO_DO_CLIENTE * DIA, linha.id),
+          .bind(DIAS_DA_SESSAO_DO_CLIENTE * DIA, aparelho, linha.id),
         db
           .prepare('UPDATE clientes SET visto_em = unixepoch() WHERE id = ?')
           .bind(linha.cliente_id),
@@ -65,13 +68,7 @@ export async function abrirSessaoDoCliente(
     `INSERT INTO sessoes_de_cliente (resumo, cliente_id, identidade_id, aparelho, expira_em)
      VALUES (?, ?, ?, ?, unixepoch() + ?)`,
   )
-    .bind(
-      blob(await sha256(testemunho)),
-      clienteId,
-      identidadeId,
-      aparelhoDe(c.req.header('User-Agent') ?? ''),
-      dias * DIA,
-    )
+    .bind(blob(await sha256(testemunho)), clienteId, identidadeId, aparelhoDoPedido(c), dias * DIA)
     .run();
   return testemunho;
 }

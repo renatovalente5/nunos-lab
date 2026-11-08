@@ -1,4 +1,12 @@
-import { NOME_DA_LINGUA, limparNome, type FormaDeEntrar, type Loja } from '@nunos-lab/dominio';
+import {
+  NOME_DA_LINGUA,
+  dataCurta,
+  diaEmLisboa,
+  diasEntre,
+  limparNome,
+  type FormaDeEntrar,
+  type Loja,
+} from '@nunos-lab/dominio';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
@@ -46,6 +54,8 @@ const NOME_DA_FORMA: Record<FormaDeEntrar['tipo'], string> = {
 
 /** «DD/MM» ↔ «MM-DD». */
 const paraEcra = (a: string | null) => (a ? `${a.slice(3)}/${a.slice(0, 2)}` : '');
+/** Uma sessão aberta num browser («Mac · Safari»): o globo em vez do telemóvel. */
+const NO_BROWSER = /· (Safari|Chrome|Firefox|Edge|Opera)$/;
 
 function Linha({
   icone,
@@ -170,6 +180,11 @@ export default function Conta() {
     setErro(null);
     setFolha(qual);
   };
+  // As sessões, a deste aparelho em primeiro; as outras pela última vez que se usaram.
+  const sessoes = [...eu.sessoes].sort(
+    (a, b) => Number(b.actual) - Number(a.actual) || b.vistaEm - a.vistaEm,
+  );
+  const hoje = diaEmLisboa();
   // Só a demonstração (os revisores das lojas) não tem formas de entrar: a API recusa-lhe o resto.
   const demonstracao = eu.demo ?? eu.formas.length === 0;
   // No Android não há Apple: a folha «Juntar» abria vazia.
@@ -254,20 +269,68 @@ export default function Conta() {
         )}
       </Grupo>
 
+      {/* Os aparelhos com sessão, este em primeiro: cada outro sai sozinho (o Renato, 8 nov). */}
       <Rotulo>{t.conta.sessoes}</Rotulo>
       <Grupo>
-        <Linha
-          icone="aparelho"
-          nome={
-            eu.sessoes.length === 1 ? t.conta.soEsteAparelho : t.conta.aparelhos(eu.sessoes.length)
-          }
-          valor={eu.sessoes.length > 1 && !demonstracao ? t.conta.terminarAsOutras : undefined}
-          onPress={
-            eu.sessoes.length > 1 && !demonstracao
-              ? () => correr(() => conta.sairDasOutras())
-              : undefined
-          }
-        />
+        {sessoes.map((x, i) => {
+          const nome =
+            x.aparelho && x.aparelho !== 'Aparelho' ? x.aparelho : t.conta.aparelhoSemNome;
+          const dia = diaEmLisboa(x.vistaEm * 1000);
+          return (
+            <View key={x.id}>
+              {i > 0 && <Separador recuo={48} />}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  minHeight: 54,
+                  paddingHorizontal: 16,
+                }}
+              >
+                <Icone
+                  nome={NO_BROWSER.test(x.aparelho) ? 'site' : 'aparelho'}
+                  tamanho={20}
+                  cor={cor.texto2}
+                  espessura={2}
+                />
+                <View style={{ flex: 1 }}>
+                  <T v="forte" numberOfLines={1}>
+                    {nome}
+                  </T>
+                  <T v="legenda" style={{ color: cor.texto2 }} numberOfLines={1}>
+                    {x.actual
+                      ? t.conta.esteAparelho
+                      : t.conta.usado(diasEntre(dia, hoje), dataCurta(dia, hoje, lingua))}
+                  </T>
+                </View>
+                {!x.actual && !demonstracao && (
+                  <Pressable
+                    onPress={() => correr(() => conta.terminarSessao(x.id))}
+                    role="button"
+                    aria-label={t.conta.terminarSessao(nome)}
+                    hitSlop={8}
+                    style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+                  >
+                    <T v="legenda" style={{ color: cor.texto2 }}>
+                      {t.conta.terminar}
+                    </T>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          );
+        })}
+        {sessoes.length > 2 && !demonstracao && (
+          <>
+            <Separador recuo={48} />
+            <Linha
+              icone="fechar"
+              nome={t.conta.terminarAsOutras}
+              onPress={() => correr(() => conta.sairDasOutras())}
+            />
+          </>
+        )}
         <Separador recuo={48} />
         <Linha
           icone="sair"

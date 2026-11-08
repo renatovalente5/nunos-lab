@@ -123,6 +123,19 @@ export function aparelhoDe(ua: string): string {
   return browser ? `${sistema} · ${browser}` : sistema;
 }
 
+/**
+ * O nome do aparelho de um pedido. As apps nativas dizem-no no cabeçalho `X-Aparelho` («iPhone»,
+ * «Android · Samsung SM-S911B»): o User-Agent delas («CFNetwork/Darwin», «okhttp») não diz nada e
+ * a lista das sessões ficava cheia de «Aparelho». A web vai pelo User-Agent («Mac · Safari»).
+ */
+export function aparelhoDoPedido(c: { req: { header(nome: string): string | undefined } }): string {
+  const dito = (c.req.header('X-Aparelho') ?? '')
+    .replace(/[^\p{L}\p{N} ·.,()+\-]/gu, '')
+    .trim()
+    .slice(0, 40);
+  return dito || aparelhoDe(c.req.header('User-Agent') ?? '');
+}
+
 /** Uma linha do registo, para ir no mesmo batch que a mudança. */
 export function registar(c: C, accao: string, alvo = ''): D1PreparedStatement {
   return c.env.DB.prepare('INSERT INTO registo (admin_id, accao, alvo) VALUES (?, ?, ?)').bind(

@@ -19,3 +19,4 @@ export * from './lingua';
 export * from './textos';
 export * from './escolha-da-lingua';
 export * from './vibrar';
+export * from './aparelho';

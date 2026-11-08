@@ -478,6 +478,21 @@ rotasDaConta.post('/sair-das-outras', async (c) => {
   return c.json(await lerEu(c));
 });
 
+/** Termina UMA das outras sessões (a lista da Conta): a de agora sai por «Sair». */
+rotasDaConta.post('/sessoes/:id/terminar', async (c) => {
+  exigirNaoDemo(c);
+  const { id, sessao } = c.get('cliente');
+  const alvo = Number(c.req.param('id'));
+  if (!Number.isInteger(alvo) || alvo <= 0 || alvo === sessao) recusar(404, 'nao_existe');
+  const r = await c.env.DB.prepare(
+    'UPDATE sessoes_de_cliente SET revogada_em = unixepoch() WHERE id = ? AND cliente_id = ? AND revogada_em IS NULL',
+  )
+    .bind(alvo, id)
+    .run();
+  if (!r.meta.changes) recusar(404, 'nao_existe');
+  return c.json(await lerEu(c));
+});
+
 /** Termina as outras sessões E troca o código do cartão: o telemóvel perdido deixa de servir. */
 rotasDaConta.post('/perdi-o-telemovel', async (c) => {
   exigirNaoDemo(c);

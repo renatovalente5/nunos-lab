@@ -14,7 +14,7 @@ import {
 import type { Ambiente, C } from '../ambiente.ts';
 import { conferirCredencialGoogle } from '../backoffice/google.ts';
 import { conferirTokenDaApple } from '../entrada/apple.ts';
-import { DIA, agora, aleatorio, aparelhoDe, blob, corpo, recusar, sha256 } from '../util.ts';
+import { DIA, agora, aleatorio, aparelhoDoPedido, blob, corpo, recusar, sha256 } from '../util.ts';
 
 type LinhaPessoa = {
   id: number;
@@ -74,12 +74,7 @@ async function abrirSessao(c: C, pessoaId: number, dias = DIAS_DA_SESSAO_DA_EQUI
   await c.env.DB.prepare(
     'INSERT INTO sessoes_da_equipa (resumo, pessoa_id, aparelho, expira_em) VALUES (?, ?, ?, unixepoch() + ?)',
   )
-    .bind(
-      blob(await sha256(testemunho)),
-      pessoaId,
-      aparelhoDe(c.req.header('User-Agent') ?? ''),
-      dias * DIA,
-    )
+    .bind(blob(await sha256(testemunho)), pessoaId, aparelhoDoPedido(c), dias * DIA)
     .run();
   return c.json({ sessao: testemunho });
 }

@@ -21,6 +21,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import {
   CHAVE_DA_LINGUA,
+  cabecalhoDoAparelho,
   guardar as guardarNoArmazem,
   lerSincrono,
   linguaActual,
@@ -155,7 +156,8 @@ async function pedirAgora<T>(
   metodo: 'GET' | 'POST' | 'DELETE',
   corpo: unknown,
 ): Promise<T> {
-  const cabecalhos: Record<string, string> = {};
+  // O nome do aparelho (só nas apps nativas), para a equipa se reconhecer nas sessões.
+  const cabecalhos: Record<string, string> = cabecalhoDoAparelho();
   const t = sessao();
   if (t) cabecalhos.Authorization = `Bearer ${t}`;
   if (corpo !== undefined) cabecalhos['Content-Type'] = 'application/json';

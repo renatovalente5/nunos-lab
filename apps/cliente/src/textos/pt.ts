@@ -85,8 +85,19 @@ export const pt = {
     tirar: 'Tirar',
     juntarOutraForma: 'Juntar outra forma',
     sessoes: 'Sessões',
-    soEsteAparelho: 'Só este aparelho',
-    aparelhos: (n: number) => `${n} aparelhos`,
+    esteAparelho: 'Este aparelho',
+    /** Uma sessão sem nome (das apps antigas, antes de dizerem o aparelho). */
+    aparelhoSemNome: 'Aparelho',
+    usado: (dias: number, data: string): string =>
+      dias <= 0
+        ? 'Usado hoje'
+        : dias === 1
+          ? 'Usado ontem'
+          : dias < 7
+            ? `Usado há ${dias} dias`
+            : `Usado a ${data}`,
+    terminar: 'Terminar',
+    terminarSessao: (aparelho: string) => `Terminar a sessão: ${aparelho}`,
     terminarAsOutras: 'Terminar as outras',
     sair: 'Sair',
     mais: 'Mais',
@@ -153,6 +164,7 @@ export const pt = {
     irA: (casa: string) => `Ir a ${casa}`,
     mapaComAsCasas: 'Mapa com as casas',
     mapasDaApple: 'Mapas da Apple',
+    verTodas: 'Ver todas as barbearias',
   },
   naoEncontrado: { texto: 'Esta página não existe', verAsVantagens: 'Ver as vantagens' },
   erroDoEcra: { titulo: 'Algo correu mal', texto: 'A app não conseguiu abrir este ecrã.' },
