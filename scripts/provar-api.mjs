@@ -2220,6 +2220,228 @@ await passo(
   },
 );
 
+// ——— Quem valida num parceiro (8 nov): um email só valida num parceiro, e cada um só o seu ———
+const [pA, pB] = (await (await pedir('/api/bo/parceiros', { token })).json()).filter(
+  (p) => p.activo,
+);
+const juntarQuemValida = (nome, email, parceiroId) =>
+  pedir('/api/bo/equipa', {
+    method: 'POST',
+    token,
+    body: json({ nome, email, papel: 'parceiro', lojaId: null, parceiroId }),
+  });
+const pessoaDaEquipa = async (nome) =>
+  (await (await pedir('/api/bo/equipa', { token })).json()).find((p) => p.nome === nome);
+const validarVantagem = (sessao, codigo, promocaoId, chave = chaveNova()) =>
+  pedir('/api/balcao/validar', {
+    method: 'POST',
+    token: sessao,
+    body: json({ codigo, promocaoId, chave }),
+  });
+async function promocaoQueSeValida(parceiroId, titulo) {
+  const r = await pedir('/api/bo/promocoes', {
+    method: 'POST',
+    token,
+    body: json({
+      parceiroId,
+      destaque: '-5 %',
+      titulo,
+      detalhe: '',
+      inicio: null,
+      fim: null,
+      emDestaque: false,
+      activa: true,
+      validar: true,
+      soClientesActivos: false,
+    }),
+  });
+  assert.equal(r.status, 201, `a promoção «${titulo}»`);
+  return (await r.json()).id;
+}
+let promocaoDoA;
+let codigoDeQuemUsa;
+
+await passo(
+  'quem valida: o mesmo email não fica em dois parceiros (nem em maiúsculas), nem na equipa',
+  async () => {
+    assert.ok(pA && pB, 'há dois parceiros ligados');
+    assert.equal((await juntarQuemValida('Ana QV', 'ana.qv@exemplo.pt', pA.id)).status, 201);
+    for (const email of ['ana.qv@exemplo.pt', '  ANA.QV@Exemplo.PT ']) {
+      const r = await juntarQuemValida('Ana no B', email, pB.id);
+      assert.equal(r.status, 409, `o mesmo email noutro parceiro («${email}»)`);
+      assert.equal((await r.json()).erro, 'repetido');
+    }
+    const barbeira = await pedir('/api/bo/equipa', {
+      method: 'POST',
+      token,
+      body: json({
+        nome: 'Ana barbeira',
+        email: 'ana.qv@exemplo.pt',
+        papel: 'barbeiro',
+        lojaId: lojaDaProva,
+        parceiroId: null,
+      }),
+    });
+    assert.equal(barbeira.status, 409, 'nem como barbeira');
+    assert.equal((await juntarQuemValida('Bruno QV', 'bruno.qv@exemplo.pt', pB.id)).status, 201);
+    const bruno = await pessoaDaEquipa('Bruno QV');
+    const mudarOEmail = await pedir(`/api/bo/equipa/${bruno.id}`, {
+      method: 'PATCH',
+      token,
+      body: json({ email: 'ana.qv@exemplo.pt' }),
+    });
+    assert.equal(mudarOEmail.status, 409, 'nem a editar o email de outra pessoa');
+    const ana = await pessoaDaEquipa('Ana QV');
+    assert.equal(ana.parceiroId, pA.id, 'a Ana continua no A');
+    assert.equal(ana.parceiro, pA.nome, 'e o backoffice diz qual');
+    assert.equal((await pessoaDaEquipa('Bruno QV')).email, 'bruno.qv@exemplo.pt');
+    assert.equal(await pessoaDaEquipa('Ana no B'), undefined);
+    assert.equal(await pessoaDaEquipa('Ana barbeira'), undefined);
+    assert.equal(
+      daBaseLocal(
+        "SELECT count(*) AS n FROM equipa WHERE email = 'ana.qv@exemplo.pt' AND removido_em IS NULL",
+      )[0].n,
+      1,
+    );
+  },
+);
+
+await passo(
+  'quem valida: cada um vê, valida e anula só o do seu parceiro, e a lista do dia é só dele',
+  async () => {
+    promocaoDoA = await promocaoQueSeValida(pA.id, 'Vantagem do A');
+    const promocaoDoB = await promocaoQueSeValida(pB.id, 'Vantagem do B');
+    const cliente = (
+      await (
+        await entrarTeste('google', 'qv-cliente', 'qv.cliente@gmail.com', { nome: 'Quem Usa' })
+      ).json()
+    ).sessao;
+    codigoDeQuemUsa = (await euDe(cliente)).eu.codigo;
+    const ana = await entrarNaBalcao('ana.qv@exemplo.pt');
+    const bruno = await entrarNaBalcao('bruno.qv@exemplo.pt');
+    assert.equal(
+      (await (await pedir('/api/balcao/eu', { token: ana })).json()).parceiro.nome,
+      pA.nome,
+      'a Ana entra pelo A',
+    );
+    const fichaDaAna = await (
+      await pedir(`/api/balcao/ficha-parceiro/${codigoDeQuemUsa}`, { token: ana })
+    ).json();
+    const vantagens = fichaDaAna.vantagens.map((v) => v.id);
+    assert.ok(vantagens.includes(promocaoDoA), 'a Ana vê a vantagem do A');
+    assert.ok(!vantagens.includes(promocaoDoB), 'e não a do B');
+    const doOutro = await validarVantagem(ana, codigoDeQuemUsa, promocaoDoB);
+    assert.equal(doOutro.status, 400, 'a Ana não valida a vantagem do B');
+    assert.equal((await doOutro.json()).erro, 'referencia');
+    const chaveDaAna = chaveNova();
+    const certa = await validarVantagem(ana, codigoDeQuemUsa, promocaoDoA, chaveDaAna);
+    assert.equal(certa.status, 200, 'valida a do A');
+    const vale = (await certa.json()).vale;
+    assert.equal(vale.pessoa, 'Ana QV');
+    const mesmaChave = await validarVantagem(bruno, codigoDeQuemUsa, promocaoDoB, chaveDaAna);
+    assert.equal(mesmaChave.status, 409, 'a chave do vale do A, pelo B, não devolve o vale do A');
+    const hojeDoA = await (await pedir('/api/balcao/hoje-parceiro', { token: ana })).json();
+    const hojeDoB = await (await pedir('/api/balcao/hoje-parceiro', { token: bruno })).json();
+    assert.ok(
+      hojeDoA.ultimos.some((v) => v.id === vale.id),
+      'o A vê o que validou',
+    );
+    assert.ok(!hojeDoB.ultimos.some((v) => v.id === vale.id), 'o B não vê o que se validou no A');
+    const anular = await pedir('/api/balcao/anular-vale', {
+      method: 'POST',
+      token: bruno,
+      body: json({ valeId: vale.id }),
+    });
+    assert.equal(anular.status, 404, 'o B não anula o vale do A');
+    assert.equal(
+      (await validarVantagem(bruno, codigoDeQuemUsa, promocaoDoB)).status,
+      200,
+      'o Bruno valida a do B',
+    );
+    assert.equal(
+      daBaseLocal(`SELECT parceiro_id AS p FROM vales WHERE id = ${vale.id}`)[0].p,
+      pA.id,
+    );
+  },
+);
+
+await passo(
+  'quem valida: mudar de parceiro é tirar num e juntar no outro; o que validou no primeiro fica',
+  async () => {
+    const ana = await pessoaDaEquipa('Ana QV');
+    const sessaoNoA = await entrarNaBalcao('ana.qv@exemplo.pt');
+    assert.equal(
+      (await pedir(`/api/bo/equipa/${ana.id}`, { method: 'DELETE', token })).status,
+      200,
+    );
+    assert.equal((await pedir('/api/balcao/eu', { token: sessaoNoA })).status, 401, 'sai do A');
+    assert.equal((await entrarEquipa('ana.qv@exemplo.pt')).status, 403, 'e já não entra');
+    assert.equal(
+      (await juntarQuemValida('Ana QV', 'ana.qv@exemplo.pt', pB.id)).status,
+      201,
+      'o email ficou livre para o B',
+    );
+    const noB = await entrarNaBalcao('ana.qv@exemplo.pt');
+    assert.equal(
+      (await (await pedir('/api/balcao/eu', { token: noB })).json()).parceiro.nome,
+      pB.nome,
+      'agora entra pelo B',
+    );
+    const ficha = await (
+      await pedir(`/api/balcao/ficha-parceiro/${codigoDeQuemUsa}`, { token: noB })
+    ).json();
+    assert.ok(!ficha.vantagens.some((v) => v.id === promocaoDoA), 'e já não vê a do A');
+    const [vale] = daBaseLocal(
+      `SELECT v.parceiro_id AS p, e.nome, e.removido_em AS r FROM vales v JOIN equipa e ON e.id = v.pessoa_id WHERE v.promocao_id = ${promocaoDoA}`,
+    );
+    assert.equal(vale.p, pA.id, 'o vale do A continua no A');
+    assert.equal(vale.nome, 'Ana QV', 'com o nome de quem o deu');
+    assert.ok(vale.r, 'pela pessoa de antes, já tirada');
+  },
+);
+
+await passo(
+  'quem valida: desligar um parceiro, ou só a pessoa, fecha a porta só a quem é dele',
+  async () => {
+    assert.equal((await juntarQuemValida('Carla QV', 'carla.qv@exemplo.pt', pA.id)).status, 201);
+    const carla = await entrarNaBalcao('carla.qv@exemplo.pt');
+    const bruno = await entrarNaBalcao('bruno.qv@exemplo.pt');
+    const ligarOB = (activo) =>
+      pedir(`/api/bo/parceiros/${pB.id}`, { method: 'PATCH', token, body: json({ activo }) });
+    assert.equal((await ligarOB(false)).status, 200);
+    const fechada = await pedir('/api/balcao/eu', { token: bruno });
+    assert.equal(fechada.status, 403);
+    assert.equal((await fechada.json()).erro, 'parceiro_desligado');
+    const entrar = await entrarEquipa('bruno.qv@exemplo.pt');
+    assert.equal(entrar.status, 403);
+    assert.equal((await entrar.json()).erro, 'parceiro_desligado');
+    assert.equal((await pedir('/api/balcao/eu', { token: carla })).status, 200, 'o A não sente');
+    assert.equal((await ligarOB(true)).status, 200);
+    assert.equal((await pedir('/api/balcao/eu', { token: bruno })).status, 200, 'religado, volta');
+    // O «Activo» da pessoa, na folha do parceiro: desligado não entra; ligado volta a entrar.
+    const pessoa = await pessoaDaEquipa('Bruno QV');
+    const activo = (v) =>
+      pedir(`/api/bo/equipa/${pessoa.id}`, { method: 'PATCH', token, body: json({ activo: v }) });
+    assert.equal((await activo(false)).status, 200);
+    assert.equal((await pedir('/api/balcao/eu', { token: bruno })).status, 401);
+    assert.equal((await entrarEquipa('bruno.qv@exemplo.pt')).status, 403);
+    assert.equal(
+      (await pedir('/api/balcao/eu', { token: carla })).status,
+      200,
+      'a Carla não sente',
+    );
+    assert.equal((await activo(true)).status, 200);
+    assert.ok(await entrarNaBalcao('bruno.qv@exemplo.pt'));
+    for (const nome of ['Ana QV', 'Bruno QV', 'Carla QV']) {
+      const p = await pessoaDaEquipa(nome);
+      assert.equal(
+        (await pedir(`/api/bo/equipa/${p.id}`, { method: 'DELETE', token })).status,
+        200,
+      );
+    }
+  },
+);
+
 await passo('sair termina a sessão', async () => {
   assert.equal((await pedir('/api/bo/sair', { method: 'POST', token })).status, 204);
   assert.equal((await pedir('/api/bo/eu', { token })).status, 401);
