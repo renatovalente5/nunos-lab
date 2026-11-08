@@ -62,7 +62,7 @@ export const pt = {
   emVariasCasas: (n: string) => `${n} em várias casas`,
   /** «Activos · 30 dias» (o período vem de dias()). */
   activos: (periodo: string) => `Activos · ${periodo}`,
-  activosEm30: (n: string) => `${n} activos em 30 dias`,
+  activosEm30: (n: number) => `${n} ${n === 1 ? 'activo' : 'activos'} em 30 dias`,
   frequencia: 'Frequência',
   aindaSemDados: 'ainda sem dados',
   diasEntreVisitas: 'dias entre visitas',

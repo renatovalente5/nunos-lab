@@ -521,7 +521,7 @@ export function Metricas() {
               titulo={t.geral.seccoes.clientes}
               resumo={[
                 plural(m.clientes.total, t.metricas.palavras.cliente, t.metricas.palavras.clientes),
-                t.metricas.activosEm30(numero(m.clientes.activos30)),
+                t.metricas.activosEm30(m.clientes.activos30),
               ].join(' · ')}
             >
               <div className="grelha quatro">
