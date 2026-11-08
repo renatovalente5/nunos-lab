@@ -190,7 +190,6 @@ export default function Resumo() {
             {[
               [r.novos, t.resumo.novos],
               [r.recompensas, t.resumo.premios],
-              [r.emRisco, t.resumo.emRisco],
             ].map(([v, n]) => (
               <View
                 key={String(n)}

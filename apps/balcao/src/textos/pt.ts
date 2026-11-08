@@ -118,7 +118,6 @@ export const pt = {
     carimbos: (n: number): string => (n === 1 ? 'carimbo' : 'carimbos'),
     novos: 'Novos',
     premios: 'Prémios',
-    emRisco: 'Em risco',
     porCasa: 'Por casa',
     equipa: 'Equipa',
   },

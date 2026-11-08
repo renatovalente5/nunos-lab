@@ -111,7 +111,6 @@ export const en: Textos = {
     carimbos: (n) => (n === 1 ? 'stamp' : 'stamps'),
     novos: 'New',
     premios: 'Rewards',
-    emRisco: 'At risk',
     porCasa: 'By shop',
     equipa: 'Team',
   },
