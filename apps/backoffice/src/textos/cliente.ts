@@ -44,7 +44,7 @@ export const pt = {
     pergunta: (nome: string) =>
       nome ? `Apagar a conta de ${nome}?` : 'Apagar a conta deste cliente?',
     texto:
-      'Saem o nome, o email, as formas de entrar e o passe da Wallet; os carimbos ficam sem nome, para as contas. Não se desfaz.',
+      'Perde o cartão, os carimbos e as recompensas. Se voltar a entrar na app, começa do zero. Os carimbos já dados continuam a contar no Resumo, sem nome. Não se desfaz.',
     accao: 'Apagar',
     feito: 'Conta apagada',
   },
@@ -108,7 +108,7 @@ export const en: typeof pt = {
   apagar: {
     pergunta: (nome) => (nome ? `Delete ${nome}'s account?` : "Delete this client's account?"),
     texto:
-      "Their name, email, sign-in methods and Wallet pass will be deleted. Their stamps are kept, without a name, for the metrics. This can't be undone.",
+      "They lose their card, stamps and rewards. If they sign in to the app again, they start from zero. Stamps already given still count in the Summary, without a name. This can't be undone.",
     accao: 'Delete',
     feito: 'Account deleted',
   },

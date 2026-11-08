@@ -112,7 +112,8 @@ export const en: Textos = {
     guardar: 'Save',
     tirarOAniversario: 'Remove birthday',
     todasAsCasas: 'All barbershops',
-    apagarAviso: 'You’ll lose your card, stamps and rewards. This can’t be undone.',
+    apagarAviso:
+      'You’ll lose your card, stamps and rewards. If you sign in again, you’ll start from zero. This can’t be undone.',
     dia: 'Day',
     mes: 'Month',
     meses: [

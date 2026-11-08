@@ -110,7 +110,8 @@ export const pt = {
     guardar: 'Guardar',
     tirarOAniversario: 'Tirar o aniversário',
     todasAsCasas: 'Todas as barbearias',
-    apagarAviso: 'O cartão, os carimbos e as recompensas perdem-se. Não se desfaz.',
+    apagarAviso:
+      'Perdes o cartão, os carimbos e as recompensas. Se voltares a entrar, começas do zero. Não se desfaz.',
     dia: 'Dia',
     mes: 'Mês',
     meses: [
