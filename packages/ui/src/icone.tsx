@@ -24,7 +24,7 @@ const DESENHOS = {
     'M12 3c2.3 2.5 3.4 5.5 3.4 9s-1.1 6.5-3.4 9c-2.3-2.5-3.4-5.5-3.4-9s1.1-6.5 3.4-9z',
   ],
   relogio: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 7v5l3.2 2'],
-  /** Um ponto de atenção («já carimbado hoje»): círculo com exclamação. O «aviso» é o altifalante dos anúncios. */
+  /** Um ponto de atenção («já carimbado hoje»): círculo com exclamação. O «aviso» é o sino dos recados. */
   atencao: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 7.5v5.5', 'M12 16.5h.01'],
   /** As vantagens. Virada como o `tag` do iPhone (o furo em cima, à direita), o da barra de baixo. */
   etiqueta: [
@@ -46,11 +46,11 @@ const DESENHOS = {
   ],
   conversa: ['M20.5 11.5a8.5 8.5 0 0 1-12.4 7.6L3.5 20.5l1.4-4.4A8.5 8.5 0 1 1 20.5 11.5z'],
   partilhar: ['M12 3v12', 'M7.5 7.5L12 3l4.5 4.5', 'M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6'],
-  aviso: [
-    'M4 10v4a1 1 0 0 0 1 1h2l5 4V5L7 9H5a1 1 0 0 0-1 1z',
-    'M16 8.5a5 5 0 0 1 0 7',
-    'M18.8 6a8.5 8.5 0 0 1 0 12',
-  ],
+  /**
+   * O aviso no topo da app (um recado da barbearia: novidades, feriados, horários): o sino, o sinal de
+   * aviso que toda a gente conhece. Era um altifalante, que se lia como «som» (o Renato, 8 nov).
+   */
+  aviso: ['M12 3.5v2', 'M18 16.5v-5a6 6 0 0 0-12 0v5L4.5 18h15z', 'M10 20a2 2 0 0 0 4 0'],
   escudo: ['M12 21s7-3.2 7-9.5V5.5L12 3 5 5.5v6c0 6.3 7 9.5 7 9.5z'],
   certo: ['M5 12.5l4.5 4.5L19 7'],
   fechar: ['M6 6l12 12', 'M18 6L6 18'],
