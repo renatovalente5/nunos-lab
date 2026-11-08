@@ -4,9 +4,13 @@
     "slug": "nunos-lab-balcao",
     "owner": "renatovalente5",
     "scheme": "nunoslab-balcao",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "runtimeVersion": {
       "policy": "fingerprint"
+    },
+    "locales": {
+      "pt": "./locales/pt.json",
+      "en": "./locales/en.json"
     },
     "updates": {
       "url": "https://u.expo.dev/48dd1aac-1c42-4cc7-9a05-d05c19c07e5c"
