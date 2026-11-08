@@ -18,7 +18,7 @@ const pt = {
   comoFunciona: 'Como funciona',
   como: (objectivo: number, recompensa: string) =>
     `Um carimbo por corte. Ao ${objectivo}.º, ${recompensa}.`,
-  asCasas: 'As casas',
+  asCasas: 'As barbearias',
   contacto: 'Contacto',
   site: 'Site',
   privacidade: 'Privacidade',
