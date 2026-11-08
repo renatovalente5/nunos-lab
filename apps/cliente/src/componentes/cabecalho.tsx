@@ -6,14 +6,15 @@ import { MARGEM, T } from '@nunos-lab/ui';
 const ALTURA = 40;
 
 /**
- * O título de um separador (Cartão, Barbearias), sempre no mesmo sítio, com ou sem o círculo da conta
- * à direita: ao trocar de separador, o título e o primeiro cartão não saltam (o Renato, 8 nov).
+ * O título de um separador (Vantagens, Cartão, Barbearias), sempre no mesmo sítio, com ou sem o círculo
+ * da conta à direita: ao trocar de separador, o título e o primeiro cartão não saltam (o Renato, 8 nov).
+ * Nas Vantagens o título é o logótipo.
  */
 export function CabecalhoDoSeparador({
   titulo,
   children,
 }: {
-  titulo: string;
+  titulo: ReactNode;
   /** O que fica à direita do título (o círculo da conta). */
   children?: ReactNode;
 }) {
@@ -29,9 +30,13 @@ export function CabecalhoDoSeparador({
         gap: 12,
       }}
     >
-      <T v="titulo" role="heading" aria-level={1} style={{ flexShrink: 1 }}>
-        {titulo}
-      </T>
+      {typeof titulo === 'string' ? (
+        <T v="titulo" role="heading" aria-level={1} style={{ flexShrink: 1 }}>
+          {titulo}
+        </T>
+      ) : (
+        titulo
+      )}
       {children}
     </View>
   );

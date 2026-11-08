@@ -2,13 +2,18 @@ import type { ParceiroPublico, PromocaoPublica } from '@nunos-lab/dominio';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState, useRef, type ComponentRef } from 'react';
 import { Image, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
-import { CartaoDestaque, iconeDe, LinhaDoParceiro } from '../../componentes/cartoes';
+import { CabecalhoDoSeparador } from '../../componentes/cabecalho';
+import {
+  alturaDoDestaque,
+  CartaoDestaque,
+  iconeDe,
+  LinhaDoParceiro,
+} from '../../componentes/cartoes';
 import { definirTitulo, guardarCasa, lerCasa, useDados } from '../../dados';
 import { useTextos } from '../../textos';
 import {
   CONTINUO,
   Ecra,
-  Esqueleto,
   Folha,
   Grupo,
   Icone,
@@ -44,6 +49,24 @@ function FadeDireita() {
 
 const palavra = require('../../../assets/marca/palavra.png');
 
+/** Enquanto os dados chegam: o destaque, o título e a lista onde vão aparecer, para nada saltar. */
+function EsqueletoDasVantagens() {
+  const bloco = (largura: number | `${number}%`, altura: number, r: number = raio.grupo) => (
+    <View
+      style={{ width: largura, height: altura, borderRadius: r, backgroundColor: cor.superficie }}
+    />
+  );
+  return (
+    <View style={{ paddingHorizontal: MARGEM, marginTop: 18 }} aria-busy>
+      {bloco('100%', 124)}
+      <View style={{ height: 40, marginTop: 20, justifyContent: 'center' }}>
+        {bloco(90, 14, 7)}
+      </View>
+      <View style={{ marginTop: 60 }}>{bloco('100%', 236)}</View>
+    </View>
+  );
+}
+
 export default function Vantagens() {
   const t = useTextos();
   const { data, isPending, isError, refetch } = useDados();
@@ -51,8 +74,7 @@ export default function Vantagens() {
   // A casa do cliente (Nogueira do Cravo, Feira, Aveiro): fica guardada no aparelho.
   const [casa, setCasa] = useState<number | null>(lerCasa);
   const [aEscolherCasa, setAEscolherCasa] = useState(false);
-  const { width } = useWindowDimensions();
-  const largura = Math.min(300, Math.round(Math.min(width, LARGURA_MAXIMA) * 0.76));
+  const { width, fontScale } = useWindowDimensions();
   useEffect(() => definirTitulo(t.titulos.vantagens), [t]);
   // Uma ligação partilhada (/?parceiro=N) abre o parceiro; o «Voltar» de lá vem
   // para aqui, já sem o parâmetro.
@@ -77,8 +99,22 @@ export default function Vantagens() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [data, casaEscolhida],
   );
-  // Uma categoria que deixou de ter parceiros (dados novos) deixa de estar escolhida.
-  const escolhida = data?.categorias.some((k) => k.id === categoria) ? categoria : null;
+  // Os destaques num lugar só, baixo, e a lista logo a seguir (o Renato, 8 nov: a lista ficava muito
+  // em baixo). Um destaque ocupa a largura toda; com vários, rolam de lado e o seguinte espreita.
+  const coluna = Math.min(width, LARGURA_MAXIMA) - 2 * MARGEM;
+  const varios = destaques.length > 1;
+  const larguraDoDestaque = varios ? coluna - 28 : coluna;
+  const altura = alturaDoDestaque(fontScale);
+  // Só as categorias com parceiros na casa escolhida; uma que deixou de ter volta a «Tudo».
+  const categorias = useMemo(
+    () =>
+      (data?.categorias ?? []).filter((k) =>
+        (data?.parceiros ?? []).some((p) => daCasa(p) && p.categoriaId === k.id),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, casaEscolhida],
+  );
+  const escolhida = categorias.some((k) => k.id === categoria) ? categoria : null;
   const lista = (data?.parceiros ?? []).filter(
     (p) => daCasa(p) && (escolhida === null || p.categoriaId === escolhida),
   );
@@ -95,28 +131,52 @@ export default function Vantagens() {
       pathname: '/parceiro/[id]',
       params: { id: String(p.id), ...(pr ? { p: String(pr.id) } : {}) },
     });
+  // O primeiro bloco fica a 18 do cabeçalho, como nos outros separadores; depois do aviso, a 14.
+  const primeiro = data?.aviso ? 14 : 18;
+  const botaoDaCasa =
+    haParceiros && lojas.length > 1 ? (
+      <Pressable
+        onPress={() => setAEscolherCasa(true)}
+        role="button"
+        aria-label={t.vantagens.mudarDeCasa(nomeDaCasa)}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          minHeight: 40,
+          paddingLeft: 12,
+          paddingRight: 10,
+          borderRadius: raio.pilula,
+          borderWidth: 1,
+          borderColor: cor.linha,
+          backgroundColor: pressed ? cor.superficie : 'transparent',
+        })}
+      >
+        <Icone nome="mapa" tamanho={16} cor={cor.texto2} espessura={2} />
+        <T v="legenda" style={{ color: cor.texto }}>
+          {nomeDaCasa}
+        </T>
+        <View style={{ transform: [{ rotate: '90deg' }] }}>
+          <Icone nome="seguinte" tamanho={14} cor={cor.texto3} espessura={2.2} />
+        </View>
+      </Pressable>
+    ) : null;
 
   return (
     <Ecra>
-      {/* A língua escolhe-se só na Conta; sem escolha, a do telemóvel (o Renato, 8 nov). */}
-      <View
-        style={{
-          paddingHorizontal: MARGEM,
-          minHeight: 44,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-        }}
-      >
-        <Image
-          source={palavra}
-          style={{ width: 200, height: Math.round((200 * 227) / 1200) }}
-          resizeMode="contain"
-          accessibilityLabel="Nuno's Lab"
-          role="img"
-        />
-      </View>
+      {/* A língua escolhe-se só na Conta; sem escolha, a do telemóvel (o Renato, 8 nov). O logótipo
+          está no cabeçalho dos outros separadores: o primeiro bloco não salta ao trocar. */}
+      <CabecalhoDoSeparador
+        titulo={
+          <Image
+            source={palavra}
+            style={{ width: 200, height: Math.round((200 * 227) / 1200) }}
+            resizeMode="contain"
+            accessibilityLabel="Nuno’s Lab"
+            role="img"
+          />
+        }
+      />
 
       {!!data?.aviso && (
         <View
@@ -141,23 +201,25 @@ export default function Vantagens() {
         </View>
       )}
 
-      {!data && isPending && <Esqueleto />}
+      {!data && isPending && <EsqueletoDasVantagens />}
       {!data && isError && <SemLigacao tentar={() => refetch()} />}
 
-      {data && destaques.length > 0 && (
-        <>
-          <Rotulo style={{ marginTop: 28 }}>{t.vantagens.emDestaque}</Rotulo>
+      {/* O título «Em destaque» saiu: a cor já o diz, e o leitor de ecrã ouve-o em cada destaque. */}
+      {data &&
+        destaques.length > 0 &&
+        (varios ? (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             decelerationRate="fast"
-            snapToInterval={largura + 14}
-            contentContainerStyle={{ paddingHorizontal: MARGEM, gap: 14 }}
-            style={
+            snapToInterval={larguraDoDestaque + 12}
+            contentContainerStyle={{ paddingHorizontal: MARGEM, gap: 12 }}
+            style={[
+              { marginTop: primeiro },
               Platform.OS === 'web'
                 ? ({ scrollSnapType: 'x mandatory', scrollPaddingLeft: MARGEM } as object)
-                : undefined
-            }
+                : null,
+            ]}
           >
             {destaques.map(({ parceiro, promocao }) => (
               <CartaoDestaque
@@ -166,48 +228,44 @@ export default function Vantagens() {
                 promocao={promocao}
                 icone={iconeDe(parceiro, data.categorias)}
                 hoje={data.hoje}
-                largura={largura}
+                largura={larguraDoDestaque}
+                altura={altura}
+                noCarrossel
                 onPress={() => abrir(parceiro, promocao)}
               />
             ))}
           </ScrollView>
-        </>
-      )}
+        ) : (
+          <View style={{ marginTop: primeiro, paddingHorizontal: MARGEM }}>
+            <CartaoDestaque
+              parceiro={destaques[0]!.parceiro}
+              promocao={destaques[0]!.promocao}
+              icone={iconeDe(destaques[0]!.parceiro, data.categorias)}
+              hoje={data.hoje}
+              largura={larguraDoDestaque}
+              altura={altura}
+              noCarrossel={false}
+              onPress={() => abrir(destaques[0]!.parceiro, destaques[0]!.promocao)}
+            />
+          </View>
+        ))}
 
       {data && (
         <>
-          <Rotulo>{t.vantagens.parceiros}</Rotulo>
-          {haParceiros && lojas.length > 1 && (
-            <View style={{ paddingHorizontal: MARGEM, marginBottom: 12, flexDirection: 'row' }}>
-              <Pressable
-                onPress={() => setAEscolherCasa(true)}
-                role="button"
-                aria-label={t.vantagens.mudarDeCasa(nomeDaCasa)}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  height: 40,
-                  paddingLeft: 12,
-                  paddingRight: 10,
-                  borderRadius: raio.pilula,
-                  borderWidth: 1,
-                  borderColor: cor.linha,
-                  backgroundColor: pressed ? cor.superficie : 'transparent',
-                })}
-              >
-                <Icone nome="mapa" tamanho={16} cor={cor.texto2} espessura={2} />
-                <T v="legenda" style={{ color: cor.texto }}>
-                  {nomeDaCasa}
-                </T>
-                <View style={{ transform: [{ rotate: '90deg' }] }}>
-                  <Icone nome="seguinte" tamanho={14} cor={cor.texto3} espessura={2.2} />
-                </View>
-              </Pressable>
-            </View>
-          )}
-          {data.categorias.length > 1 && (
-            <View style={{ marginBottom: 14 }}>
+          {/* «Parceiros» e a casa na mesma linha, de altura certa (não salta sem o botão da casa). */}
+          <Rotulo
+            style={{
+              marginTop: destaques.length > 0 ? 20 : primeiro,
+              marginBottom: 8,
+              minHeight: 40,
+              ...(botaoDaCasa ? null : { justifyContent: 'center' }),
+            }}
+            direita={botaoDaCasa}
+          >
+            {t.vantagens.parceiros}
+          </Rotulo>
+          {categorias.length > 1 && (
+            <View style={{ marginBottom: 12 }}>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -219,38 +277,36 @@ export default function Vantagens() {
                 role="radiogroup"
                 aria-label={t.vantagens.categorias}
               >
-                {[{ id: null as number | null, nome: t.vantagens.tudo }, ...data.categorias].map(
-                  (k) => {
-                    const activa = escolhida === k.id;
-                    return (
-                      <Pressable
-                        key={k.id ?? 'tudo'}
-                        onPress={() => setCategoria(k.id)}
-                        role="radio"
-                        aria-checked={activa}
-                        style={({ pressed }) => ({
-                          paddingHorizontal: 16,
-                          height: 40,
-                          justifyContent: 'center',
-                          borderRadius: raio.pilula,
-                          backgroundColor: activa ? cor.claro : cor.superficie,
-                          opacity: pressed ? 0.8 : 1,
-                        })}
+                {[{ id: null as number | null, nome: t.vantagens.tudo }, ...categorias].map((k) => {
+                  const activa = escolhida === k.id;
+                  return (
+                    <Pressable
+                      key={k.id ?? 'tudo'}
+                      onPress={() => setCategoria(k.id)}
+                      role="radio"
+                      aria-checked={activa}
+                      style={({ pressed }) => ({
+                        paddingHorizontal: 16,
+                        minHeight: 40,
+                        justifyContent: 'center',
+                        borderRadius: raio.pilula,
+                        backgroundColor: activa ? cor.claro : cor.superficie,
+                        opacity: pressed ? 0.8 : 1,
+                      })}
+                    >
+                      <T
+                        v="forte"
+                        style={{
+                          fontSize: 14,
+                          lineHeight: 18,
+                          color: activa ? cor.sobreClaro : cor.texto,
+                        }}
                       >
-                        <T
-                          v="forte"
-                          style={{
-                            fontSize: 14,
-                            lineHeight: 18,
-                            color: activa ? cor.sobreClaro : cor.texto,
-                          }}
-                        >
-                          {k.nome}
-                        </T>
-                      </Pressable>
-                    );
-                  },
-                )}
+                        {k.nome}
+                      </T>
+                    </Pressable>
+                  );
+                })}
               </ScrollView>
               <FadeDireita />
             </View>

@@ -28,7 +28,8 @@ export function Capa({
   raio?: number;
   /** Só os cantos de baixo redondos (a capa da página do parceiro). */
   raioBaixo?: number;
-  veu?: boolean;
+  /** O véu de cima e de baixo; «lado», da esquerda para a direita (o destaque baixo das Vantagens). */
+  veu?: boolean | 'lado';
   /** Um fio claro à volta, para o cartão se destacar do preto. */
   borda?: boolean;
   children?: ReactNode;
@@ -103,12 +104,22 @@ export function Capa({
           aria-hidden
         >
           <Defs>
-            <LinearGradient id={`${id}v`} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#000000" stopOpacity={0.45} />
-              <Stop offset="0.3" stopColor="#000000" stopOpacity={0} />
-              <Stop offset="0.5" stopColor="#000000" stopOpacity={0.05} />
-              <Stop offset="1" stopColor="#000000" stopOpacity={0.86} />
-            </LinearGradient>
+            {veu === 'lado' ? (
+              // O texto fica à esquerda: escurece-se esse lado e o da direita fica vivo. Numa fotografia,
+              // mais escuro, para o branco se ler sobre o que lá estiver.
+              <LinearGradient id={`${id}v`} x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor="#000000" stopOpacity={parceiro.capa ? 0.65 : 0.4} />
+                <Stop offset="0.6" stopColor="#000000" stopOpacity={parceiro.capa ? 0.35 : 0.1} />
+                <Stop offset="1" stopColor="#000000" stopOpacity={parceiro.capa ? 0.15 : 0} />
+              </LinearGradient>
+            ) : (
+              <LinearGradient id={`${id}v`} x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor="#000000" stopOpacity={0.45} />
+                <Stop offset="0.3" stopColor="#000000" stopOpacity={0} />
+                <Stop offset="0.5" stopColor="#000000" stopOpacity={0.05} />
+                <Stop offset="1" stopColor="#000000" stopOpacity={0.86} />
+              </LinearGradient>
+            )}
           </Defs>
           <Rect x="0" y="0" width="1" height="1" fill={`url(#${id}v)`} />
         </Svg>

@@ -51,7 +51,10 @@ export function Logotipo({
     );
   return (
     <View style={[base, { backgroundColor: corParaBranco(parceiro.cor) }]} aria-hidden>
+      {/* O círculo tem tamanho fixo: com a letra grande do iPhone as iniciais saíam cortadas («T» de «TV»).
+          O leitor de ecrã salta-as; o nome está ao lado. */}
       <Text
+        allowFontScaling={false}
         style={{
           color: '#FFFFFF',
           fontFamily: letra.extra,

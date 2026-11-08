@@ -45,12 +45,37 @@ export function Ecra({
 }
 
 /** O título de uma secção, a cheio, como no iOS. */
-export function Rotulo({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+export function Rotulo({
+  children,
+  style,
+  direita,
+}: {
+  children: ReactNode;
+  style?: ViewStyle;
+  /** Um botão à direita do título (a casa nas Vantagens); com a letra muito grande, passa para baixo. */
+  direita?: ReactNode;
+}) {
   return (
-    <View style={[{ paddingHorizontal: MARGEM, marginTop: 32, marginBottom: 14 }, style]}>
+    <View
+      style={[
+        { paddingHorizontal: MARGEM, marginTop: 32, marginBottom: 14 },
+        direita
+          ? {
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              columnGap: 12,
+              rowGap: 8,
+            }
+          : null,
+        style,
+      ]}
+    >
       <T v="seccao" role="heading" aria-level={2}>
         {children}
       </T>
+      {direita}
     </View>
   );
 }

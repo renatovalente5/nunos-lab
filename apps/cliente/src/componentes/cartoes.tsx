@@ -36,10 +36,9 @@ export function categoriaELocal(parceiro: ParceiroPublico, categorias: Categoria
 }
 
 /**
- * O tamanho do desconto em cada sítio, por degraus de letras (até às 12 do
- * campo): o React Native Web não encolhe o texto sozinho.
+ * O tamanho do desconto, por degraus de letras (até às 12 do campo): o React Native Web não encolhe o
+ * texto sozinho. O mesmo no destaque das Vantagens e na página do parceiro.
  */
-const ESCALA_DO_DESTAQUE = [46, 38, 30, 24] as const;
 const ESCALA_DO_BILHETE = [36, 30, 26, 22] as const;
 
 function letraDoDesconto(destaque: string, escala: readonly number[], tinta: string): TextStyle {
@@ -53,13 +52,28 @@ function letraDoDesconto(destaque: string, escala: readonly number[], tinta: str
   };
 }
 
-/** Um cartão grande do carrossel «Em destaque»: a vantagem em grande, sobre a capa. */
+/** No destaque, a letra cresce com a do iPhone só até aqui: o cartão é baixo e de altura certa. */
+const CRESCE_NO_DESTAQUE = 1.3;
+
+/** A altura do destaque: 124 com a letra normal, até 144 com a letra grande. */
+export function alturaDoDestaque(escalaDaLetra: number | undefined): number {
+  // Na web não há escala da letra (undefined): conta como 1.
+  const escala = Number.isFinite(escalaDaLetra) ? (escalaDaLetra as number) : 1;
+  return 124 + Math.round(66 * (Math.min(Math.max(escala, 1), CRESCE_NO_DESTAQUE) - 1));
+}
+
+/**
+ * Um destaque das Vantagens: baixo e largo, para a lista dos parceiros caber no primeiro ecrã (o Renato,
+ * 8 nov). A cor (ou a fotografia) do parceiro, o desenho da categoria e o desconto em grande ficam.
+ */
 export function CartaoDestaque({
   parceiro,
   promocao,
   icone,
   hoje,
   largura,
+  altura,
+  noCarrossel,
   onPress,
 }: {
   parceiro: ParceiroPublico;
@@ -67,30 +81,28 @@ export function CartaoDestaque({
   icone: IconeDaCategoria;
   hoje: string;
   largura: number;
+  altura: number;
+  /** Com mais de um destaque, rolam de lado e encaixam no início. */
+  noCarrossel: boolean;
   onPress: () => void;
 }) {
+  const t = useTextos();
   const validade = validadeEmTexto(promocao, hoje, useLingua());
   return (
     <Pressable
       onPress={onPress}
       role="link"
-      aria-label={`${promocao.destaque} ${promocao.titulo}, ${parceiro.nome}${validade ? `, ${validade}` : ''}`}
+      aria-label={`${t.vantagens.emDestaque}: ${promocao.destaque} ${promocao.titulo}, ${parceiro.nome}${validade ? `, ${validade}` : ''}`}
       style={({ pressed }) => [
         { width: largura, transform: [{ scale: pressed ? 0.98 : 1 }] },
-        Platform.OS === 'web' ? ({ scrollSnapAlign: 'start' } as object) : null,
+        noCarrossel && Platform.OS === 'web' ? ({ scrollSnapAlign: 'start' } as object) : null,
       ]}
     >
-      <Capa
-        parceiro={parceiro}
-        icone={icone}
-        altura={Math.round(largura * 1.2)}
-        raio={raio.cartao}
-        borda
-      >
+      <Capa parceiro={parceiro} icone={icone} altura={altura} raio={raio.grupo} borda veu="lado">
         <View
           style={{
             position: 'absolute',
-            top: 16,
+            top: 14,
             left: 16,
             right: 16,
             flexDirection: 'row',
@@ -98,31 +110,68 @@ export function CartaoDestaque({
             gap: 10,
           }}
         >
-          <Logotipo parceiro={parceiro} tamanho={36} />
-          <T v="forte" style={{ color: '#FFFFFF', flexShrink: 1 }} numberOfLines={2}>
+          <Logotipo parceiro={parceiro} tamanho={28} />
+          <T
+            v="forte"
+            style={{ color: '#FFFFFF', flexShrink: 1 }}
+            numberOfLines={1}
+            maxFontSizeMultiplier={CRESCE_NO_DESTAQUE}
+          >
             {parceiro.nome}
           </T>
-        </View>
-        <View style={{ position: 'absolute', left: 18, right: 18, bottom: 18 }}>
-          <T
-            style={letraDoDesconto(promocao.destaque, ESCALA_DO_DESTAQUE, '#FFFFFF')}
-            numberOfLines={1}
-          >
-            {semPartir(promocao.destaque)}
-          </T>
-          <T v="tituloCartao" style={{ color: '#FFFFFF', marginTop: 2 }} numberOfLines={2}>
-            {semPartir(promocao.titulo)}
-          </T>
-          {(validade || parceiro.exemplo) && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 }}>
-              {validade && (
-                <T v="legenda" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                  {validade}
-                </T>
-              )}
-              {parceiro.exemplo && <EtiquetaExemplo sobreFoto />}
+          {parceiro.exemplo && (
+            <View style={{ marginLeft: 'auto' }}>
+              <EtiquetaExemplo sobreFoto />
             </View>
           )}
+        </View>
+        <View style={{ position: 'absolute', left: 16, right: 16, bottom: 14 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+            }}
+          >
+            <T
+              style={[
+                letraDoDesconto(promocao.destaque, ESCALA_DO_BILHETE, '#FFFFFF'),
+                { flexShrink: 1 },
+              ]}
+              numberOfLines={1}
+              maxFontSizeMultiplier={CRESCE_NO_DESTAQUE}
+            >
+              {semPartir(promocao.destaque)}
+            </T>
+            {validade && (
+              <View
+                style={{
+                  backgroundColor: 'rgba(0,0,0,0.42)',
+                  borderRadius: raio.pilula,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                }}
+              >
+                <T
+                  v="legenda"
+                  style={{ color: '#FFFFFF' }}
+                  numberOfLines={1}
+                  maxFontSizeMultiplier={CRESCE_NO_DESTAQUE}
+                >
+                  {validade}
+                </T>
+              </View>
+            )}
+          </View>
+          <T
+            v="forte"
+            style={{ color: '#FFFFFF' }}
+            numberOfLines={1}
+            maxFontSizeMultiplier={CRESCE_NO_DESTAQUE}
+          >
+            {semPartir(promocao.titulo)}
+          </T>
         </View>
       </Capa>
     </Pressable>
@@ -163,18 +212,18 @@ export function LinhaDoParceiro({
         <T v="forte" numberOfLines={2}>
           {parceiro.nome}
         </T>
+        {/* Numa linha só: com «Novo» e um sítio comprido («Nogueira do Cravo») partia-se em duas, e
+            a lista descia (as Vantagens, 8 nov). As etiquetas ficam inteiras; o sítio encurta. */}
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            flexWrap: 'wrap',
             columnGap: 8,
-            rowGap: 4,
             marginTop: 3,
           }}
         >
           {parceiro.novo && <EtiquetaNovo />}
-          <T v="legenda" style={{ color: cor.texto2 }}>
+          <T v="legenda" style={{ color: cor.texto2, flexShrink: 1 }} numberOfLines={1}>
             {onde}
           </T>
           {parceiro.exemplo && <EtiquetaExemplo />}
