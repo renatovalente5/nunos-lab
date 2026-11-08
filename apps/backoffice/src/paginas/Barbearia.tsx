@@ -2,7 +2,15 @@ import { LIMITES, type DefinicoesDaBarbearia } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
-import { Campo, Esqueleto, Icone, porRever, useAccao, useAvisar, useConfirmar } from '../pecas';
+import {
+  Campo,
+  Esqueleto,
+  GrupoEmIngles,
+  Icone,
+  useAccao,
+  useAvisar,
+  useConfirmar,
+} from '../pecas';
 import { ListaArrastavel } from '../arrastar';
 import { useTextos } from '../textos';
 import { useAvisoAoSair } from '../util';
@@ -142,18 +150,24 @@ export function Barbearia() {
           placeholder={t.barbearia.avisoExemplo}
           ajuda={t.barbearia.avisoVazio}
         />
-        <Campo
-          rotulo={t.geral.emIngles.titulo}
-          valor={f.avisoEn}
-          mudar={(avisoEn) => setF({ ...f, avisoEn })}
-          max={LIMITES.aviso}
-          erro={erros.includes('avisoEn')}
-          placeholder={t.barbearia.avisoExemploEn}
-          ajuda={
-            porRever(original?.aviso ?? '', f.aviso, original?.avisoEn ?? '', f.avisoEn) ??
-            t.geral.emIngles.ajuda
-          }
-        />
+        <GrupoEmIngles
+          pares={[
+            {
+              campo: 'aviso',
+              pt: f.aviso,
+              definir: (avisoEn) => setF((x) => (x ? { ...x, avisoEn } : x)),
+            },
+          ]}
+        >
+          <Campo
+            rotulo={t.barbearia.texto}
+            valor={f.avisoEn}
+            mudar={(avisoEn) => setF({ ...f, avisoEn })}
+            max={LIMITES.aviso}
+            erro={erros.includes('avisoEn')}
+            placeholder={t.barbearia.avisoExemploEn}
+          />
+        </GrupoEmIngles>
         <div className="duas-colunas">
           <Campo
             rotulo={t.barbearia.ate}

@@ -8,6 +8,7 @@ import {
 } from '@nunos-lab/dominio';
 import type { z } from 'zod';
 import type { Ambiente, C } from '../ambiente.ts';
+import { completarIngles, temLetras, traduzir } from '../traducao.ts';
 import { refrescarPasses } from '../wallet/servico.ts';
 import {
   categoria,
@@ -37,10 +38,37 @@ import {
   Ordem,
   Parceiro,
   Promocao,
+  Traduzir,
   paraBase,
 } from './esquemas.ts';
 
 export const rotasDoConteudo = new Hono<Ambiente>();
+
+/** O parceiro e a categoria, para a tradução escolher as palavras («Azeméis Motor — Carros»). */
+function ondeDe(p: { nome: string; categoria?: string | null }): string {
+  return p.categoria ? `${p.nome} — ${p.categoria}` : p.nome;
+}
+
+// ——— traduzir ———
+
+/**
+ * O botão «Traduzir» do bloco em inglês: as sugestões, que se editam antes de guardar. Os textos sem
+ * letras («−10%», «2×1») voltam como vieram.
+ */
+rotasDoConteudo.post('/traduzir', async (c) => {
+  const { itens, modelo } = await corpo(c, Traduzir);
+  const deTeste = (c.env as { MODO?: string }).MODO === 'desenvolvimento' ? modelo : undefined;
+  const traduzidos = await traduzir(
+    c.env.AI,
+    itens.filter((i) => temLetras(i.texto)),
+    deTeste,
+  );
+  if (!traduzidos) recusar(503, 'traducao_indisponivel');
+  let k = 0;
+  return c.json({
+    traducoes: itens.map((i) => (temLetras(i.texto) ? traduzidos[k++]! : i.texto)),
+  });
+});
 
 // ——— parceiros ———
 
@@ -86,6 +114,18 @@ rotasDoConteudo.get('/parceiros/:id', async (c) => {
 rotasDoConteudo.post('/parceiros', async (c) => {
   const p = await corpo(c, Parceiro);
   const db = c.env.DB;
+  // O inglês que ficou vazio traduz-se sozinho, com o nome e a categoria a dar o contexto.
+  const categoria = p.categoriaId
+    ? await db
+        .prepare('SELECT nome FROM categorias WHERE id = ?')
+        .bind(p.categoriaId)
+        .first<{ nome: string }>()
+    : null;
+  const onde = ondeDe({ nome: p.nome, categoria: categoria?.nome });
+  const [horarioEn, descricaoEn] = await completarIngles(c.env.AI, [
+    { campo: 'horario', pt: p.horario, en: p.horarioEn, onde },
+    { campo: 'descricao', pt: p.descricao, en: p.descricaoEn, onde },
+  ]);
   try {
     const [novo] = await db.batch([
       db
@@ -106,8 +146,8 @@ rotasDoConteudo.post('/parceiros', async (c) => {
           p.site,
           p.horario,
           p.descricao,
-          p.horarioEn ?? '',
-          p.descricaoEn ?? '',
+          horarioEn ?? '',
+          descricaoEn ?? '',
           p.cor,
           p.logotipo,
           p.capa,
@@ -143,10 +183,42 @@ rotasDoConteudo.patch('/parceiros/:id', async (c) => {
   const dados = await corpo(c, Parceiro.partial());
   const db = c.env.DB;
   const antes = await db
-    .prepare('SELECT nome FROM parceiros WHERE id = ?')
+    .prepare(
+      `SELECT pa.nome, pa.horario, pa.descricao, pa.horario_en, pa.descricao_en, ca.nome AS categoria
+       FROM parceiros pa LEFT JOIN categorias ca ON ca.id = pa.categoria_id WHERE pa.id = ?`,
+    )
     .bind(id)
-    .first<{ nome: string }>();
+    .first<{
+      nome: string;
+      horario: string;
+      descricao: string;
+      horario_en: string;
+      descricao_en: string;
+      categoria: string | null;
+    }>();
   if (!antes) recusar(404, 'nao_existe');
+  // O inglês vazio, ou que ficou para trás de um português novo, traduz-se sozinho.
+  const onde = ondeDe({ nome: dados.nome ?? antes.nome, categoria: antes.categoria });
+  const [horarioEn, descricaoEn] = await completarIngles(c.env.AI, [
+    {
+      campo: 'horario',
+      pt: dados.horario,
+      en: dados.horarioEn,
+      ptAntes: antes.horario,
+      enAntes: antes.horario_en,
+      onde,
+    },
+    {
+      campo: 'descricao',
+      pt: dados.descricao,
+      en: dados.descricaoEn,
+      ptAntes: antes.descricao,
+      enAntes: antes.descricao_en,
+      onde,
+    },
+  ]);
+  if (horarioEn !== undefined) dados.horarioEn = horarioEn;
+  if (descricaoEn !== undefined) dados.descricaoEn = descricaoEn;
   const accao =
     dados.activo === true && Object.keys(dados).length === 1
       ? 'parceiro.activado'
@@ -312,10 +384,19 @@ rotasDoConteudo.post('/promocoes', async (c) => {
   conferirDatas(p);
   const db = c.env.DB;
   const parceiro = await db
-    .prepare('SELECT nome FROM parceiros WHERE id = ?')
+    .prepare(
+      'SELECT pa.nome, ca.nome AS categoria FROM parceiros pa LEFT JOIN categorias ca ON ca.id = pa.categoria_id WHERE pa.id = ?',
+    )
     .bind(p.parceiroId)
-    .first<{ nome: string }>();
+    .first<{ nome: string; categoria: string | null }>();
   if (!parceiro) recusar(400, 'referencia');
+  // O inglês que ficou vazio traduz-se sozinho (o Renato, 8 nov).
+  const onde = ondeDe(parceiro);
+  const [destaqueEn, tituloEn, detalheEn] = await completarIngles(c.env.AI, [
+    { campo: 'destaque', pt: p.destaque, en: p.destaqueEn, onde },
+    { campo: 'titulo', pt: p.titulo, en: p.tituloEn, onde },
+    { campo: 'detalhe', pt: p.detalhe, en: p.detalheEn, onde },
+  ]);
   const [nova] = await db.batch([
     db
       .prepare(
@@ -331,9 +412,9 @@ rotasDoConteudo.post('/promocoes', async (c) => {
         p.destaque,
         p.titulo,
         p.detalhe,
-        p.destaqueEn ?? '',
-        p.tituloEn ?? '',
-        p.detalheEn ?? '',
+        destaqueEn ?? '',
+        tituloEn ?? '',
+        detalheEn ?? '',
         p.inicio,
         p.fim,
         p.emDestaque ? 1 : 0,
@@ -360,7 +441,10 @@ rotasDoConteudo.patch('/promocoes/:id', async (c) => {
   const db = c.env.DB;
   const antes = await db
     .prepare(
-      'SELECT p.inicio, p.fim, p.destaque, p.titulo, pa.nome FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id WHERE p.id = ?',
+      `SELECT p.inicio, p.fim, p.destaque, p.titulo, p.detalhe, p.destaque_en, p.titulo_en, p.detalhe_en,
+         pa.nome, ca.nome AS categoria
+       FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id LEFT JOIN categorias ca ON ca.id = pa.categoria_id
+       WHERE p.id = ?`,
     )
     .bind(id)
     .first<{
@@ -368,9 +452,45 @@ rotasDoConteudo.patch('/promocoes/:id', async (c) => {
       fim: string | null;
       destaque: string;
       titulo: string;
+      detalhe: string;
+      destaque_en: string;
+      titulo_en: string;
+      detalhe_en: string;
       nome: string;
+      categoria: string | null;
     }>();
   if (!antes) recusar(404, 'nao_existe');
+  // O inglês vazio, ou que ficou para trás de um português novo, traduz-se sozinho.
+  const onde = ondeDe(antes);
+  const [destaqueEn, tituloEn, detalheEn] = await completarIngles(c.env.AI, [
+    {
+      campo: 'destaque',
+      pt: dados.destaque,
+      en: dados.destaqueEn,
+      ptAntes: antes.destaque,
+      enAntes: antes.destaque_en,
+      onde,
+    },
+    {
+      campo: 'titulo',
+      pt: dados.titulo,
+      en: dados.tituloEn,
+      ptAntes: antes.titulo,
+      enAntes: antes.titulo_en,
+      onde,
+    },
+    {
+      campo: 'detalhe',
+      pt: dados.detalhe,
+      en: dados.detalheEn,
+      ptAntes: antes.detalhe,
+      enAntes: antes.detalhe_en,
+      onde,
+    },
+  ]);
+  if (destaqueEn !== undefined) dados.destaqueEn = destaqueEn;
+  if (tituloEn !== undefined) dados.tituloEn = tituloEn;
+  if (detalheEn !== undefined) dados.detalheEn = detalheEn;
   conferirDatas({
     inicio: dados.inicio === undefined ? antes.inicio : dados.inicio,
     fim: dados.fim === undefined ? antes.fim : dados.fim,
@@ -451,12 +571,15 @@ rotasDoConteudo.get('/categorias', async (c) => {
 rotasDoConteudo.post('/categorias', async (c) => {
   const k = await corpo(c, Categoria);
   const db = c.env.DB;
+  const [nomeEn] = await completarIngles(c.env.AI, [
+    { campo: 'categoria', pt: k.nome, en: k.nomeEn },
+  ]);
   const [nova] = await db.batch([
     db
       .prepare(
         'INSERT INTO categorias (nome, nome_en, icone, ordem) VALUES (?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM categorias)) RETURNING id',
       )
-      .bind(k.nome, k.nomeEn ?? '', k.icone),
+      .bind(k.nome, nomeEn ?? '', k.icone),
     registar(c, 'categoria.criada', k.nome),
   ]);
   return c.json({ id: (nova!.results[0] as { id: number }).id }, 201);
@@ -466,13 +589,21 @@ rotasDoConteudo.patch('/categorias/:id', async (c) => {
   const id = idDaMorada(c);
   const k = await corpo(c, Categoria);
   const db = c.env.DB;
+  const antes = await db
+    .prepare('SELECT nome, nome_en FROM categorias WHERE id = ?')
+    .bind(id)
+    .first<{ nome: string; nome_en: string }>();
+  if (!antes) recusar(404, 'nao_existe');
+  const [nomeEn] = await completarIngles(c.env.AI, [
+    { campo: 'categoria', pt: k.nome, en: k.nomeEn, ptAntes: antes.nome, enAntes: antes.nome_en },
+  ]);
   const [r] = await db.batch([
-    // O nome em inglês só muda quando vem (um backoffice antigo aberto não o apaga).
+    // O nome em inglês só muda quando vem ou se traduz (um backoffice antigo aberto não o apaga).
     db
       .prepare(
         'UPDATE categorias SET nome = ?, icone = ?, nome_en = coalesce(?, nome_en) WHERE id = ?',
       )
-      .bind(k.nome, k.icone, k.nomeEn ?? null, id),
+      .bind(k.nome, k.icone, nomeEn ?? null, id),
     registar(c, 'categoria.alterada', k.nome),
   ]);
   if (!r!.meta.changes) recusar(404, 'nao_existe');
@@ -589,13 +720,29 @@ rotasDoConteudo.put('/barbearia', async (c) => {
     );
   });
   // Sem aviso em português não fica o inglês; um backoffice antigo (sem avisoEn) deixa-o como está.
+  // O inglês vazio, ou que ficou para trás de um aviso novo, traduz-se sozinho.
+  const avisoAntes = await db
+    .prepare("SELECT chave, valor FROM definicoes WHERE chave IN ('aviso', 'aviso_en')")
+    .all<{ chave: string; valor: string }>();
+  const deAntes = (k: string) => avisoAntes.results.find((x) => x.chave === k)?.valor ?? '';
+  const [avisoEn] = b.aviso
+    ? await completarIngles(c.env.AI, [
+        {
+          campo: 'aviso',
+          pt: b.aviso,
+          en: b.avisoEn,
+          ptAntes: deAntes('aviso'),
+          enAntes: deAntes('aviso_en'),
+        },
+      ])
+    : [''];
   const valores: Record<(typeof CHAVES)[number], string | undefined> = {
     instagram: b.instagram,
     tiktok: b.tiktok,
     whatsapp: b.whatsapp,
     site: b.site,
     aviso: b.aviso,
-    aviso_en: b.aviso ? b.avisoEn : '',
+    aviso_en: avisoEn,
     aviso_ate: b.aviso ? (b.avisoAte ?? '') : '',
   };
   for (const chave of CHAVES)

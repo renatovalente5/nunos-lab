@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import {
   CORES_DOS_PARCEIROS,
   DESENHOS_DAS_CATEGORIAS,
@@ -7,6 +8,7 @@ import {
   nomeDoDesenho,
   semPartir,
   validadeEmTexto,
+  type CategoriaComContagem,
   type IconeDaCategoria,
 } from '@nunos-lab/dominio';
 import {
@@ -19,7 +21,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { API, mensagemDe } from './api';
+import { API, mensagemDe, pedir } from './api';
 import { carregarImagem } from './imagens';
 import { useLingua } from './lingua';
 import { textos, useTextos } from './textos';
@@ -410,52 +412,106 @@ export function Cores({ valor, mudar }: { valor: string; mudar: (v: string) => v
 
 // ——— os textos em inglês ———
 
+/** O que um campo é, para a tradução escolher as palavras (os mesmos da API, em traducao.ts). */
+export type CampoDoTexto =
+  | 'categoria'
+  | 'horario'
+  | 'descricao'
+  | 'destaque'
+  | 'titulo'
+  | 'detalhe'
+  | 'aviso'
+  | 'recompensa'
+  | 'aniversario';
+
+/** O parceiro e a categoria («Azeméis Motor — Carros»), para a tradução escolher as palavras. */
+export function useOnde(
+  parceiro: { nome: string; categoriaId: number | null } | null,
+): string | undefined {
+  const categorias = useQuery({
+    queryKey: ['categorias'],
+    queryFn: () => pedir<CategoriaComContagem[]>('/api/bo/categorias'),
+  });
+  if (!parceiro) return undefined;
+  const categoria = categorias.data?.find((k) => k.id === parceiro.categoriaId)?.nome;
+  return categoria ? `${parceiro.nome} — ${categoria}` : parceiro.nome;
+}
+
+/** Um campo com inglês: o português de agora e como escrever a sugestão no campo inglês. */
+export type ParDeTraducao = {
+  campo: CampoDoTexto;
+  pt: string;
+  definir: (en: string) => void;
+  /** O parceiro e a categoria («Azeméis Motor — Carros»), quando o campo é de um parceiro. */
+  onde?: string;
+};
+
 /**
- * Os textos em inglês de um formulário (vazio: a app em inglês mostra o português). Um grupo com
- * o rótulo «Em inglês», como os outros do formulário; numa página, uma secção.
+ * O inglês de um formulário, fechado: escreve-se só em português e, ao guardar, o inglês vazio
+ * (ou que ficou para trás de um português novo) traduz-se sozinho na API. Abre-se só para ver ou
+ * mudar a tradução; lá dentro, «Traduzir do português» escreve as sugestões (o Renato, 8 nov).
  */
 export function GrupoEmIngles({
   children,
+  pares,
   seccao = false,
 }: {
   children: ReactNode;
+  pares: ParDeTraducao[];
   seccao?: boolean;
 }) {
   const t = useTextos();
-  if (seccao)
-    return (
-      <>
-        <h2 className="seccao">{t.geral.emIngles.titulo}</h2>
-        <div className="cartao recheado formulario">
-          <div className="ajuda">{t.geral.emIngles.ajuda}</div>
-          {children}
-        </div>
-      </>
-    );
+  const [aTraduzir, setATraduzir] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const comTexto = pares.filter((p) => p.pt.trim());
+  const traduzir = async () => {
+    setATraduzir(true);
+    setErro(null);
+    try {
+      const r = await pedir<{ traducoes: string[] }>('/api/bo/traduzir', {
+        metodo: 'POST',
+        corpo: {
+          itens: comTexto.map(({ campo, pt, onde }) => ({
+            texto: pt.trim(),
+            campo,
+            ...(onde ? { onde } : {}),
+          })),
+        },
+      });
+      comTexto.forEach((p, i) => p.definir(r.traducoes[i] ?? ''));
+    } catch (e) {
+      setErro(mensagemDe(e));
+    } finally {
+      setATraduzir(false);
+    }
+  };
   return (
-    <div className="cartao recheado formulario" style={{ boxShadow: 'none' }}>
-      <div className="campo">
+    <details className={seccao ? 'em-ingles seccao' : 'em-ingles'}>
+      <summary>
         <span className="rotulo-campo">{t.geral.emIngles.titulo}</span>
-        <span className="ajuda">{t.geral.emIngles.ajuda}</span>
+        <span className="ajuda">{t.geral.emIngles.resumo}</span>
+      </summary>
+      <div className="formulario">
+        <div className="ajuda">{t.geral.emIngles.ajuda}</div>
+        {children}
+        <div className="linha-traduzir">
+          <button
+            type="button"
+            className="botao secundario"
+            disabled={aTraduzir || !comTexto.length}
+            onClick={() => void traduzir()}
+          >
+            {aTraduzir ? t.geral.emIngles.aTraduzir : t.geral.emIngles.traduzir}
+          </button>
+          {erro && (
+            <span className="ajuda erro" role="alert">
+              {erro}
+            </span>
+          )}
+        </div>
       </div>
-      {children}
-    </div>
+    </details>
   );
-}
-
-/**
- * O português mudou e o inglês ficou como estava: o inglês pode já não dizer o mesmo (uma vantagem
- * em inglês a anunciar um desconto que já não existe). Devolve o aviso para a ajuda do campo.
- */
-export function porRever(
-  ptAntes: string,
-  ptAgora: string,
-  enAntes: string,
-  enAgora: string,
-): string | undefined {
-  return ptAgora.trim() !== ptAntes.trim() && enAgora.trim() && enAgora === enAntes
-    ? textos().geral.emIngles.porRever
-    : undefined;
 }
 
 // ——— folhas (diálogos) ———

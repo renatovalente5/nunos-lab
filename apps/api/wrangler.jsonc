@@ -28,6 +28,9 @@
     // Procuras de clientes por sessão da Balcão (30 por minuto): uma sessão perdida não despeja a lista.
     { "name": "PROCURAR", "namespace_id": "7104", "simple": { "limit": 30, "period": 60 } },
   ],
+  // O Workers AI da conta: traduz para inglês o que o backoffice guarda só em português
+  // (src/traducao.ts). No «wrangler dev» também vai à Cloudflare (conta no gratuito diário).
+  "ai": { "binding": "AI" },
   // A limpeza da madrugada: ligações e sessões caducadas, imagens sem dono.
   "triggers": { "crons": ["23 3 * * *"] },
   "vars": {

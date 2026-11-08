@@ -65,8 +65,11 @@ export const pt = {
   },
   emIngles: {
     titulo: 'Em inglês',
-    ajuda: 'Para quem usa a app em inglês. Vazio: aparece o português.',
-    porRever: 'O português mudou: revê o inglês.',
+    resumo: 'Traduz-se sozinho ao guardar. Abre para ver ou mudar.',
+    ajuda:
+      'O que ficar vazio traduz-se ao guardar, e também quando o português muda. O que escreveres aqui fica.',
+    traduzir: 'Traduzir do português',
+    aTraduzir: 'A traduzir…',
     nome: 'Nome em inglês',
   },
   quando: {
@@ -131,6 +134,8 @@ export const pt = {
     imagem_vazia: 'Esse ficheiro está vazio.',
     medidas: 'Não consegui ler as medidas da imagem.',
     a_si_proprio: 'Não podes tirar o teu próprio acesso.',
+    traducao_indisponivel:
+      'A tradução não respondeu agora. Escreve o inglês à mão, ou guarda e ela tenta outra vez.',
     nao_existe: 'Isto já não existe. Recarrega a página.',
     casa_com_historia:
       'Essa casa tem carimbos, clientes, equipa ou parceiros: não se tira. Se fechou, muda-lhe o nome.',
@@ -209,8 +214,11 @@ export const en: typeof pt = {
   },
   emIngles: {
     titulo: 'In English',
-    ajuda: 'For people using the app in English. Empty: the Portuguese shows.',
-    porRever: 'The Portuguese changed: check the English.',
+    resumo: 'Translated automatically when you save. Open to see or change it.',
+    ajuda:
+      'Anything left empty is translated when you save, and again when the Portuguese changes. What you write here stays.',
+    traduzir: 'Translate from Portuguese',
+    aTraduzir: 'Translating…',
     nome: 'Name in English',
   },
   quando: {
@@ -273,6 +281,8 @@ export const en: typeof pt = {
     imagem_vazia: 'That file is empty.',
     medidas: "Couldn't read the image's size.",
     a_si_proprio: "You can't remove your own access.",
+    traducao_indisponivel:
+      "Translation didn't answer just now. Write the English yourself, or save and it will try again.",
     nao_existe: 'This no longer exists. Reload the page.',
     casa_com_historia:
       "That shop has stamps, clients, team or partners: it can't be removed. If it closed, rename it.",

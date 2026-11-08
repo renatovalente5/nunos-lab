@@ -176,3 +176,31 @@ export const Barbearia = z.object({
 
 /** Um booleano da base (0/1) para JavaScript, e de volta. */
 export const paraBase = (v: unknown): unknown => (typeof v === 'boolean' ? (v ? 1 : 0) : v);
+
+/** O botão «Traduzir» do bloco em inglês: os textos em português (com o campo e o parceiro), até 16. */
+export const Traduzir = z.object({
+  itens: z
+    .array(
+      z.object({
+        texto: texto(1000),
+        campo: z
+          .enum([
+            'categoria',
+            'horario',
+            'descricao',
+            'destaque',
+            'titulo',
+            'detalhe',
+            'aviso',
+            'recompensa',
+            'aniversario',
+          ])
+          .optional(),
+        onde: texto(120).optional(),
+      }),
+    )
+    .min(1)
+    .max(16),
+  /** Só no wrangler dev, para comparar modelos. */
+  modelo: z.string().max(80).optional(),
+});

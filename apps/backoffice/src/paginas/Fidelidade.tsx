@@ -2,7 +2,7 @@ import { LIMITES_DO_PROGRAMA, type Programa } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
-import { Campo, Esqueleto, GrupoEmIngles, porRever, useAccao, useAvisar } from '../pecas';
+import { Campo, Esqueleto, GrupoEmIngles, useAccao, useAvisar } from '../pecas';
 import { useTextos } from '../textos';
 import { useAvisoAoSair } from '../util';
 
@@ -174,7 +174,13 @@ export function Fidelidade() {
         </div>
       </div>
 
-      <GrupoEmIngles seccao>
+      <GrupoEmIngles
+        seccao
+        pares={[
+          { campo: 'recompensa', pt: f.recompensa, definir: mudar('recompensaEn') },
+          { campo: 'aniversario', pt: f.aniversario, definir: mudar('aniversarioEn') },
+        ]}
+      >
         <div className="duas-colunas">
           <Campo
             rotulo={t.fidelidade.recompensa}
@@ -183,12 +189,6 @@ export function Fidelidade() {
             max={LIMITES_DO_PROGRAMA.recompensa}
             erro={erros.includes('recompensaEn')}
             placeholder={t.fidelidade.recompensaExemploEn}
-            ajuda={porRever(
-              original?.recompensa ?? '',
-              f.recompensa,
-              original?.recompensaEn ?? '',
-              f.recompensaEn,
-            )}
           />
           <Campo
             rotulo={t.fidelidade.aniversario}
@@ -197,12 +197,6 @@ export function Fidelidade() {
             max={LIMITES_DO_PROGRAMA.aniversario}
             erro={erros.includes('aniversarioEn')}
             placeholder={t.fidelidade.aniversarioExemploEn}
-            ajuda={porRever(
-              original?.aniversario ?? '',
-              f.aniversario,
-              original?.aniversarioEn ?? '',
-              f.aniversarioEn,
-            )}
           />
         </div>
       </GrupoEmIngles>

@@ -1584,3 +1584,74 @@ table.quadro {
 .botao-lingua:hover {
   color: #fff;
 }
+
+/* ——— o inglês de um formulário, fechado (8 nov): escreve-se só em português ——— */
+details.em-ingles {
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  padding: 14px 18px;
+}
+details.em-ingles.seccao {
+  margin-top: 28px;
+  box-shadow: var(--sombra);
+}
+details.em-ingles > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+  padding-right: 28px;
+}
+details.em-ingles > summary::-webkit-details-marker {
+  display: none;
+}
+/* A seta à direita: aponta para baixo quando abre. */
+details.em-ingles > summary::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -5px;
+  border-right: 2px solid var(--tinta-2);
+  border-bottom: 2px solid var(--tinta-2);
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+details.em-ingles[open] > summary::after {
+  margin-top: -7px;
+  transform: rotate(45deg);
+}
+details.em-ingles > summary .rotulo-campo {
+  font-weight: 700;
+  font-size: 14px;
+}
+details.em-ingles > summary .ajuda {
+  color: var(--tinta-3);
+  font-size: 13px;
+}
+/* Aberto, a ajuda de dentro diz o mesmo: o resumo sai. */
+details.em-ingles[open] > summary .ajuda {
+  display: none;
+}
+details.em-ingles > summary:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+details.em-ingles > .formulario {
+  margin-top: 16px;
+}
+.linha-traduzir {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.linha-traduzir .erro {
+  color: var(--mau);
+}

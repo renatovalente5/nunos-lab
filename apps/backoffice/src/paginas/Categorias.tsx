@@ -9,8 +9,8 @@ import {
   EscolhaDoDesenho,
   Esqueleto,
   Folha,
+  GrupoEmIngles,
   Icone,
-  porRever,
   useAccao,
   useAvisar,
   useConfirmar,
@@ -32,7 +32,6 @@ export function Categorias() {
     icone: IconeDaCategoria;
     parceiros: number;
     /** O que estava gravado: o inglês fica por rever quando o português muda. */
-    antes: { nome: string; nomeEn: string };
   } | null>(null);
   const { correr, aCorrer } = useAccao();
   const avisar = useAvisar();
@@ -68,7 +67,6 @@ export function Categorias() {
               nomeEn: '',
               icone: 'outro',
               parceiros: 0,
-              antes: { nome: '', nomeEn: '' },
             })
           }
         >
@@ -102,7 +100,6 @@ export function Categorias() {
                       nomeEn: k.nomeEn ?? '',
                       icone: k.icone,
                       parceiros: k.parceiros,
-                      antes: { nome: k.nome, nomeEn: k.nomeEn ?? '' },
                     })
                   }
                 >
@@ -187,16 +184,22 @@ export function Categorias() {
               obrigatorio
               autoFocus
             />
-            <Campo
-              rotulo={t.geral.emIngles.nome}
-              valor={editar.nomeEn}
-              mudar={(nomeEn) => setEditar({ ...editar, nomeEn })}
-              max={LIMITES.categoria}
-              ajuda={
-                porRever(editar.antes.nome, editar.nome, editar.antes.nomeEn, editar.nomeEn) ??
-                t.geral.emIngles.ajuda
-              }
-            />
+            <GrupoEmIngles
+              pares={[
+                {
+                  campo: 'categoria',
+                  pt: editar.nome,
+                  definir: (nomeEn) => setEditar((e) => (e ? { ...e, nomeEn } : e)),
+                },
+              ]}
+            >
+              <Campo
+                rotulo={t.categorias.nome}
+                valor={editar.nomeEn}
+                mudar={(nomeEn) => setEditar({ ...editar, nomeEn })}
+                max={LIMITES.categoria}
+              />
+            </GrupoEmIngles>
             <EscolhaDoDesenho
               valor={editar.icone}
               mudar={(icone) => setEditar({ ...editar, icone })}

@@ -28,7 +28,6 @@ import {
   Icone,
   Interruptor,
   Logotipo,
-  porRever,
   Seletor,
   urlDaImagem,
   useAccao,
@@ -236,6 +235,8 @@ export function Parceiro({ id }: { id: string }) {
       p.activa ? t.parceiro.promocaoDesligada : t.parceiro.promocaoLigada,
     );
   const categoria = categorias.data?.find((k) => k.id === f.categoriaId);
+  // O parceiro e a categoria, para a tradução escolher as palavras («Azeméis Motor — Carros»).
+  const onde = categoria ? `${f.nome} — ${categoria.nome}` : f.nome;
   const primeira = promocoes.find((p) => p.estado === 'activa');
   // A pré-visualização na língua do backoffice: em inglês, os textos em inglês (ou o português).
   const naLinguaDoBackoffice = (pt: string, en: string | undefined) => naLingua(lingua, pt, en);
@@ -396,19 +397,19 @@ export function Parceiro({ id }: { id: string }) {
             />
           </div>
 
-          <GrupoEmIngles seccao>
+          <GrupoEmIngles
+            seccao
+            pares={[
+              { campo: 'descricao', pt: f.descricao, definir: mudar('descricaoEn'), onde },
+              { campo: 'horario', pt: f.horario, definir: mudar('horarioEn'), onde },
+            ]}
+          >
             <AreaDeTexto
               rotulo={t.parceiro.descricao}
               valor={f.descricaoEn}
               mudar={mudar('descricaoEn')}
               max={LIMITES.descricao}
               erro={erros.includes('descricaoEn')}
-              ajuda={porRever(
-                original?.descricao ?? '',
-                f.descricao,
-                original?.descricaoEn ?? '',
-                f.descricaoEn,
-              )}
             />
             <Campo
               rotulo={t.parceiro.horario}
@@ -416,12 +417,6 @@ export function Parceiro({ id }: { id: string }) {
               mudar={mudar('horarioEn')}
               max={LIMITES.horario}
               placeholder={t.parceiro.horarioExemploEn}
-              ajuda={porRever(
-                original?.horario ?? '',
-                f.horario,
-                original?.horarioEn ?? '',
-                f.horarioEn,
-              )}
             />
           </GrupoEmIngles>
 

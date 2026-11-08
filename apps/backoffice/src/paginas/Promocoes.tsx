@@ -26,9 +26,9 @@ import {
   Etiqueta,
   Folha,
   GrupoEmIngles,
+  useOnde,
   Icone,
   Interruptor,
-  porRever,
   PrevisaoDaPromocao,
   Segmentado,
   Seletor,
@@ -458,6 +458,7 @@ export function EditorDePromocao({
   const surpresaPeso = numeroEscrito(f.surpresaPeso, LIMITES_DO_SACO.peso);
   const surpresaRestantes = limiteEscrito(f.surpresaRestantes, LIMITES_DO_SACO.restantes);
   const parceiro = parceiroFixo ?? parceiros?.find((p) => p.id === f.parceiroId) ?? null;
+  const onde = useOnde(parceiro);
   // Já validou ou já saiu como cupão: o que se apaga ou se muda de parceiro leva isso junto.
   const comHistorico = !!promocao && (promocao.validacoes > 0 || promocao.cupoes > 0);
   const vaoJunto =
@@ -618,7 +619,13 @@ export function EditorDePromocao({
             erro={erros.includes('detalhe')}
             ajuda={t.promocoes.condicoesAjuda}
           />
-          <GrupoEmIngles>
+          <GrupoEmIngles
+            pares={[
+              { campo: 'destaque', pt: f.destaque, definir: mudar('destaqueEn'), onde },
+              { campo: 'titulo', pt: f.titulo, definir: mudar('tituloEn'), onde },
+              { campo: 'detalhe', pt: f.detalhe, definir: mudar('detalheEn'), onde },
+            ]}
+          >
             <Campo
               rotulo={t.promocoes.emGrande}
               valor={f.destaqueEn}
@@ -626,7 +633,6 @@ export function EditorDePromocao({
               max={LIMITES.destaque}
               erro={erros.includes('destaqueEn')}
               placeholder={t.promocoes.emGrandeExemploEn}
-              ajuda={porRever(inicial.destaque, f.destaque, inicial.destaqueEn, f.destaqueEn)}
             />
             <Campo
               rotulo={t.promocoes.emQue}
@@ -635,7 +641,6 @@ export function EditorDePromocao({
               max={LIMITES.titulo}
               erro={erros.includes('tituloEn')}
               placeholder={t.promocoes.emQueExemploEn}
-              ajuda={porRever(inicial.titulo, f.titulo, inicial.tituloEn, f.tituloEn)}
             />
             <AreaDeTexto
               rotulo={t.promocoes.condicoes}
@@ -643,7 +648,6 @@ export function EditorDePromocao({
               mudar={mudar('detalheEn')}
               max={LIMITES.detalhe}
               erro={erros.includes('detalheEn')}
-              ajuda={porRever(inicial.detalhe, f.detalhe, inicial.detalheEn, f.detalheEn)}
             />
           </GrupoEmIngles>
           <div className="duas-colunas">

@@ -23,6 +23,7 @@ import {
   sha256,
   traduzirErroDaBase,
 } from '../util.ts';
+import { completarIngles } from '../traducao.ts';
 
 export const rotasDaFidelidade = new Hono<Ambiente>();
 
@@ -57,7 +58,25 @@ rotasDaFidelidade.put('/programa', async (c) => {
   // A recompensa nova vale também para os cartões em curso (os completos ficam com a que
   // ganharam): o Nuno muda a regra para toda a gente, e o passe da Wallet passa a dizer o
   // mesmo que a app. O objectivo não: um cartão a 9 de 10 completa-se a 10.
-  const recompensaEn = p.recompensaEn ?? antes.recompensaEn ?? '';
+  // O inglês vazio, ou que ficou para trás de um português novo, traduz-se sozinho; o prémio,
+  // primeiro pelas regras («50% de desconto» → «50% off»), porque as frases do cartão dependem delas.
+  const [recompensaEnNova, aniversarioEn] = await completarIngles(c.env.AI, [
+    {
+      campo: 'recompensa',
+      pt: p.recompensa,
+      en: p.recompensaEn,
+      ptAntes: antes.recompensa,
+      enAntes: antes.recompensaEn ?? '',
+    },
+    {
+      campo: 'aniversario',
+      pt: p.aniversario,
+      en: p.aniversarioEn,
+      ptAntes: antes.aniversario,
+      enAntes: antes.aniversarioEn ?? '',
+    },
+  ]);
+  const recompensaEn = recompensaEnNova ?? antes.recompensaEn ?? '';
   const mudouRecompensa =
     p.recompensa !== antes.recompensa || recompensaEn !== (antes.recompensaEn ?? '');
   const emCurso = mudouRecompensa
@@ -76,7 +95,7 @@ rotasDaFidelidade.put('/programa', async (c) => {
     por('fid.por_dia', String(p.porDia)),
     por('fid.aniversario', p.aniversario),
     por('fid.recompensa_en', recompensaEn),
-    ...(p.aniversarioEn !== undefined ? [por('fid.aniversario_en', p.aniversarioEn)] : []),
+    ...(aniversarioEn !== undefined ? [por('fid.aniversario_en', aniversarioEn)] : []),
     ...(mudouRecompensa
       ? [
           db

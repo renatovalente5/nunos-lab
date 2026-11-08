@@ -16,7 +16,7 @@ export function linguaDoPedido(c: {
 
 /** Uma recusa com código: a app e o backoffice traduzem o código para texto. */
 export function recusar(
-  estado: 400 | 401 | 403 | 404 | 409 | 413 | 415 | 429,
+  estado: 400 | 401 | 403 | 404 | 409 | 413 | 415 | 429 | 503,
   codigo: string,
 ): never {
   throw new HTTPException(estado, {
