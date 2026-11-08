@@ -33,7 +33,7 @@ export const en: typeof pt = {
   apagarPergunta: (nome) => `Delete “${nome}”?`,
   ficamSemCategoria: (n) =>
     `${plural(n, 'partner', 'partners')} will have no category (${n === 1 ? 'it stays' : 'they stay'} in the app).`,
-  nenhumParceiro: 'No partner uses it.',
+  nenhumParceiro: 'No partners use it.',
   apagar: 'Delete',
   apagada: 'Category deleted',
   nome: 'Name',

@@ -1,4 +1,4 @@
-import { dataCurta, diaEmLisboa, nomeDoMes } from '@nunos-lab/dominio';
+import { dataCurta, diaEmLisboa, nomeDoMes, recompensaEmIngles } from '@nunos-lab/dominio';
 import { useEffect, useState } from 'react';
 import { etiquetaDaLingua, linguaActual } from './lingua';
 import { textos } from './textos';
@@ -39,11 +39,47 @@ export function nomeDoAparelho(aparelho: string, palavra: string): string {
   return aparelho ? aparelho.replace(/^Aparelho(?= ·|$)/, palavra) : palavra;
 }
 
-/** O alvo de uma linha do registo, com o que a API guarda em português na entrada («Aparelho · ligação»). */
+/**
+ * O alvo de uma linha do registo. A API guarda-o em português («Aparelho · ligação», «3 cartões em curso»,
+ * «nome, aniversário»); as partes que são da app (não do Nuno) dizem-se aqui na língua de agora.
+ */
 export function alvoDoRegisto(accao: string, alvo: string): string {
-  if (accao !== 'entrou') return alvo;
-  const t = textos().geral;
-  return nomeDoAparelho(alvo, t.aparelho).replace(/ · ligação$/, ` · ${t.ligacao}`);
+  const t = textos();
+  const g = t.geral;
+  if (accao === 'entrou')
+    return nomeDoAparelho(alvo, g.aparelho).replace(/ · ligação$/, ` · ${g.ligacao}`);
+  if (accao === 'carimbo.anulado')
+    return alvo.replace(/(\d{4}-\d{2}-\d{2})$/, (dia) =>
+      dataCurta(dia, diaEmLisboa(), linguaActual()),
+    );
+  if (linguaActual() === 'pt') return alvo;
+  switch (accao) {
+    case 'sessao.terminada':
+      return alvo.replace(/ · Aparelho(?= ·|$)/, ` · ${g.aparelho}`);
+    case 'pessoa.email':
+      return alvo.replace(/ · sem email$/, ` · ${g.semEmail}`);
+    case 'equipa.criada':
+      return alvo.replace(
+        / · (dono|barbeiro|parceiro)$/,
+        (_, papel: keyof typeof t.equipa.papeis) => ` · ${t.equipa.papeis[papel]}`,
+      );
+    case 'cliente.alterado': {
+      const i = alvo.lastIndexOf(' · ');
+      if (i < 0) return alvo;
+      const campos = g.camposDoCliente as Record<string, string>;
+      const mudou = alvo.slice(i + 3).split(', ');
+      return `${alvo.slice(0, i)} · ${mudou.map((c) => campos[c] ?? c).join(', ')}`;
+    }
+    case 'programa.alterado': {
+      const m = /^(\d+) → (.*?)(?: · (\d+) cart(?:ão|ões) em curso)?$/.exec(alvo);
+      if (!m) return alvo;
+      const [, objectivo, recompensa, emCurso] = m;
+      return `${objectivo} → ${recompensaEmIngles(recompensa ?? '')}${
+        emCurso === undefined ? '' : ` · ${g.cartoesEmCurso(Number(emCurso))}`
+      }`;
+    }
+  }
+  return alvo;
 }
 
 /** Cêntimos em euros, como se lê: «15,00 €». */

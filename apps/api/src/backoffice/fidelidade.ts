@@ -108,7 +108,7 @@ rotasDaFidelidade.put('/programa', async (c) => {
     registar(
       c,
       'programa.alterado',
-      `${p.objectivo} → ${p.recompensa}${mudouRecompensa ? ` · ${emCurso} cartões em curso` : ''}`,
+      `${p.objectivo} → ${p.recompensa}${mudouRecompensa ? ` · ${emCurso} ${emCurso === 1 ? 'cartão' : 'cartões'} em curso` : ''}`,
     ),
   ]);
   // Os passes dizem a recompensa: refazem-se todos (em fundo; são poucos aparelhos).

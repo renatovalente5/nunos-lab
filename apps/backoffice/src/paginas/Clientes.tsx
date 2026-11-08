@@ -2,6 +2,7 @@ import type { ClienteDoBackoffice, DefinicoesDaBarbearia, TipoDeEntrada } from '
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { API, ErroDaApi, guardarSessao, pedir, refrescar, sessao } from '../api';
+import { linguaActual } from '../lingua';
 import { Esqueleto, Etiqueta, Icone, Segmentado, useAccao, useConfirmar, Vazio } from '../pecas';
 import { useTextos } from '../textos';
 import { haQuanto, ir, numero } from '../util';
@@ -66,7 +67,7 @@ export function Clientes() {
     correr(async () => {
       let r: Response;
       try {
-        r = await fetch(`${API}/api/bo/clientes.csv`, {
+        r = await fetch(`${API}/api/bo/clientes.csv?lingua=${linguaActual()}`, {
           headers: { Authorization: `Bearer ${sessao() ?? ''}` },
         });
       } catch {
@@ -78,7 +79,7 @@ export function Clientes() {
       const url = URL.createObjectURL(await r.blob());
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'clientes.csv';
+      a.download = t.clientes.ficheiroCsv;
       document.body.appendChild(a);
       a.click();
       a.remove();

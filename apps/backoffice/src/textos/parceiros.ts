@@ -8,7 +8,8 @@ export const pt = {
     `${plural(n, 'parceiro é de exemplo', 'parceiros são de exemplo')}, inventados para a demonstração.`,
   apagarOsExemplos: {
     pergunta: 'Apagar os exemplos?',
-    texto: 'Os parceiros de exemplo e as promoções deles saem da app. Não se desfaz.',
+    texto:
+      'Os parceiros de exemplo e as promoções deles saem da app e do backoffice. Não se desfaz.',
     accao: 'Apagar os exemplos',
     feito: 'Exemplos apagados',
   },
@@ -41,7 +42,7 @@ export const en: typeof pt = {
   apagarOsExemplos: {
     pergunta: 'Delete the samples?',
     texto:
-      "The sample partners and their promotions are removed from the app. This can't be undone.",
+      "The sample partners and their perks will be deleted from the app and the backoffice. This can't be undone.",
     accao: 'Delete the samples',
     feito: 'Samples deleted',
   },
@@ -49,18 +50,18 @@ export const en: typeof pt = {
   filtros: {
     todos: 'All',
     app: 'In the app',
-    sem: 'No promotions',
+    sem: 'No perks',
     pausados: 'Paused',
     exemplos: 'Samples',
   },
   procurar: 'Search',
   procurarParceiros: 'Search partners',
-  nenhumAqui: 'No partners here',
+  nenhumAqui: 'No matching partners',
   semParceiros: 'No partners yet',
-  juntarOPrimeiro: 'Add the first one',
+  juntarOPrimeiro: 'Add your first partner',
   exemplo: 'Sample',
   pausado: 'Paused',
-  promocoes: (n) => plural(n, 'promotion', 'promotions'),
+  promocoes: (n) => plural(n, 'perk', 'perks'),
   naApp: 'in the app',
-  semPromocoes: 'No promotions',
+  semPromocoes: 'No perks',
 };

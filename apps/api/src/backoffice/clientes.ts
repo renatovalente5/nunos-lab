@@ -5,6 +5,7 @@ import {
   DIAS_PARA_A_PRENDA,
   LIMITES_DO_PROGRAMA,
   MESES,
+  MESES_EN,
   diaEmLisboa,
   eAniversarioValido,
   normalizarCodigo,
@@ -325,24 +326,43 @@ rotasDosClientes.get('/clientes.csv', async (c) => {
     const s = String(v ?? '');
     return `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
   };
+  const en = c.req.query('lingua') === 'en';
   const data = (s: number | null) => (s ? diaEmLisboa(s * 1000) : '');
   // «5 de mar»: o Excel lia «03-05» como uma data (e trocava o dia e o mês).
-  const aniversario = (a: string | null) =>
-    a ? `${Number(a.slice(3))} de ${MESES[Number(a.slice(0, 2)) - 1] ?? ''}` : '';
+  const aniversario = (a: string | null) => {
+    if (!a) return '';
+    const dia = Number(a.slice(3));
+    const mes = Number(a.slice(0, 2)) - 1;
+    return en ? `${dia} ${MESES_EN[mes] ?? ''}` : `${dia} de ${MESES[mes] ?? ''}`;
+  };
   const linhas = [
-    [
-      'Nome',
-      'Email',
-      'Código',
-      'Cortes',
-      'Primeiro',
-      'Último',
-      'Carimbos',
-      'Objectivo',
-      'Recompensas por usar',
-      'Aniversário',
-      'Desde',
-    ],
+    en
+      ? [
+          'Name',
+          'Email',
+          'Code',
+          'Haircuts',
+          'First',
+          'Last',
+          'Stamps',
+          'Goal',
+          'Rewards ready',
+          'Birthday',
+          'Since',
+        ]
+      : [
+          'Nome',
+          'Email',
+          'Código',
+          'Cortes',
+          'Primeiro',
+          'Último',
+          'Carimbos',
+          'Objectivo',
+          'Recompensas por usar',
+          'Aniversário',
+          'Desde',
+        ],
     ...r.results.map((l) => [
       l.nome,
       l.email,
@@ -359,7 +379,7 @@ rotasDosClientes.get('/clientes.csv', async (c) => {
   ];
   return c.body('﻿' + linhas.map((l) => l.map(celula).join(';')).join('\r\n'), 200, {
     'Content-Type': 'text/csv; charset=utf-8',
-    'Content-Disposition': 'attachment; filename="clientes.csv"',
+    'Content-Disposition': `attachment; filename="${en ? 'clients' : 'clientes'}.csv"`,
   });
 });
 

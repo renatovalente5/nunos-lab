@@ -6,7 +6,7 @@ export const pt = {
   hoje: 'Hoje',
   ontem: 'Ontem',
   /** Quem fez o que ninguém fez: o sistema, ao instalar. */
-  instalacao: 'Instalação',
+  instalacao: 'Sistema',
   verMaisAntigos: 'Ver mais antigos',
 };
 
@@ -15,6 +15,6 @@ export const en: typeof pt = {
   vazio: 'No history yet',
   hoje: 'Today',
   ontem: 'Yesterday',
-  instalacao: 'Setup',
+  instalacao: 'System',
   verMaisAntigos: 'Show older',
 };

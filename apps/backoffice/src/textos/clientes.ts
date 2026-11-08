@@ -4,6 +4,7 @@ import { numero, plural } from '../util';
 export const pt = {
   subtitulo: 'Quem tem cartão.',
   exportarCsv: 'Exportar CSV',
+  ficheiroCsv: 'clientes.csv',
   exemplos: (n: number) =>
     `${plural(n, 'cliente é de exemplo', 'clientes são de exemplo')}, inventados para a demonstração.`,
   apagarOsExemplos: {
@@ -47,6 +48,7 @@ export const pt = {
 export const en: typeof pt = {
   subtitulo: 'Everyone with a card.',
   exportarCsv: 'Export CSV',
+  ficheiroCsv: 'clients.csv',
   exemplos: (n) =>
     `${plural(n, 'client is a sample', 'clients are samples')}, made up for the demo.`,
   apagarOsExemplos: {
@@ -69,7 +71,7 @@ export const en: typeof pt = {
   pistaDaProcura: 'Name, email or code',
   procurarClientes: 'Search clients',
   semClientes: 'No clients yet',
-  nenhumAqui: 'No clients here',
+  nenhumAqui: 'No matching clients',
   colunas: {
     nome: 'Name',
     email: 'Email',
@@ -83,5 +85,5 @@ export const en: typeof pt = {
   sufixoDosCortes: (n) => (n === 1 ? 'haircut' : 'haircuts'),
   carimbosDe: (carimbos, objectivo) => `${carimbos} of ${objectivo}`,
   porUsar: (n) => `${n} unused`,
-  aMostrar: (n) => `Showing the ${numero(n)} most recent: narrow your search.`,
+  aMostrar: (n) => `Showing the ${numero(n)} most recent. Narrow your search to see the rest.`,
 };

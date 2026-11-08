@@ -51,17 +51,17 @@ export const pt = {
 };
 
 export const en: typeof pt = {
-  subtitulo: 'Who signs in to the backoffice, and on which devices.',
+  subtitulo: 'Who can sign in to the backoffice, and on which devices.',
   darAcessoAAlguem: 'Give someone access',
   tu: 'You',
-  soPorLigacao: 'Signs in by link only',
+  soPorLigacao: 'Signs in with a link',
   editar: 'Edit',
   aparelho: 'Device',
   esteAparelho: 'This device',
   entrouEUsado: (entrou, usado) => `Signed in ${entrou} · last used ${usado}`,
   sairDesteAparelho: 'Sign out of this device?',
   saisNesteAparelho: "You'll be signed out of the backoffice on this device.",
-  terminarASessao: 'Sign out of that session?',
+  terminarASessao: 'Sign out that device?',
   saiNesseAparelho: (nome) => `${nome} will be signed out of the backoffice on that device.`,
   terminar: 'Sign out',
   ligacaoPorUsar: 'Unused link',
@@ -73,8 +73,8 @@ export const en: typeof pt = {
   exemploDeNome: 'e.g. Nuno',
   emailDaConta: 'Google account email',
   exemploDeEmail: 'name@gmail.com',
-  ajudaDoEmail: 'Signs in to the backoffice with the Google button, using this account.',
-  ajudaDoEmailVazio: 'Empty: can no longer sign in with Google.',
+  ajudaDoEmail: "They'll sign in to the backoffice with this Google account.",
+  ajudaDoEmailVazio: 'Leave blank to turn off Google sign-in.',
   jaPodeEntrar: (nome) => `${nome} can now sign in with Google`,
   emailJaTemAcesso: 'That email already has access.',
   editarPessoa: (nome) => `Edit ${nome}`,
@@ -90,9 +90,9 @@ export const en: typeof pt = {
   ligacaoDeAcesso: 'Access link',
   copiar: 'Copy',
   copiada: 'Copied',
-  naoDeuParaCopiar: "Couldn't copy it: select it and copy it manually.",
+  naoDeuParaCopiar: "Couldn't copy. Select the link and copy it yourself.",
   partilhar: 'Share',
   tituloDaPartilha: "Nuno's Lab backoffice",
   entraUmaVez: (ate, para) =>
-    `It works once, on one device, until ${ate}. Only send it to ${para}: whoever opens it gets into the backoffice.`,
+    `It works once, on one device, until ${ate}. Send it only to ${para}: anyone who opens it is signed in to the backoffice.`,
 };
