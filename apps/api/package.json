@@ -5,7 +5,7 @@
   "description": "O Worker do Nuno's Lab: a API, a base e as imagens",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --port 8870 --var MODO:desenvolvimento",
+    "dev": "wrangler dev --port 8870 --var MODO:desenvolvimento --var REVISAO_PESSOA:0",
     "tipos": "wrangler types",
     "verificar": "tsc --noEmit",
     "migrar:local": "wrangler d1 migrations apply DB --local",

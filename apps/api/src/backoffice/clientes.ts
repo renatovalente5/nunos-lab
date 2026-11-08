@@ -77,7 +77,8 @@ function publico(l: Linha): ClienteDoBackoffice {
 
 /**
  * A lista, com o filtro de estado calculado aqui (são contas, não milhares):
- * novos (1.º corte há 30 dias), activos (corte há 90), em risco, perdidos (> 180).
+ * novos (1.º corte há 30 dias), activos (corte há 90), em risco, perdidos (> 180). Sem os clientes de
+ * exemplo: em produção só existem para a revisão das lojas (a conta da Apple), não são do negócio.
  */
 rotasDosClientes.get('/clientes', async (c) => {
   // O D1 recusa padrões LIKE com mais de 50 caracteres: um nome tem no máximo 40.
@@ -88,7 +89,7 @@ rotasDosClientes.get('/clientes', async (c) => {
   const padrao = `%${q.replace(/[%_]/g, '')}%`;
   const busca = `%${textoDeBusca(q.replace(/[%_]/g, ''))}%`;
   const r = await c.env.DB.prepare(
-    `${LISTA} WHERE k.apagado_em IS NULL
+    `${LISTA} WHERE k.apagado_em IS NULL AND k.exemplo = 0
      ${q ? 'AND (k.nome LIKE ? OR k.busca LIKE ? OR k.email LIKE ? OR k.codigo LIKE ?)' : ''}
      ${lojaId ? 'AND (k.loja_id = ? OR EXISTS (SELECT 1 FROM carimbos x WHERE x.cliente_id = k.id AND x.loja_id = ?))' : ''}
      ORDER BY ultimo DESC NULLS LAST, k.criado_em DESC LIMIT 5000`,
@@ -383,22 +384,7 @@ rotasDosClientes.get('/clientes.csv', async (c) => {
   });
 });
 
-/** Apaga os clientes de exemplo, com os cartões e os carimbos deles, e a equipa de exemplo. */
-rotasDosClientes.delete('/clientes/exemplos', async (c) => {
-  const db = c.env.DB;
-  // O «changes» do D1 conta as linhas em cascata (cartões, carimbos): conta-se antes.
-  const n = await db
-    .prepare('SELECT count(*) AS n FROM clientes WHERE exemplo = 1')
-    .first<{ n: number }>();
-  await db.batch([
-    db.prepare('DELETE FROM clientes WHERE exemplo = 1'),
-    db.prepare("DELETE FROM equipa WHERE email IS NULL AND nome LIKE '% (exemplo)'"),
-    registar(c, 'clientes.exemplos_apagados'),
-  ]);
-  return c.json({ apagados: n?.n ?? 0 });
-});
-
-/** Apagar um cliente (um pedido de quem só tem cartão de balcão): a mesma limpeza da app. Depois de «/clientes/exemplos», para o «exemplos» não cair aqui. */
+/** Apagar um cliente (um pedido de quem só tem cartão de balcão): a mesma limpeza da app. */
 rotasDosClientes.delete('/clientes/:id', async (c) => {
   const id = idDaMorada(c);
   const db = c.env.DB;

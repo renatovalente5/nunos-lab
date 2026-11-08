@@ -1,9 +1,9 @@
 import type { ClienteDoBackoffice, DefinicoesDaBarbearia, TipoDeEntrada } from '@nunos-lab/dominio';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { API, ErroDaApi, guardarSessao, pedir, refrescar, sessao } from '../api';
+import { API, ErroDaApi, guardarSessao, pedir, sessao } from '../api';
 import { linguaActual } from '../lingua';
-import { Esqueleto, Etiqueta, Icone, Segmentado, useAccao, useConfirmar, Vazio } from '../pecas';
+import { Esqueleto, Etiqueta, Icone, Segmentado, useAccao, Vazio } from '../pecas';
 import { useTextos } from '../textos';
 import { haQuanto, ir, numero } from '../util';
 
@@ -58,10 +58,8 @@ export function Clientes() {
     queryFn: () => pedir<DefinicoesDaBarbearia>('/api/bo/barbearia'),
   });
   const { correr, aCorrer } = useAccao();
-  const { confirmar, dialogo } = useConfirmar();
 
   const lista = clientes.data ?? [];
-  const exemplos = lista.filter((c) => c.exemplo).length;
 
   const exportar = () =>
     correr(async () => {
@@ -97,41 +95,6 @@ export function Clientes() {
           <Icone nome="descarregar" tamanho={18} /> {t.clientes.exportarCsv}
         </button>
       </div>
-
-      {exemplos > 0 && (
-        <div
-          className="caixa-aviso"
-          style={{
-            marginBottom: 16,
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-          }}
-        >
-          <span>{t.clientes.exemplos(exemplos)}</span>
-          <button
-            type="button"
-            className="botao perigo pequeno"
-            onClick={async () => {
-              if (
-                await confirmar(
-                  t.clientes.apagarOsExemplos.pergunta,
-                  t.clientes.apagarOsExemplos.texto,
-                  t.clientes.apagarOsExemplos.accao,
-                )
-              )
-                await correr(async () => {
-                  await pedir<{ apagados: number }>('/api/bo/clientes/exemplos', {
-                    metodo: 'DELETE',
-                  });
-                  await refrescar();
-                }, t.clientes.apagarOsExemplos.feito);
-            }}
-          >
-            {t.clientes.apagarOsExemplos.accao}
-          </button>
-        </div>
-      )}
 
       <div className="filtros">
         <Segmentado<Estado>
@@ -214,8 +177,7 @@ export function Clientes() {
                   <td className="nome">
                     <a className="ligacao-nome" href={`#/clientes/${c.id}`}>
                       {c.nome}
-                    </a>{' '}
-                    {c.exemplo && <Etiqueta semPonto>{t.clientes.exemplo}</Etiqueta>}
+                    </a>
                   </td>
                   <td className="email">{c.email ?? '—'}</td>
                   <td className="num cortes" data-sufixo={t.clientes.sufixoDosCortes(c.cortes)}>
@@ -252,7 +214,6 @@ export function Clientes() {
           )}
         </div>
       )}
-      {dialogo}
     </>
   );
 }

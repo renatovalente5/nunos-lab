@@ -1404,7 +1404,8 @@ await passo('«perdi o telemóvel» troca o código e termina as outras sessões
 
 await passo('o backoffice vê os clientes, a ficha, o CSV e as métricas', async () => {
   const lista = await (await pedir('/api/bo/clientes', { token })).json();
-  assert.ok(lista.length >= 62, `clientes: ${lista.length}`);
+  // Os de exemplo (as sementes) não aparecem: só existem para a revisão das lojas.
+  assert.ok(lista.length >= 2 && !lista.some((k) => k.exemplo), `clientes: ${lista.length}`);
   const prova = lista.find((k) => k.codigo === codigoDoCliente);
   assert.equal(prova.cortes, 13, '10 + o da Wallet + 2 do saco');
   assert.equal(prova.formas.length, 2);
@@ -1480,23 +1481,20 @@ await passo(
 );
 
 await passo(
-  'tirar alguém da equipa termina a sessão dele; apagar os exemplos limpa tudo',
+  'tirar alguém da equipa termina a sessão dele; os exemplos não se apagam em bloco',
   async () => {
     assert.equal(
       (await pedir(`/api/bo/equipa/${barbeiroId}`, { method: 'DELETE', token })).status,
       200,
     );
     assert.equal((await pedir('/api/balcao/eu', { token: tokenBalcao })).status, 401);
-    const r = await (await pedir('/api/bo/clientes/exemplos', { method: 'DELETE', token })).json();
-    // Saem todos os das sementes, também os que eram da revisão das lojas (JMP7ZT8A e 905).
-    assert.ok(r.apagados >= 59, `apagados: ${r.apagados}`);
-    const equipa = await (await pedir('/api/bo/equipa', { token })).json();
-    assert.deepEqual(
-      equipa.filter((p) => p.nome.endsWith('(exemplo)')).map((p) => p.id),
-      [],
-    );
+    // Os clientes de exemplo são da conta de revisão da Apple: o pedido antigo de os apagar
+    // todos cai na ficha («exemplos» não é um número) e não apaga nada.
+    assert.equal((await pedir('/api/bo/clientes/exemplos', { method: 'DELETE', token })).status, 404);
+    const exemplos = daBaseLocal('SELECT count(*) AS n FROM clientes WHERE exemplo = 1')[0].n;
+    assert.ok(exemplos >= 59, `exemplos: ${exemplos}`);
     const clientes = await (await pedir('/api/bo/clientes', { token })).json();
-    assert.equal(clientes.filter((k) => k.exemplo).length, 0, 'nenhum cliente de exemplo fica');
+    assert.equal(clientes.filter((k) => k.exemplo).length, 0, 'nenhum cliente de exemplo na lista');
   },
 );
 
