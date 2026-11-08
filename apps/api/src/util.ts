@@ -56,6 +56,14 @@ export async function corpo<T extends z.ZodType>(c: C, esquema: T): Promise<z.ou
   return r.data;
 }
 
+/**
+ * A pessoa da equipa que é a conta da revisão das lojas (a «App Review» da Apple, 8 nov): a variável
+ * REVISAO_PESSOA da produção; sem ela (em local), 0, que não é o id de ninguém.
+ */
+export function pessoaDaRevisao(env: object): number {
+  return Number((env as { REVISAO_PESSOA?: string }).REVISAO_PESSOA) || 0;
+}
+
 /** Um id inteiro positivo vindo da morada; outra coisa qualquer dá 404. */
 export function idDaMorada(c: C, nome = 'id'): number {
   const v = c.req.param(nome) ?? '';

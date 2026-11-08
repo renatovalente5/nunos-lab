@@ -18,6 +18,7 @@ import {
   blob,
   corpo,
   idDaMorada,
+  pessoaDaRevisao,
   recusar,
   registar,
   sha256,
@@ -136,14 +137,17 @@ type LinhaPessoa = {
   parceiro: string | null;
 };
 
-async function lerEquipa(db: D1Database): Promise<PessoaDaEquipaNoBackoffice[]> {
+/** A equipa, sem a conta da revisão das lojas: é da Apple, não se edita nem se tira daqui (8 nov). */
+async function lerEquipa(db: D1Database, revisao: number): Promise<PessoaDaEquipaNoBackoffice[]> {
   const [pessoas, sessoes, ligacoes] = await db.batch([
-    db.prepare(
-      `SELECT e.id, e.nome, e.email, e.papel, e.loja_id, e.parceiro_id, e.activo, e.criado_em,
-         l.nome AS loja, p.nome AS parceiro
-       FROM equipa e LEFT JOIN lojas l ON l.id = e.loja_id LEFT JOIN parceiros p ON p.id = e.parceiro_id
-       WHERE e.removido_em IS NULL ORDER BY e.papel = 'dono' DESC, e.papel, e.nome`,
-    ),
+    db
+      .prepare(
+        `SELECT e.id, e.nome, e.email, e.papel, e.loja_id, e.parceiro_id, e.activo, e.criado_em,
+           l.nome AS loja, p.nome AS parceiro
+         FROM equipa e LEFT JOIN lojas l ON l.id = e.loja_id LEFT JOIN parceiros p ON p.id = e.parceiro_id
+         WHERE e.removido_em IS NULL AND e.id != ? ORDER BY e.papel = 'dono' DESC, e.papel, e.nome`,
+      )
+      .bind(revisao),
     db.prepare(
       'SELECT id, pessoa_id, aparelho, criada_em, vista_em FROM sessoes_da_equipa WHERE revogada_em IS NULL AND expira_em > unixepoch() ORDER BY vista_em DESC',
     ),
@@ -179,7 +183,9 @@ async function lerEquipa(db: D1Database): Promise<PessoaDaEquipaNoBackoffice[]> 
   }));
 }
 
-rotasDaFidelidade.get('/equipa', async (c) => c.json(await lerEquipa(c.env.DB)));
+rotasDaFidelidade.get('/equipa', async (c) =>
+  c.json(await lerEquipa(c.env.DB, pessoaDaRevisao(c.env))),
+);
 
 const PessoaPedida = z.object({
   nome: nomeLimpo(LIMITES.pessoa),
@@ -228,11 +234,12 @@ rotasDaFidelidade.post('/equipa', async (c) => {
   } catch (e) {
     traduzirErroDaBase(e);
   }
-  return c.json(await lerEquipa(db), 201);
+  return c.json(await lerEquipa(db, pessoaDaRevisao(c.env)), 201);
 });
 
 rotasDaFidelidade.patch('/equipa/:id', async (c) => {
   const id = idDaMorada(c);
+  if (id === pessoaDaRevisao(c.env)) recusar(404, 'nao_existe');
   const p = await corpo(c, PessoaPedida.partial());
   const email = await validar(c, p);
   const db = c.env.DB;
@@ -257,12 +264,13 @@ rotasDaFidelidade.patch('/equipa/:id', async (c) => {
   } catch (e) {
     traduzirErroDaBase(e);
   }
-  return c.json(await lerEquipa(db));
+  return c.json(await lerEquipa(db, pessoaDaRevisao(c.env)));
 });
 
 /** Tirar alguém da equipa: fica no registo dos carimbos; as sessões dele terminam. */
 rotasDaFidelidade.delete('/equipa/:id', async (c) => {
   const id = idDaMorada(c);
+  if (id === pessoaDaRevisao(c.env)) recusar(404, 'nao_existe');
   const db = c.env.DB;
   const pessoa = await db
     .prepare('SELECT nome FROM equipa WHERE id = ? AND removido_em IS NULL')
@@ -281,12 +289,13 @@ rotasDaFidelidade.delete('/equipa/:id', async (c) => {
     db.prepare('DELETE FROM acessos_da_equipa WHERE pessoa_id = ? AND usado_em IS NULL').bind(id),
     registar(c, 'equipa.removida', pessoa.nome),
   ]);
-  return c.json(await lerEquipa(db));
+  return c.json(await lerEquipa(db, pessoaDaRevisao(c.env)));
 });
 
 /** Uma ligação de acesso à Balcão para esta pessoa: devolve o código UMA vez. */
 rotasDaFidelidade.post('/equipa/:id/acesso', async (c) => {
   const id = idDaMorada(c);
+  if (id === pessoaDaRevisao(c.env)) recusar(404, 'nao_existe');
   const db = c.env.DB;
   const pessoa = await db
     .prepare('SELECT nome FROM equipa WHERE id = ? AND removido_em IS NULL AND activo = 1')

@@ -1,4 +1,4 @@
-import { ETIQUETA_DA_LINGUA, NOME_DA_LINGUA, type Eu, type Lingua } from '@nunos-lab/dominio';
+import { ETIQUETA_DA_LINGUA, type Eu, type Lingua } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { ErroDaApi, guardarSessao, mensagemDe, pedir, sessao } from './api';
@@ -46,19 +46,39 @@ const MORADAS_ANTIGAS: Record<string, string> = {
   categorias: 'parceiros',
 };
 
-/** A língua: um botão com a outra, dita na própria língua («English», «Português»). Um toque muda. */
-function BotaoDaLingua({ className }: { className: string }) {
+/**
+ * A língua: mostra a de agora («PT») e, num toque, as duas (PT e EN) — o Renato, 8 nov. O <select>
+ * fica por cima, transparente: o menu é o do sistema e abre onde quer que o botão esteja.
+ */
+function EscolhaDaLingua({ className }: { className: string }) {
+  const t = useTextos();
   const lingua = useLingua();
-  const outra: Lingua = lingua === 'pt' ? 'en' : 'pt';
   return (
-    <button
-      type="button"
-      className={className}
-      lang={ETIQUETA_DA_LINGUA[outra]}
-      onClick={() => escolherLingua(outra)}
-    >
-      <Icone nome="lingua" tamanho={16} /> {NOME_DA_LINGUA[outra]}
-    </button>
+    <label className={`${className} escolha-lingua`}>
+      <Icone nome="lingua" tamanho={16} />
+      <span aria-hidden="true">{lingua.toUpperCase()}</span>
+      <svg className="seta-lingua" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+        <path
+          d="M2 3.5l3 3 3-3"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <select
+        value={lingua}
+        aria-label={t.geral.lingua}
+        onChange={(e) => escolherLingua(e.target.value as Lingua)}
+      >
+        {(['pt', 'en'] as const).map((l) => (
+          <option key={l} value={l} lang={ETIQUETA_DA_LINGUA[l]}>
+            {l.toUpperCase()}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -157,7 +177,7 @@ function Entrar({ estado, erroDaLigacao }: { estado: string; erroDaLigacao?: unk
               : mensagemDe(erroDaLigacao)}
           </div>
         )}
-        <BotaoDaLingua className="botao-lingua" />
+        <EscolhaDaLingua className="botao-lingua" />
       </div>
     </main>
   );
@@ -216,7 +236,7 @@ function Casca() {
               {t.geral.seccoes[s.nome]}
             </a>
           ))}
-          <BotaoDaLingua className="sair sair-movel" />
+          <EscolhaDaLingua className="sair sair-movel" />
           <button type="button" className="sair sair-movel" onClick={sair}>
             <Icone nome="sair" tamanho={16} /> {t.geral.sair}
           </button>
@@ -227,7 +247,7 @@ function Casca() {
               {t.geral.entrasteComo} <strong>{eu.data.nome}</strong>
             </>
           )}
-          <BotaoDaLingua className="sair" />
+          <EscolhaDaLingua className="sair" />
           <button type="button" className="sair" onClick={sair}>
             <Icone nome="sair" tamanho={16} /> {t.geral.sair}
           </button>

@@ -14,7 +14,17 @@ import {
 import type { Ambiente, C } from '../ambiente.ts';
 import { conferirCredencialGoogle } from '../backoffice/google.ts';
 import { conferirTokenDaApple } from '../entrada/apple.ts';
-import { DIA, agora, aleatorio, aparelhoDoPedido, blob, corpo, recusar, sha256 } from '../util.ts';
+import {
+  DIA,
+  agora,
+  aleatorio,
+  aparelhoDoPedido,
+  blob,
+  corpo,
+  pessoaDaRevisao,
+  recusar,
+  sha256,
+} from '../util.ts';
 
 type LinhaPessoa = {
   id: number;
@@ -56,7 +66,7 @@ export const exigirPessoa: MiddlewareHandler<Ambiente> = async (c, next) => {
     lojaId: linha.loja_id,
     parceiroId: linha.parceiro_id,
     sessao: linha.sessao,
-    demo: linha.id === Number((c.env as { REVISAO_PESSOA?: string }).REVISAO_PESSOA),
+    demo: linha.id === pessoaDaRevisao(c.env),
   });
   await next();
 };

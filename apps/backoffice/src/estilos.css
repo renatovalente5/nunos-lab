@@ -1839,3 +1839,41 @@ details.gaveta[open] > summary > .resumo {
     font-size: 11.5px;
   }
 }
+/* ——— a língua: a de agora, e as duas (PT e EN) num menu do sistema (8 nov) ——— */
+.escolha-lingua {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+/* O <select> por cima, transparente: um toque em qualquer sítio do botão abre as línguas. */
+.escolha-lingua select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 16px;
+}
+.escolha-lingua:focus-within {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.escolha-lingua .seta-lingua {
+  margin-left: -2px;
+  opacity: 0.75;
+}
+/* No telemóvel, a língua e o «Sair» vão no fim do menu de cima (o rodapé da barra lateral some):
+   a regra que os esconde no computador vinha depois da do telemóvel e ganhava-lhe. */
+@media (max-width: 860px) {
+  .lateral .navegacao .sair-movel {
+    display: flex;
+  }
+  /* O globo e a seta ficam na língua, para se ver que abre as opções. */
+  .lateral .navegacao .escolha-lingua svg {
+    display: block;
+  }
+}
