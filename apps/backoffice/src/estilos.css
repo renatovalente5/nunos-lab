@@ -1883,8 +1883,9 @@ details.gaveta[open] > summary > .resumo {
   flex-direction: column;
   gap: 14px;
 }
+/* Ao lado de um campo, a pega não pode encostar: sem a margem negativa das listas, e com um espaço. */
 .com-pega.campo-ordenavel > .pega {
-  margin-top: 24px;
+  margin: 24px 8px 0 -6px;
 }
 .campo-da-rede {
   flex: 1;
