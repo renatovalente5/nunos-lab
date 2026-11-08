@@ -5,7 +5,6 @@
 export const pt = {
   seccoes: {
     resumo: 'Resumo',
-    metricas: 'Métricas',
     clientes: 'Clientes',
     equipa: 'Equipa',
     parceiros: 'Parceiros',
@@ -156,7 +155,6 @@ export const pt = {
 export const en: typeof pt = {
   seccoes: {
     resumo: 'Summary',
-    metricas: 'Metrics',
     clientes: 'Clients',
     equipa: 'Team',
     parceiros: 'Partners',

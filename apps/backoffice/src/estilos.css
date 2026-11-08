@@ -1818,3 +1818,24 @@ details.gaveta > .corpo-gaveta.sem-margem {
 details.gaveta[open] > summary > .resumo {
   visibility: hidden;
 }
+/* Os três números do Resumo: no telemóvel continuam lado a lado, mais pequenos. */
+@media (max-width: 720px) {
+  .grelha.tres.essencial {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .grelha.essencial .numero {
+    padding: 12px;
+  }
+  .grelha.essencial .numero .rotulo {
+    font-size: 12px;
+    line-height: 1.25;
+    min-height: 2.5em;
+  }
+  .grelha.essencial .numero .valor {
+    font-size: 26px;
+  }
+  .grelha.essencial .numero .nota {
+    font-size: 11.5px;
+  }
+}

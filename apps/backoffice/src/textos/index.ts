@@ -9,7 +9,6 @@ import * as equipa from './equipa';
 import * as fidelidade from './fidelidade';
 import * as geral from './geral';
 import * as historico from './historico';
-import * as metricas from './metricas';
 import * as parceiro from './parceiro';
 import * as parceiros from './parceiros';
 import * as promocoes from './promocoes';
@@ -22,7 +21,6 @@ import * as resumo from './resumo';
 const PT = {
   geral: geral.pt,
   resumo: resumo.pt,
-  metricas: metricas.pt,
   clientes: clientes.pt,
   cliente: cliente.pt,
   equipa: equipa.pt,
@@ -41,7 +39,6 @@ export type Textos = typeof PT;
 const EN: Textos = {
   geral: geral.en,
   resumo: resumo.en,
-  metricas: metricas.en,
   clientes: clientes.en,
   cliente: cliente.en,
   equipa: equipa.en,

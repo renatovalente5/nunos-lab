@@ -7,7 +7,6 @@ import { Barbearia } from './paginas/Barbearia';
 import { Cliente } from './paginas/Cliente';
 import { Clientes } from './paginas/Clientes';
 import { Equipa } from './paginas/Equipa';
-import { Metricas } from './paginas/Metricas';
 import { Parceiro } from './paginas/Parceiro';
 import { Parceiros } from './paginas/Parceiros';
 import { Promocoes } from './paginas/Promocoes';
@@ -26,7 +25,6 @@ const SECCOES: {
   icone: NomeDoIcone;
 }[] = [
   { caminho: '', nome: 'resumo', icone: 'resumo' },
-  { caminho: 'metricas', nome: 'metricas', icone: 'metricas' },
   { caminho: 'clientes', nome: 'clientes', icone: 'clientes' },
   { caminho: 'parceiros', nome: 'parceiros', icone: 'parceiros' },
   { caminho: 'promocoes', nome: 'promocoes', icone: 'promocoes' },
@@ -37,10 +35,12 @@ const SECCOES: {
 
 /**
  * Moradas antigas: «registo» era o nome do Histórico; Fidelidade, Acessos e Categorias passaram a
- * gavetas de outras páginas (8 nov), que as abrem logo quando se chega por aqui.
+ * gavetas de outras páginas (8 nov), que as abrem logo quando se chega por aqui; o essencial das
+ * Métricas ficou no Resumo.
  */
 const MORADAS_ANTIGAS: Record<string, string> = {
   registo: 'historico',
+  metricas: '',
   fidelidade: 'barbearia',
   acessos: 'equipa',
   categorias: 'parceiros',
@@ -190,8 +190,7 @@ function Casca() {
   };
 
   let pagina;
-  if (actual === 'metricas') pagina = <Metricas />;
-  else if (actual === 'clientes' && rota[1]) pagina = <Cliente key={rota[1]} id={rota[1]} />;
+  if (actual === 'clientes' && rota[1]) pagina = <Cliente key={rota[1]} id={rota[1]} />;
   else if (actual === 'clientes') pagina = <Clientes />;
   else if (actual === 'equipa') pagina = <Equipa />;
   else if (actual === 'parceiros' && rota[1]) pagina = <Parceiro key={rota[1]} id={rota[1]} />;
