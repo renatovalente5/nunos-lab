@@ -112,7 +112,12 @@ await passo('a app recebe os parceiros com promoções na app', async () => {
   assert.ok(dados.parceiros.length >= 8, `parceiros: ${dados.parceiros.length}`);
   const otica = dados.parceiros.find((p) => p.nome === 'Ótica Lume');
   assert.equal(otica.promocoes.length, 1, 'a agendada não aparece');
-  assert.equal(otica.lojaId, 3, 'a app recebe a casa de cada parceiro');
+  // A base ainda tem a Ótica em Nogueira (os exemplos de antes); a app recebe null, que as apps
+  // instaladas antes de 8 nov lêem como «aparece em todas as barbearias».
+  assert.ok(
+    dados.parceiros.every((p) => p.lojaId === null),
+    'nenhum parceiro é só de uma barbearia',
+  );
   const gelataria = dados.parceiros.find((p) => p.nome === 'Gelataria Neve Doce');
   assert.equal(gelataria.promocoes.length, 1, 'a pausada não aparece');
   assert.ok(dados.parceiros.every((p) => p.exemplo));
@@ -251,6 +256,7 @@ await passo('criar um parceiro, com contactos arrumados', async () => {
     body: json({
       nome: 'Parceiro de Prova',
       categoriaId: 1,
+      // Como o backoffice de antes de 8 nov, que mandava a casa: ignora-se.
       lojaId: 3,
       localidade: 'Aveiro',
       morada: 'Rua da Prova, 1',
@@ -272,14 +278,15 @@ await passo('criar um parceiro, com contactos arrumados', async () => {
   assert.equal(g.parceiro.instagram, 'prova.pt');
   assert.equal(g.parceiro.site, 'https://prova.pt/');
   assert.equal(g.parceiro.cor, '#2456B8');
-  assert.equal(g.parceiro.lojaId, 3, 'a casa do parceiro');
+  assert.equal(g.parceiro.lojaId, undefined, 'o parceiro não tem barbearia');
   assert.equal(g.parceiro.promocoesNaApp, 0);
-  const semCasa = await pedir(`/api/bo/parceiros/${parceiro}`, {
+  // Um backoffice que ainda esteja aberto na versão antiga manda a casa: não se recusa, ignora-se.
+  const antigo = await pedir(`/api/bo/parceiros/${parceiro}`, {
     method: 'PATCH',
     token,
-    body: json({ lojaId: 999 }),
+    body: json({ localidade: 'Aveiro', lojaId: 999 }),
   });
-  assert.equal(semCasa.status, 400, 'uma casa que não existe é recusada');
+  assert.equal(antigo.status, 200, 'a casa de um backoffice antigo ignora-se');
 });
 
 await passo('sem promoções, o parceiro não aparece na app', async () => {

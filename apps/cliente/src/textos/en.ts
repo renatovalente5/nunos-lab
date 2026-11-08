@@ -20,9 +20,6 @@ export const en: Textos = {
   vantagens: {
     emDestaque: 'Featured',
     parceiros: 'Partners',
-    aTuaCasa: 'Your barbershop',
-    todasAsCasas: 'All barbershops',
-    mudarDeCasa: (casa) => `Your barbershop: ${casa}. Change.`,
     categorias: 'Categories',
     tudo: 'All',
     emBreve: 'New perks coming soon',

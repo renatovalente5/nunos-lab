@@ -53,8 +53,11 @@ export type ParceiroPublico = ContactosDoParceiro & {
   id: number;
   nome: string;
   categoriaId: number | null;
-  /** A casa do Nuno's Lab de que o parceiro é; null: aparece para todas. */
-  lojaId: number | null;
+  /**
+   * Sempre null: um parceiro é de todas as barbearias (o Renato, 8 nov 2026). Fica porque as apps
+   * instaladas antes disso filtravam por ele, e null é «aparece para todas».
+   */
+  lojaId: null;
   cor: string;
   /** Identificadores de imagem: a app junta-lhes a morada da API. */
   logotipo: string | null;
@@ -111,7 +114,6 @@ export type Parceiro = ContactosDoParceiro & {
   horarioEn: string;
   descricaoEn: string;
   categoriaId: number | null;
-  lojaId: number | null;
   cor: string;
   logotipo: string | null;
   capa: string | null;

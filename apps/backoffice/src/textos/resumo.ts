@@ -4,8 +4,8 @@ export const pt = {
   periodo: 'Período',
   dias: (n: number) => `${n} ${n === 1 ? 'dia' : 'dias'}`,
   meses: (n: number) => `${n} ${n === 1 ? 'mês' : 'meses'}`,
-  casa: 'Casa',
-  todasAsCasas: 'Todas as casas',
+  casa: 'Barbearia',
+  todasAsCasas: 'Todas as barbearias',
   vsAnterior: 'vs. período anterior',
   igualAoAnterior: 'igual ao período anterior',
   antesZero: 'antes 0',
@@ -17,7 +17,7 @@ export const pt = {
   clientesNovos: 'Clientes novos',
   quemCarimbou: 'Quem carimbou',
   entregou: (n: number) => `entregou ${n} ${n === 1 ? 'recompensa' : 'recompensas'}`,
-  porCasa: 'Por casa',
+  porCasa: 'Por barbearia',
   semCarimbos: 'Sem carimbos neste período',
 };
 
@@ -26,8 +26,8 @@ export const en: typeof pt = {
   periodo: 'Period',
   dias: (n) => `${n} ${n === 1 ? 'day' : 'days'}`,
   meses: (n) => `${n} ${n === 1 ? 'month' : 'months'}`,
-  casa: 'Shop',
-  todasAsCasas: 'All shops',
+  casa: 'Barbershop',
+  todasAsCasas: 'All barbershops',
   vsAnterior: 'vs previous period',
   igualAoAnterior: 'no change vs previous period',
   antesZero: 'from 0',
@@ -38,6 +38,6 @@ export const en: typeof pt = {
   clientesNovos: 'New clients',
   quemCarimbou: 'Who stamped',
   entregou: (n) => `redeemed ${n} ${n === 1 ? 'reward' : 'rewards'}`,
-  porCasa: 'By shop',
+  porCasa: 'By barbershop',
   semCarimbos: 'No stamps in this period',
 };

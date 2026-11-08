@@ -9,18 +9,15 @@ import {
   iconeDe,
   LinhaDoParceiro,
 } from '../../componentes/cartoes';
-import { definirTitulo, guardarCasa, lerCasa, useDados } from '../../dados';
+import { definirTitulo, useDados } from '../../dados';
 import { useTextos } from '../../textos';
 import {
   CONTINUO,
   Ecra,
-  Folha,
   Grupo,
   Icone,
   LARGURA_MAXIMA,
   MARGEM,
-  CartaoDaFolha,
-  OpcaoDaFolha,
   Rotulo,
   SemLigacao,
   Separador,
@@ -71,9 +68,6 @@ export default function Vantagens() {
   const t = useTextos();
   const { data, isPending, isError, refetch } = useDados();
   const [categoria, setCategoria] = useState<number | null>(null);
-  // A casa do cliente (Nogueira do Cravo, Feira, Aveiro): fica guardada no aparelho.
-  const [casa, setCasa] = useState<number | null>(lerCasa);
-  const [aEscolherCasa, setAEscolherCasa] = useState(false);
   const { width, fontScale } = useWindowDimensions();
   useEffect(() => definirTitulo(t.titulos.vantagens), [t]);
   // Uma ligação partilhada (/?parceiro=N) abre o parceiro; o «Voltar» de lá vem
@@ -84,20 +78,13 @@ export default function Vantagens() {
       router.replace({ pathname: '/parceiro/[id]', params: { id: parceiro } });
   }, [parceiro]);
 
-  const lojas = data?.barbearia.lojas ?? [];
-  // Uma casa que já não existe deixa de estar escolhida. Um parceiro sem casa é de todas.
-  const casaEscolhida = lojas.some((l) => l.id === casa) ? casa : null;
-  const daCasa = (p: ParceiroPublico) =>
-    casaEscolhida === null || p.lojaId === null || p.lojaId === casaEscolhida;
+  // Os parceiros são de todas as barbearias: quem corta em qualquer uma tem as vantagens (o Renato, 8 nov).
   const destaques = useMemo(
     () =>
-      (data?.parceiros ?? [])
-        .filter(daCasa)
-        .flatMap((p) =>
-          p.promocoes.filter((pr) => pr.emDestaque).map((pr) => ({ parceiro: p, promocao: pr })),
-        ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data, casaEscolhida],
+      (data?.parceiros ?? []).flatMap((p) =>
+        p.promocoes.filter((pr) => pr.emDestaque).map((pr) => ({ parceiro: p, promocao: pr })),
+      ),
+    [data],
   );
   // Os destaques num lugar só, baixo, e a lista logo a seguir (o Renato, 8 nov: a lista ficava muito
   // em baixo). Um destaque ocupa a largura toda; com vários, rolam de lado e o seguinte espreita.
@@ -105,27 +92,18 @@ export default function Vantagens() {
   const varios = destaques.length > 1;
   const larguraDoDestaque = varios ? coluna - 28 : coluna;
   const altura = alturaDoDestaque(fontScale);
-  // Só as categorias com parceiros na casa escolhida; uma que deixou de ter volta a «Tudo».
+  // Só as categorias com parceiros; uma que deixou de ter volta a «Tudo».
   const categorias = useMemo(
     () =>
       (data?.categorias ?? []).filter((k) =>
-        (data?.parceiros ?? []).some((p) => daCasa(p) && p.categoriaId === k.id),
+        (data?.parceiros ?? []).some((p) => p.categoriaId === k.id),
       ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data, casaEscolhida],
+    [data],
   );
   const escolhida = categorias.some((k) => k.id === categoria) ? categoria : null;
   const lista = (data?.parceiros ?? []).filter(
-    (p) => daCasa(p) && (escolhida === null || p.categoriaId === escolhida),
+    (p) => escolhida === null || p.categoriaId === escolhida,
   );
-  // Sem parceiros nenhuns, o filtro das casas não tem nada para filtrar.
-  const haParceiros = (data?.parceiros.length ?? 0) > 0;
-  const escolherCasa = (id: number | null) => {
-    setCasa(id);
-    guardarCasa(id);
-    setAEscolherCasa(false);
-  };
-  const nomeDaCasa = lojas.find((l) => l.id === casaEscolhida)?.nome ?? t.vantagens.todasAsCasas;
   const abrir = (p: ParceiroPublico, pr?: PromocaoPublica) =>
     router.push({
       pathname: '/parceiro/[id]',
@@ -133,34 +111,6 @@ export default function Vantagens() {
     });
   // O primeiro bloco fica a 18 do cabeçalho, como nos outros separadores; depois do aviso, a 14.
   const primeiro = data?.aviso ? 14 : 18;
-  const botaoDaCasa =
-    haParceiros && lojas.length > 1 ? (
-      <Pressable
-        onPress={() => setAEscolherCasa(true)}
-        role="button"
-        aria-label={t.vantagens.mudarDeCasa(nomeDaCasa)}
-        style={({ pressed }) => ({
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 6,
-          minHeight: 40,
-          paddingLeft: 12,
-          paddingRight: 10,
-          borderRadius: raio.pilula,
-          borderWidth: 1,
-          borderColor: cor.linha,
-          backgroundColor: pressed ? cor.superficie : 'transparent',
-        })}
-      >
-        <Icone nome="mapa" tamanho={16} cor={cor.texto2} espessura={2} />
-        <T v="legenda" style={{ color: cor.texto }}>
-          {nomeDaCasa}
-        </T>
-        <View style={{ transform: [{ rotate: '90deg' }] }}>
-          <Icone nome="seguinte" tamanho={14} cor={cor.texto3} espessura={2.2} />
-        </View>
-      </Pressable>
-    ) : null;
 
   return (
     <Ecra>
@@ -252,15 +202,13 @@ export default function Vantagens() {
 
       {data && (
         <>
-          {/* «Parceiros» e a casa na mesma linha, de altura certa (não salta sem o botão da casa). */}
           <Rotulo
             style={{
               marginTop: destaques.length > 0 ? 20 : primeiro,
               marginBottom: 8,
               minHeight: 40,
-              ...(botaoDaCasa ? null : { justifyContent: 'center' }),
+              justifyContent: 'center',
             }}
-            direita={botaoDaCasa}
           >
             {t.vantagens.parceiros}
           </Rotulo>
@@ -311,28 +259,6 @@ export default function Vantagens() {
               <FadeDireita />
             </View>
           )}
-          <Folha
-            aberta={aEscolherCasa}
-            fechar={() => setAEscolherCasa(false)}
-            titulo={t.vantagens.aTuaCasa}
-          >
-            <CartaoDaFolha role="radiogroup" aria-label={t.vantagens.aTuaCasa}>
-              <OpcaoDaFolha
-                nome={t.vantagens.todasAsCasas}
-                escolhida={casaEscolhida === null}
-                onPress={() => escolherCasa(null)}
-              />
-              {lojas.map((l) => (
-                <OpcaoDaFolha
-                  key={l.id}
-                  nome={l.nome}
-                  escolhida={casaEscolhida === l.id}
-                  onPress={() => escolherCasa(l.id)}
-                  separador
-                />
-              ))}
-            </CartaoDaFolha>
-          </Folha>
           {lista.length > 0 ? (
             <Grupo>
               {lista.map((p, i) => (

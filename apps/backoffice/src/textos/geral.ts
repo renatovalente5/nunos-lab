@@ -114,7 +114,7 @@ export const pt = {
   ligacao: 'ligação',
   semEmail: 'sem email',
   /** Os campos que a API escreve no registo quando o Nuno muda um cliente. */
-  camposDoCliente: { nome: 'nome', email: 'email', aniversário: 'aniversário', casa: 'casa' },
+  camposDoCliente: { nome: 'nome', email: 'email', aniversário: 'aniversário', casa: 'barbearia' },
   cartoesEmCurso: (n: number) => `${n} ${n === 1 ? 'cartão' : 'cartões'} em curso`,
   erros: {
     sessao: 'A sessão acabou. Entra outra vez.',
@@ -137,7 +137,7 @@ export const pt = {
       'A tradução não respondeu agora. Escreve o inglês à mão, ou guarda e ela tenta outra vez.',
     nao_existe: 'Isto já não existe. Recarrega a página.',
     casa_com_historia:
-      'Essa casa tem carimbos, clientes, equipa ou parceiros: não se tira. Se fechou, muda-lhe o nome.',
+      'Essa barbearia tem carimbos, clientes ou equipa: não se tira. Se fechou, muda-lhe o nome.',
     ja_anulado: 'Esse carimbo já estava anulado.',
     recompensa_usada: 'Esse carimbo deu um prémio já entregue: não se anula.',
     cartao_seguinte: 'O cartão seguinte já tem carimbos: esse não se anula.',
@@ -259,7 +259,7 @@ export const en: typeof pt = {
   aparelho: 'Device',
   ligacao: 'access link',
   semEmail: 'no email',
-  camposDoCliente: { nome: 'name', email: 'email', aniversário: 'birthday', casa: 'shop' },
+  camposDoCliente: { nome: 'name', email: 'email', aniversário: 'birthday', casa: 'barbershop' },
   cartoesEmCurso: (n) => `${n} ${n === 1 ? 'card' : 'cards'} in progress`,
   erros: {
     sessao: 'Your session has ended. Sign in again.',
@@ -282,7 +282,7 @@ export const en: typeof pt = {
       "Translation isn't available right now. Write the English yourself, or save and it will try again.",
     nao_existe: 'This no longer exists. Reload the page.',
     casa_com_historia:
-      "This shop has stamps, clients, team members or partners, so it can't be removed. If it has closed, rename it.",
+      "This barbershop has stamps, clients or team members, so it can't be removed. If it has closed, rename it.",
     ja_anulado: 'That stamp has already been undone.',
     recompensa_usada:
       "This stamp completed a card whose reward has already been used, so it can't be undone.",

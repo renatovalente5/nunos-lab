@@ -64,6 +64,8 @@ rotasPublicas.get('/app', async (c) => {
     if (!lista?.length) continue;
     parceiros.push({
       ...parceiroBase(l, lingua),
+      // As apps de antes de 8 nov filtram por isto; null mostra o parceiro em todas as barbearias.
+      lojaId: null,
       novo: l.criado_em > limiteDeNovo && l.exemplo === 0,
       promocoes: lista.map((p) => promocaoPublica(p, lingua)),
     });

@@ -170,23 +170,10 @@ export function definirTitulo(texto: string) {
   if (Platform.OS === 'web' && typeof document !== 'undefined') document.title = texto;
 }
 
-const CHAVE_DA_CASA = 'nunoslab:casa';
-
-/** A casa do Nuno's Lab que o cliente escolheu (null: todas), guardada no aparelho. */
-export function lerCasa(): number | null {
-  const v = lerSincrono(CHAVE_DA_CASA);
-  return v && /^\d+$/.test(v) ? Number(v) : null;
-}
-
-export function guardarCasa(id: number | null) {
-  guardarNoArmazem(CHAVE_DA_CASA, id === null ? null : String(id));
-}
-
 /** As chaves que a app guarda no aparelho (o telemóvel carrega-as ao arrancar). */
 // A língua escolhida lê-se com o resto, antes do primeiro ecrã: sem ela, a app abria na do aparelho e mudava logo.
 export const CHAVES_DO_ARMAZEM = [
   CHAVE,
-  CHAVE_DA_CASA,
   'nunoslab:eu:2',
   'nunoslab:cartao-visto',
   CHAVE_DA_LINGUA,

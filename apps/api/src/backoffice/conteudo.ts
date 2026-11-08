@@ -131,15 +131,14 @@ rotasDoConteudo.post('/parceiros', async (c) => {
     const [novo] = await db.batch([
       db
         .prepare(
-          `INSERT INTO parceiros (nome, categoria_id, loja_id, localidade, morada, telefone, instagram, site, horario, descricao,
+          `INSERT INTO parceiros (nome, categoria_id, localidade, morada, telefone, instagram, site, horario, descricao,
              horario_en, descricao_en, cor, logotipo_id, capa_id, activo, ordem)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM parceiros))
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM parceiros))
            RETURNING id`,
         )
         .bind(
           p.nome,
           p.categoriaId,
-          p.lojaId,
           p.localidade,
           p.morada,
           p.telefone,
@@ -683,7 +682,6 @@ rotasDoConteudo.put('/barbearia', async (c) => {
             OR EXISTS (SELECT 1 FROM cartoes WHERE usado_loja_id = ?1)
             OR EXISTS (SELECT 1 FROM clientes WHERE loja_id = ?1 AND apagado_em IS NULL)
             OR EXISTS (SELECT 1 FROM equipa WHERE loja_id = ?1 AND removido_em IS NULL)
-            OR EXISTS (SELECT 1 FROM parceiros WHERE loja_id = ?1)
             OR EXISTS (SELECT 1 FROM prendas WHERE loja_id = ?1) AS h`,
         )
         .bind(id)

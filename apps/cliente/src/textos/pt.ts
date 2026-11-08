@@ -17,9 +17,6 @@ export const pt = {
   vantagens: {
     emDestaque: 'Em destaque',
     parceiros: 'Parceiros',
-    aTuaCasa: 'A tua barbearia',
-    todasAsCasas: 'Todas as barbearias',
-    mudarDeCasa: (casa: string) => `A tua barbearia: ${casa}. Mudar.`,
     categorias: 'Categorias',
     tudo: 'Tudo',
     emBreve: 'Novas vantagens em breve',

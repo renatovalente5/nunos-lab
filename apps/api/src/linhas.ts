@@ -14,6 +14,7 @@ export type LinhaParceiro = {
   id: number;
   nome: string;
   categoria_id: number | null;
+  /** Já não se usa: um parceiro é de todas as barbearias (8 nov 2026). */
   loja_id: number | null;
   localidade: string;
   morada: string;
@@ -119,7 +120,6 @@ export function parceiroBase(l: LinhaParceiro, lingua: Lingua = 'pt') {
     id: l.id,
     nome: l.nome,
     categoriaId: l.categoria_id,
-    lojaId: l.loja_id,
     localidade: l.localidade,
     morada: l.morada,
     telefone: l.telefone,
