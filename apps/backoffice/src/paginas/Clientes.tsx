@@ -7,7 +7,7 @@ import { Esqueleto, Etiqueta, Icone, Segmentado, useAccao, Vazio } from '../peca
 import { useTextos } from '../textos';
 import { haQuanto, ir, numero } from '../util';
 
-type Estado = 'todos' | 'novos' | 'activos' | 'em-risco' | 'perdidos' | 'sem-app';
+type Estado = 'todos' | 'novos' | 'activos' | 'perdidos' | 'sem-app';
 
 /** A API devolve no máximo estes: a partir daí a lista está cortada. */
 const MAXIMO_DA_LISTA = 5000;
@@ -105,7 +105,6 @@ export function Clientes() {
             { valor: 'todos', nome: t.clientes.estados.todos },
             { valor: 'novos', nome: t.clientes.estados.novos },
             { valor: 'activos', nome: t.clientes.estados.activos },
-            { valor: 'em-risco', nome: t.clientes.estados.emRisco },
             { valor: 'perdidos', nome: t.clientes.estados.perdidos },
             { valor: 'sem-app', nome: t.clientes.estados.semApp },
           ]}

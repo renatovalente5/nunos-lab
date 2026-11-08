@@ -2,6 +2,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import {
+  DIAS_DE_CLIENTE_ACTIVO,
   DIAS_PARA_A_PRENDA,
   LIMITES_DO_PROGRAMA,
   MESES,
@@ -16,7 +17,6 @@ import {
   type TipoDeEntrada,
 } from '@nunos-lab/dominio';
 import type { Ambiente, C } from '../ambiente.ts';
-import { emRisco } from '../balcao/rotas.ts';
 import { anularCarimbo } from '../carimbos.ts';
 import { apagarConta } from '../cliente/apagar.ts';
 import { DIA, agora, corpo, idDaMorada, recusar, registar, traduzirErroDaBase } from '../util.ts';
@@ -76,9 +76,10 @@ function publico(l: Linha): ClienteDoBackoffice {
 }
 
 /**
- * A lista, com o filtro de estado calculado aqui (são contas, não milhares):
- * novos (1.º corte há 30 dias), activos (corte há 90), em risco, perdidos (> 180). Sem os clientes de
- * exemplo: em produção só existem para a revisão das lojas (a conta da Apple), não são do negócio.
+ * A lista, com o filtro de estado calculado aqui (são contas, não milhares). Só cinco (o Renato,
+ * 8 nov): todos; novos (o 1.º corte nos últimos 30 dias); activos (um corte no último ano, o mesmo
+ * ano das promoções «só clientes activos»); perdidos (sem cortar há mais de um ano); sem app. Sem os
+ * clientes de exemplo: em produção só existem para a revisão das lojas (a conta da Apple).
  */
 rotasDosClientes.get('/clientes', async (c) => {
   // O D1 recusa padrões LIKE com mais de 50 caracteres: um nome tem no máximo 40.
@@ -104,18 +105,11 @@ rotasDosClientes.get('/clientes', async (c) => {
     const parado = l.ultimo ? t - l.ultimo : null;
     switch (estado) {
       case 'novos':
-        return l.primeiro !== null && l.primeiro > t - 30 * 86400;
+        return l.primeiro !== null && l.primeiro > t - 30 * DIA;
       case 'activos':
-        return parado !== null && parado <= 90 * 86400;
-      case 'em-risco':
-        return (
-          l.cortes >= 2 &&
-          l.primeiro !== null &&
-          l.ultimo !== null &&
-          emRisco([{ n: l.cortes, primeiro: l.primeiro, ultimo: l.ultimo }], t) === 1
-        );
+        return parado !== null && parado <= DIAS_DE_CLIENTE_ACTIVO * DIA;
       case 'perdidos':
-        return parado !== null && parado > 180 * 86400;
+        return parado !== null && parado > DIAS_DE_CLIENTE_ACTIVO * DIA;
       case 'sem-app':
         return !l.formas || l.formas === 'email';
       default:
