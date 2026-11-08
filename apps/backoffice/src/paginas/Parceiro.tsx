@@ -40,6 +40,7 @@ import { ListaArrastavel } from '../arrastar';
 import { useLingua } from '../lingua';
 import { useTextos } from '../textos';
 import { ir, parametro, useAvisoAoSair } from '../util';
+import { GavetaDeQuemValida } from './Equipa';
 import { ConteudoDaPromocao, EditorDePromocao } from './Promocoes';
 
 /** A app do cliente (para «Ver na app»). */
@@ -500,6 +501,8 @@ export function Parceiro({ id }: { id: string }) {
                 </div>
               </Gaveta>
             )}
+
+            {!novo && dados.data && <GavetaDeQuemValida parceiroId={dados.data.parceiro.id} />}
           </div>
 
           <div className="gravar">

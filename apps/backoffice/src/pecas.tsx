@@ -357,14 +357,17 @@ export function Segmentado<T extends string | number>({
   valor,
   mudar,
   rotulo,
+  cheio = false,
 }: {
   opcoes: { valor: T; nome: string }[];
   valor: T;
   mudar: (v: T) => void;
   rotulo: string;
+  /** Num formulário: a largura dos campos, em partes iguais e com a altura deles. */
+  cheio?: boolean;
 }) {
   return (
-    <div className="segmentado" role="group" aria-label={rotulo}>
+    <div className={cheio ? 'segmentado cheio' : 'segmentado'} role="group" aria-label={rotulo}>
       {opcoes.map((o) => (
         <button
           key={String(o.valor)}

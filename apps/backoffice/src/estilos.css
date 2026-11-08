@@ -829,11 +829,29 @@ dialog.folha::backdrop {
   color: var(--tinta-2);
   cursor: pointer;
   white-space: nowrap;
+  transition:
+    background-color 0.15s,
+    color 0.15s,
+    box-shadow 0.15s;
+}
+.segmentado button:hover {
+  color: var(--tinta);
 }
 .segmentado button[aria-pressed='true'] {
   background: var(--superficie);
   color: var(--tinta);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+/* No formulário: a largura dos campos, em partes iguais, com a altura (44 px) e o canto deles. */
+.segmentado.cheio {
+  display: flex;
+  border-radius: var(--raio-campo);
+}
+.segmentado.cheio button {
+  flex: 1;
+  height: 38px;
+  border-radius: calc(var(--raio-campo) - 3px);
+  font-size: 14px;
 }
 .procura {
   flex: 1;

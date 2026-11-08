@@ -3,7 +3,6 @@ import {
   normalizarEmail,
   type DefinicoesDaBarbearia,
   type PapelDaEquipa,
-  type Parceiro,
   type PessoaDaEquipaNoBackoffice,
 } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
@@ -28,58 +27,46 @@ import { useTextos } from '../textos';
 import { haQuanto, nomeDoAparelho } from '../util';
 import { GavetaDosAcessos } from './Acessos';
 
-/** Os papéis, pela ordem em que aparecem; os nomes vêm dos textos, na língua de agora. */
-const PAPEIS: PapelDaEquipa[] = ['dono', 'barbeiro', 'parceiro'];
+/**
+ * Os papéis que se escolhem na Equipa, pela ordem em que aparecem; os nomes vêm dos textos, na
+ * língua de agora. Quem valida num parceiro junta-se na página do parceiro (o Renato, 8 nov).
+ */
+const PAPEIS: PapelDaEquipa[] = ['dono', 'barbeiro'];
 
 type Formulario = {
-  id: number | null;
   nome: string;
   email: string;
   papel: PapelDaEquipa;
   lojaId: number | null;
-  parceiroId: number | null;
   activo: boolean;
 };
 
-const NOVA: Formulario = {
-  id: null,
-  nome: '',
-  email: '',
-  papel: 'barbeiro',
-  lojaId: null,
-  parceiroId: null,
-  activo: true,
-};
+/** A pessoa aberta na folha; `null` é uma nova. */
+type Aberta = { pessoa: PessoaDaEquipaNoBackoffice | null } | null;
 
-/**
- * Quem carimba na Balcão: o dono, os barbeiros de cada casa, e os parceiros
- * que validam as vantagens. Cada um entra com o Google ou a Apple do email
- * que aqui está, ou por uma ligação de acesso (uma vez, num aparelho).
- */
-export function Equipa() {
-  const t = useTextos();
-  const equipa = useQuery({
+const useEquipa = () =>
+  useQuery({
     queryKey: ['equipa'],
     queryFn: () => pedir<PessoaDaEquipaNoBackoffice[]>('/api/bo/equipa'),
   });
+
+/**
+ * Quem carimba na app for partners: o dono e os barbeiros de cada casa. Cada um entra com o Google
+ * ou a Apple do email que aqui está.
+ */
+export function Equipa() {
+  const t = useTextos();
+  const equipa = useEquipa();
   const barbearia = useQuery({
     queryKey: ['barbearia'],
     queryFn: () => pedir<DefinicoesDaBarbearia>('/api/bo/barbearia'),
   });
-  const parceiros = useQuery({
-    queryKey: ['parceiros'],
-    queryFn: () => pedir<Parceiro[]>('/api/bo/parceiros'),
-  });
-  const [f, setF] = useState<Formulario | null>(null);
-  const [erros, setErros] = useState<string[]>([]);
-  const { correr, aCorrer } = useAccao();
-  const avisar = useAvisar();
-  const { confirmar, dialogo } = useConfirmar();
+  const [aberta, setAberta] = useState<Aberta>(null);
 
   const lojas = barbearia.data?.lojas ?? [];
   const pessoas = equipa.data ?? [];
 
-  // Os grupos, pela ordem em que se lê: o dono, cada casa, quem é de todas, os parceiros.
+  // Os grupos, pela ordem em que se lê: o dono, cada casa, quem é de todas.
   const grupos: { chave: string; nome: string; pessoas: PessoaDaEquipaNoBackoffice[] }[] = [];
   const juntar = (chave: string, nome: string, lista: PessoaDaEquipaNoBackoffice[]) => {
     if (lista.length) grupos.push({ chave, nome, pessoas: lista });
@@ -101,102 +88,6 @@ export function Equipa() {
     t.equipa.todasAsCasas,
     barbeiros.filter((p) => p.lojaId === null || !lojas.some((l) => l.id === p.lojaId)),
   );
-  juntar(
-    'parceiros',
-    t.equipa.parceiros,
-    pessoas.filter((p) => p.papel === 'parceiro'),
-  );
-
-  const abrir = (p: PessoaDaEquipaNoBackoffice | null) => {
-    setErros([]);
-    setF(
-      p
-        ? {
-            id: p.id,
-            nome: p.nome,
-            email: p.email ?? '',
-            papel: p.papel,
-            lojaId: p.lojaId,
-            parceiroId: p.parceiroId,
-            activo: p.activo,
-          }
-        : NOVA,
-    );
-  };
-
-  const mudar =
-    <K extends keyof Formulario>(k: K) =>
-    (v: Formulario[K]) => {
-      setF((x) => (x ? { ...x, [k]: v } : x));
-      setErros((e) => e.filter((c) => c !== k));
-    };
-
-  async function guardar() {
-    if (!f) return;
-    // Sem email não se entra (as ligações de acesso saíram a 8 nov): é obrigatório.
-    const email = normalizarEmail(f.email);
-    const faltam = [
-      !f.nome.trim() && 'nome',
-      !email && 'email',
-      f.papel === 'parceiro' && !f.parceiroId && 'parceiroId',
-    ].filter(Boolean) as string[];
-    if (faltam.length) {
-      setErros(faltam);
-      avisar(
-        faltam.includes('parceiroId') ? t.equipa.faltaOParceiro : t.equipa.camposPorCorrigir,
-        true,
-      );
-      return;
-    }
-    const corpo = {
-      nome: f.nome.trim(),
-      email,
-      papel: f.papel,
-      lojaId: f.papel === 'barbeiro' ? f.lojaId : null,
-      parceiroId: f.papel === 'parceiro' ? f.parceiroId : null,
-      ...(f.id ? { activo: f.activo } : {}),
-    };
-    try {
-      if (f.id) await pedir(`/api/bo/equipa/${f.id}`, { metodo: 'PATCH', corpo });
-      else await pedir('/api/bo/equipa', { metodo: 'POST', corpo });
-      await refrescar();
-      avisar(f.id ? t.equipa.guardado : t.equipa.jaFazParte(corpo.nome));
-      setF(null);
-    } catch (e) {
-      if (e instanceof ErroDaApi && e.codigo === 'repetido') {
-        setErros(['email']);
-        avisar(t.equipa.emailDeOutraPessoa, true);
-      } else {
-        if (e instanceof ErroDaApi && e.campos.length) setErros(e.campos);
-        avisar(mensagemDe(e), true);
-      }
-    }
-  }
-
-  const remover = async (p: { id: number; nome: string }) => {
-    if (
-      await confirmar(
-        t.equipa.tirarDaEquipaPergunta(p.nome),
-        t.equipa.tirarDaEquipaTexto,
-        t.equipa.tirarDaEquipa,
-      )
-    )
-      await correr(async () => {
-        await pedir(`/api/bo/equipa/${p.id}`, { metodo: 'DELETE' });
-        await refrescar();
-        setF(null);
-      }, t.equipa.saiuDaEquipa(p.nome));
-  };
-
-  const ondeDe = (p: PessoaDaEquipaNoBackoffice) =>
-    p.papel === 'parceiro'
-      ? p.parceiro
-      : p.papel === 'barbeiro'
-        ? (p.loja ?? t.equipa.todasAsCasas)
-        : null;
-
-  // A pessoa aberta no «Editar», para os aparelhos dela.
-  const aberta = f?.id ? pessoas.find((p) => p.id === f.id) : undefined;
 
   return (
     <>
@@ -205,7 +96,7 @@ export function Equipa() {
           <h1>{t.geral.seccoes.equipa}</h1>
           <p className="subtitulo">{t.equipa.subtitulo}</p>
         </div>
-        <button type="button" className="botao" onClick={() => abrir(null)}>
+        <button type="button" className="botao" onClick={() => setAberta({ pessoa: null })}>
           <Icone nome="mais" tamanho={18} /> {t.equipa.adicionarAEquipa}
         </button>
       </div>
@@ -226,170 +117,342 @@ export function Equipa() {
               resumo={g.pessoas.map((p) => p.nome).join(' · ')}
               lista
             >
-              <ul className="lista">
-                {g.pessoas.map((p) => (
-                  <li key={p.id}>
-                    <div className="linha">
-                      <div className="meio">
-                        <div className="titulo-linha">
-                          {p.nome} {!p.activo && <Etiqueta>{t.equipa.desligado}</Etiqueta>}
-                        </div>
-                        <div className="detalhe" style={{ overflowWrap: 'anywhere' }}>
-                          {[p.email, ondeDe(p)].filter(Boolean).join(' · ')}
-                        </div>
-                      </div>
-                      <div className="lado">
-                        <button
-                          type="button"
-                          className="botao secundario pequeno"
-                          onClick={() => abrir(p)}
-                        >
-                          {t.equipa.editar}
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <ListaDePessoas pessoas={g.pessoas} abrir={(pessoa) => setAberta({ pessoa })} />
             </Gaveta>
           ))
         )}
         <GavetaDosAcessos />
       </div>
 
+      {aberta && <FolhaDaPessoa pessoa={aberta.pessoa} fechar={() => setAberta(null)} />}
+    </>
+  );
+}
+
+/**
+ * Quem valida as promoções de um parceiro na app for partners: junta-se e edita-se na página do
+ * parceiro, e não na Equipa (o Renato, 8 nov).
+ */
+export function GavetaDeQuemValida({ parceiroId }: { parceiroId: number }) {
+  const t = useTextos();
+  const equipa = useEquipa();
+  const [aberta, setAberta] = useState<Aberta>(null);
+  const pessoas = (equipa.data ?? []).filter(
+    (p) => p.papel === 'parceiro' && p.parceiroId === parceiroId,
+  );
+
+  return (
+    <>
+      <Gaveta
+        id="parceiro.pessoas"
+        titulo={t.equipa.quemValida}
+        resumo={equipa.data && (pessoas.map((p) => p.nome).join(' · ') || t.equipa.aindaNinguem)}
+        lista
+      >
+        {!equipa.data ? (
+          <Esqueleto linhas={2} />
+        ) : pessoas.length ? (
+          <ListaDePessoas pessoas={pessoas} abrir={(pessoa) => setAberta({ pessoa })} />
+        ) : (
+          <Vazio titulo={t.equipa.aindaNinguem}>{t.equipa.quemValidaAjuda}</Vazio>
+        )}
+        <div className="pe-gaveta">
+          <button
+            type="button"
+            className="botao secundario"
+            onClick={() => setAberta({ pessoa: null })}
+          >
+            <Icone nome="mais" tamanho={18} /> {t.equipa.adicionarPessoa}
+          </button>
+        </div>
+      </Gaveta>
+
+      {aberta && (
+        <FolhaDaPessoa
+          pessoa={aberta.pessoa}
+          parceiroId={parceiroId}
+          fechar={() => setAberta(null)}
+        />
+      )}
+    </>
+  );
+}
+
+/** As linhas de uma lista de pessoas: o nome, o email (e a casa de um barbeiro), e o «Editar». */
+function ListaDePessoas({
+  pessoas,
+  abrir,
+}: {
+  pessoas: PessoaDaEquipaNoBackoffice[];
+  abrir: (p: PessoaDaEquipaNoBackoffice) => void;
+}) {
+  const t = useTextos();
+  return (
+    <ul className="lista">
+      {pessoas.map((p) => (
+        <li key={p.id}>
+          <div className="linha">
+            <div className="meio">
+              <div className="titulo-linha">
+                {p.nome} {!p.activo && <Etiqueta>{t.equipa.desligado}</Etiqueta>}
+              </div>
+              <div className="detalhe" style={{ overflowWrap: 'anywhere' }}>
+                {[p.email, p.papel === 'barbeiro' && (p.loja ?? t.equipa.todasAsCasas)]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </div>
+            </div>
+            <div className="lado">
+              <button type="button" className="botao secundario pequeno" onClick={() => abrir(p)}>
+                {t.equipa.editar}
+              </button>
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * Juntar ou editar quem entra na app for partners. Sem `parceiroId`, é da equipa (o dono, ou um
+ * barbeiro de uma casa ou de todas); com ele, valida as promoções desse parceiro, e não há papel
+ * nem casa a escolher.
+ */
+function FolhaDaPessoa({
+  pessoa,
+  parceiroId,
+  fechar,
+}: {
+  pessoa: PessoaDaEquipaNoBackoffice | null;
+  parceiroId?: number;
+  fechar: () => void;
+}) {
+  const t = useTextos();
+  const equipa = useEquipa();
+  const barbearia = useQuery({
+    queryKey: ['barbearia'],
+    queryFn: () => pedir<DefinicoesDaBarbearia>('/api/bo/barbearia'),
+  });
+  const [f, setF] = useState<Formulario>(() =>
+    pessoa
+      ? {
+          nome: pessoa.nome,
+          email: pessoa.email ?? '',
+          papel: pessoa.papel,
+          lojaId: pessoa.lojaId,
+          activo: pessoa.activo,
+        }
+      : { nome: '', email: '', papel: 'barbeiro', lojaId: null, activo: true },
+  );
+  const [erros, setErros] = useState<string[]>([]);
+  const { correr, aCorrer } = useAccao();
+  const avisar = useAvisar();
+  const { confirmar, dialogo } = useConfirmar();
+  const doParceiro = parceiroId !== undefined;
+  const lojas = barbearia.data?.lojas ?? [];
+  // A pessoa como está agora, para os aparelhos mudarem ao terminar uma sessão.
+  const agora = pessoa && equipa.data?.find((p) => p.id === pessoa.id);
+
+  const mudar =
+    <K extends keyof Formulario>(k: K) =>
+    (v: Formulario[K]) => {
+      setF((x) => ({ ...x, [k]: v }));
+      setErros((e) => e.filter((c) => c !== k));
+    };
+
+  async function guardar() {
+    // Sem email não se entra (as ligações de acesso saíram a 8 nov): é obrigatório.
+    const email = normalizarEmail(f.email);
+    const faltam = [!f.nome.trim() && 'nome', !email && 'email'].filter(Boolean) as string[];
+    if (faltam.length) {
+      setErros(faltam);
+      avisar(t.equipa.camposPorCorrigir, true);
+      return;
+    }
+    const papel = doParceiro ? 'parceiro' : f.papel;
+    const corpo = {
+      nome: f.nome.trim(),
+      email,
+      papel,
+      lojaId: papel === 'barbeiro' ? f.lojaId : null,
+      parceiroId: parceiroId ?? null,
+      ...(pessoa ? { activo: f.activo } : {}),
+    };
+    try {
+      if (pessoa) await pedir(`/api/bo/equipa/${pessoa.id}`, { metodo: 'PATCH', corpo });
+      else await pedir('/api/bo/equipa', { metodo: 'POST', corpo });
+      await refrescar();
+      avisar(
+        pessoa
+          ? t.equipa.guardado
+          : doParceiro
+            ? t.equipa.jaPodeValidar(corpo.nome)
+            : t.equipa.jaFazParte(corpo.nome),
+      );
+      fechar();
+    } catch (e) {
+      if (e instanceof ErroDaApi && e.codigo === 'repetido') {
+        setErros(['email']);
+        avisar(t.equipa.emailDeOutraPessoa, true);
+      } else {
+        if (e instanceof ErroDaApi && e.campos.length) setErros(e.campos);
+        avisar(mensagemDe(e), true);
+      }
+    }
+  }
+
+  // Quem valida num parceiro não é da equipa: tira-se-lhe o acesso.
+  const remover = async (p: PessoaDaEquipaNoBackoffice) => {
+    if (
+      await confirmar(
+        doParceiro ? t.equipa.tirarOAcessoPergunta(p.nome) : t.equipa.tirarDaEquipaPergunta(p.nome),
+        doParceiro ? t.equipa.tirarOAcessoTexto : t.equipa.tirarDaEquipaTexto,
+        doParceiro ? t.equipa.tirarOAcesso : t.equipa.tirarDaEquipa,
+      )
+    )
+      await correr(
+        async () => {
+          await pedir(`/api/bo/equipa/${p.id}`, { metodo: 'DELETE' });
+          await refrescar();
+          fechar();
+        },
+        doParceiro ? t.equipa.acessoTirado : t.equipa.saiuDaEquipa(p.nome),
+      );
+  };
+
+  return (
+    <>
       <Folha
-        aberta={!!f}
-        fechar={() => setF(null)}
-        titulo={f?.id ? t.equipa.editarPessoa(f.nome) : t.equipa.adicionarAEquipa}
+        aberta
+        fechar={fechar}
+        titulo={
+          pessoa
+            ? t.equipa.editarPessoa(pessoa.nome)
+            : doParceiro
+              ? t.equipa.adicionarPessoa
+              : t.equipa.adicionarAEquipa
+        }
         pe={
           <button
             type="button"
             className="botao"
-            disabled={!f?.nome.trim() || !f?.email.trim() || aCorrer}
+            disabled={!f.nome.trim() || !f.email.trim() || aCorrer}
             onClick={() => correr(guardar)}
           >
-            {f?.id ? t.equipa.guardar : t.equipa.adicionar}
+            {pessoa ? t.equipa.guardar : t.equipa.adicionar}
           </button>
         }
       >
-        {f && (
-          <div className="formulario">
-            <Campo
-              rotulo={t.equipa.nome}
-              valor={f.nome}
-              mudar={mudar('nome')}
-              max={LIMITES.pessoa}
-              erro={erros.includes('nome')}
-              placeholder={t.equipa.exemploDeNome}
-              obrigatorio
-              autoFocus={!f.id}
-            />
-            <Campo
-              rotulo={t.equipa.email}
-              valor={f.email}
-              mudar={mudar('email')}
-              max={254}
-              erro={erros.includes('email')}
-              placeholder={t.equipa.exemploDeEmail}
-              ajuda={t.equipa.ajudaDoEmail}
-              obrigatorio
-            />
+        <div className="formulario">
+          <Campo
+            rotulo={t.equipa.nome}
+            valor={f.nome}
+            mudar={mudar('nome')}
+            max={LIMITES.pessoa}
+            erro={erros.includes('nome')}
+            placeholder={t.equipa.exemploDeNome}
+            obrigatorio
+            autoFocus={!pessoa}
+          />
+          <Campo
+            rotulo={t.equipa.email}
+            valor={f.email}
+            mudar={mudar('email')}
+            max={254}
+            erro={erros.includes('email')}
+            placeholder={t.equipa.exemploDeEmail}
+            ajuda={t.equipa.ajudaDoEmail}
+            obrigatorio
+          />
+          {!doParceiro && (
             <div className="campo">
               <span className="rotulo-campo">{t.equipa.papel}</span>
               <Segmentado<PapelDaEquipa>
+                cheio
                 rotulo={t.equipa.papel}
                 valor={f.papel}
                 mudar={mudar('papel')}
                 opcoes={PAPEIS.map((valor) => ({ valor, nome: t.equipa.papeis[valor] }))}
               />
             </div>
-            {f.papel === 'barbeiro' && (
-              <Seletor<number>
-                rotulo={t.equipa.casa}
-                valor={f.lojaId}
-                mudar={mudar('lojaId')}
-                vazio={t.equipa.todasAsCasas}
-                opcoes={lojas.map((l) => ({ valor: l.id, nome: l.nome }))}
+          )}
+          {!doParceiro && f.papel === 'barbeiro' && (
+            <Seletor<number>
+              rotulo={t.equipa.casa}
+              valor={f.lojaId}
+              mudar={mudar('lojaId')}
+              vazio={t.equipa.todasAsCasas}
+              opcoes={lojas.map((l) => ({ valor: l.id, nome: l.nome }))}
+            />
+          )}
+          {pessoa && (
+            <>
+              <Interruptor
+                ligado={f.activo}
+                mudar={mudar('activo')}
+                rotulo={t.equipa.activo}
+                ajuda={t.equipa.ajudaDoActivo}
               />
-            )}
-            {f.papel === 'parceiro' && (
-              <Seletor<number>
-                rotulo={t.equipa.parceiro}
-                valor={f.parceiroId}
-                mudar={mudar('parceiroId')}
-                vazio={t.equipa.escolheOParceiro}
-                erro={erros.includes('parceiroId')}
-                opcoes={(parceiros.data ?? []).map((p) => ({ valor: p.id, nome: p.nome }))}
-              />
-            )}
-            {f.id && (
-              <>
-                <Interruptor
-                  ligado={f.activo}
-                  mudar={mudar('activo')}
-                  rotulo={t.equipa.activo}
-                  ajuda={t.equipa.ajudaDoActivo}
-                />
-                {aberta && (
-                  <div className="campo">
-                    <span className="rotulo-campo">{t.equipa.aparelhosTitulo}</span>
-                    {aberta.sessoes.length ? (
-                      <ul className="lista">
-                        {aberta.sessoes.map((s) => (
-                          <li key={s.id}>
-                            <div className="linha" style={{ padding: '10px 0', minHeight: 0 }}>
-                              <div className="meio">
-                                <div className="titulo-linha">
-                                  {nomeDoAparelho(s.aparelho, t.equipa.aparelho)}
-                                </div>
-                                <div className="detalhe">
-                                  {t.equipa.entrouEUsado(haQuanto(s.criadaEm), haQuanto(s.vistaEm))}
-                                </div>
+              {agora && (
+                <div className="campo">
+                  <span className="rotulo-campo">{t.equipa.aparelhosTitulo}</span>
+                  {agora.sessoes.length ? (
+                    <ul className="lista">
+                      {agora.sessoes.map((s) => (
+                        <li key={s.id}>
+                          <div className="linha" style={{ padding: '10px 0', minHeight: 0 }}>
+                            <div className="meio">
+                              <div className="titulo-linha">
+                                {nomeDoAparelho(s.aparelho, t.equipa.aparelho)}
                               </div>
-                              <button
-                                type="button"
-                                className="botao secundario pequeno"
-                                disabled={aCorrer}
-                                onClick={async () => {
-                                  if (
-                                    await confirmar(
-                                      t.equipa.terminarASessao,
-                                      t.equipa.saiNesseAparelho(aberta.nome),
-                                      t.equipa.terminar,
-                                    )
-                                  )
-                                    await correr(async () => {
-                                      await pedir(`/api/bo/equipa/sessoes/${s.id}`, {
-                                        metodo: 'DELETE',
-                                      });
-                                      await refrescar();
-                                    }, t.equipa.sessaoTerminada);
-                                }}
-                              >
-                                {t.equipa.terminar}
-                              </button>
+                              <div className="detalhe">
+                                {t.equipa.entrouEUsado(haQuanto(s.criadaEm), haQuanto(s.vistaEm))}
+                              </div>
                             </div>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="ajuda">{t.equipa.semAparelhos}</div>
-                    )}
-                  </div>
-                )}
-                <div className="botoes">
-                  <button
-                    type="button"
-                    className="botao perigo pequeno"
-                    onClick={() => remover({ id: f.id!, nome: f.nome })}
-                  >
-                    {t.equipa.tirarDaEquipa}
-                  </button>
+                            <button
+                              type="button"
+                              className="botao secundario pequeno"
+                              disabled={aCorrer}
+                              onClick={async () => {
+                                if (
+                                  await confirmar(
+                                    t.equipa.terminarASessao,
+                                    t.equipa.saiNesseAparelho(agora.nome),
+                                    t.equipa.terminar,
+                                  )
+                                )
+                                  await correr(async () => {
+                                    await pedir(`/api/bo/equipa/sessoes/${s.id}`, {
+                                      metodo: 'DELETE',
+                                    });
+                                    await refrescar();
+                                  }, t.equipa.sessaoTerminada);
+                              }}
+                            >
+                              {t.equipa.terminar}
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="ajuda">{t.equipa.semAparelhos}</div>
+                  )}
                 </div>
-              </>
-            )}
-          </div>
-        )}
+              )}
+              <div className="botoes">
+                <button
+                  type="button"
+                  className="botao perigo pequeno"
+                  onClick={() => remover(pessoa)}
+                >
+                  {doParceiro ? t.equipa.tirarOAcesso : t.equipa.tirarDaEquipa}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </Folha>
 
       {dialogo}

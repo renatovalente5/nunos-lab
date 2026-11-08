@@ -1,14 +1,12 @@
 /** As frases desta página: o português é a fonte; o inglês (britânico) tem as mesmas chaves. */
 export const pt = {
-  subtitulo: 'Quem carimba na app for partners, e os parceiros que validam.',
+  subtitulo: 'Quem carimba na app for partners.',
   adicionarAEquipa: 'Adicionar à equipa',
   semEquipa: 'Ainda sem equipa',
   // Os grupos e as linhas da lista.
   papeis: { dono: 'Dono', barbeiro: 'Barbeiro', parceiro: 'Parceiro' },
   todasAsCasas: 'Todas as casas',
-  parceiros: 'Parceiros',
   desligado: 'Desligado',
-  /** «2 aparelhos»: as palavras do `plural`. */
   editar: 'Editar',
   // Adicionar e editar.
   editarPessoa: (nome: string) => `Editar ${nome}`,
@@ -21,12 +19,9 @@ export const pt = {
   ajudaDoEmail: 'Entra na app for partners com o Google ou a Apple deste email.',
   papel: 'Papel',
   casa: 'Casa',
-  parceiro: 'Parceiro',
-  escolheOParceiro: 'Escolhe o parceiro',
   activo: 'Activo',
   ajudaDoActivo: 'Desligado, não entra na app for partners.',
   tirarDaEquipa: 'Tirar da equipa',
-  faltaOParceiro: 'Escolhe o parceiro.',
   camposPorCorrigir: 'Há campos por corrigir.',
   guardado: 'Guardado',
   jaFazParte: (nome: string) => `${nome} já faz parte da equipa`,
@@ -35,6 +30,17 @@ export const pt = {
   tirarDaEquipaTexto:
     'Sai já de todos os aparelhos e deixa de carimbar. Os carimbos que deu ficam.',
   saiuDaEquipa: (nome: string) => `${nome} saiu da equipa`,
+  // Quem valida as promoções de um parceiro (na página dele).
+  quemValida: 'Quem valida',
+  aindaNinguem: 'Ainda ninguém',
+  quemValidaAjuda: 'Quem juntares aqui valida as promoções na app for partners.',
+  adicionarPessoa: 'Adicionar pessoa',
+  jaPodeValidar: (nome: string) => `${nome} já pode validar`,
+  tirarOAcesso: 'Tirar o acesso',
+  tirarOAcessoPergunta: (nome: string) => `Tirar o acesso a ${nome}?`,
+  tirarOAcessoTexto:
+    'Sai já de todos os aparelhos e deixa de validar. As validações que fez ficam.',
+  acessoTirado: 'Acesso tirado',
   // Os aparelhos de cada pessoa.
   /** Quando não se sabe que aparelho é. */
   aparelho: 'Aparelho',
@@ -48,12 +54,11 @@ export const pt = {
 };
 
 export const en: typeof pt = {
-  subtitulo: 'Who stamps cards in the partner app, and the partners who validate perks.',
+  subtitulo: 'Who stamps cards in the partner app.',
   adicionarAEquipa: 'Add team member',
   semEquipa: 'No team members yet',
   papeis: { dono: 'Owner', barbeiro: 'Barber', parceiro: 'Partner' },
   todasAsCasas: 'All shops',
-  parceiros: 'Partners',
   desligado: 'Inactive',
   editar: 'Edit',
   editarPessoa: (nome) => `Edit ${nome}`,
@@ -66,12 +71,9 @@ export const en: typeof pt = {
   ajudaDoEmail: 'They sign in to the partner app with the Google or Apple account for this email.',
   papel: 'Role',
   casa: 'Shop',
-  parceiro: 'Partner',
-  escolheOParceiro: 'Choose a partner',
   activo: 'Active',
   ajudaDoActivo: "When off, they can't sign in to the partner app.",
   tirarDaEquipa: 'Remove from the team',
-  faltaOParceiro: 'Choose a partner.',
   camposPorCorrigir: 'Some fields need fixing.',
   guardado: 'Saved',
   jaFazParte: (nome) => `${nome} added to the team`,
@@ -80,6 +82,16 @@ export const en: typeof pt = {
   tirarDaEquipaTexto:
     "They're signed out of every device straight away and can no longer stamp. The stamps they've given are kept.",
   saiuDaEquipa: (nome) => `${nome} removed from the team`,
+  quemValida: 'Who validates',
+  aindaNinguem: 'No one yet',
+  quemValidaAjuda: 'People you add here validate perks in the partner app.',
+  adicionarPessoa: 'Add person',
+  jaPodeValidar: (nome) => `${nome} can now validate perks`,
+  tirarOAcesso: 'Remove access',
+  tirarOAcessoPergunta: (nome) => `Remove access for ${nome}?`,
+  tirarOAcessoTexto:
+    "They're signed out of every device straight away and can no longer validate perks. The perks they've validated are kept.",
+  acessoTirado: 'Access removed',
   aparelho: 'Device',
   entrouEUsado: (entrou, usado) => `Signed in ${entrou} · last used ${usado}`,
   terminarASessao: 'Sign out that device?',
