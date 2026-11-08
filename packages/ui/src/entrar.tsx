@@ -115,7 +115,8 @@ export function BotaoDoGoogle({
           shape: 'pill',
           text: texto,
           logo_alignment: 'left',
-          locale: ETIQUETA_DA_LINGUA[lingua],
+          // A Google quer «en_GB»: com «en-GB» ignorava-a e o botão saía na língua do browser.
+          locale: ETIQUETA_DA_LINGUA[lingua].replace('-', '_'),
           width: LARGURA_DO_BOTAO,
         });
       })

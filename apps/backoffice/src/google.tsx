@@ -89,7 +89,8 @@ export function BotaoDoGoogle({ aoEntrar }: { aoEntrar: (credencial: string) => 
           shape: 'pill',
           text: 'signin_with',
           logo_alignment: 'left',
-          locale: ETIQUETA_DA_LINGUA[lingua],
+          // A Google quer «en_GB»: com «en-GB» ignorava-a e o botão saía na língua do browser.
+          locale: ETIQUETA_DA_LINGUA[lingua].replace('-', '_'),
           width: 300,
         });
       })
