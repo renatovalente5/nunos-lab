@@ -157,7 +157,7 @@ export const pt = {
       'O mapa das barbearias é dos Mapas da Apple: para o mostrar, o teu aparelho liga-se à Apple, que recebe o endereço dele, como qualquer site. No Android é uma imagem que o nosso servidor pede à Apple e guarda por pouco tempo.',
     ],
   },
-  barbearia: { titulo: 'Barbearias', mais: 'Mais', tatuagens: 'Tatuagens' },
+  barbearia: { titulo: 'Barbearias', mais: 'Mais', tatuagens: 'Tatuagens', site: 'Site' },
   mapa: {
     marcar: 'Marcar',
     marcarEm: (casa: string) => `Marcar em ${casa}`,

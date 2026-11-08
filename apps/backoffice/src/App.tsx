@@ -82,18 +82,8 @@ function EscolhaDaLingua({ className }: { className: string }) {
   );
 }
 
-/** A ligação de acesso traz o código no fragmento: «…/backoffice/#acesso=XXXX». */
-function codigoNaMorada(): string | null {
-  return /^#acesso=([A-Za-z0-9_-]{43})$/.exec(location.hash)?.[1] ?? null;
-}
-
 export function App() {
   const [temSessao, setTemSessao] = useState(() => !!sessao());
-  const [entrada, setEntrada] = useState<{
-    estado: 'parado' | 'a-entrar' | 'erro';
-    erro?: unknown;
-  }>({ estado: 'parado' });
-  const tentados = useRef(new Set<string>());
 
   useEffect(() => {
     const mudou = () => setTemSessao(!!sessao());
@@ -101,37 +91,11 @@ export function App() {
     return () => window.removeEventListener('nunoslab:sessao', mudou);
   }, []);
 
-  // A ligação pode chegar com a página já aberta: mudar só o fragmento não
-  // recarrega nada, por isso ouve-se também o «hashchange».
-  useEffect(() => {
-    const tentar = () => {
-      const codigo = codigoNaMorada();
-      if (!codigo || tentados.current.has(codigo)) return;
-      tentados.current.add(codigo);
-      // O código sai logo da barra de endereço (e do histórico): vale uma vez só.
-      history.replaceState(null, '', `${location.pathname}${location.search}#/`);
-      setEntrada({ estado: 'a-entrar' });
-      pedir<{ sessao: string }>('/api/bo/entrar', { metodo: 'POST', corpo: { acesso: codigo } })
-        .then(async ({ sessao: s }) => {
-          // Com uma sessão já aberta neste aparelho, fecha-se essa antes de ficar a nova.
-          if (sessao()) await pedir('/api/bo/sair', { metodo: 'POST' }).catch(() => {});
-          guardarSessao(s);
-          setEntrada({ estado: 'parado' });
-          window.dispatchEvent(new HashChangeEvent('hashchange'));
-        })
-        .catch((e) => setEntrada({ estado: 'erro', erro: e }));
-    };
-    tentar();
-    window.addEventListener('hashchange', tentar);
-    return () => window.removeEventListener('hashchange', tentar);
-  }, []);
-
-  if (!temSessao || entrada.estado === 'a-entrar')
-    return <Entrar estado={entrada.estado} erroDaLigacao={entrada.erro} />;
-  return <Casca />;
+  return temSessao ? <Casca /> : <Entrar />;
 }
 
-function Entrar({ estado, erroDaLigacao }: { estado: string; erroDaLigacao?: unknown }) {
+/** Entrar: só com o Google do email que está no Acesso ao backoffice (as ligações saíram a 8 nov). */
+function Entrar() {
   const t = useTextos();
   // O erro guarda-se como erro (e o email com que se tentou): a mensagem diz-se na língua de agora.
   const [erro, setErro] = useState<{ e: unknown; email: string | null } | null>(null);
@@ -156,25 +120,19 @@ function Entrar({ estado, erroDaLigacao }: { estado: string; erroDaLigacao?: unk
       <div className="caixa">
         <img className="palavra" src={PALAVRA} alt="Nuno's Lab" />
         <div className="sobre-palavra">{t.geral.backoffice}</div>
-        {estado === 'a-entrar' || aEntrar ? (
+        {aEntrar ? (
           <h1>{t.geral.entrar.aEntrar}</h1>
         ) : (
           <>
             <h1>{t.geral.entrar.titulo}</h1>
-            {CLIENTE_GOOGLE ? (
-              <BotaoDoGoogle aoEntrar={entrarComGoogle} />
-            ) : (
-              <p>{t.geral.entrar.abreALigacao}</p>
-            )}
+            {CLIENTE_GOOGLE && <BotaoDoGoogle aoEntrar={entrarComGoogle} />}
           </>
         )}
-        {(erro || estado === 'erro') && (
+        {erro && (
           <div className="caixa-aviso mau" role="alert">
-            {erro
-              ? erro.e instanceof ErroDaApi && erro.e.codigo === 'sem_acesso' && erro.email
-                ? t.geral.entrar.semAcesso(erro.email)
-                : mensagemDe(erro.e)
-              : mensagemDe(erroDaLigacao)}
+            {erro.e instanceof ErroDaApi && erro.e.codigo === 'sem_acesso' && erro.email
+              ? t.geral.entrar.semAcesso(erro.email)
+              : mensagemDe(erro.e)}
           </div>
         )}
         <EscolhaDaLingua className="botao-lingua" />

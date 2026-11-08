@@ -102,21 +102,6 @@ async function pessoaDoEmail(c: C, email: string | null): Promise<number> {
   return p.id;
 }
 
-rotasDeEntradaDaBalcao.post('/entrar', async (c) => {
-  await travar(c);
-  const { acesso } = await corpo(c, z.object({ acesso: z.string().regex(/^[A-Za-z0-9_-]{43}$/) }));
-  const gasta = await c.env.DB.prepare(
-    `UPDATE acessos_da_equipa SET usado_em = unixepoch()
-     WHERE resumo = ? AND usado_em IS NULL AND expira_em > unixepoch()
-       AND pessoa_id IN (SELECT id FROM equipa WHERE removido_em IS NULL AND activo = 1)
-     RETURNING pessoa_id`,
-  )
-    .bind(blob(await sha256(acesso)))
-    .first<{ pessoa_id: number }>();
-  if (!gasta) recusar(401, 'ligacao_invalida');
-  return abrirSessao(c, gasta.pessoa_id);
-});
-
 rotasDeEntradaDaBalcao.post('/entrar/google', async (c) => {
   await travar(c);
   const { credencial } = await corpo(c, z.object({ credencial: z.string().min(20).max(4096) }));

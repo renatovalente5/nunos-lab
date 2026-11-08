@@ -1,4 +1,10 @@
-import { LIMITES, dataCurta, diaEmLisboa, type DefinicoesDaBarbearia } from '@nunos-lab/dominio';
+import {
+  LIMITES,
+  dataCurta,
+  diaEmLisboa,
+  type DefinicoesDaBarbearia,
+  type Rede,
+} from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
@@ -164,15 +170,64 @@ export function Barbearia() {
         .filter(Boolean)
         .join(' · ')
     : t.barbearia.semAviso;
+  const nomeDaRede = (r: Rede) =>
+    r === 'whatsapp'
+      ? 'WhatsApp'
+      : r === 'instagram'
+        ? 'Instagram'
+        : r === 'tiktok'
+          ? 'TikTok'
+          : t.barbearia.site;
   const resumoDasRedes =
-    [
-      f.instagram && 'Instagram',
-      f.tiktok && 'TikTok',
-      f.whatsapp && 'WhatsApp',
-      f.site && t.barbearia.site,
-    ]
-      .filter(Boolean)
+    f.redes
+      .filter((r) => f[r])
+      .map(nomeDaRede)
       .join(' · ') || t.barbearia.porPreencher;
+  // Cada rede é um campo; a ordem da lista é a da app (o Nuno arrasta-as, 8 nov).
+  const campoDaRede = (r: Rede) =>
+    r === 'instagram' ? (
+      <Campo
+        rotulo="Instagram"
+        valor={f.instagram}
+        mudar={(instagram) => setF({ ...f, instagram })}
+        max={200}
+        erro={erros.includes('instagram')}
+        erroTexto={t.barbearia.instagramErrado}
+        placeholder={t.barbearia.conta}
+      />
+    ) : r === 'tiktok' ? (
+      <Campo
+        rotulo="TikTok"
+        tipo="url"
+        valor={f.tiktok}
+        mudar={(tiktok) => setF({ ...f, tiktok })}
+        max={200}
+        erro={erros.includes('tiktok')}
+        erroTexto={t.barbearia.tiktokErrado}
+        placeholder="https://www.tiktok.com/@…"
+      />
+    ) : r === 'whatsapp' ? (
+      <Campo
+        rotulo={t.barbearia.whatsapp}
+        tipo="url"
+        valor={f.whatsapp}
+        mudar={(whatsapp) => setF({ ...f, whatsapp })}
+        max={200}
+        erro={erros.includes('whatsapp')}
+        erroTexto={t.barbearia.whatsappErrado}
+        placeholder="https://wa.link/…"
+      />
+    ) : (
+      <Campo
+        rotulo={t.barbearia.site}
+        tipo="url"
+        valor={f.site}
+        mudar={(site) => setF({ ...f, site })}
+        max={LIMITES.site}
+        erro={erros.includes('site')}
+        erroTexto={t.barbearia.siteErrado}
+      />
+    );
 
   return (
     <>
@@ -377,48 +432,21 @@ export function Barbearia() {
           erro={erros.some((e) => DAS_REDES.includes(e))}
         >
           <div className="formulario">
-            <div className="duas-colunas">
-              <Campo
-                rotulo="Instagram"
-                valor={f.instagram}
-                mudar={(instagram) => setF({ ...f, instagram })}
-                max={200}
-                erro={erros.includes('instagram')}
-                erroTexto={t.barbearia.instagramErrado}
-                placeholder={t.barbearia.conta}
-              />
-              <Campo
-                rotulo="TikTok"
-                tipo="url"
-                valor={f.tiktok}
-                mudar={(tiktok) => setF({ ...f, tiktok })}
-                max={200}
-                erro={erros.includes('tiktok')}
-                erroTexto={t.barbearia.tiktokErrado}
-                placeholder="https://www.tiktok.com/@…"
-              />
-            </div>
-            <div className="duas-colunas">
-              <Campo
-                rotulo={t.barbearia.whatsapp}
-                tipo="url"
-                valor={f.whatsapp}
-                mudar={(whatsapp) => setF({ ...f, whatsapp })}
-                max={200}
-                erro={erros.includes('whatsapp')}
-                erroTexto={t.barbearia.whatsappErrado}
-                placeholder="https://wa.link/…"
-              />
-              <Campo
-                rotulo={t.barbearia.site}
-                tipo="url"
-                valor={f.site}
-                mudar={(site) => setF({ ...f, site })}
-                max={LIMITES.site}
-                erro={erros.includes('site')}
-                erroTexto={t.barbearia.siteErrado}
-              />
-            </div>
+            <div className="ajuda">{t.barbearia.ordemNaApp}</div>
+            <ListaArrastavel
+              como="div"
+              className="campos-ordenaveis"
+              itens={f.redes}
+              chave={(r) => r}
+              nome={nomeDaRede}
+              aoReordenar={(redes) => setF({ ...f, redes })}
+              desenhar={(r, pega) => (
+                <div className="com-pega campo-ordenavel">
+                  {pega}
+                  <div className="campo-da-rede">{campoDaRede(r)}</div>
+                </div>
+              )}
+            />
           </div>
         </Gaveta>
       </div>

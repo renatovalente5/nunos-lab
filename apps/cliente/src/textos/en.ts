@@ -159,7 +159,7 @@ export const en: Textos = {
       'The map of our barbershops comes from Apple Maps: to show it, your device connects to Apple, which receives its IP address, as with any website. On Android, it’s an image that our server requests from Apple and keeps for a short time.',
     ],
   },
-  barbearia: { titulo: 'Barbershops', mais: 'More', tatuagens: 'Tattoos' },
+  barbearia: { titulo: 'Barbershops', mais: 'More', tatuagens: 'Tattoos', site: 'Website' },
   mapa: {
     marcar: 'Book',
     marcarEm: (casa) => `Book at ${casa}`,

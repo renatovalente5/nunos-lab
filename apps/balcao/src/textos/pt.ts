@@ -17,10 +17,7 @@ export const pt = {
     carimbosDe: (carimbos: number, objectivo: number) => `${carimbos} de ${objectivo}`,
   },
   entrar: {
-    aEntrar: 'A entrar…',
     comAConta: 'Entra com a conta que o Nuno registou.',
-    comAContaOuALigacao:
-      'Entra com a conta que o Nuno registou,\nou abre a ligação que te mandaram.',
   },
   inicio: {
     casaEConta: 'Casa e conta',
@@ -172,7 +169,6 @@ export const pt = {
   erroDoEcra: { titulo: 'Algo correu mal', texto: 'A app não conseguiu abrir este ecrã.' },
   erros: {
     sessao: 'A sessão acabou. Entra outra vez.',
-    ligacao_invalida: 'Esta ligação já foi usada ou caducou. Pede outra ao Nuno.',
     google_invalido: 'O Google não confirmou a entrada.',
     apple_invalido: 'A Apple não confirmou a entrada.',
     apple_desligado: 'Entrar com a Apple ainda não está disponível.',

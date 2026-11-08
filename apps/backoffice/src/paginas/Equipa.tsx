@@ -9,7 +9,6 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
-import { etiquetaDaLingua } from '../lingua';
 import {
   Campo,
   Esqueleto,
@@ -26,15 +25,8 @@ import {
   Vazio,
 } from '../pecas';
 import { useTextos } from '../textos';
-import { haQuanto, nomeDoAparelho, plural } from '../util';
+import { haQuanto, nomeDoAparelho } from '../util';
 import { GavetaDosAcessos } from './Acessos';
-
-/** A Balcão, onde quer que esteja publicada. */
-const BALCAO = (import.meta.env.VITE_BALCAO as string).replace(/\/$/, '');
-
-function ligacaoDe(codigo: string): string {
-  return `${BALCAO}/#acesso=${codigo}`;
-}
 
 /** Os papéis, pela ordem em que aparecem; os nomes vêm dos textos, na língua de agora. */
 const PAPEIS: PapelDaEquipa[] = ['dono', 'barbeiro', 'parceiro'];
@@ -80,8 +72,6 @@ export function Equipa() {
   });
   const [f, setF] = useState<Formulario | null>(null);
   const [erros, setErros] = useState<string[]>([]);
-  const [ligacao, setLigacao] = useState<{ para: string; url: string; ate: number } | null>(null);
-  const [aparelhosDe, setAparelhosDe] = useState<number | null>(null);
   const { correr, aCorrer } = useAccao();
   const avisar = useAvisar();
   const { confirmar, dialogo } = useConfirmar();
@@ -143,10 +133,11 @@ export function Equipa() {
 
   async function guardar() {
     if (!f) return;
-    const email = f.email.trim() ? normalizarEmail(f.email) : null;
+    // Sem email não se entra (as ligações de acesso saíram a 8 nov): é obrigatório.
+    const email = normalizarEmail(f.email);
     const faltam = [
       !f.nome.trim() && 'nome',
-      f.email.trim() && !email && 'email',
+      !email && 'email',
       f.papel === 'parceiro' && !f.parceiroId && 'parceiroId',
     ].filter(Boolean) as string[];
     if (faltam.length) {
@@ -182,15 +173,6 @@ export function Equipa() {
     }
   }
 
-  const criarLigacao = (p: { id: number; nome: string }) =>
-    correr(async () => {
-      const r = await pedir<{ codigo: string; expiraEm: number }>(`/api/bo/equipa/${p.id}/acesso`, {
-        metodo: 'POST',
-      });
-      await refrescar();
-      setLigacao({ para: p.nome, url: ligacaoDe(r.codigo), ate: r.expiraEm });
-    });
-
   const remover = async (p: { id: number; nome: string }) => {
     if (
       await confirmar(
@@ -213,7 +195,8 @@ export function Equipa() {
         ? (p.loja ?? t.equipa.todasAsCasas)
         : null;
 
-  const comAparelhos = aparelhosDe !== null ? pessoas.find((p) => p.id === aparelhosDe) : null;
+  // A pessoa aberta no «Editar», para os aparelhos dela.
+  const aberta = f?.id ? pessoas.find((p) => p.id === f.id) : undefined;
 
   return (
     <>
@@ -249,31 +232,13 @@ export function Equipa() {
                     <div className="linha">
                       <div className="meio">
                         <div className="titulo-linha">
-                          {p.nome} {!p.activo && <Etiqueta>{t.equipa.desligado}</Etiqueta>}{' '}
-                          {p.ligacoes.length > 0 && (
-                            <Etiqueta tom="atencao">{t.equipa.ligacaoPorUsar}</Etiqueta>
-                          )}
+                          {p.nome} {!p.activo && <Etiqueta>{t.equipa.desligado}</Etiqueta>}
                         </div>
                         <div className="detalhe" style={{ overflowWrap: 'anywhere' }}>
-                          {[p.email ?? t.equipa.soPorLigacao, ondeDe(p)]
-                            .filter(Boolean)
-                            .join(' · ')}
+                          {[p.email, ondeDe(p)].filter(Boolean).join(' · ')}
                         </div>
                       </div>
                       <div className="lado">
-                        {p.sessoes.length > 0 && (
-                          <button
-                            type="button"
-                            className="botao secundario pequeno"
-                            onClick={() => setAparelhosDe(p.id)}
-                          >
-                            {plural(
-                              p.sessoes.length,
-                              t.equipa.aparelhos.um,
-                              t.equipa.aparelhos.varios,
-                            )}
-                          </button>
-                        )}
                         <button
                           type="button"
                           className="botao secundario pequeno"
@@ -300,7 +265,7 @@ export function Equipa() {
           <button
             type="button"
             className="botao"
-            disabled={!f?.nome.trim() || aCorrer}
+            disabled={!f?.nome.trim() || !f?.email.trim() || aCorrer}
             onClick={() => correr(guardar)}
           >
             {f?.id ? t.equipa.guardar : t.equipa.adicionar}
@@ -327,6 +292,7 @@ export function Equipa() {
               erro={erros.includes('email')}
               placeholder={t.equipa.exemploDeEmail}
               ajuda={t.equipa.ajudaDoEmail}
+              obrigatorio
             />
             <div className="campo">
               <span className="rotulo-campo">{t.equipa.papel}</span>
@@ -364,21 +330,54 @@ export function Equipa() {
                   rotulo={t.equipa.activo}
                   ajuda={t.equipa.ajudaDoActivo}
                 />
+                {aberta && (
+                  <div className="campo">
+                    <span className="rotulo-campo">{t.equipa.aparelhosTitulo}</span>
+                    {aberta.sessoes.length ? (
+                      <ul className="lista">
+                        {aberta.sessoes.map((s) => (
+                          <li key={s.id}>
+                            <div className="linha" style={{ padding: '10px 0', minHeight: 0 }}>
+                              <div className="meio">
+                                <div className="titulo-linha">
+                                  {nomeDoAparelho(s.aparelho, t.equipa.aparelho)}
+                                </div>
+                                <div className="detalhe">
+                                  {t.equipa.entrouEUsado(haQuanto(s.criadaEm), haQuanto(s.vistaEm))}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                className="botao secundario pequeno"
+                                disabled={aCorrer}
+                                onClick={async () => {
+                                  if (
+                                    await confirmar(
+                                      t.equipa.terminarASessao,
+                                      t.equipa.saiNesseAparelho(aberta.nome),
+                                      t.equipa.terminar,
+                                    )
+                                  )
+                                    await correr(async () => {
+                                      await pedir(`/api/bo/equipa/sessoes/${s.id}`, {
+                                        metodo: 'DELETE',
+                                      });
+                                      await refrescar();
+                                    }, t.equipa.sessaoTerminada);
+                                }}
+                              >
+                                {t.equipa.terminar}
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="ajuda">{t.equipa.semAparelhos}</div>
+                    )}
+                  </div>
+                )}
                 <div className="botoes">
-                  {f.activo && (
-                    <button
-                      type="button"
-                      className="botao secundario pequeno"
-                      disabled={aCorrer}
-                      onClick={() => {
-                        const { id, nome } = f;
-                        setF(null);
-                        criarLigacao({ id: id!, nome });
-                      }}
-                    >
-                      {t.equipa.criarLigacao}
-                    </button>
-                  )}
                   <button
                     type="button"
                     className="botao perigo pequeno"
@@ -393,112 +392,6 @@ export function Equipa() {
         )}
       </Folha>
 
-      <Folha
-        aberta={!!comAparelhos}
-        fechar={() => setAparelhosDe(null)}
-        titulo={t.equipa.aparelhosDe(comAparelhos?.nome ?? '')}
-      >
-        {comAparelhos &&
-          (comAparelhos.sessoes.length ? (
-            <ul className="lista">
-              {comAparelhos.sessoes.map((s) => (
-                <li key={s.id}>
-                  <div className="linha" style={{ padding: '12px 0' }}>
-                    <div className="meio">
-                      <div className="titulo-linha">
-                        {nomeDoAparelho(s.aparelho, t.equipa.aparelho)}
-                      </div>
-                      <div className="detalhe">
-                        {t.equipa.entrouEUsado(haQuanto(s.criadaEm), haQuanto(s.vistaEm))}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="botao secundario pequeno"
-                      onClick={async () => {
-                        if (
-                          await confirmar(
-                            t.equipa.terminarASessao,
-                            t.equipa.saiNesseAparelho(comAparelhos.nome),
-                            t.equipa.terminar,
-                          )
-                        )
-                          await correr(async () => {
-                            await pedir(`/api/bo/equipa/sessoes/${s.id}`, { metodo: 'DELETE' });
-                            await refrescar();
-                          }, t.equipa.sessaoTerminada);
-                      }}
-                    >
-                      {t.equipa.terminar}
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Vazio titulo={t.equipa.semAparelhos} />
-          ))}
-      </Folha>
-
-      <Folha
-        aberta={!!ligacao}
-        fechar={() => setLigacao(null)}
-        titulo={t.equipa.ligacaoPara(ligacao?.para ?? '')}
-        pe={
-          <>
-            <button
-              type="button"
-              className="botao"
-              onClick={async () => {
-                if (!ligacao) return;
-                try {
-                  await navigator.clipboard.writeText(ligacao.url);
-                  avisar(t.equipa.copiada);
-                } catch {
-                  avisar(t.equipa.naoDeuParaCopiar, true);
-                }
-              }}
-            >
-              <Icone nome="copiar" tamanho={17} /> {t.equipa.copiar}
-            </button>
-            {typeof navigator.share === 'function' && (
-              <button
-                type="button"
-                className="botao secundario"
-                onClick={() =>
-                  ligacao &&
-                  navigator
-                    .share({ title: "Nuno's Lab for partners", url: ligacao.url })
-                    .catch(() => {})
-                }
-              >
-                <Icone nome="partilhar" tamanho={17} /> {t.equipa.partilhar}
-              </button>
-            )}
-          </>
-        }
-      >
-        {ligacao && (
-          <div className="formulario">
-            <input
-              className="entrada"
-              readOnly
-              value={ligacao.url}
-              onFocus={(e) => e.target.select()}
-              aria-label={t.equipa.ligacaoDeAcesso}
-            />
-            <div className="caixa-aviso">
-              {t.equipa.entraUmaVez(
-                new Date(ligacao.ate * 1000).toLocaleDateString(etiquetaDaLingua(), {
-                  day: 'numeric',
-                  month: 'long',
-                }),
-                ligacao.para,
-              )}
-            </div>
-          </div>
-        )}
-      </Folha>
       {dialogo}
     </>
   );

@@ -4,6 +4,7 @@ import {
   LIMITES,
   LIMITES_DOS_VALES,
   PERIODOS_DO_LIMITE,
+  REDES,
   eDiaValido,
   normalizarDestaque,
   normalizarInstagram,
@@ -169,6 +170,12 @@ export const Barbearia = z.object({
   tiktok: normalizado(200, normalizarLigacao),
   whatsapp: normalizado(200, normalizarLigacao),
   site: normalizado(LIMITES.site, normalizarSite),
+  /** A ordem das redes na app: as quatro, sem repetir. Ausente (um backoffice antigo): fica a que está. */
+  redes: z
+    .array(z.enum(REDES))
+    .length(REDES.length)
+    .refine((r) => new Set(r).size === r.length)
+    .optional(),
   aviso: texto(LIMITES.aviso),
   avisoEn: texto(LIMITES.aviso).optional(),
   avisoAte: dia,

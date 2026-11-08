@@ -17,7 +17,6 @@ export const pt = {
   entrar: {
     titulo: 'Entrar',
     aEntrar: 'A entrar…',
-    abreALigacao: 'Abre a ligação de acesso que te mandaram.',
     semAcesso: (email: string) =>
       `${email} não tem acesso ao backoffice. Entra com a conta que te deu acesso, ou pede ao Renato para a juntar.`,
     googleNaoAbriu: 'Não deu para abrir o Google. Recarrega a página.',
@@ -167,7 +166,6 @@ export const en: typeof pt = {
   entrar: {
     titulo: 'Sign in',
     aEntrar: 'Signing in…',
-    abreALigacao: 'Open the access link you were sent.',
     semAcesso: (email) =>
       `${email} doesn't have access to the backoffice. Sign in with an account that has access, or ask Renato to add this one.`,
     googleNaoAbriu: "Couldn't load Google sign-in. Reload the page.",

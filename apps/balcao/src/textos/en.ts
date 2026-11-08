@@ -14,9 +14,7 @@ export const en: Textos = {
     carimbosDe: (carimbos, objectivo) => `${carimbos} of ${objectivo}`,
   },
   entrar: {
-    aEntrar: 'Signing in…',
     comAConta: 'Sign in with the account Nuno added.',
-    comAContaOuALigacao: 'Sign in with the account Nuno added,\nor open the link you were sent.',
   },
   inicio: {
     casaEConta: 'Shop and account',
@@ -165,7 +163,6 @@ export const en: Textos = {
   erroDoEcra: { titulo: 'Something went wrong', texto: 'The app couldn’t open this screen.' },
   erros: {
     sessao: 'You’ve been signed out. Sign in again.',
-    ligacao_invalida: 'This link has already been used or has expired. Ask Nuno for a new one.',
     google_invalido: 'Google couldn’t confirm your sign-in.',
     apple_invalido: 'Apple couldn’t confirm your sign-in.',
     apple_desligado: 'Sign in with Apple isn’t available yet.',

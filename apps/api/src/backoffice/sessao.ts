@@ -1,7 +1,6 @@
 import { Hono, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 import {
-  DIAS_DA_LIGACAO,
   DIAS_DA_SESSAO,
   DIAS_MAXIMOS_DA_SESSAO,
   LIMITES,
@@ -65,28 +64,25 @@ export const exigirSessao: MiddlewareHandler<Ambiente> = async (c, next) => {
 
 export const rotasDaSessao = new Hono<Ambiente>();
 
-rotasDaSessao.post('/entrar', async (c) => {
-  const ip = c.req.header('CF-Connecting-IP') ?? 'local';
-  if (!(await c.env.TRAVAO.limit({ key: `entrar:${ip}` })).success)
-    recusar(429, 'muitas_tentativas');
-  const { acesso } = await corpo(c, z.object({ acesso: z.string().regex(/^[A-Za-z0-9_-]{43}$/) }));
-  const db = c.env.DB;
-  // Gastar a ligação é UMA instrução: dois pedidos ao mesmo tempo não entram os dois.
-  const gasta = await db
-    .prepare(
-      `UPDATE acessos SET usado_em = unixepoch()
-       WHERE resumo = ? AND usado_em IS NULL AND expira_em > unixepoch()
-         AND admin_id IN (SELECT id FROM admins WHERE removido_em IS NULL)
-       RETURNING admin_id`,
-    )
-    .bind(blob(await sha256(acesso)))
-    .first<{ admin_id: number }>();
-  if (!gasta) recusar(401, 'ligacao_invalida');
-  return c.json(await abrirSessao(c, gasta.admin_id, 'ligação'));
+/**
+ * SÓ NO «wrangler dev» (MODO=desenvolvimento, que a publicação não leva): entrar com o email de quem
+ * tem acesso, como se o Google o tivesse provado, para a prova da API. As ligações de acesso saíram a
+ * 8 nov (o Renato: «toda a gente vai ter conta no Google»): no backoffice entra-se com o Google.
+ */
+rotasDaSessao.post('/entrar/teste', async (c) => {
+  if ((c.env as { MODO?: string }).MODO !== 'desenvolvimento') recusar(404, 'nao_existe');
+  const { email } = await corpo(c, z.object({ email: z.string().trim().max(254) }));
+  const pessoa = await c.env.DB.prepare(
+    'SELECT id FROM admins WHERE email = ? AND removido_em IS NULL',
+  )
+    .bind(email.toLowerCase())
+    .first<{ id: number }>();
+  if (!pessoa) recusar(403, 'sem_acesso');
+  return c.json(await abrirSessao(c, pessoa.id, 'teste'));
 });
 
 /** Abre uma sessão para a pessoa, regista a entrada, e devolve o testemunho UMA vez. */
-async function abrirSessao(c: C, adminId: number, como: 'ligação' | 'Google') {
+async function abrirSessao(c: C, adminId: number, como: 'Google' | 'teste') {
   const db = c.env.DB;
   const testemunho = aleatorio(32);
   const aparelho = aparelhoDe(c.req.header('User-Agent') ?? '');
@@ -140,23 +136,19 @@ rotasDosAcessos.post('/sair', async (c) => {
   return c.body(null, 204);
 });
 
-/** Quem tem acesso, em que aparelhos, e as ligações por usar. */
+/** Quem tem acesso, e em que aparelhos. */
 rotasDosAcessos.get('/acessos', async (c) => {
   const db = c.env.DB;
   const eu = c.get('admin');
-  const [admins, sessoes, ligacoes] = await db.batch([
+  const [admins, sessoes] = await db.batch([
     db.prepare(
       'SELECT id, nome, email, criado_em FROM admins WHERE removido_em IS NULL ORDER BY id',
     ),
     db.prepare(
       'SELECT id, admin_id, aparelho, criada_em, vista_em FROM sessoes WHERE revogada_em IS NULL AND expira_em > unixepoch() ORDER BY vista_em DESC',
     ),
-    db.prepare(
-      'SELECT id, admin_id, criado_em, expira_em FROM acessos WHERE usado_em IS NULL AND expira_em > unixepoch() ORDER BY id',
-    ),
   ]);
   type S = { id: number; admin_id: number; aparelho: string; criada_em: number; vista_em: number };
-  type L = { id: number; admin_id: number; criado_em: number; expira_em: number };
   const pessoas: PessoaComAcesso[] = (
     admins!.results as { id: number; nome: string; email: string | null; criado_em: number }[]
   ).map((a) => ({
@@ -174,63 +166,8 @@ rotasDosAcessos.get('/acessos', async (c) => {
         vistaEm: s.vista_em,
         actual: s.id === eu.sessao,
       })),
-    ligacoes: (ligacoes!.results as L[])
-      .filter((l) => l.admin_id === a.id)
-      .map((l) => ({ id: l.id, criadoEm: l.criado_em, expiraEm: l.expira_em })),
   }));
   return c.json(pessoas);
-});
-
-/**
- * Uma ligação de acesso nova: para alguém que já está na lista (outro
- * aparelho), ou para uma pessoa nova (com o nome). Devolve o código UMA vez;
- * o backoffice monta a ligação com a sua própria morada.
- */
-rotasDosAcessos.post('/acessos', async (c) => {
-  const pedido = await corpo(
-    c,
-    z.union([
-      z.object({ adminId: z.number().int().positive() }),
-      z.object({ nome: nomeLimpo(LIMITES.pessoa) }),
-    ]),
-  );
-  const db = c.env.DB;
-  let adminId: number;
-  let nome: string;
-  if ('adminId' in pedido) {
-    const a = await db
-      .prepare('SELECT id, nome FROM admins WHERE id = ? AND removido_em IS NULL')
-      .bind(pedido.adminId)
-      .first<{ id: number; nome: string }>();
-    if (!a) recusar(404, 'nao_existe');
-    adminId = a.id;
-    nome = a.nome;
-  } else {
-    const a = await db
-      .prepare('INSERT INTO admins (nome) VALUES (?) RETURNING id')
-      .bind(pedido.nome)
-      .first<{ id: number }>();
-    adminId = a!.id;
-    nome = pedido.nome;
-  }
-  const codigo = aleatorio(32);
-  const expiraEm = agora() + DIAS_DA_LIGACAO * DIA;
-  await db.batch([
-    db
-      .prepare('INSERT INTO acessos (admin_id, resumo, criado_por, expira_em) VALUES (?, ?, ?, ?)')
-      .bind(adminId, blob(await sha256(codigo)), c.get('admin').id, expiraEm),
-    registar(c, 'acesso.criado', nome),
-  ]);
-  return c.json({ codigo, adminId, expiraEm }, 201);
-});
-
-rotasDosAcessos.delete('/acessos/:id', async (c) => {
-  const id = idDaMorada(c);
-  const r = await c.env.DB.prepare('DELETE FROM acessos WHERE id = ? AND usado_em IS NULL')
-    .bind(id)
-    .run();
-  if (!r.meta.changes) recusar(404, 'nao_existe');
-  return c.body(null, 204);
 });
 
 rotasDosAcessos.delete('/sessoes/:id', async (c) => {
@@ -250,7 +187,7 @@ rotasDosAcessos.delete('/sessoes/:id', async (c) => {
   return c.body(null, 204);
 });
 
-/** Tirar o acesso a uma pessoa: as sessões dela acabam, e as ligações por usar também. */
+/** Tirar o acesso a uma pessoa: as sessões dela acabam. */
 rotasDosAcessos.delete('/pessoas/:id', async (c) => {
   const id = idDaMorada(c);
   if (id === c.get('admin').id) recusar(409, 'a_si_proprio');
@@ -274,7 +211,6 @@ rotasDosAcessos.delete('/pessoas/:id', async (c) => {
         'UPDATE sessoes SET revogada_em = unixepoch() WHERE admin_id = ? AND revogada_em IS NULL',
       )
       .bind(id),
-    db.prepare('DELETE FROM acessos WHERE admin_id = ? AND usado_em IS NULL').bind(id),
     registar(c, 'pessoa.removida', a.nome),
   ]);
   return c.body(null, 204);
@@ -302,10 +238,10 @@ rotasDosAcessos.post('/pessoas', async (c) => {
   }
 });
 
-/** Mudar (ou tirar, com null) o email Google de uma pessoa. */
+/** Mudar o email Google de uma pessoa (sem email não entraria: as ligações saíram a 8 nov). */
 rotasDosAcessos.patch('/pessoas/:id', async (c) => {
   const id = idDaMorada(c);
-  const { email } = await corpo(c, z.object({ email: EmailDoGoogle.nullable() }));
+  const { email } = await corpo(c, z.object({ email: EmailDoGoogle }));
   const db = c.env.DB;
   const a = await db
     .prepare('SELECT nome FROM admins WHERE id = ? AND removido_em IS NULL')
@@ -315,7 +251,7 @@ rotasDosAcessos.patch('/pessoas/:id', async (c) => {
   try {
     await db.batch([
       db.prepare('UPDATE admins SET email = ? WHERE id = ?').bind(email, id),
-      registar(c, 'pessoa.email', `${a.nome} · ${email ?? 'sem email'}`),
+      registar(c, 'pessoa.email', `${a.nome} · ${email}`),
     ]);
   } catch (e) {
     traduzirErroDaBase(e);

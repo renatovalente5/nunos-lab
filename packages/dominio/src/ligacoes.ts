@@ -121,3 +121,18 @@ export function emailCurto(email: string | null | undefined): string | null {
   if (arroba < 0) return `${email.slice(0, 2)}…`;
   return `${email.slice(0, Math.min(2, arroba))}…@${email.slice(arroba + 1)}`;
 }
+
+/** As redes e contactos da barbearia, pela ordem com que a app as mostra (o Nuno escolhe-a, 8 nov). */
+export const REDES = ['whatsapp', 'instagram', 'tiktok', 'site'] as const;
+export type Rede = (typeof REDES)[number];
+
+/**
+ * A ordem gravada («instagram,whatsapp,…»): as quatro, sem repetir, e o que faltar (ou uma ordem
+ * vazia, de antes de se poder escolher) vai para o fim pela ordem de sempre.
+ */
+export function ordemDasRedes(texto: string | null | undefined): Rede[] {
+  const lidas = (texto ?? '')
+    .split(',')
+    .filter((r): r is Rede => (REDES as readonly string[]).includes(r));
+  return [...new Set<Rede>([...lidas, ...REDES])];
+}

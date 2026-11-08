@@ -6,7 +6,7 @@ import {
   type UltimoCarimbo,
 } from '@nunos-lab/dominio';
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { useConfirmacao } from '../componentes/confirmar';
 import {
@@ -49,12 +49,6 @@ import { useTextos } from '../textos';
 
 const palavra = require('../../assets/marca/palavra.png');
 
-/** A ligação de acesso traz o código no fragmento: «…/balcao/#acesso=XXXX». */
-function codigoNaMorada(): string | null {
-  if (Platform.OS !== 'web' || typeof location === 'undefined') return null;
-  return /^#acesso=([A-Za-z0-9_-]{43})$/.exec(location.hash)?.[1] ?? null;
-}
-
 /** Na web, o 404.html da raiz manda para cá as moradas da app que não têm index («?p=/ficha/XXXX»). */
 function caminhoNaMorada(): string | null {
   if (Platform.OS !== 'web' || typeof location === 'undefined') return null;
@@ -70,35 +64,8 @@ export default function Inicio() {
     history.replaceState(null, '', location.pathname + location.hash);
     router.replace(p as never);
   }, []);
-  const [entrada, setEntrada] = useState<{
-    estado: 'parado' | 'a-entrar' | 'erro';
-    erro?: unknown;
-  }>({
-    estado: 'parado',
-  });
-  const tentados = useRef(new Set<string>());
-  useEffect(() => {
-    const tentar = () => {
-      const codigo = codigoNaMorada();
-      if (!codigo || tentados.current.has(codigo)) return;
-      tentados.current.add(codigo);
-      history.replaceState(null, '', `${location.pathname}${location.search}`);
-      setEntrada({ estado: 'a-entrar' });
-      pedir<{ sessao: string }>('/entrar', { metodo: 'POST', corpo: { acesso: codigo } })
-        .then((r) => {
-          guardarSessao(r.sessao);
-          setEntrada({ estado: 'parado' });
-        })
-        .catch((e) => setEntrada({ estado: 'erro', erro: e }));
-    };
-    tentar();
-    if (Platform.OS === 'web') {
-      window.addEventListener('hashchange', tentar);
-      return () => window.removeEventListener('hashchange', tentar);
-    }
-  }, []);
-  if (!temSessao || entrada.estado === 'a-entrar')
-    return <Entrar estado={entrada.estado} erroDaLigacao={entrada.erro} />;
+  // Entra-se com a Apple ou o Google do email que o Nuno registou (as ligações de acesso saíram a 8 nov).
+  if (!temSessao) return <Entrar />;
   return <Dia />;
 }
 
@@ -274,7 +241,7 @@ function HojeParceiro() {
   );
 }
 
-function Entrar({ estado, erroDaLigacao }: { estado: string; erroDaLigacao?: unknown }) {
+function Entrar() {
   const t = useTextos();
   const [erro, setErro] = useState<unknown>(null);
   const correr = async (f: () => Promise<{ sessao: string }>) => {
@@ -285,7 +252,6 @@ function Entrar({ estado, erroDaLigacao }: { estado: string; erroDaLigacao?: unk
       setErro(e);
     }
   };
-  const falhou = erro !== null || estado === 'erro';
   return (
     <Ecra comBarra={false}>
       {/* A língua escolhe-se só na Conta; antes de entrar, a do telemóvel (o Renato, 8 nov). O botão
@@ -299,37 +265,33 @@ function Entrar({ estado, erroDaLigacao }: { estado: string; erroDaLigacao?: unk
           for partners
         </T>
         <View style={{ height: 30 }} />
-        {estado === 'a-entrar' ? (
-          <T v="forte">{t.entrar.aEntrar}</T>
-        ) : (
-          <>
-            {APPLE_CLIENTE ? (
-              <BotaoDaApple
-                clienteId={APPLE_CLIENTE}
-                redirectURI={
-                  Platform.OS === 'web'
-                    ? `${location.origin}${(process.env.EXPO_BASE_URL ?? '').replace(/\/$/, '')}/`
-                    : ''
-                }
-                aoEntrar={(d) => correr(() => pedir('/entrar/apple', { metodo: 'POST', corpo: d }))}
-              />
-            ) : null}
-            {GOOGLE_CLIENTE ? (
-              <BotaoDoGoogle
-                clienteId={GOOGLE_CLIENTE}
-                aoEntrar={(credencial) =>
-                  correr(() => pedir('/entrar/google', { metodo: 'POST', corpo: { credencial } }))
-                }
-              />
-            ) : null}
-            <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 10 }}>
-              {Platform.OS === 'web' ? t.entrar.comAContaOuALigacao : t.entrar.comAConta}
-            </T>
-          </>
-        )}
-        {falhou && (
+        <>
+          {APPLE_CLIENTE ? (
+            <BotaoDaApple
+              clienteId={APPLE_CLIENTE}
+              redirectURI={
+                Platform.OS === 'web'
+                  ? `${location.origin}${(process.env.EXPO_BASE_URL ?? '').replace(/\/$/, '')}/`
+                  : ''
+              }
+              aoEntrar={(d) => correr(() => pedir('/entrar/apple', { metodo: 'POST', corpo: d }))}
+            />
+          ) : null}
+          {GOOGLE_CLIENTE ? (
+            <BotaoDoGoogle
+              clienteId={GOOGLE_CLIENTE}
+              aoEntrar={(credencial) =>
+                correr(() => pedir('/entrar/google', { metodo: 'POST', corpo: { credencial } }))
+              }
+            />
+          ) : null}
+          <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 10 }}>
+            {t.entrar.comAConta}
+          </T>
+        </>
+        {erro !== null && (
           <T v="legenda" role="alert" style={{ color: '#E07A72', textAlign: 'center' }}>
-            {mensagemDe(erro !== null ? erro : erroDaLigacao)}
+            {mensagemDe(erro)}
           </T>
         )}
       </View>

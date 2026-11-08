@@ -70,8 +70,7 @@ export const DIAS_DE_NOVO = 14;
 /** Uma promoção «está a acabar» no backoffice quando faltam estes dias ou menos. */
 export const DIAS_A_ACABAR = 7;
 
-/** Quanto tempo vale uma ligação de acesso ao backoffice, e quanto dura uma sessão parada. */
-export const DIAS_DA_LIGACAO = 7;
+/** Quanto dura uma sessão parada do backoffice. */
 export const DIAS_DA_SESSAO = 90;
 
 /** O tamanho máximo de uma imagem já reduzida no browser (o D1 aceita até 2 MB por valor). */

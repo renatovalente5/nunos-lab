@@ -1,3 +1,4 @@
+import type { Rede } from './ligacoes.ts';
 import type { IconeDaCategoria } from './limites.ts';
 import type { EstadoDaPromocao } from './promocoes.ts';
 import type { PeriodoDoLimite } from './vales.ts';
@@ -69,6 +70,8 @@ export type Barbearia = {
   tiktok: string;
   whatsapp: string;
   site: string;
+  /** A ordem das redes na app (a escolhida no backoffice). */
+  redes: Rede[];
   lojas: Loja[];
 };
 
@@ -165,7 +168,6 @@ export type PessoaComAcesso = {
   criadoEm: number;
   eu: boolean;
   sessoes: SessaoDoBackoffice[];
-  ligacoes: { id: number; criadoEm: number; expiraEm: number }[];
 };
 
 export type Resumo = {
@@ -197,6 +199,7 @@ export type DefinicoesDaBarbearia = {
   tiktok: string;
   whatsapp: string;
   site: string;
+  redes: Rede[];
   aviso: string;
   /** O aviso em inglês (vazio: a app em inglês mostra o português). */
   avisoEn: string;
@@ -473,7 +476,6 @@ export type PessoaDaEquipaNoBackoffice = PessoaDaEquipa & {
   loja: string | null;
   parceiro: string | null;
   sessoes: SessaoDoBackoffice[];
-  ligacoes: { id: number; criadoEm: number; expiraEm: number }[];
 };
 
 export type ClienteDoBackoffice = {

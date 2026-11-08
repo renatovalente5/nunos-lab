@@ -1877,3 +1877,16 @@ details.gaveta[open] > summary > .resumo {
     display: block;
   }
 }
+/* As redes, uma por linha, com a pega à esquerda do campo (a ordem é a da app). */
+.campos-ordenaveis {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.com-pega.campo-ordenavel > .pega {
+  margin-top: 24px;
+}
+.campo-da-rede {
+  flex: 1;
+  min-width: 0;
+}

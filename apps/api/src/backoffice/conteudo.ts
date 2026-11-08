@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import {
   BYTES_DA_IMAGEM,
   diaEmLisboa,
+  ordemDasRedes,
   estadoDaPromocao,
   type CategoriaComContagem,
   type Promocao as PromocaoDoContrato,
@@ -258,11 +259,6 @@ rotasDoConteudo.delete('/parceiros/:id', async (c) => {
     db
       .prepare(
         'UPDATE sessoes_da_equipa SET revogada_em = unixepoch() WHERE revogada_em IS NULL AND pessoa_id IN (SELECT id FROM equipa WHERE parceiro_id = ?)',
-      )
-      .bind(id),
-    db
-      .prepare(
-        'DELETE FROM acessos_da_equipa WHERE usado_em IS NULL AND pessoa_id IN (SELECT id FROM equipa WHERE parceiro_id = ?)',
       )
       .bind(id),
     db
@@ -638,6 +634,7 @@ const CHAVES = [
   'tiktok',
   'whatsapp',
   'site',
+  'redes_ordem',
   'aviso',
   'aviso_en',
   'aviso_ate',
@@ -657,6 +654,7 @@ async function lerBarbearia(db: D1Database) {
     tiktok: d.get('tiktok') ?? '',
     whatsapp: d.get('whatsapp') ?? '',
     site: d.get('site') ?? '',
+    redes: ordemDasRedes(d.get('redes_ordem')),
     aviso: d.get('aviso') ?? '',
     avisoEn: d.get('aviso_en') ?? '',
     avisoAte: d.get('aviso_ate') || null,
@@ -741,6 +739,7 @@ rotasDoConteudo.put('/barbearia', async (c) => {
     tiktok: b.tiktok,
     whatsapp: b.whatsapp,
     site: b.site,
+    redes_ordem: b.redes?.join(','),
     aviso: b.aviso,
     aviso_en: avisoEn,
     aviso_ate: b.aviso ? (b.avisoAte ?? '') : '',

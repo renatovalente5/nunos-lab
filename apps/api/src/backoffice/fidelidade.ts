@@ -2,7 +2,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import {
-  DIAS_DA_LIGACAO,
   LIMITES,
   LIMITES_DO_PROGRAMA,
   normalizarEmail,
@@ -13,15 +12,11 @@ import { lerPrograma } from '../programa.ts';
 import { refrescarPasses } from '../wallet/servico.ts';
 import { nomeLimpo } from '../nomes.ts';
 import {
-  DIA,
-  aleatorio,
-  blob,
   corpo,
   idDaMorada,
   pessoaDaRevisao,
   recusar,
   registar,
-  sha256,
   traduzirErroDaBase,
 } from '../util.ts';
 import { completarIngles } from '../traducao.ts';
@@ -139,7 +134,7 @@ type LinhaPessoa = {
 
 /** A equipa, sem a conta da revisão das lojas: é da Apple, não se edita nem se tira daqui (8 nov). */
 async function lerEquipa(db: D1Database, revisao: number): Promise<PessoaDaEquipaNoBackoffice[]> {
-  const [pessoas, sessoes, ligacoes] = await db.batch([
+  const [pessoas, sessoes] = await db.batch([
     db
       .prepare(
         `SELECT e.id, e.nome, e.email, e.papel, e.loja_id, e.parceiro_id, e.activo, e.criado_em,
@@ -151,12 +146,8 @@ async function lerEquipa(db: D1Database, revisao: number): Promise<PessoaDaEquip
     db.prepare(
       'SELECT id, pessoa_id, aparelho, criada_em, vista_em FROM sessoes_da_equipa WHERE revogada_em IS NULL AND expira_em > unixepoch() ORDER BY vista_em DESC',
     ),
-    db.prepare(
-      'SELECT id, pessoa_id, criado_em, expira_em FROM acessos_da_equipa WHERE usado_em IS NULL AND expira_em > unixepoch() ORDER BY id',
-    ),
   ]);
   type S = { id: number; pessoa_id: number; aparelho: string; criada_em: number; vista_em: number };
-  type L = { id: number; pessoa_id: number; criado_em: number; expira_em: number };
   return (pessoas!.results as LinhaPessoa[]).map((p) => ({
     id: p.id,
     nome: p.nome,
@@ -177,9 +168,6 @@ async function lerEquipa(db: D1Database, revisao: number): Promise<PessoaDaEquip
         vistaEm: s.vista_em,
         actual: false,
       })),
-    ligacoes: (ligacoes!.results as L[])
-      .filter((l) => l.pessoa_id === p.id)
-      .map((l) => ({ id: l.id, criadoEm: l.criado_em, expiraEm: l.expira_em })),
   }));
 }
 
@@ -189,7 +177,8 @@ rotasDaFidelidade.get('/equipa', async (c) =>
 
 const PessoaPedida = z.object({
   nome: nomeLimpo(LIMITES.pessoa),
-  email: z.string().trim().max(254).nullable(),
+  // Sem email não se entra (as ligações de acesso saíram a 8 nov): é obrigatório.
+  email: z.string().trim().min(1).max(254),
   papel: z.enum(['dono', 'barbeiro', 'parceiro']),
   lojaId: z.number().int().positive().nullable(),
   parceiroId: z.number().int().positive().nullable(),
@@ -197,8 +186,8 @@ const PessoaPedida = z.object({
 });
 
 async function validar(c: Parameters<typeof corpo>[0], p: Partial<z.output<typeof PessoaPedida>>) {
-  const email = p.email ? normalizarEmail(p.email) : null;
-  if (p.email && !email) recusar(400, 'invalido');
+  const email = p.email !== undefined ? normalizarEmail(p.email) : null;
+  if (p.email !== undefined && !email) recusar(400, 'invalido');
   const db = c.env.DB;
   if (p.lojaId && !(await db.prepare('SELECT 1 FROM lojas WHERE id = ?').bind(p.lojaId).first()))
     recusar(400, 'referencia');
@@ -286,33 +275,9 @@ rotasDaFidelidade.delete('/equipa/:id', async (c) => {
         'UPDATE sessoes_da_equipa SET revogada_em = unixepoch() WHERE pessoa_id = ? AND revogada_em IS NULL',
       )
       .bind(id),
-    db.prepare('DELETE FROM acessos_da_equipa WHERE pessoa_id = ? AND usado_em IS NULL').bind(id),
     registar(c, 'equipa.removida', pessoa.nome),
   ]);
   return c.json(await lerEquipa(db, pessoaDaRevisao(c.env)));
-});
-
-/** Uma ligação de acesso à Balcão para esta pessoa: devolve o código UMA vez. */
-rotasDaFidelidade.post('/equipa/:id/acesso', async (c) => {
-  const id = idDaMorada(c);
-  if (id === pessoaDaRevisao(c.env)) recusar(404, 'nao_existe');
-  const db = c.env.DB;
-  const pessoa = await db
-    .prepare('SELECT nome FROM equipa WHERE id = ? AND removido_em IS NULL AND activo = 1')
-    .bind(id)
-    .first<{ nome: string }>();
-  if (!pessoa) recusar(404, 'nao_existe');
-  const codigo = aleatorio(32);
-  const expiraEm = Math.floor(Date.now() / 1000) + DIAS_DA_LIGACAO * DIA;
-  await db.batch([
-    db
-      .prepare(
-        'INSERT INTO acessos_da_equipa (pessoa_id, resumo, criado_por, expira_em) VALUES (?, ?, ?, ?)',
-      )
-      .bind(id, blob(await sha256(codigo)), c.get('admin').id, expiraEm),
-    registar(c, 'equipa.ligacao', pessoa.nome),
-  ]);
-  return c.json({ codigo, expiraEm }, 201);
 });
 
 rotasDaFidelidade.delete('/equipa/sessoes/:id', async (c) => {

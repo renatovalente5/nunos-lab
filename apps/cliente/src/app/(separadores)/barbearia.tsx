@@ -1,4 +1,4 @@
-import { ligacaoDoInstagram } from '@nunos-lab/dominio';
+import { REDES, ligacaoDoInstagram } from '@nunos-lab/dominio';
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { CabecalhoDoSeparador } from '../../componentes/cabecalho';
@@ -23,6 +23,8 @@ export default function Barbearia() {
   const t = useTextos();
   useEffect(() => definirTitulo(t.titulos.barbearias), [t]);
   const b = data?.barbearia;
+  // As redes preenchidas, pela ordem que o Nuno escolheu no backoffice (uma API antiga não a manda).
+  const redes = b ? (b.redes ?? REDES).filter((r) => !!b[r]) : [];
   const [destino, setDestino] = useState<DestinoNoMapa | null>(null);
 
   return (
@@ -41,34 +43,47 @@ export default function Barbearia() {
         </View>
       )}
 
-      {b && (!!b.whatsapp || !!b.instagram || !!b.tiktok) && (
+      {b && redes.length > 0 && (
         <>
           <Rotulo>{t.barbearia.mais}</Rotulo>
           <Grupo>
-            {!!b.whatsapp && (
-              <Linha
-                icone="conversa"
-                nome={t.barbearia.tatuagens}
-                detalhe="WhatsApp"
-                onPress={() => abrir(b.whatsapp)}
-              />
-            )}
-            {!!b.instagram && (
-              <Linha
-                icone="instagram"
-                nome="Instagram"
-                detalhe={`@${b.instagram}`}
-                onPress={() => abrir(ligacaoDoInstagram(b.instagram))}
-                separador={!!b.whatsapp}
-              />
-            )}
-            {!!b.tiktok && (
-              <Linha
-                icone="site"
-                nome="TikTok"
-                onPress={() => abrir(b.tiktok)}
-                separador={!!(b.whatsapp || b.instagram)}
-              />
+            {redes.map((r, i) =>
+              r === 'whatsapp' ? (
+                <Linha
+                  key={r}
+                  icone="conversa"
+                  nome={t.barbearia.tatuagens}
+                  detalhe="WhatsApp"
+                  onPress={() => abrir(b.whatsapp)}
+                  separador={i > 0}
+                />
+              ) : r === 'instagram' ? (
+                <Linha
+                  key={r}
+                  icone="instagram"
+                  nome="Instagram"
+                  detalhe={`@${b.instagram}`}
+                  onPress={() => abrir(ligacaoDoInstagram(b.instagram))}
+                  separador={i > 0}
+                />
+              ) : r === 'tiktok' ? (
+                <Linha
+                  key={r}
+                  icone="site"
+                  nome="TikTok"
+                  onPress={() => abrir(b.tiktok)}
+                  separador={i > 0}
+                />
+              ) : (
+                <Linha
+                  key={r}
+                  icone="site"
+                  nome={t.barbearia.site}
+                  detalhe={b.site.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                  onPress={() => abrir(/^https?:\/\//.test(b.site) ? b.site : `https://${b.site}`)}
+                  separador={i > 0}
+                />
+              ),
             )}
           </Grupo>
         </>

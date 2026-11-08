@@ -19,7 +19,7 @@ apps/api/          o Worker (Hono): /api/app, imagens, contagens, /api/bo/*
 packages/dominio/  as regras escritas uma vez (datas de Lisboa, estados, limites, tipos)
 base/migracoes/    o esquema do D1; base/exemplos.sql, os dados da demonstração
 marca/originais/   os logótipos oficiais, tirados de nunoslab.com
-scripts/           acesso.mjs (1.ª ligação), provar-api.mjs, publicar.mjs
+scripts/           acesso.mjs (dar acesso pelo email), provar-api.mjs, publicar.mjs
 ```
 
 ## Comandos
@@ -30,7 +30,7 @@ npm run dev -w @nunos-lab/api                  # API em http://localhost:8870
 npm run dev -w @nunos-lab/backoffice           # backoffice em http://localhost:8871
 npm run web -w @nunos-lab/cliente              # app em http://localhost:8872
 node scripts/provar-api.mjs                    # a prova da API, contra o servidor local
-node scripts/acesso.mjs --nome "Nome" --remoto # a 1.ª ligação de acesso (produção)
+node scripts/acesso.mjs --nome "Nome" --email nome@gmail.com --remoto # dar acesso ao backoffice (produção)
 npm run publicar -w @nunos-lab/api             # publicar a API
 node scripts/publicar.mjs                      # publicar a app e o backoffice
 ```

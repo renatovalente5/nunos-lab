@@ -8,10 +8,7 @@ export const pt = {
   todasAsCasas: 'Todas as casas',
   parceiros: 'Parceiros',
   desligado: 'Desligado',
-  ligacaoPorUsar: 'Ligação por usar',
-  soPorLigacao: 'Só por ligação',
   /** «2 aparelhos»: as palavras do `plural`. */
-  aparelhos: { um: 'aparelho', varios: 'aparelhos' },
   editar: 'Editar',
   // Adicionar e editar.
   editarPessoa: (nome: string) => `Editar ${nome}`,
@@ -21,15 +18,13 @@ export const pt = {
   exemploDeNome: 'ex.: Nuno',
   email: 'Email',
   exemploDeEmail: 'nome@gmail.com',
-  ajudaDoEmail:
-    'Entra na app for partners com o Google ou a Apple deste email. Vazio: só por ligação.',
+  ajudaDoEmail: 'Entra na app for partners com o Google ou a Apple deste email.',
   papel: 'Papel',
   casa: 'Casa',
   parceiro: 'Parceiro',
   escolheOParceiro: 'Escolhe o parceiro',
   activo: 'Activo',
   ajudaDoActivo: 'Desligado, não entra na app for partners.',
-  criarLigacao: 'Criar ligação de acesso',
   tirarDaEquipa: 'Tirar da equipa',
   faltaOParceiro: 'Escolhe o parceiro.',
   camposPorCorrigir: 'Há campos por corrigir.',
@@ -41,7 +36,6 @@ export const pt = {
     'Sai já de todos os aparelhos e deixa de carimbar. Os carimbos que deu ficam.',
   saiuDaEquipa: (nome: string) => `${nome} saiu da equipa`,
   // Os aparelhos de cada pessoa.
-  aparelhosDe: (nome: string) => `Aparelhos de ${nome}`,
   /** Quando não se sabe que aparelho é. */
   aparelho: 'Aparelho',
   entrouEUsado: (entrou: string, usado: string) => `Entrou ${entrou} · usado ${usado}`,
@@ -49,16 +43,8 @@ export const pt = {
   saiNesseAparelho: (nome: string) => `${nome} sai da app for partners nesse aparelho.`,
   terminar: 'Terminar',
   sessaoTerminada: 'Sessão terminada',
-  semAparelhos: 'Sem aparelhos',
-  // A ligação de acesso.
-  ligacaoPara: (nome: string) => `A ligação para ${nome}`,
-  ligacaoDeAcesso: 'Ligação de acesso',
-  copiar: 'Copiar',
-  copiada: 'Copiada',
-  naoDeuParaCopiar: 'Não deu para copiar: selecciona e copia à mão.',
-  partilhar: 'Partilhar',
-  entraUmaVez: (ate: string, para: string) =>
-    `Entra uma vez, num aparelho, até ${ate}. Manda-a só a ${para}: quem a abrir entra na app for partners.`,
+  semAparelhos: 'Ainda não entrou.',
+  aparelhosTitulo: 'Aparelhos',
 };
 
 export const en: typeof pt = {
@@ -69,9 +55,6 @@ export const en: typeof pt = {
   todasAsCasas: 'All shops',
   parceiros: 'Partners',
   desligado: 'Inactive',
-  ligacaoPorUsar: 'Unused link',
-  soPorLigacao: 'Signs in with a link',
-  aparelhos: { um: 'device', varios: 'devices' },
   editar: 'Edit',
   editarPessoa: (nome) => `Edit ${nome}`,
   guardar: 'Save',
@@ -80,15 +63,13 @@ export const en: typeof pt = {
   exemploDeNome: 'e.g. Nuno',
   email: 'Email',
   exemploDeEmail: 'name@gmail.com',
-  ajudaDoEmail:
-    'For signing in to the partner app with Google or Apple. Leave blank to use a link instead.',
+  ajudaDoEmail: 'They sign in to the partner app with the Google or Apple account for this email.',
   papel: 'Role',
   casa: 'Shop',
   parceiro: 'Partner',
   escolheOParceiro: 'Choose a partner',
   activo: 'Active',
   ajudaDoActivo: "When off, they can't sign in to the partner app.",
-  criarLigacao: 'Create access link',
   tirarDaEquipa: 'Remove from the team',
   faltaOParceiro: 'Choose a partner.',
   camposPorCorrigir: 'Some fields need fixing.',
@@ -99,20 +80,12 @@ export const en: typeof pt = {
   tirarDaEquipaTexto:
     "They're signed out of every device straight away and can no longer stamp. The stamps they've given are kept.",
   saiuDaEquipa: (nome) => `${nome} removed from the team`,
-  aparelhosDe: (nome) => `${nome}'s devices`,
   aparelho: 'Device',
   entrouEUsado: (entrou, usado) => `Signed in ${entrou} · last used ${usado}`,
   terminarASessao: 'Sign out that device?',
   saiNesseAparelho: (nome) => `${nome} will be signed out of the partner app on that device.`,
   terminar: 'Sign out',
   sessaoTerminada: 'Signed out',
-  semAparelhos: 'No devices',
-  ligacaoPara: (nome) => `Link for ${nome}`,
-  ligacaoDeAcesso: 'Access link',
-  copiar: 'Copy',
-  copiada: 'Copied',
-  naoDeuParaCopiar: "Couldn't copy. Select the link and copy it yourself.",
-  partilhar: 'Share',
-  entraUmaVez: (ate, para) =>
-    `It works once, on one device, until ${ate}. Send it only to ${para}: anyone who opens it is signed in to the partner app.`,
+  semAparelhos: "Hasn't signed in yet.",
+  aparelhosTitulo: 'Devices',
 };
