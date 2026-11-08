@@ -467,7 +467,7 @@ export function EditorDePromocao({
     return new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10);
   })();
 
-  async function guardar(comoNova = false) {
+  async function guardar() {
     const faltam = [
       !f.parceiroId && 'parceiroId',
       !f.destaque.trim() && 'destaque',
@@ -509,18 +509,15 @@ export function EditorDePromocao({
       // «Quantos podem sair» só vai quando se escreveu outro número: reenviar o
       // que veio repunha na base os cupões que entretanto saíram.
       surpresaRestantes:
-        f.surpresa && !(promocao && !comoNova && surpresaRestantes === promocao.surpresaRestantes)
+        f.surpresa && !(promocao && surpresaRestantes === promocao.surpresaRestantes)
           ? surpresaRestantes
           : undefined,
     };
     try {
-      if (promocao && !comoNova)
-        await pedir(`/api/bo/promocoes/${promocao.id}`, { metodo: 'PATCH', corpo });
+      if (promocao) await pedir(`/api/bo/promocoes/${promocao.id}`, { metodo: 'PATCH', corpo });
       else await pedir('/api/bo/promocoes', { metodo: 'POST', corpo });
       await refrescar();
-      avisar(
-        comoNova ? t.promocoes.copiaCriada : promocao ? t.promocoes.guardado : t.promocoes.criada,
-      );
+      avisar(promocao ? t.promocoes.guardado : t.promocoes.criada);
       fechar();
     } catch (e) {
       if (e instanceof ErroDaApi && e.campos.length) setErros(e.campos);
@@ -545,16 +542,6 @@ export function EditorDePromocao({
             >
               {promocao ? t.promocoes.guardar : t.promocoes.criar}
             </button>
-            {promocao && (
-              <button
-                type="button"
-                className="botao secundario"
-                disabled={aCorrer}
-                onClick={() => correr(() => guardar(true))}
-              >
-                {t.promocoes.guardarComoNova}
-              </button>
-            )}
             {promocao && promocao.validacoes > 0 && (
               <span className="estado">{t.promocoes.validacoes(promocao.validacoes)}</span>
             )}

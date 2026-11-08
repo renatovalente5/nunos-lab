@@ -2,7 +2,7 @@ import type { TabTriggerSlotProps } from 'expo-router/ui';
 import { Children, type ComponentRef, type ReactNode, type Ref } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AFASTAMENTO_DA_BARRA, ALTURA_DA_BARRA, cor } from './tema';
+import { ALTURA_DA_BARRA, afastamentoDaBarra, cor } from './tema';
 import { Icone, type NomeDoIcone } from './icone';
 
 /**
@@ -48,7 +48,7 @@ export function BarraDeBaixo({
         position: web ? ('fixed' as 'absolute') : 'absolute',
         left: 0,
         right: 0,
-        bottom: margens.bottom + AFASTAMENTO_DA_BARRA,
+        bottom: afastamentoDaBarra(margens.bottom, web),
         alignItems: 'center',
       }}
     >

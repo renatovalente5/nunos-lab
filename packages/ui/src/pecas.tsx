@@ -1,7 +1,15 @@
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, View, type ViewStyle } from 'react-native';
+import { Platform, Pressable, ScrollView, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ALTURA_DA_BARRA, CONTINUO, cor, LARGURA_MAXIMA, MARGEM, raio } from './tema';
+import {
+  ALTURA_DA_BARRA,
+  CONTINUO,
+  afastamentoDaBarra,
+  cor,
+  LARGURA_MAXIMA,
+  MARGEM,
+  raio,
+} from './tema';
 import { Icone, type NomeDoIcone } from './icone';
 import { T } from './texto';
 import { useTextosDaUi } from './textos';
@@ -22,7 +30,10 @@ export function Ecra({
       <ScrollView
         contentContainerStyle={{
           paddingTop: semTopo ? 0 : margens.top + 16,
-          paddingBottom: margens.bottom + (comBarra ? ALTURA_DA_BARRA + 48 : 40),
+          // Com a barra: a barra, o afastamento dela e 42 px de folga, para o fim não ficar por baixo.
+          paddingBottom: comBarra
+            ? afastamentoDaBarra(margens.bottom, Platform.OS === 'web') + ALTURA_DA_BARRA + 42
+            : margens.bottom + 40,
           alignItems: 'center',
         }}
         showsVerticalScrollIndicator={false}

@@ -12,6 +12,7 @@ import { Image, Modal, Pressable, useWindowDimensions, View } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCarimbosNovos } from '../../carimbos-novos';
 import { CartaoDoCliente } from '../../componentes/cartao';
+import { CabecalhoDoSeparador } from '../../componentes/cabecalho';
 import { horaDe } from '../../componentes/cartoes';
 import {
   APPLE_CLIENTE,
@@ -100,18 +101,7 @@ export default function Cartao() {
 
   return (
     <Ecra>
-      <View
-        style={{
-          paddingHorizontal: MARGEM,
-          paddingTop: 10,
-          flexDirection: 'row',
-          alignItems: 'flex-end',
-          justifyContent: 'space-between',
-        }}
-      >
-        <T v="titulo" role="heading" aria-level={1}>
-          {t.cartao.titulo}
-        </T>
+      <CabecalhoDoSeparador titulo={t.cartao.titulo}>
         {temSessao && (
           // Sem <Link asChild>: o Slot espalha um estilo em função num objecto e o círculo perdia-se.
           <Pressable
@@ -137,7 +127,7 @@ export default function Cartao() {
             )}
           </Pressable>
         )}
-      </View>
+      </CabecalhoDoSeparador>
 
       <View style={{ paddingHorizontal: MARGEM, marginTop: 18 }}>
         <CartaoDoCliente

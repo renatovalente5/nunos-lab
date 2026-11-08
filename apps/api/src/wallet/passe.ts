@@ -1,7 +1,7 @@
 import {
   codigoCurto,
   fraseDoCartao,
-  fraseDoCorteOferecido,
+  fraseDesteCorte,
   fraseDoProximo,
   textoDoQr,
   type Lingua,
@@ -76,8 +76,9 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
   const t = TEXTOS_DO_PASSE[lingua];
   const faltam = Math.max(0, c.objectivo - c.carimbos);
   const recompensa = c.recompensa.trim() || t.premio;
-  // O aviso no ecrã bloqueado: «Carimbo novo: 7 de 10»; no 10.º, que o cartão está
-  // completo; a zeros (a entrega do prémio, ou anulado o único) nada — era «Carimbo novo: 0 de 10».
+  // O aviso no ecrã bloqueado: «Carimbo novo: 7 de 10»; no 10.º, que o cartão está completo e que
+  // este corte (o que se está a pagar) tem a oferta; a zeros (a entrega do prémio, ou anulado o
+  // único) nada — era «Carimbo novo: 0 de 10».
   const carimbos = {
     key: 'carimbos',
     label: t.carimbos,
@@ -85,7 +86,7 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
     ...(c.carimbos > 0 && c.carimbos >= c.objectivo
       ? {
           changeMessage: t.avisoCompleto(
-            semFormato(minuscula(fraseDoCorteOferecido(recompensa, lingua))),
+            semFormato(minuscula(fraseDesteCorte(recompensa, lingua))),
           ),
         }
       : c.carimbos > 0 && c.carimbos === c.objectivo - 1

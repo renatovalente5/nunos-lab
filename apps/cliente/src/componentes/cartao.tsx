@@ -16,8 +16,8 @@ const simbolo = require('../../assets/marca/simbolo.png');
 const ESBATIDO = 'rgba(244,241,236,0.08)';
 
 /**
- * O cartão de cliente: o logótipo oficial, os carimbos, a conta e o prémio. Sem o nome nem a
- * frase por baixo dele («O teu cartão», «Cliente desde…»): o Renato tirou-os a 7 nov.
+ * O cartão de cliente: o logótipo oficial, «Cliente desde…», os carimbos, a conta e o prémio. O nome
+ * saiu a 7 nov; a frase do «Cliente desde» voltou a 8 nov (o Renato, nas notas do Notion).
  */
 export function CartaoDoCliente({
   eu,
@@ -30,7 +30,7 @@ export function CartaoDoCliente({
   tentar,
   programa = null,
 }: {
-  eu: Pick<ClienteEu, 'cartao' | 'programa'> | null;
+  eu: Pick<ClienteEu, 'criadoEm' | 'cortes' | 'cartao' | 'programa'> | null;
   /** Cartões cheios por entregar (eu.recompensas.length). */
   recompensas: number;
   largura: number;
@@ -102,6 +102,15 @@ export function CartaoDoCliente({
         accessibilityLabel="Nuno's Lab"
         role="img"
       />
+      {eu && !aEsperar && (
+        <T v="legenda" style={{ color: cor.texto2, marginTop: 10 }} numberOfLines={1}>
+          {t.cartao.clienteDesde(
+            new Date(eu.criadoEm * 1000).getFullYear(),
+            eu.cartao.numero,
+            eu.cortes,
+          )}
+        </T>
+      )}
       {espera === 'sem-ligacao' && (
         <Pressable
           onPress={tentar}

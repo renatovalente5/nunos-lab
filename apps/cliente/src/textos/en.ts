@@ -1,5 +1,11 @@
 import type { Textos } from './index';
 
+/** 1st, 2nd, 3rd, 4th… 11th, 12th, 13th… 21st. */
+function ordinal(n: number): string {
+  const fim = n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th');
+  return `${n}${fim}`;
+}
+
 /** The app's phrases in British English. Every key in pt.ts must be here too. */
 export const en: Textos = {
   separadores: { vantagens: 'Perks', cartao: 'Card', barbearia: 'Barbershop' },
@@ -39,12 +45,16 @@ export const en: Textos = {
     titulo: 'Card',
     conta: 'Account',
     deObjectivo: (objectivo) => `of ${objectivo}`,
+    clienteDesde: (ano, cartao, cortes) =>
+      cartao > 1
+        ? `Client since ${ano} · ${ordinal(cartao)} card · ${cortes} ${cortes === 1 ? 'haircut' : 'haircuts'}`
+        : `Client since ${ano}`,
     tensUma: (recompensa) =>
       `Reward ready: ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`,
     tensVarias: (n) => `You have ${n} rewards`,
     mostraOCartao: 'Show your card at the counter.',
     verOCodigo: 'Show the code full screen',
-    mostraAoBalcao: 'Show it at the counter.\nWorks in every shop.',
+    mostraAoBalcao: 'Show it at the counter.\nWorks at every barbershop.',
     parabens: 'Happy birthday!',
     osTeusCupoes: 'Your coupons',
     usado: 'Used',

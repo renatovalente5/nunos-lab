@@ -31,11 +31,9 @@ import {
 import {
   Botao,
   BotaoDaApple,
-  BotaoDaLingua,
   BotaoDoGoogle,
   CONTINUO,
   Ecra,
-  FolhaDaLingua,
   Grupo,
   Icone,
   MARGEM,
@@ -270,7 +268,6 @@ function HojeParceiro() {
 function Entrar({ estado, erroDaLigacao }: { estado: string; erroDaLigacao?: unknown }) {
   const t = useTextos();
   const [erro, setErro] = useState<unknown>(null);
-  const [aEscolherLingua, setAEscolherLingua] = useState(false);
   const correr = async (f: () => Promise<{ sessao: string }>) => {
     setErro(null);
     try {
@@ -282,10 +279,9 @@ function Entrar({ estado, erroDaLigacao }: { estado: string; erroDaLigacao?: unk
   const falhou = erro !== null || estado === 'erro';
   return (
     <Ecra comBarra={false}>
-      <View style={{ paddingHorizontal: MARGEM, flexDirection: 'row', justifyContent: 'flex-end' }}>
-        <BotaoDaLingua onPress={() => setAEscolherLingua(true)} />
-      </View>
-      <View style={{ paddingHorizontal: MARGEM, paddingTop: 4, alignItems: 'center', gap: 14 }}>
+      {/* A língua escolhe-se só na Conta; antes de entrar, a do telemóvel (o Renato, 8 nov). O botão
+          que estava aqui tinha 36 px: o logótipo fica no mesmo sítio. */}
+      <View style={{ paddingHorizontal: MARGEM, paddingTop: 40, alignItems: 'center', gap: 14 }}>
         <PalavraDaMarca />
         <T
           v="legenda"
@@ -328,7 +324,6 @@ function Entrar({ estado, erroDaLigacao }: { estado: string; erroDaLigacao?: unk
           </T>
         )}
       </View>
-      <FolhaDaLingua aberta={aEscolherLingua} fechar={() => setAEscolherLingua(false)} />
     </Ecra>
   );
 }

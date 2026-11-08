@@ -6,7 +6,6 @@ import {
   diasEntre,
   fraseDesteCorte,
   fraseDoCartao,
-  fraseDoCorteOferecido,
   normalizarCodigo,
   recompensaNaLingua,
   type Lingua,
@@ -384,7 +383,7 @@ export default function Ficha() {
           )}
           {feito.completo && feito.recompensa && (
             <T v="subtitulo" style={{ color: cor.texto2, marginTop: 8, textAlign: 'center' }}>
-              {fraseDoCorteOferecido(feito.recompensa, lingua)}
+              {fraseDesteCorte(feito.recompensa, lingua)}
             </T>
           )}
           {estado === 'na-fila' && (

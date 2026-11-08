@@ -42,11 +42,16 @@ export const pt = {
     titulo: 'Cartão',
     conta: 'Conta',
     deObjectivo: (objectivo: number) => `de ${objectivo}`,
+    /** Por baixo do logótipo: desde quando é cliente e, a partir do 2.º cartão, quantos cortes leva. */
+    clienteDesde: (ano: number, cartao: number, cortes: number): string =>
+      cartao > 1
+        ? `Cliente desde ${ano} · ${cartao}.º cartão · ${cortes} ${cortes === 1 ? 'corte' : 'cortes'}`
+        : `Cliente desde ${ano}`,
     tensUma: (recompensa: string) => `Tens ${recompensa.toLowerCase()}`,
     tensVarias: (n: number) => `Tens ${n} recompensas`,
     mostraOCartao: 'Mostra o cartão ao balcão.',
     verOCodigo: 'Ver o código em grande',
-    mostraAoBalcao: 'Mostra ao balcão.\nServe em todas as casas.',
+    mostraAoBalcao: 'Mostra ao balcão.\nServe em todas as barbearias.',
     parabens: 'Parabéns!',
     osTeusCupoes: 'Os teus cupões',
     usado: 'Usado',

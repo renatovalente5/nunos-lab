@@ -43,3 +43,11 @@ export const MARGEM = 20;
 /** A cápsula da barra de baixo, sem a zona segura, e a distância dela ao fundo. */
 export const ALTURA_DA_BARRA = 56;
 export const AFASTAMENTO_DA_BARRA = 6;
+/**
+ * A distância da barra ao fundo. Na web a zona segura é 0 (o browser não a dá fora do ecrã inteiro)
+ * e a barra ficava colada ao fundo da janela: aí fica pelo menos a 18 px.
+ */
+export function afastamentoDaBarra(zonaSeguraDeBaixo: number, web: boolean): number {
+  const nativo = zonaSeguraDeBaixo + AFASTAMENTO_DA_BARRA;
+  return web ? Math.max(nativo, 18) : nativo;
+}

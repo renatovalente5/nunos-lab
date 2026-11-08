@@ -91,7 +91,7 @@ test('o aviso do passe muda com o estado: novo carimbo, cartão completo, nada a
     passJson({ ...cartao, carimbos }, cfg).storeCard.headerFields[0]!.changeMessage;
   assert.equal(aviso(7), 'Carimbo novo: %@');
   assert.equal(aviso(9), 'Carimbo novo: %@ · o próximo corte é grátis');
-  assert.equal(aviso(10), 'Cartão completo (%@): este corte foi grátis');
+  assert.equal(aviso(10), 'Cartão completo (%@): este corte é grátis');
   assert.equal(aviso(0), undefined);
   assert.equal(
     passJson({ ...cartao, carimbos: 9 }, cfg).posterGeneric.footerFields[0]!.value,
@@ -133,7 +133,7 @@ test('em inglês (a língua da conta), o passe diz o mesmo em inglês', () => {
     passJson({ ...en, carimbos }, cfg).storeCard.headerFields[0]!.changeMessage;
   assert.equal(aviso(7), 'New stamp: %@');
   assert.equal(aviso(9), 'New stamp: %@ · your next haircut is free');
-  assert.equal(aviso(10), 'Card complete (%@): this haircut was free');
+  assert.equal(aviso(10), 'Card complete (%@): this haircut is free');
   // Um «%» do prémio escreve-se «%%» no aviso da Apple.
   assert.equal(
     passJson({ ...en, recompensa: '50% off', carimbos: 9 }, cfg).storeCard.headerFields[0]!

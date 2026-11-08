@@ -3,16 +3,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState, useRef, type ComponentRef } from 'react';
 import { Image, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { CartaoDestaque, iconeDe, LinhaDoParceiro } from '../../componentes/cartoes';
-import { guardarLinguaNaConta } from '../../conta';
 import { definirTitulo, guardarCasa, lerCasa, useDados } from '../../dados';
 import { useTextos } from '../../textos';
 import {
-  BotaoDaLingua,
   CONTINUO,
   Ecra,
   Esqueleto,
   Folha,
-  FolhaDaLingua,
   Grupo,
   Icone,
   LARGURA_MAXIMA,
@@ -54,7 +51,6 @@ export default function Vantagens() {
   // A casa do cliente (Nogueira do Cravo, Feira, Aveiro): fica guardada no aparelho.
   const [casa, setCasa] = useState<number | null>(lerCasa);
   const [aEscolherCasa, setAEscolherCasa] = useState(false);
-  const [aEscolherLingua, setAEscolherLingua] = useState(false);
   const { width } = useWindowDimensions();
   const largura = Math.min(300, Math.round(Math.min(width, LARGURA_MAXIMA) * 0.76));
   useEffect(() => definirTitulo(t.titulos.vantagens), [t]);
@@ -102,7 +98,7 @@ export default function Vantagens() {
 
   return (
     <Ecra>
-      {/* A língua à vista no primeiro ecrã, também para quem ainda não entrou (o Renato, 7 nov). */}
+      {/* A língua escolhe-se só na Conta; sem escolha, a do telemóvel (o Renato, 8 nov). */}
       <View
         style={{
           paddingHorizontal: MARGEM,
@@ -120,13 +116,7 @@ export default function Vantagens() {
           accessibilityLabel="Nuno's Lab"
           role="img"
         />
-        <BotaoDaLingua onPress={() => setAEscolherLingua(true)} />
       </View>
-      <FolhaDaLingua
-        aberta={aEscolherLingua}
-        fechar={() => setAEscolherLingua(false)}
-        aoEscolher={guardarLinguaNaConta}
-      />
 
       {!!data?.aviso && (
         <View

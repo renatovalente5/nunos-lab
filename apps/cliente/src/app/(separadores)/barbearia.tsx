@@ -1,6 +1,7 @@
 import { ligacaoDoInstagram } from '@nunos-lab/dominio';
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
+import { CabecalhoDoSeparador } from '../../componentes/cabecalho';
 import { MapaDasCasas } from '../../componentes/mapa-das-casas';
 import { EscolherMapa, type DestinoNoMapa } from '../../componentes/mapas';
 import { abrir, definirTitulo, useDados } from '../../dados';
@@ -9,7 +10,6 @@ import {
   Esqueleto,
   Grupo,
   Icone,
-  MARGEM,
   Rotulo,
   SemLigacao,
   Separador,
@@ -27,11 +27,7 @@ export default function Barbearia() {
 
   return (
     <Ecra>
-      <View style={{ paddingHorizontal: MARGEM, paddingTop: 10 }}>
-        <T v="titulo" role="heading" aria-level={1}>
-          {t.barbearia.titulo}
-        </T>
-      </View>
+      <CabecalhoDoSeparador titulo={t.barbearia.titulo} />
 
       {!data && isPending && <Esqueleto />}
       {!data && isError && <SemLigacao tentar={() => refetch()} />}
