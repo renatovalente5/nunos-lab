@@ -246,6 +246,8 @@ function FolhaDaPessoa({
       : { nome: '', email: '', papel: 'barbeiro', lojaId: null, activo: true },
   );
   const [erros, setErros] = useState<string[]>([]);
+  // Onde já está um email repetido, para o dizer debaixo do campo (o Renato, 8 nov).
+  const [emailDeQuem, setEmailDeQuem] = useState<string | null>(null);
   const { correr, aCorrer } = useAccao();
   const avisar = useAvisar();
   const { confirmar, dialogo } = useConfirmar();
@@ -259,7 +261,16 @@ function FolhaDaPessoa({
     (v: Formulario[K]) => {
       setF((x) => ({ ...x, [k]: v }));
       setErros((e) => e.filter((c) => c !== k));
+      if (k === 'email') setEmailDeQuem(null);
     };
+
+  // Um email só entra num sítio: noutro parceiro, neste, ou na Equipa.
+  const ondeEstaOEmail = (p: PessoaDaEquipaNoBackoffice) =>
+    p.papel !== 'parceiro'
+      ? t.equipa.emailNaEquipa(p.nome)
+      : p.parceiroId === parceiroId
+        ? t.equipa.emailJaValidaAqui(p.nome)
+        : t.equipa.emailNoutroParceiro(p.parceiro ?? '', p.nome);
 
   async function guardar() {
     // Sem email não se entra (as ligações de acesso saíram a 8 nov): é obrigatório.
@@ -293,8 +304,13 @@ function FolhaDaPessoa({
       fechar();
     } catch (e) {
       if (e instanceof ErroDaApi && e.codigo === 'repetido') {
+        // A lista de agora diz quem o tem; sem ela (a conta da revisão não se lista), só «outra pessoa».
+        const outra = (await equipa.refetch()).data?.find(
+          (p) => p.email === email && p.id !== pessoa?.id,
+        );
         setErros(['email']);
-        avisar(t.equipa.emailDeOutraPessoa, true);
+        setEmailDeQuem(outra ? ondeEstaOEmail(outra) : t.equipa.emailDeOutraPessoa);
+        avisar(t.equipa.camposPorCorrigir, true);
       } else {
         if (e instanceof ErroDaApi && e.campos.length) setErros(e.campos);
         avisar(mensagemDe(e), true);
@@ -361,6 +377,7 @@ function FolhaDaPessoa({
             mudar={mudar('email')}
             max={254}
             erro={erros.includes('email')}
+            erroTexto={emailDeQuem ?? undefined}
             placeholder={t.equipa.exemploDeEmail}
             ajuda={t.equipa.ajudaDoEmail}
             obrigatorio

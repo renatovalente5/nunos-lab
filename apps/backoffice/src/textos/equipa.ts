@@ -26,6 +26,11 @@ export const pt = {
   guardado: 'Guardado',
   jaFazParte: (nome: string) => `${nome} já faz parte da equipa`,
   emailDeOutraPessoa: 'Esse email já é de outra pessoa.',
+  // Onde já está, sem artigos antes dos nomes («no parceiro X», «(Ana)»).
+  emailNoutroParceiro: (parceiro: string, nome: string) =>
+    `Esse email já valida no parceiro ${parceiro} (${nome}).`,
+  emailJaValidaAqui: (nome: string) => `Esse email já valida aqui (${nome}).`,
+  emailNaEquipa: (nome: string) => `Esse email já está na Equipa (${nome}).`,
   tirarDaEquipaPergunta: (nome: string) => `Tirar ${nome} da equipa?`,
   tirarDaEquipaTexto:
     'Sai já de todos os aparelhos e deixa de carimbar. Os carimbos que deu ficam.',
@@ -78,6 +83,9 @@ export const en: typeof pt = {
   guardado: 'Saved',
   jaFazParte: (nome) => `${nome} added to the team`,
   emailDeOutraPessoa: 'That email already belongs to someone else.',
+  emailNoutroParceiro: (parceiro, nome) => `${nome} already uses that email at ${parceiro}.`,
+  emailJaValidaAqui: (nome) => `${nome} already uses that email here.`,
+  emailNaEquipa: (nome) => `${nome} on the team already uses that email.`,
   tirarDaEquipaPergunta: (nome) => `Remove ${nome} from the team?`,
   tirarDaEquipaTexto:
     "They're signed out of every device straight away and can no longer stamp. The stamps they've given are kept.",
