@@ -47,11 +47,13 @@ const minuscula = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
  * («Corte grátis» → «Free haircut», «50% de desconto» → «50% off»); outro texto fica como está.
  */
 const eCorteGratisEn = (recompensa: string) => /^free (hair)?cut$/i.test(recompensa.trim());
-const eDescontoEn = (recompensa: string) => /\boff\b|discount|%|half/i.test(recompensa);
+/** «50% off», «€5 off», «Half price»: o que se diz com «is» («Your next haircut is 50% off»). */
+const eDescontoEn = (recompensa: string) => /\boff$|^half[ -]price$/i.test(recompensa.trim());
 export function recompensaEmIngles(recompensa: string): string {
   const r = recompensa.trim();
   if (eCorteGratis(r)) return 'Free haircut';
-  const percentagem = /^[-−]?\s*(\d+)\s*%\s*(de desconto)?$/i.exec(r);
+  if (/^metade do pre[çc]o$/i.test(r)) return 'Half price';
+  const percentagem = /^[-−]?\s*(\d+)\s*%\s*(?:(?:de\s+)?desconto|discount|off)?$/i.exec(r);
   if (percentagem) return `${percentagem[1]}% off`;
   return r;
 }
@@ -94,17 +96,20 @@ export function fraseDesteCorte(recompensa: string, lingua: Lingua = 'pt'): stri
   return `Este corte: ${minuscula(r)}`;
 }
 
-/** Depois do carimbo que completa o cartão: «Este corte foi grátis», «Este corte teve 50% de desconto». */
+/**
+ * Depois do carimbo que completa o cartão, até ao carimbo seguinte (às vezes semanas):
+ * «O último corte foi grátis», «O último corte teve 50% de desconto».
+ */
 export function fraseDoCorteOferecido(recompensa: string, lingua: Lingua = 'pt'): string {
   const r = recompensa.trim();
   if (lingua === 'en') {
     const e = recompensaEmIngles(r);
-    if (eCorteGratisEn(e)) return 'This haircut was free';
-    if (eDescontoEn(e)) return `This haircut was ${minuscula(e)}`;
-    return `${e} · given`;
+    if (eCorteGratisEn(e)) return 'Your last haircut was free';
+    if (eDescontoEn(e)) return `Your last haircut was ${minuscula(e)}`;
+    return `${e} · used`;
   }
-  if (eCorteGratis(r)) return 'Este corte foi grátis';
-  if (eDesconto(r)) return `Este corte teve ${minuscula(r)}`;
+  if (eCorteGratis(r)) return 'O último corte foi grátis';
+  if (eDesconto(r)) return `O último corte teve ${minuscula(r)}`;
   return `${r} · entregue`;
 }
 

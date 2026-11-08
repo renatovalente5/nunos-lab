@@ -273,8 +273,8 @@ export default function Conta() {
       <Rotulo>{t.conta.sessoes}</Rotulo>
       <Grupo>
         {sessoes.map((x, i) => {
-          const nome =
-            x.aparelho && x.aparelho !== 'Aparelho' ? x.aparelho : t.conta.aparelhoSemNome;
+          // A API chama «Aparelho» ao que não conhece («Aparelho · Chrome»): diz-se na língua da app.
+          const nome = (x.aparelho || 'Aparelho').replace(/^Aparelho\b/, t.conta.aparelhoSemNome);
           const dia = diaEmLisboa(x.vistaEm * 1000);
           return (
             <View key={x.id}>

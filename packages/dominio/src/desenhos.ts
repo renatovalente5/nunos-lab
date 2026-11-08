@@ -88,7 +88,7 @@ export const NOMES_DOS_DESENHOS_EN: Record<IconeDaCategoria, string> = {
   treino: 'Dumbbell',
   beleza: 'Sparkle',
   saude: 'Heart',
-  roupa: 'Jumper',
+  roupa: 'T-shirt',
   compras: 'Bag',
   casa: 'House',
   animais: 'Paw',

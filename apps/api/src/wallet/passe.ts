@@ -71,33 +71,44 @@ const minuscula = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 /** Um changeMessage é um formato da Apple: só o «%@» é especial, um «%» da recompensa escreve-se «%%». */
 const semFormato = (s: string) => s.replace(/%/g, '%%');
 
-export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse) {
+/**
+ * O aviso no ecrã bloqueado só vai num passe feito logo a seguir a um carimbo. A Apple mostra-o sempre
+ * que o valor muda, e o valor também muda ao anular um carimbo (7 → 6 dizia «Carimbo novo: 6 de 10») e
+ * ao mudar a língua da conta («7 de 10» → «7 of 10»). O aparelho vem buscar o passe segundos depois do
+ * carimbo; um telemóvel desligado mais tempo do que isto recebe-o sem aviso.
+ */
+const MINUTOS_DO_AVISO = 30;
+
+export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse, agoraS = Date.now() / 1000) {
   const lingua = c.lingua ?? 'pt';
   const t = TEXTOS_DO_PASSE[lingua];
   const faltam = Math.max(0, c.objectivo - c.carimbos);
   const recompensa = c.recompensa.trim() || t.premio;
   // O aviso no ecrã bloqueado: «Carimbo novo: 7 de 10»; no 10.º, que o cartão está completo e que
   // este corte (o que se está a pagar) tem a oferta; a zeros (a entrega do prémio, ou anulado o
-  // único) nada — era «Carimbo novo: 0 de 10».
+  // único) nada — era «Carimbo novo: 0 de 10». Sem carimbo há pouco, também nada (MINUTOS_DO_AVISO).
+  const carimboAgora = !!c.ultima && agoraS - c.ultima.quando < MINUTOS_DO_AVISO * 60;
   const carimbos = {
     key: 'carimbos',
     label: t.carimbos,
     value: t.carimbosDe(c.carimbos, c.objectivo),
-    ...(c.carimbos > 0 && c.carimbos >= c.objectivo
-      ? {
-          changeMessage: t.avisoCompleto(
-            semFormato(minuscula(fraseDesteCorte(recompensa, lingua))),
-          ),
-        }
-      : c.carimbos > 0 && c.carimbos === c.objectivo - 1
+    ...(!carimboAgora
+      ? {}
+      : c.carimbos > 0 && c.carimbos >= c.objectivo
         ? {
-            changeMessage: t.avisoNovoEProximo(
-              semFormato(minuscula(fraseDoProximo(recompensa, lingua))),
+            changeMessage: t.avisoCompleto(
+              semFormato(minuscula(fraseDesteCorte(recompensa, lingua))),
             ),
           }
-        : c.carimbos > 0
-          ? { changeMessage: t.avisoNovo }
-          : {}),
+        : c.carimbos > 0 && c.carimbos === c.objectivo - 1
+          ? {
+              changeMessage: t.avisoNovoEProximo(
+                semFormato(minuscula(fraseDoProximo(recompensa, lingua))),
+              ),
+            }
+          : c.carimbos > 0
+            ? { changeMessage: t.avisoNovo }
+            : {}),
   };
   const cliente = c.nome ? [{ key: 'nome', label: t.cliente, value: c.nome }] : [];
   const porUsar =

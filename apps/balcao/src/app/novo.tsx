@@ -11,7 +11,17 @@ import { useRef, useState } from 'react';
 import { Platform, Pressable, Share, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { ErroDaBalcao, chaveNova, mensagemDe, pedir, useCasa, useEu } from '../sessao';
-import { Botao, Campo, Ecra, Icone, Interruptor, MARGEM, T, cor } from '@nunos-lab/ui';
+import {
+  Botao,
+  Campo,
+  Ecra,
+  Icone,
+  Interruptor,
+  MARGEM,
+  T,
+  cor,
+  useTextosDaUi,
+} from '@nunos-lab/ui';
 import { useTextos } from '../textos';
 
 /** A app do cliente, para ir na mensagem com o código. */
@@ -20,6 +30,7 @@ const LIGACAO_DA_APP = 'https://renatovalente5.github.io/nunos-lab/';
 /** Um cliente novo ao balcão: o nome, o email para entrar na app depois, e o 1.º carimbo. */
 export default function Novo() {
   const t = useTextos();
+  const tUi = useTextosDaUi();
   const { data: eu } = useEu();
   const casa = useCasa(eu);
   const consultas = useQueryClient();
@@ -147,7 +158,7 @@ export default function Novo() {
           </T>
           <T v="corpo" style={{ color: cor.texto2, textAlign: 'center' }}>
             {feito.cartao.carimbos > 0
-              ? `${t.geral.carimbosDe(feito.cartao.carimbos, feito.cartao.objectivo)}. `
+              ? `${tUi.carimbosDe(feito.cartao.carimbos, feito.cartao.objectivo)}. `
               : ''}
             {email.trim() ? t.novo.entraComOEmail : t.novo.entraComAppleOuGoogle}
           </T>

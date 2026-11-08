@@ -262,7 +262,7 @@ export default function Ficha() {
 
   const hora = (unix: number) => {
     const d = new Date(unix * 1000);
-    return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
   // A prenda entregue: «às 15:12» hoje, «a 3 nov» noutro dia.
   const prendaEntregueHoje =

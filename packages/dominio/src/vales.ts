@@ -73,12 +73,24 @@ export function nomeDoPeriodo(periodo: PeriodoDoLimite, lingua: Lingua = 'pt'): 
   return (lingua === 'en' ? NOME_DO_PERIODO_EN : NOME_DO_PERIODO)[periodo];
 }
 
-/** «1 por dia», «2 por semana», «3 no total», ou nada. */
+const VEZES_EN: Record<PeriodoDoLimite, string> = {
+  dia: 'a day',
+  semana: 'a week',
+  mes: 'a month',
+  sempre: 'in total',
+};
+
+/** «1 vez por dia», «2 vezes por semana», «3 vezes no total»; «Once a day», «Twice a week», «Once only»; ou nada. */
 export function limiteEmTexto(
   regras: Pick<RegrasDaVantagem, 'limitePorCliente' | 'periodoDoLimite'>,
   lingua: Lingua = 'pt',
 ) {
-  if (regras.limitePorCliente === null) return null;
-  const nomes = lingua === 'en' ? NOME_DO_PERIODO_EN : NOME_DO_PERIODO;
-  return `${regras.limitePorCliente} ${nomes[regras.periodoDoLimite]}`;
+  const n = regras.limitePorCliente;
+  if (n === null) return null;
+  if (lingua === 'en') {
+    if (n === 1 && regras.periodoDoLimite === 'sempre') return 'Once only';
+    const vezes = n === 1 ? 'Once' : n === 2 ? 'Twice' : `${n} times`;
+    return `${vezes} ${VEZES_EN[regras.periodoDoLimite]}`;
+  }
+  return `${n} ${n === 1 ? 'vez' : 'vezes'} ${NOME_DO_PERIODO[regras.periodoDoLimite]}`;
 }

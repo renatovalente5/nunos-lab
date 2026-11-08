@@ -28,13 +28,13 @@ export const NOME_DO_ESTADO: Record<EstadoDaPromocao, string> = {
 };
 
 export const NOME_DO_ESTADO_EN: Record<EstadoDaPromocao, string> = {
-  activa: 'In the app',
+  activa: 'Live',
   agendada: 'Scheduled',
   terminada: 'Ended',
   pausada: 'Paused',
 };
 
-/** «Na app», «In the app». */
+/** «Na app», «Live». */
 export function nomeDoEstado(estado: EstadoDaPromocao, lingua: Lingua = 'pt'): string {
   return (lingua === 'en' ? NOME_DO_ESTADO_EN : NOME_DO_ESTADO)[estado];
 }
@@ -50,8 +50,8 @@ export function validadeEmTexto(p: ComDatas, hoje: string, lingua: Lingua = 'pt'
   const en = lingua === 'en';
   if (faltam < 0) return en ? 'Ended' : 'Terminou';
   if (faltam === 0) return en ? 'Today only' : 'Só hoje';
-  if (faltam === 1) return en ? 'Until tomorrow' : 'Até amanhã';
-  const ate = en ? 'Until' : 'Até';
+  if (faltam === 1) return en ? 'Ends tomorrow' : 'Até amanhã';
+  const ate = en ? 'Ends' : 'Até';
   if (faltam < 7) return `${ate} ${nomeDoDia(diaDaSemana(p.fim), lingua)}`;
   return `${ate} ${dataCurta(p.fim, hoje, lingua)}`;
 }

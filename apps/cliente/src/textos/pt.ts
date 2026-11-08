@@ -5,14 +5,14 @@ import type { PeriodoDoLimite } from '@nunos-lab/dominio';
  * TypeScript não deixa faltar nenhuma.
  */
 export const pt = {
-  separadores: { vantagens: 'Vantagens', cartao: 'Cartão', barbearia: 'Barbearia' },
+  separadores: { vantagens: 'Vantagens', cartao: 'Cartão', barbearia: 'Barbearias' },
   titulos: {
-    vantagens: "Nuno's Lab · Vantagens",
-    cartao: "Nuno's Lab · Cartão",
-    barbearias: "Nuno's Lab · Barbearias",
-    conta: "Nuno's Lab · Conta",
-    privacidade: "Privacidade · Nuno's Lab",
-    parceiro: (nome: string) => `${nome} · Nuno's Lab`,
+    vantagens: 'Nuno’s Lab · Vantagens',
+    cartao: 'Nuno’s Lab · Cartão',
+    barbearias: 'Nuno’s Lab · Barbearias',
+    conta: 'Nuno’s Lab · Conta',
+    privacidade: 'Privacidade · Nuno’s Lab',
+    parceiro: (nome: string) => `${nome} · Nuno’s Lab`,
   },
   vantagens: {
     emDestaque: 'Em destaque',
@@ -26,7 +26,7 @@ export const pt = {
   },
   promocao: {
     verTudo: 'Ver tudo',
-    menos: 'Menos',
+    menos: 'Ver menos',
     soActivos: 'Só para clientes com corte no último ano',
     usadaHoje: (hora: string) => `Usada hoje às ${hora}`,
     jaUsaste: {
@@ -55,17 +55,17 @@ export const pt = {
     parabens: 'Parabéns!',
     osTeusCupoes: 'Os teus cupões',
     usado: 'Usado',
-    ate: (dia: string) => `até ${dia}`,
+    ate: (dia: string) => `Até ${dia}`,
     ultimasVisitas: 'Últimas visitas',
     nosParceiros: 'Nos parceiros',
     semLigacaoDesde: (quando: string) => `Sem ligação · dados de ${quando}`,
-    semLigacao: 'Sem ligação.',
+    semLigacao: 'Sem ligação',
     adicionarApple: 'Adicionar à Carteira Apple',
     adicionarGoogle: 'Adicionar à Carteira do Google',
     aPreparar: 'A preparar…',
     entraParaTer: 'Entra para ter o teu cartão.',
     jaTensCartao:
-      'Já tens cartão feito ao balcão? Entra com o mesmo email — na Apple, partilha o email.',
+      'Já tens cartão feito ao balcão? Entra com o email que nos deste. Com a Apple, escolhe partilhar o email.',
     aEntrar: 'A entrar…',
     proximoCarimbo: 'O próximo carimbo abre um cartão novo',
     semLigacaoNoCartao: 'Sem ligação',
@@ -151,7 +151,7 @@ export const pt = {
       'Se puseres o cartão na Apple Wallet ou na Google Wallet, o cartão (o nome, os carimbos, o código) fica também nessa carteira e actualiza-se a cada corte; a Apple e a Google tratam-no pelas regras delas.',
       'Podes mudar ou apagar a conta na app, a qualquer altura. Ao apagar, o que é teu sai; ficam só contagens sem nome, para os números da barbearia.',
       'Para o Nuno saber o que interessa, a app conta, sem saber quem és, quantas vezes é aberta e quantas vezes cada parceiro é visto ou contactado. Fica só o dia e o número.',
-      'A app guarda neste aparelho a última lista de vantagens, para a mostrar quando a rede falha, o teu cartão, para abrir sem rede, e a língua que escolheste.',
+      'A app guarda neste aparelho a última lista de vantagens e o teu cartão, para abrirem sem rede, e também a língua que escolheste.',
       'A app é servida pelo GitHub Pages e os dados vêm de um servidor da Cloudflare, com a base de dados na União Europeia. Como em qualquer site, estes serviços recebem o endereço do teu aparelho para te entregar a página.',
       'O mapa das casas é dos Mapas da Apple: para o mostrar, o teu aparelho liga-se à Apple, que recebe o endereço dele, como qualquer site. No Android é uma imagem que o nosso servidor pede à Apple e guarda por pouco tempo.',
     ],

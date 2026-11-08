@@ -11,6 +11,7 @@ import { Platform, Pressable, View } from 'react-native';
 import { useConfirmacao } from '../componentes/confirmar';
 import {
   APPLE_CLIENTE,
+  ErroDaBalcao,
   GOOGLE_CLIENTE,
   dispensarRecusa,
   guardarSessao,
@@ -120,7 +121,15 @@ function HojeParceiro() {
       await pedir('/anular-vale', { metodo: 'POST', corpo: { valeId: id } });
       await refetch();
     } catch (e) {
-      setAviso(mensagemDe(e));
+      // Os textos gerais falam do Nuno, que anula carimbos; uma validação só a anula quem a fez.
+      const codigo = e instanceof ErroDaBalcao ? e.codigo : '';
+      setAviso(
+        codigo === 'tarde_para_anular'
+          ? t.parceiro.tardeParaAnular
+          : codigo === 'de_outra_pessoa'
+            ? t.parceiro.deOutraPessoa
+            : mensagemDe(e),
+      );
     }
   };
   return (
@@ -343,7 +352,7 @@ export function PalavraDaMarca({ largura = 150 }: { largura?: number }) {
 
 function hora(unix: number): string {
   const d = new Date(unix * 1000);
-  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 /** «15:12» hoje; «3 nov 15:12» quando o toque foi noutro dia. */

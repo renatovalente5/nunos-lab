@@ -34,6 +34,16 @@ const NOME_DO_PROGRAMA = {
   translatedValues: [{ language: 'en', value: TEXTOS_DO_PASSE.en.descricao }],
 };
 
+/** A ligação para a app nas costas do cartão, na língua da conta («A app» saía a toda a gente). */
+const PAGINA_DA_APP = (origemDaApp: string) => ({
+  uri: origemDaApp,
+  description: "Nuno's Lab",
+  localizedDescription: {
+    defaultValue: { language: 'pt-PT', value: "App do Nuno's Lab" },
+    translatedValues: [{ language: 'en', value: "Nuno's Lab app" }],
+  },
+});
+
 export function classe(emissor: string, origemDaApp: string) {
   return {
     id: classeId(emissor),
@@ -46,7 +56,7 @@ export function classe(emissor: string, origemDaApp: string) {
       sourceUri: { uri: `${origemDaApp}/icone-512.png` },
       contentDescription: { defaultValue: { language: 'pt-PT', value: "Nuno's Lab" } },
     },
-    homepageUri: { uri: origemDaApp, description: 'A app' },
+    homepageUri: PAGINA_DA_APP(origemDaApp),
   };
 }
 
@@ -64,7 +74,12 @@ export function objeto(emissor: string, c: CartaoDaGoogle) {
     },
     secondaryLoyaltyPoints:
       c.porUsar > 0
-        ? { label: t.porUsarGoogle, balance: { string: `${c.porUsar} × ${c.recompensa}` } }
+        ? {
+            label: t.porUsarGoogle,
+            balance: {
+              string: c.porUsar === 1 ? c.recompensa : `${c.porUsar} × ${c.recompensa}`,
+            },
+          }
         : undefined,
     barcode: { type: 'QR_CODE', value: c.qr, alternateText: c.codigo },
     heroImage: {
@@ -78,7 +93,7 @@ export function objeto(emissor: string, c: CartaoDaGoogle) {
       {
         id: 'como',
         header: t.comoFunciona,
-        body: t.como(c.objectivo, c.recompensa.toLowerCase()),
+        body: t.como(c.objectivo, c.recompensa.charAt(0).toLowerCase() + c.recompensa.slice(1)),
       },
     ],
   };
@@ -165,13 +180,20 @@ export async function actualizarObjeto(
     if (!criada.ok && criada.status !== 409)
       throw new Error(`A classe não se criou: ${criada.status}`);
   } else if (classeR.ok) {
-    // A classe de antes do inglês (7 nov) ganha o nome do programa em inglês. Falhar aqui não pára o objecto.
-    const actual = (await classeR.json().catch(() => ({}))) as { localizedProgramName?: unknown };
-    if (!actual.localizedProgramName)
+    // A classe de antes do inglês (7 nov) ganha o nome do programa e a ligação da app em inglês.
+    // Falhar aqui não pára o objecto.
+    const actual = (await classeR.json().catch(() => ({}))) as {
+      localizedProgramName?: unknown;
+      homepageUri?: { localizedDescription?: unknown };
+    };
+    if (!actual.localizedProgramName || !actual.homepageUri?.localizedDescription)
       await fetch(`${API}/loyaltyClass/${encodeURIComponent(classeId(emissor))}`, {
         method: 'PATCH',
         headers: cabecalhos,
-        body: JSON.stringify({ localizedProgramName: NOME_DO_PROGRAMA }),
+        body: JSON.stringify({
+          localizedProgramName: NOME_DO_PROGRAMA,
+          homepageUri: PAGINA_DA_APP(origemDaApp),
+        }),
       })
         .then((r) => !r.ok && console.error('classe da google', r.status))
         .catch((e) => console.error('classe da google', e));

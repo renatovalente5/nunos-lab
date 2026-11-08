@@ -63,7 +63,7 @@ export const CAMPOS = {
   recompensa:
     'the loyalty-card reward a client gets at the barbershop when the card is full (a corte is a haircut)',
   aniversario:
-    'the gift clients get in their birthday month at the barbershop (a corte is a haircut, barba is a beard trim)',
+    'the gift clients get on their birthday at the barbershop (a corte is a haircut, barba is a beard trim)',
 } as const;
 export type CampoDoTexto = keyof typeof CAMPOS;
 

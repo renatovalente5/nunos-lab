@@ -35,7 +35,7 @@ export const MESES_EN = [
   'Jun',
   'Jul',
   'Aug',
-  'Sep',
+  'Sept',
   'Oct',
   'Nov',
   'Dec',

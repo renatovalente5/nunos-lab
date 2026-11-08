@@ -167,6 +167,7 @@ import {
   fraseDesteCorte,
   fraseDoCartao,
   fraseDoCorteOferecido,
+  fraseDoProximo,
 } from './fidelidade.ts';
 
 test('o código do cartão: 8 letras, a última de controlo, e os erros de leitura corrigem-se', () => {
@@ -208,7 +209,7 @@ test('o estado do cartão e a frase', () => {
   assert.equal(fraseDoCartao(0, desconto), 'Prémio: 50% de desconto');
   assert.equal(fraseDoCartao(9, desconto), 'O próximo corte tem 50% de desconto');
   assert.equal(fraseDesteCorte('50% de desconto'), 'Este corte tem 50% de desconto');
-  assert.equal(fraseDoCorteOferecido('50% de desconto'), 'Este corte teve 50% de desconto');
+  assert.equal(fraseDoCorteOferecido('50% de desconto'), 'O último corte teve 50% de desconto');
   assert.equal(fraseDesteCorte('Barba grátis'), 'Este corte: barba grátis');
   assert.equal(fraseDoCorteOferecido('Barba grátis'), 'Barba grátis · entregue');
 });
@@ -274,8 +275,11 @@ test('o motivo de uma vantagem, por ordem', () => {
     ),
     'ok',
   );
-  assert.equal(limiteEmTexto({ limitePorCliente: 1, periodoDoLimite: 'dia' }), '1 por dia');
-  assert.equal(limiteEmTexto({ limitePorCliente: 3, periodoDoLimite: 'sempre' }), '3 no total');
+  assert.equal(limiteEmTexto({ limitePorCliente: 1, periodoDoLimite: 'dia' }), '1 vez por dia');
+  assert.equal(
+    limiteEmTexto({ limitePorCliente: 3, periodoDoLimite: 'sempre' }),
+    '3 vezes no total',
+  );
   assert.equal(limiteEmTexto({ limitePorCliente: null, periodoDoLimite: 'dia' }), null);
 });
 
@@ -342,7 +346,13 @@ test('as frases em inglês: o prémio, as datas e os limites', async () => {
     'Your next haircut is free',
   );
   assert.equal(recompensaNaLingua('Corte grátis', 'en'), 'Free haircut');
-  assert.equal(fraseDoCorteOferecido('50% de desconto', 'en'), 'This haircut was 50% off');
+  assert.equal(fraseDoCorteOferecido('50% de desconto', 'en'), 'Your last haircut was 50% off');
+  assert.equal(fraseDoCorteOferecido('Barba grátis', 'en'), 'Barba grátis · used');
+  // «10% discount» e «metade do preço» dizem-se como os outros descontos; um prémio à parte leva «Next:».
+  assert.equal(recompensaNaLingua('10% discount', 'en'), '10% off');
+  assert.equal(recompensaNaLingua('50% desconto', 'en'), '50% off');
+  assert.equal(fraseDoProximo('Metade do preço', 'en'), 'Your next haircut is half price');
+  assert.equal(fraseDoProximo('Free beard trim', 'en'), 'Next: free beard trim');
   assert.equal(fraseDesteCorte('Corte grátis', 'en'), 'This haircut is free');
   // As datas e as validades.
   assert.equal(dataCurta('2026-12-31', '2026-11-07', 'en'), '31\u00A0Dec');
@@ -352,10 +362,19 @@ test('as frases em inglês: o prémio, as datas e os limites', async () => {
   );
   assert.equal(
     validadeEmTexto({ inicio: null, fim: '2026-11-13' }, '2026-11-07', 'en'),
-    'Until Friday',
+    'Ends Friday',
   );
   assert.equal(
     limiteEmTexto({ limitePorCliente: 2, periodoDoLimite: 'semana' }, 'en'),
-    '2 per week',
+    'Twice a week',
   );
+  assert.equal(
+    limiteEmTexto({ limitePorCliente: 1, periodoDoLimite: 'sempre' }, 'en'),
+    'Once only',
+  );
+  assert.equal(
+    limiteEmTexto({ limitePorCliente: 3, periodoDoLimite: 'mes' }, 'en'),
+    '3 times a month',
+  );
+  assert.equal(dataCurta('2026-09-12', '2026-11-07', 'en'), '12\u00A0Sept');
 });

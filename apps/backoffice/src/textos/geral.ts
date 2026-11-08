@@ -206,7 +206,7 @@ export const en: typeof pt = {
     naApp: 'In the app',
     parceiro: 'Partner',
     titulo: 'Perk title',
-    mostraOCartao: 'Show your card at the counter',
+    mostraOCartao: 'Show your card when you pay',
     surpresa: 'Drawn as a surprise coupon',
   },
   grafico: {

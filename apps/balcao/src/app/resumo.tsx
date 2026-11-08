@@ -24,7 +24,7 @@ const PERIODOS = ['hoje', 'semana', 'mes'] as const;
 function hora(unix: number | null): string {
   if (!unix) return '';
   const d = new Date(unix * 1000);
-  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 /** O resumo do dono: os carimbos, por casa e por pessoa, hoje, na semana ou no mês. */

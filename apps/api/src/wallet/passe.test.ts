@@ -22,6 +22,8 @@ const cartao: CartaoDoPasse = {
   instagram: 'nunoslab',
   whatsapp: '+351 910 000 000',
 };
+/** Um minuto depois do último carimbo: é quando o aparelho vem buscar o passe novo. */
+const LOGO_A_SEGUIR = 1761700000 + 60;
 const cfg = {
   passTipo: 'pass.pt.nunoslab.cartao',
   equipa: '6M2QCLR98V',
@@ -88,7 +90,7 @@ test('as costas levam o contacto de quem emite, as casas e a privacidade', () =>
 
 test('o aviso do passe muda com o estado: novo carimbo, cartão completo, nada a zeros', () => {
   const aviso = (carimbos: number) =>
-    passJson({ ...cartao, carimbos }, cfg).storeCard.headerFields[0]!.changeMessage;
+    passJson({ ...cartao, carimbos }, cfg, LOGO_A_SEGUIR).storeCard.headerFields[0]!.changeMessage;
   assert.equal(aviso(7), 'Carimbo novo: %@');
   assert.equal(aviso(9), 'Carimbo novo: %@ · o próximo corte é grátis');
   assert.equal(aviso(10), 'Cartão completo (%@): este corte é grátis');
@@ -119,7 +121,7 @@ test('em inglês (a língua da conta), o passe diz o mesmo em inglês', () => {
   assert.deepEqual(
     p.storeCard.secondaryFields.map((f) => [f.label, f.value]),
     [
-      ['CLIENT', 'Renato'],
+      ['NAME', 'Renato'],
       ['FREE HAIRCUT', '3 to go'],
     ],
   );
@@ -130,15 +132,34 @@ test('em inglês (a língua da conta), o passe diz o mesmo em inglês', () => {
   assert.equal(costas.privacidade, 'https://app.local/nunos-lab/privacidade/?lingua=en');
   assert.equal(p.locations[0]!.relevantText, "Nuno's Lab Nogueira do Cravo: show your card.");
   const aviso = (carimbos: number) =>
-    passJson({ ...en, carimbos }, cfg).storeCard.headerFields[0]!.changeMessage;
+    passJson({ ...en, carimbos }, cfg, LOGO_A_SEGUIR).storeCard.headerFields[0]!.changeMessage;
   assert.equal(aviso(7), 'New stamp: %@');
-  assert.equal(aviso(9), 'New stamp: %@ · your next haircut is free');
-  assert.equal(aviso(10), 'Card complete (%@): this haircut is free');
+  assert.equal(aviso(9), 'New stamp: %@ – your next haircut is free');
+  assert.equal(aviso(10), 'Card complete (%@) – this haircut is free');
   // Um «%» do prémio escreve-se «%%» no aviso da Apple.
   assert.equal(
-    passJson({ ...en, recompensa: '50% off', carimbos: 9 }, cfg).storeCard.headerFields[0]!
-      .changeMessage,
-    'New stamp: %@ · your next haircut is 50%% off',
+    passJson({ ...en, recompensa: '50% off', carimbos: 9 }, cfg, LOGO_A_SEGUIR).storeCard
+      .headerFields[0]!.changeMessage,
+    'New stamp: %@ – your next haircut is 50%% off',
+  );
+});
+
+test('sem um carimbo há pouco, o passe muda sem aviso (anular, mudar a língua)', () => {
+  // Anulado o 7.º, o último carimbo passa a ser o de há semanas: «6 de 10» sem «Carimbo novo».
+  const semanasDepois = 1761700000 + 21 * 86_400;
+  const aviso = (c: CartaoDoPasse) =>
+    passJson(c, cfg, semanasDepois).storeCard.headerFields[0]!.changeMessage;
+  assert.equal(aviso({ ...cartao, carimbos: 6 }), undefined);
+  assert.equal(aviso({ ...cartao, lingua: 'en' }), undefined);
+  assert.equal(aviso({ ...cartao, ultima: null }), undefined);
+  // Meia hora é o limite: o telemóvel que estava sem rede recebe-o depois, sem aviso.
+  assert.equal(
+    passJson(cartao, cfg, 1761700000 + 29 * 60).storeCard.headerFields[0]!.changeMessage,
+    'Carimbo novo: %@',
+  );
+  assert.equal(
+    passJson(cartao, cfg, 1761700000 + 31 * 60).storeCard.headerFields[0]!.changeMessage,
+    undefined,
   );
 });
 
@@ -161,9 +182,18 @@ test('na Google Wallet, o cartão também sai na língua da conta', () => {
   assert.equal(en.accountName, 'Client');
   assert.deepEqual(en.loyaltyPoints, { label: 'Stamps', balance: { string: '7 of 10' } });
   assert.deepEqual(en.secondaryLoyaltyPoints, {
-    label: 'To use',
+    label: 'Ready to use',
     balance: { string: '2 × Free haircut' },
   });
+  // Um só prémio diz-se sem «1 ×», como no passe da Apple.
+  assert.deepEqual(
+    objeto('e', { ...base, porUsar: 1, recompensa: 'Free haircut', lingua: 'en' })
+      .secondaryLoyaltyPoints,
+    {
+      label: 'Ready to use',
+      balance: { string: 'Free haircut' },
+    },
+  );
   assert.equal(en.heroImage.contentDescription.defaultValue.language, 'en-GB');
   assert.equal(en.textModulesData[1]!.body, 'One stamp per haircut. At 10 stamps, free haircut.');
 });

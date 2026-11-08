@@ -111,7 +111,10 @@ rotasDaWallet.get('/apple/passe', async (c) => {
   const ate = Number(c.req.query('a'));
   const s = c.req.query('s') ?? '';
   if (!Number.isInteger(id) || !Number.isInteger(ate) || ate < agora())
-    return c.text('A ligação caducou. Pede outra na app.', 410);
+    return c.text(
+      'A ligação caducou. Pede outra na app.\nThis link has expired. Get a new one in the app.',
+      410,
+    );
   if (!(await iguais(s, await assinarTexto(c.env, `descarregar:${id}:${ate}`))))
     return c.body(null, 403);
   const passe = await c.env.DB.prepare('SELECT actualizado_em FROM passes WHERE cliente_id = ?')

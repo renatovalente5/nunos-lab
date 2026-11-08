@@ -9,7 +9,8 @@ const pt = {
   exemplo: 'Exemplo',
   novo: 'Novo',
   codigoQr: 'Código QR',
-  carimbosDe: (carimbos: number, objectivo: number) => `${carimbos} de ${objectivo} carimbos`,
+  carimbosDe: (carimbos: number, objectivo: number) =>
+    `${carimbos} de ${objectivo} ${objectivo === 1 ? 'carimbo' : 'carimbos'}`,
   continuarComApple: 'Continuar com a Apple',
   continuarComGoogle: 'Continuar com o Google',
   googleNaoAbriu: 'O Google não abriu. Tenta outra vez.',
@@ -22,15 +23,16 @@ const en: typeof pt = {
   fechar: 'Close',
   semLigacao: 'No connection',
   tentarOutraVez: 'Try again',
-  exemplo: 'Example',
+  exemplo: 'Sample',
   novo: 'New',
   codigoQr: 'QR code',
-  carimbosDe: (carimbos, objectivo) => `${carimbos} of ${objectivo} stamps`,
+  carimbosDe: (carimbos, objectivo) =>
+    `${carimbos} of ${objectivo} ${objectivo === 1 ? 'stamp' : 'stamps'}`,
   continuarComApple: 'Continue with Apple',
   continuarComGoogle: 'Continue with Google',
-  googleNaoAbriu: "Google didn't open. Try again.",
-  googleNaoAbriuNaWeb: "Google didn't open. Reload the page.",
-  semServicosDoGoogle: "This phone doesn't have Google services.",
+  googleNaoAbriu: 'Google sign-in didn’t open. Try again.',
+  googleNaoAbriuNaWeb: 'Google sign-in didn’t load. Refresh the page.',
+  semServicosDoGoogle: 'This phone doesn’t have Google Play services.',
   lingua: 'Language',
 };
 
