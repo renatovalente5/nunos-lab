@@ -51,7 +51,6 @@ const ICONE_DO_QUE_FALTA: Record<CoisaPorFazer['tipo'], NomeDoIcone> = {
   fora_da_app: 'parceiros',
   a_acabar: 'registo',
   parceiro_incompleto: 'parceiros',
-  barbearia_incompleta: 'barbearia',
 };
 
 /** Onde se resolve: a página certa, com a gaveta certa aberta. */
@@ -65,8 +64,6 @@ function ondeSeResolve(c: CoisaPorFazer): string {
       return `#/parceiros/${c.parceiroId}`;
     case 'a_acabar':
       return `#/promocoes?abrir=${c.promocaoId}`;
-    case 'barbearia_incompleta':
-      return `#/barbearia?abrir=loja-${c.lojas[0]!.id}`;
   }
 }
 
@@ -106,13 +103,6 @@ function FraseDoQueFalta({ c }: { c: CoisaPorFazer }) {
           {t.resumo.falta(c.falta.map((f) => t.resumo.faltaNoParceiro[f]))}
         </>
       );
-    case 'barbearia_incompleta':
-      return (
-        <>
-          <strong>{t.resumo.nomes(c.lojas.map((l) => l.nome))}</strong>:{' '}
-          {t.resumo.falta(c.falta.map((f) => t.resumo.faltaNaBarbearia[f]))}
-        </>
-      );
   }
 }
 
@@ -134,16 +124,11 @@ function PorFazer() {
     queryKey: ['promocoes'],
     queryFn: () => pedir<Promocao[]>('/api/bo/promocoes'),
   });
-  const barbearia = useQuery({
-    queryKey: ['barbearia'],
-    queryFn: () => pedir<DefinicoesDaBarbearia>('/api/bo/barbearia'),
-  });
-  if (!parceiros.data || !equipa.data || !promocoes.data || !barbearia.data) return null;
+  if (!parceiros.data || !equipa.data || !promocoes.data) return null;
   const lista = oQueFaltaFazer({
     parceiros: parceiros.data,
     equipa: equipa.data,
     promocoes: promocoes.data,
-    lojas: barbearia.data.lojas,
     hoje: diaEmLisboa(),
   });
   if (!lista.length)
@@ -286,17 +271,20 @@ function GraficoDosCarimbos({ colunas, total }: { colunas: Coluna[]; total: numb
       <p className="so-leitor" aria-live="polite">
         {vista ? `${vista.quando}: ${t.resumo.carimbosN(numero(vista.n), vista.n === 1)}` : ''}
       </p>
-      <table className="so-leitor">
-        <caption>{t.resumo.tabela}</caption>
-        <tbody>
-          {colunas.map((c) => (
-            <tr key={c.chave}>
-              <th scope="row">{c.quando}</th>
-              <td>{c.n}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* Numa div: uma tabela não encolhe a 1 px (ignora a altura) e esticava a página para baixo. */}
+      <div className="so-leitor">
+        <table>
+          <caption>{t.resumo.tabela}</caption>
+          <tbody>
+            {colunas.map((c) => (
+              <tr key={c.chave}>
+                <th scope="row">{c.quando}</th>
+                <td>{c.n}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

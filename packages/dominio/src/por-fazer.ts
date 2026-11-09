@@ -1,6 +1,6 @@
 import { diasEntre } from './datas.ts';
 import { DIAS_A_ACABAR } from './limites.ts';
-import type { Loja, Parceiro, PessoaDaEquipaNoBackoffice, Promocao } from './tipos.ts';
+import type { Parceiro, PessoaDaEquipaNoBackoffice, Promocao } from './tipos.ts';
 
 /**
  * O que falta fazer no backoffice para a app estar inteira (o Renato, 9 nov 2026: «um parceiro foi
@@ -12,18 +12,15 @@ export type CoisaPorFazer =
   | { tipo: 'nao_entrou'; parceiroId: number; parceiro: string; pessoa: string }
   | { tipo: 'fora_da_app'; parceiroId: number; parceiro: string }
   | { tipo: 'a_acabar'; promocaoId: number; parceiro: string; promocao: string; fim: string; dias: number }
-  | { tipo: 'parceiro_incompleto'; parceiroId: number; parceiro: string; falta: FaltaNoParceiro[] }
-  /** As barbearias a que falta o mesmo vêm juntas (as três sem telefone: uma linha só). */
-  | { tipo: 'barbearia_incompleta'; lojas: { id: number; nome: string }[]; falta: FaltaNaBarbearia[] };
+  | { tipo: 'parceiro_incompleto'; parceiroId: number; parceiro: string; falta: FaltaNoParceiro[] };
 
+/** As barbearias não entram: o telefone ou a marcação em falta não precisam de aviso (o Renato, 9 nov). */
 export type FaltaNoParceiro = 'morada' | 'logotipo';
-export type FaltaNaBarbearia = 'telefone' | 'marcacao' | 'localizacao';
 
 export function oQueFaltaFazer(d: {
   parceiros: Parceiro[];
   equipa: PessoaDaEquipaNoBackoffice[];
   promocoes: Promocao[];
-  lojas: Loja[];
   hoje: string;
 }): CoisaPorFazer[] {
   const parceiros = d.parceiros.filter((p) => p.activo && !p.exemplo);
@@ -64,17 +61,5 @@ export function oQueFaltaFazer(d: {
     if (falta.length)
       lista.push({ tipo: 'parceiro_incompleto', parceiroId: p.id, parceiro: p.nome, falta });
   }
-  const porFalta = new Map<string, Extract<CoisaPorFazer, { tipo: 'barbearia_incompleta' }>>();
-  for (const l of d.lojas) {
-    const falta: FaltaNaBarbearia[] = [];
-    if (!l.telefone.trim()) falta.push('telefone');
-    if (!l.marcar.trim()) falta.push('marcacao');
-    if (l.lat === null || l.lng === null) falta.push('localizacao');
-    if (!falta.length) continue;
-    const igual = porFalta.get(falta.join());
-    if (igual) igual.lojas.push({ id: l.id, nome: l.nome });
-    else porFalta.set(falta.join(), { tipo: 'barbearia_incompleta', lojas: [{ id: l.id, nome: l.nome }], falta });
-  }
-  lista.push(...porFalta.values());
   return lista;
 }

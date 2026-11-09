@@ -36,13 +36,7 @@ export const pt = {
   aAcabar: (parceiro: string, dias: number, dia: string) =>
     `(${parceiro}) acaba ${dias === 0 ? 'hoje' : dias === 1 ? 'amanhã' : `a ${dia}`}`,
   falta: (coisas: string[]) => `falta ${juntar(coisas, 'e')}`,
-  nomes: (nomes: string[]) => juntar(nomes, 'e'),
   faltaNoParceiro: { morada: 'a morada', logotipo: 'o logótipo' },
-  faltaNaBarbearia: {
-    telefone: 'o telefone',
-    marcacao: 'a ligação de marcação',
-    localizacao: 'a localização no mapa',
-  },
 };
 
 export const en: typeof pt = {
@@ -75,11 +69,5 @@ export const en: typeof pt = {
   aAcabar: (parceiro, dias, dia) =>
     `(${parceiro}) ends ${dias === 0 ? 'today' : dias === 1 ? 'tomorrow' : `on ${dia}`}`,
   falta: (coisas) => `missing ${juntar(coisas, 'and')}`,
-  nomes: (nomes) => juntar(nomes, 'and'),
   faltaNoParceiro: { morada: 'the address', logotipo: 'the logo' },
-  faltaNaBarbearia: {
-    telefone: 'the phone number',
-    marcacao: 'the booking link',
-    localizacao: 'the map location',
-  },
 };

@@ -401,8 +401,6 @@ test('o que falta fazer: só o que deixa a app a meio, pela ordem em que importa
     }) as never;
   const pessoa = (parceiroId: number, sessoes: unknown[], extra: Record<string, unknown> = {}) =>
     ({ nome: `Quem ${parceiroId}`, papel: 'parceiro', parceiroId, activo: true, sessoes, ...extra }) as never;
-  const loja = (extra: Record<string, unknown> = {}) =>
-    ({ id: 9, nome: 'Aveiro', telefone: '912', marcar: 'https://x', lat: 1, lng: 1, ...extra }) as never;
   const promocao = (fim: string | null, extra: Record<string, unknown> = {}) =>
     ({ id: 5, parceiroId: 1, parceiro: 'P1', destaque: '−10%', titulo: 'Na refeição', estado: 'activa', fim, ...extra }) as never;
   const hoje = '2026-11-09';
@@ -411,7 +409,6 @@ test('o que falta fazer: só o que deixa a app a meio, pela ordem em que importa
     parceiros: [parceiro(1)],
     equipa: [pessoa(1, [{}])],
     promocoes: [promocao(null)],
-    lojas: [loja()],
     hoje,
   });
   assert.deepEqual(tudoBem, [], 'tudo em dia');
@@ -425,11 +422,6 @@ test('o que falta fazer: só o que deixa a app a meio, pela ordem em que importa
     ],
     equipa: [pessoa(1, []), pessoa(2, [{}], { activo: false })],
     promocoes: [promocao('2026-11-10'), promocao('2026-11-30', { id: 6 }), promocao('2026-11-08', { id: 7 })],
-    lojas: [
-      loja({ telefone: '', lat: null }),
-      loja({ id: 10, nome: 'Feira', telefone: '', lat: null }),
-      loja({ id: 11, nome: 'Nogueira', marcar: '' }),
-    ],
     hoje,
   });
   assert.deepEqual(
@@ -440,8 +432,6 @@ test('o que falta fazer: só o que deixa a app a meio, pela ordem em que importa
       'fora_da_app',
       'a_acabar',
       'parceiro_incompleto',
-      'barbearia_incompleta',
-      'barbearia_incompleta',
     ],
   );
   assert.equal(lista.find((c) => c.tipo === 'sem_quem_valide')?.parceiro, 'P2', 'quem está desligado não valida');
@@ -449,10 +439,5 @@ test('o que falta fazer: só o que deixa a app a meio, pela ordem em que importa
   assert.ok(aAcabar?.tipo === 'a_acabar' && aAcabar.dias === 1 && aAcabar.promocaoId === 5);
   const incompleto = lista.find((c) => c.tipo === 'parceiro_incompleto');
   assert.deepEqual(incompleto?.tipo === 'parceiro_incompleto' && incompleto.falta, ['morada', 'logotipo']);
-  const [mesmaFalta, outra] = lista.filter((c) => c.tipo === 'barbearia_incompleta');
-  assert.ok(mesmaFalta?.tipo === 'barbearia_incompleta' && outra?.tipo === 'barbearia_incompleta');
-  assert.deepEqual(mesmaFalta.falta, ['telefone', 'localizacao']);
-  assert.deepEqual(mesmaFalta.lojas.map((l) => l.nome), ['Aveiro', 'Feira'], 'a mesma falta numa linha');
-  assert.deepEqual(outra.falta, ['marcacao']);
   assert.ok(!lista.some((c) => 'parceiroId' in c && (c.parceiroId === 3 || c.parceiroId === 4)), 'desligados e exemplos não contam');
 });
