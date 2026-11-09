@@ -19,8 +19,8 @@ export const pt = {
     /** Para o leitor de ecrã, a seguir à vantagem com o cadeado. */
     bloqueada: 'bloqueada',
     parceiros: 'Parceiros',
-    semCorteHaUmAno: 'Os descontos voltam com o teu próximo corte',
-    aindaSemCorte: 'Os descontos começam com o teu primeiro corte',
+    semCorteHaUmAno: 'As vantagens voltam com o teu próximo corte',
+    aindaSemCorte: 'As vantagens começam com o teu primeiro corte',
     categorias: 'Categorias',
     tudo: 'Tudo',
     emBreve: 'Novas vantagens em breve',
@@ -36,11 +36,11 @@ export const pt = {
       sempre: 'Já usaste',
     } as Record<PeriodoDoLimite, string>,
     mostraOCartao: 'Mostra o cartão ao balcão',
-    comOCartao: 'Com o cartão Nuno’s Lab',
-    // A vantagem apagada, com o cadeado: a quem nunca cortou e a quem não corta há um ano (9 nov).
+    // A vantagem apagada, com o cadeado: a quem nunca cortou (ou ainda não tem conta) e a quem não
+    // corta há um ano (o Renato, 9 nov).
     bloqueada: {
       nunca: 'Desbloqueia com o teu primeiro corte',
-      expirou: 'Expirou · volta com o próximo corte',
+      expirou: 'Desbloqueia com o teu próximo corte',
     },
   },
   cartao: {
@@ -52,7 +52,9 @@ export const pt = {
       cartao > 1
         ? `Cliente desde ${ano} · ${cartao}.º cartão · ${cortes} ${cortes === 1 ? 'corte' : 'cortes'}`
         : `Cliente desde ${ano}`,
-    tensUma: (recompensa: string) => `Tens ${recompensa.toLowerCase()}`,
+    // Só a primeira letra: um prémio com uma marca não perde as maiúsculas.
+    tensUma: (recompensa: string) =>
+      `Tens ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`,
     tensVarias: (n: number) => `Tens ${n} recompensas`,
     mostraOCartao: 'Mostra o cartão ao balcão.',
     verOCodigo: 'Ver o código em grande',
@@ -60,7 +62,8 @@ export const pt = {
     parabens: 'Parabéns!',
     ultimasVisitas: 'Últimas visitas',
     nosParceiros: 'Nos parceiros',
-    semLigacaoDesde: (quando: string) => `Sem ligação · dados de ${quando}`,
+    semLigacaoDesde: (quando: string, hoje: boolean) =>
+      `Sem ligação · dados ${hoje ? 'das' : 'de'} ${quando}`,
     semLigacao: 'Sem ligação',
     adicionarApple: 'Adicionar à Carteira Apple',
     adicionarGoogle: 'Adicionar à Carteira do Google',

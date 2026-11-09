@@ -52,6 +52,14 @@ export function alvoDoRegisto(accao: string, alvo: string): string {
     return alvo.replace(/(\d{4}-\d{2}-\d{2})$/, (dia) =>
       dataCurta(dia, diaEmLisboa(), linguaActual()),
     );
+  if (accao === 'cliente.alterado') {
+    // Os campos dizem-se também em português: o registo guardava «casa», que passou a «barbearia».
+    const i = alvo.lastIndexOf(' · ');
+    if (i < 0) return alvo;
+    const campos = g.camposDoCliente as Record<string, string>;
+    const mudou = alvo.slice(i + 3).split(', ');
+    return `${alvo.slice(0, i)} · ${mudou.map((c) => campos[c] ?? c).join(', ')}`;
+  }
   if (linguaActual() === 'pt') return alvo;
   switch (accao) {
     case 'sessao.terminada':
@@ -63,13 +71,6 @@ export function alvoDoRegisto(accao: string, alvo: string): string {
         / · (dono|barbeiro|parceiro)$/,
         (_, papel: keyof typeof t.equipa.papeis) => ` · ${t.equipa.papeis[papel]}`,
       );
-    case 'cliente.alterado': {
-      const i = alvo.lastIndexOf(' · ');
-      if (i < 0) return alvo;
-      const campos = g.camposDoCliente as Record<string, string>;
-      const mudou = alvo.slice(i + 3).split(', ');
-      return `${alvo.slice(0, i)} · ${mudou.map((c) => campos[c] ?? c).join(', ')}`;
-    }
     case 'programa.alterado': {
       const m = /^(\d+) → (.*?)(?: · (\d+) cart(?:ão|ões) em curso)?$/.exec(alvo);
       if (!m) return alvo;

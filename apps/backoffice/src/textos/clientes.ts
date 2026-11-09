@@ -66,6 +66,6 @@ export const en: typeof pt = {
   },
   sufixoDosCortes: (n) => (n === 1 ? 'haircut' : 'haircuts'),
   carimbosDe: (carimbos, objectivo) => `${carimbos} of ${objectivo}`,
-  porUsar: (n) => `${n} unused`,
+  porUsar: (n) => `${n} ready`,
   aMostrar: (n) => `Showing the ${numero(n)} most recent. Narrow your search to see the rest.`,
 };

@@ -298,16 +298,17 @@ export function horaDe(unix: number): string {
  * se o parceiro quiser) — só quando o parceiro vai aceitar: senão, porque não (limite
  * gasto) — e, depois de validada hoje, a que horas foi. A quem nunca cortou o cabelo, ou
  * não corta há mais de um ano, aparece apagada e com o cadeado: como se desbloqueia (o
- * Renato escolheu esta entre três, 9 nov).
+ * Renato escolheu esta entre três, 9 nov). Sem conta neste aparelho também, com a frase de quem
+ * nunca cortou: desbloqueada, bastava mostrar o ecrã a um parceiro que não lê o cartão (revisão
+ * de batota, 9 nov).
  */
-/** Porque é que uma vantagem ainda não vale: nunca cortou, ou não corta há mais de um ano. */
+/** Porque uma vantagem ainda não vale: nunca cortou (ou sem conta) ou há um ano sem cortar. */
 export type BloqueioDaVantagem = 'nunca' | 'expirou' | null;
 
 export function CartaoDaPromocao({
   promocao,
   hoje,
   aoAbrir,
-  temCartao = false,
   bloqueio = null,
   usadas = 0,
   usadaHoje = null,
@@ -315,9 +316,7 @@ export function CartaoDaPromocao({
   promocao: PromocaoPublica;
   hoje: string;
   aoAbrir?: () => void;
-  /** Há conta com cartão neste aparelho. */
-  temCartao?: boolean;
-  /** Sem corte no último ano a vantagem não vale: nunca cortou, ou o último foi há mais de um ano. */
+  /** A vantagem não vale: sem conta neste aparelho, nunca cortou, ou o último corte foi há mais de um ano. */
   bloqueio?: BloqueioDaVantagem;
   /** Quantas vezes este cliente a usou no período do limite. */
   usadas?: number;
@@ -413,9 +412,7 @@ export function CartaoDaPromocao({
               ? t.promocao.usadaHoje(horaDe(usadaHoje))
               : esgotada
                 ? t.promocao.jaUsaste[promocao.periodoDoLimite]
-                : temCartao
-                  ? t.promocao.mostraOCartao
-                  : t.promocao.comOCartao}
+                : t.promocao.mostraOCartao}
         </T>
       </View>
     </>

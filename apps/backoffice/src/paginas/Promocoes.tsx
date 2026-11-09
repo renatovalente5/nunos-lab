@@ -131,7 +131,7 @@ export function Promocoes() {
   const conta = (e: EstadoDaPromocao) =>
     (promocoes.data ?? []).filter((p) => p.estado === e).length;
 
-  // «#/promocoes?abrir=12» (do Resumo) abre logo essa promoção. Com a página
+  // «#/vantagens?abrir=12» (do Resumo) abre logo essa vantagem. Com a página
   // já aberta, mudar o fragmento não a volta a montar: ouve-se o «hashchange».
   const [abrir, setAbrir] = useState(() => Number(parametro('abrir')) || 0);
   useEffect(() => {
@@ -142,7 +142,7 @@ export function Promocoes() {
   useEffect(() => {
     if (!abrir || !promocoes.data) return;
     const p = promocoes.data.find((x) => x.id === abrir);
-    history.replaceState(null, '', '#/promocoes');
+    history.replaceState(null, '', '#/vantagens');
     setAbrir(0);
     if (p) setEditor({ promocao: p });
   }, [abrir, promocoes.data]);

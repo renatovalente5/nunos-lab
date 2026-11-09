@@ -106,7 +106,7 @@ export function fraseDoCorteOferecido(recompensa: string, lingua: Lingua = 'pt')
     const e = recompensaEmIngles(r);
     if (eCorteGratisEn(e)) return 'Your last haircut was free';
     if (eDescontoEn(e)) return `Your last haircut was ${minuscula(e)}`;
-    return `${e} · used`;
+    return `${e} · redeemed`;
   }
   if (eCorteGratis(r)) return 'O último corte foi grátis';
   if (eDesconto(r)) return `O último corte teve ${minuscula(r)}`;

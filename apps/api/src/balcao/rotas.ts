@@ -10,6 +10,7 @@ import {
   LIMITES_DO_PROGRAMA,
   MINUTOS_PARA_ANULAR,
   inicioDoPeriodo,
+  type PeriodoDoLimite,
   motivoDaVantagem,
   naLingua,
   codigoValido,
@@ -91,7 +92,7 @@ async function clientePorCodigo(c: C, texto: string): Promise<LinhaCliente> {
   if (!codigoValido(codigo)) recusar(404, 'cartao_desconhecido');
   // A pessoa de demonstração (os revisores das lojas) só vê e carimba clientes de exemplo.
   const cliente = await c.env.DB.prepare(
-    `SELECT id, codigo, nome, criado_em, aniversario, aniversario_desde FROM clientes WHERE codigo = ? AND apagado_em IS NULL${soExemplos(c, '')}`,
+    `SELECT id, codigo, nome, criado_em, aniversario, aniversario_desde FROM clientes WHERE codigo = ? AND apagado_em IS NULL${clientesDaSessao(c)}`,
   )
     .bind(codigo)
     .first<LinhaCliente>();
@@ -105,6 +106,15 @@ function soExemplos(c: C, alias: string): string {
   return alias
     ? ` AND ${alias}.cliente_id IN (SELECT id FROM clientes WHERE exemplo = 1)`
     : ' AND exemplo = 1';
+}
+
+/**
+ * Os clientes que esta sessão encontra: a demonstração só os de exemplo, e a equipa a sério só os a
+ * sério. Um barbeiro carimbava um cartão de exemplo, e nada disso aparecia no «Hoje», no Resumo nem
+ * no backoffice (revisão de 9 nov 2026).
+ */
+function clientesDaSessao(c: C): string {
+  return c.get('pessoa').demo ? ' AND exemplo = 1' : ' AND exemplo = 0';
 }
 
 /**
@@ -162,12 +172,15 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
     (entregue!.results[0] as { quando: number; pessoa: string | null } | undefined) ?? null;
   const fazAnos = fazAnosHoje(cliente.aniversario, hoje);
   const programaDeHoje = await lerPrograma(db);
+  const activo = await clienteActivo(db, cliente.id);
   const prendaEntregue =
     (prendaDesteAno!.results[0] as { quando: number; pessoa: string | null } | undefined) ?? null;
   return {
-    // A prenda só com a data dada há 30 dias ou mais (senão mudava-se na véspera), e uma vez por ano.
+    // A prenda só com a data dada há 30 dias ou mais (senão mudava-se na véspera), uma vez por ano, e
+    // a quem teve um corte no último ano, como as vantagens: sem isso, cada conta nova recebia uma.
     prenda:
       temPrendaHoje(cliente.aniversario, cliente.aniversario_desde, hoje, agora()) &&
+      activo &&
       programaDeHoje.aniversario &&
       !prendaEntregue
         ? naLingua(lingua, programaDeHoje.aniversario, programaDeHoje.aniversarioEn)
@@ -363,10 +376,11 @@ async function carimbar(
   const lojaId = await lojaDe(c, p.lojaId);
   await exigirCartaoDeOutro(c, cliente.id);
   const programa = await lerPrograma(db);
-  // Um carimbo que vem da fila sem rede traz o instante em que foi dado (até 7 dias): conta nesse dia.
-  const quando =
-    p.quando && p.quando >= agora() - 7 * DIA && p.quando <= agora() + 60 ? p.quando : null;
-  const hoje = quando ? diaEmLisboa(quando * 1000) : diaEmLisboa();
+  // O carimbo conta no instante em que chega. A hora que as apps de antes mandavam da fila sem rede
+  // já não conta: com ela, quem tivesse uma sessão da equipa dava um carimbo por cada um dos 7 dias de
+  // trás, sem «Carimbar na mesma», fora do «Hoje» e sem «repetido» (revisão de 9 nov 2026).
+  const quando = null;
+  const hoje = diaEmLisboa();
   let cartao = await cartaoActual(db, cliente.id);
   if (!cartao) {
     await novoCartao(db, cliente.id, 1, programa).run();
@@ -567,7 +581,8 @@ async function recusarSeEmailTemCartao(c: C, email: string): Promise<void> {
     .bind(email)
     .first<{ codigo: string; exemplo: number }>();
   if (!existe) return;
-  const codigo = c.get('pessoa').demo && existe.exemplo !== 1 ? undefined : existe.codigo;
+  // Só o código de um cartão que esta sessão pode abrir (a demonstração os de exemplo, a equipa os a sério).
+  const codigo = c.get('pessoa').demo === (existe.exemplo === 1) ? existe.codigo : undefined;
   throw new HTTPException(409, {
     res: new Response(JSON.stringify({ erro: 'email_ja_tem_cartao', codigo }), {
       status: 409,
@@ -596,9 +611,19 @@ rotasDaBalcao.post('/clientes', async (c) => {
     // guarda do email: com email, o segundo envio dava «email_ja_tem_cartao» e a
     // for partners saltava o ecrã do cliente novo (o código em grande, «Partilhar»).
     const repetida = await db
-      .prepare('SELECT id, cliente_id FROM carimbos WHERE chave = ?')
+      .prepare(
+        `SELECT x.id, x.cliente_id, x.pessoa_id, x.anulado_em,
+           (SELECT min(y.id) FROM carimbos y WHERE y.cliente_id = x.cliente_id) AS primeiro
+         FROM carimbos x WHERE x.chave = ?`,
+      )
       .bind(p.carimbo.chave)
-      .first<{ id: number; cliente_id: number }>();
+      .first<{
+        id: number;
+        cliente_id: number;
+        pessoa_id: number | null;
+        anulado_em: number | null;
+        primeiro: number;
+      }>();
     if (repetida) {
       const jaCriado = await db
         .prepare(
@@ -606,6 +631,16 @@ rotasDaBalcao.post('/clientes', async (c) => {
         )
         .bind(repetida.cliente_id)
         .first<LinhaCliente & { email: string | null }>();
+      // É a mesma submissão só se esta chave for o 1.º carimbo do cliente, dado por esta pessoa há
+      // poucos minutos. Com a chave de outro carimbo, um barbeiro juntava o seu email a um cliente
+      // sem email e entrava na conta dele pela app (revisão de 9 nov 2026).
+      const mesmaSubmissao =
+        !!jaCriado &&
+        repetida.id === repetida.primeiro &&
+        repetida.pessoa_id === c.get('pessoa').id &&
+        !repetida.anulado_em &&
+        jaCriado.criado_em >= agora() - MINUTOS_PARA_ANULAR * 60;
+      if (!mesmaSubmissao) recusar(409, 'repetido');
       if (jaCriado) {
         // O email escrito só na segunda vez (a primeira caiu na rede depois de gravar) junta-se
         // a quem nasceu sem ele: a for partners diz «entra na app com esse email», e sem isto a
@@ -715,7 +750,7 @@ rotasDaBalcao.get('/clientes', async (c) => {
        (SELECT objectivo FROM cartoes c WHERE c.cliente_id = k.id ORDER BY numero DESC LIMIT 1) AS objectivo,
        (SELECT count(*) FROM carimbos x WHERE x.cartao_id = (SELECT id FROM cartoes c WHERE c.cliente_id = k.id ORDER BY numero DESC LIMIT 1) AND x.anulado_em IS NULL) AS carimbos,
        (SELECT max(criado_em) FROM carimbos x WHERE x.cliente_id = k.id AND x.anulado_em IS NULL) AS ultimo
-     FROM clientes k WHERE k.apagado_em IS NULL${soExemplos(c, '')} AND (k.nome LIKE ? OR k.busca LIKE ? OR k.email LIKE ? OR k.codigo LIKE ?)
+     FROM clientes k WHERE k.apagado_em IS NULL${clientesDaSessao(c)} AND (k.nome LIKE ? OR k.busca LIKE ? OR k.email LIKE ? OR k.codigo LIKE ?)
      ORDER BY ultimo DESC NULLS LAST, k.nome LIMIT 20`,
   )
     .bind(padrao, busca, padrao, codigo ? `${codigo}%` : '')
@@ -1024,6 +1059,8 @@ rotasDaBalcao.post('/validar', async (c) => {
   const pessoa = c.get('pessoa');
   const lingua = linguaDoPedido(c);
   const cliente = await clientePorCodigo(c, codigo);
+  // Como no carimbo: ninguém valida as vantagens no próprio cartão (revisão de 9 nov 2026).
+  await exigirCartaoDeOutro(c, cliente.id);
   const repetido = await db.prepare(`${VALE} WHERE v.chave = ?`).bind(chave).first<LinhaVale>();
   if (repetido) {
     // A mesma chave noutro parceiro ou noutro cliente é um erro da app: nunca o vale do outro.
@@ -1038,19 +1075,57 @@ rotasDaBalcao.post('/validar', async (c) => {
   const vantagem = ficha.vantagens.find((v) => v.id === promocaoId);
   if (!vantagem) recusar(400, 'referencia');
   if (vantagem.motivo !== 'ok') recusar(409, vantagem.motivo);
+  // Os limites decidem-se no próprio INSERT, como no carimbo: lidos antes, dois pedidos ao mesmo
+  // instante passavam ambos (a última vantagem de um limite total saía duas vezes; revisão de 9 nov).
+  const regras = await db
+    .prepare(
+      'SELECT limite_por_cliente, periodo_do_limite, limite_total FROM promocoes WHERE id = ?',
+    )
+    .bind(vantagem.id)
+    .first<{
+      limite_por_cliente: number | null;
+      periodo_do_limite: PeriodoDoLimite;
+      limite_total: number | null;
+    }>();
+  const hojeDoVale = diaEmLisboa();
   let novo: { id: number } | null = null;
   try {
     novo = await db
       .prepare(
-        'INSERT INTO vales (promocao_id, parceiro_id, cliente_id, pessoa_id, chave, dia) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
+        `INSERT INTO vales (promocao_id, parceiro_id, cliente_id, pessoa_id, chave, dia)
+         SELECT ?1, ?2, ?3, ?4, ?5, ?6
+         WHERE (?7 IS NULL OR (SELECT count(*) FROM vales WHERE promocao_id = ?1 AND anulado_em IS NULL) < ?7)
+           AND (?8 IS NULL OR (SELECT count(*) FROM vales WHERE promocao_id = ?1 AND cliente_id = ?3
+                AND anulado_em IS NULL AND dia >= ?9) < ?8)
+         RETURNING id`,
       )
-      .bind(vantagem.id, parceiroId, cliente.id, pessoa.id, chave, diaEmLisboa())
+      .bind(
+        vantagem.id,
+        parceiroId,
+        cliente.id,
+        pessoa.id,
+        chave,
+        hojeDoVale,
+        regras?.limite_total ?? null,
+        regras?.limite_por_cliente ?? null,
+        inicioDoPeriodo(regras?.periodo_do_limite ?? 'dia', hojeDoVale),
+      )
       .first<{ id: number }>();
   } catch (e) {
     if (e instanceof HTTPException) throw e;
     const outra = await db.prepare(`${VALE} WHERE v.chave = ?`).bind(chave).first<LinhaVale>();
     if (outra) return c.json({ vale: valePublico(outra, lingua), ficha });
     traduzirErroDaBase(e);
+  }
+  if (!novo) {
+    // Outro pedido levou o que faltava ao mesmo instante: a recusa diz o motivo de agora.
+    const agoraNaFicha = (await fichaDoParceiro(c, parceiroId, cliente)).vantagens.find(
+      (v) => v.id === vantagem.id,
+    );
+    recusar(
+      409,
+      agoraNaFicha && agoraNaFicha.motivo !== 'ok' ? agoraNaFicha.motivo : 'limite_total',
+    );
   }
   const vale = await db.prepare(`${VALE} WHERE v.id = ?`).bind(novo!.id).first<LinhaVale>();
   return c.json({

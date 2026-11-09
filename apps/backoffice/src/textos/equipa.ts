@@ -35,10 +35,10 @@ export const pt = {
   tirarDaEquipaTexto:
     'Sai já de todos os aparelhos e deixa de carimbar. Os carimbos que deu ficam.',
   saiuDaEquipa: (nome: string) => `${nome} saiu da equipa`,
-  // Quem valida as promoções de um parceiro (na página dele).
+  // Quem valida as vantagens de um parceiro (na página dele).
   quemValida: 'Quem valida',
   aindaNinguem: 'Ainda ninguém',
-  quemValidaAjuda: 'Quem juntares aqui valida as promoções na app for partners.',
+  quemValidaAjuda: 'Quem juntares aqui valida as vantagens na app for partners.',
   adicionarPessoa: 'Adicionar pessoa',
   jaPodeValidar: (nome: string) => `${nome} já pode validar`,
   tirarOAcesso: 'Tirar o acesso',
@@ -77,7 +77,7 @@ export const en: typeof pt = {
   papel: 'Role',
   casa: 'Barbershop',
   activo: 'Active',
-  ajudaDoActivo: "When off, they can't sign in to the partner app.",
+  ajudaDoActivo: 'When off, they can’t sign in to the partner app.',
   tirarDaEquipa: 'Remove from the team',
   camposPorCorrigir: 'Some fields need fixing.',
   guardado: 'Saved',
@@ -88,7 +88,7 @@ export const en: typeof pt = {
   emailNaEquipa: (nome) => `${nome} on the team already uses that email.`,
   tirarDaEquipaPergunta: (nome) => `Remove ${nome} from the team?`,
   tirarDaEquipaTexto:
-    "They're signed out of every device straight away and can no longer stamp. The stamps they've given are kept.",
+    'They’re signed out of every device straight away and can no longer stamp. The stamps they’ve given are kept.',
   saiuDaEquipa: (nome) => `${nome} removed from the team`,
   quemValida: 'Who validates',
   aindaNinguem: 'No one yet',
@@ -98,7 +98,7 @@ export const en: typeof pt = {
   tirarOAcesso: 'Remove access',
   tirarOAcessoPergunta: (nome) => `Remove access for ${nome}?`,
   tirarOAcessoTexto:
-    "They're signed out of every device straight away and can no longer validate perks. The perks they've validated are kept.",
+    'They’re signed out of every device straight away and can no longer validate perks. The perks they’ve validated are kept.',
   acessoTirado: 'Access removed',
   aparelho: 'Device',
   entrouEUsado: (entrou, usado) => `Signed in ${entrou} · last used ${usado}`,
@@ -106,6 +106,6 @@ export const en: typeof pt = {
   saiNesseAparelho: (nome) => `${nome} will be signed out of the partner app on that device.`,
   terminar: 'Sign out',
   sessaoTerminada: 'Signed out',
-  semAparelhos: "Hasn't signed in yet.",
+  semAparelhos: 'Hasn’t signed in yet.',
   aparelhosTitulo: 'Devices',
 };

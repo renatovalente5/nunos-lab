@@ -90,8 +90,8 @@ export const en: typeof pt = {
     desde: (dia) => `started ${dia}`,
     completoA: (dia) => `completed ${dia}`,
     usadoA: (dia, casa, pessoa) =>
-      `used ${dia}${casa ? ` at ${casa}` : ''}${pessoa ? ` by ${pessoa}` : ''}`,
-    usado: 'Reward used',
+      `redeemed ${dia}${casa ? ` at ${casa}` : ''}${pessoa ? ` by ${pessoa}` : ''}`,
+    usado: 'Reward redeemed',
     porUsar: 'Reward ready',
     emCurso: 'In progress',
     vazio: 'No card yet',
@@ -106,9 +106,9 @@ export const en: typeof pt = {
     resumo: (n, ultimo) => `${n} ${n === 1 ? 'stamp' : 'stamps'} · last ${ultimo}`,
   },
   apagar: {
-    pergunta: (nome) => (nome ? `Delete ${nome}'s account?` : "Delete this client's account?"),
+    pergunta: (nome) => (nome ? `Delete ${nome}'s account?` : 'Delete this client’s account?'),
     texto:
-      "They lose their card, stamps and rewards. If they sign in to the app again, they start from zero. Stamps already given still count in the Summary, without a name. This can't be undone.",
+      'They lose their card, stamps and rewards. If they sign in to the app again, they start from zero. Stamps already given still count in the Summary, without a name. This can’t be undone.',
     accao: 'Delete',
     feito: 'Account deleted',
   },

@@ -128,7 +128,7 @@ test('em inglês (a língua da conta), o passe diz o mesmo em inglês', () => {
   assert.deepEqual(p.posterGeneric.primaryFields[1], { key: 'faltam', label: 'TO GO', value: '3' });
   assert.equal(p.posterGeneric.footerFields[0]!.value, 'Free haircut at 10 stamps');
   const costas = Object.fromEntries(p.storeCard.backFields.map((f) => [f.key, f.value]));
-  assert.equal(costas.como, 'One stamp per haircut. At 10 stamps, free haircut.');
+  assert.equal(costas.como, 'One stamp per haircut. 10 stamps: free haircut.');
   assert.equal(costas.privacidade, 'https://app.local/nunos-lab/privacidade/?lingua=en');
   assert.equal(p.locations[0]!.relevantText, "Nuno's Lab Nogueira do Cravo: show your card.");
   const aviso = (carimbos: number) =>
@@ -195,5 +195,5 @@ test('na Google Wallet, o cartão também sai na língua da conta', () => {
     },
   );
   assert.equal(en.heroImage.contentDescription.defaultValue.language, 'en-GB');
-  assert.equal(en.textModulesData[1]!.body, 'One stamp per haircut. At 10 stamps, free haircut.');
+  assert.equal(en.textModulesData[1]!.body, 'One stamp per haircut. 10 stamps: free haircut.');
 });

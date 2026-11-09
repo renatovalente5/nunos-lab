@@ -33,6 +33,8 @@ rotasDoMapa.get('/mapa', async (c) => {
   // A app desenha os pinos (o ícone da app) por cima da imagem e pede-a sem os balões da
   // Apple; as apps de antes, que não os desenham, continuam a receber os balões.
   const comBaloes = c.req.query('pinos') !== '0';
+  // As legendas na língua da app; as apps de antes não a mandam e ficam em português.
+  const lingua = c.req.query('lingua') === 'en' ? 'en' : 'pt';
   // Os limites dos Snapshots: 50 a 640 pontos de lado, escala 1 a 3. A cache é por tamanho.
   if (![w0, h0].every((n) => Number.isInteger(n) && n >= 100 && n <= 640) || ![1, 2, 3].includes(s))
     recusar(400, 'invalido');
@@ -51,7 +53,7 @@ rotasDoMapa.get('/mapa', async (c) => {
   const cache = caches.default;
   const chaveDaCache = new Request(
     new URL(
-      `/api/mapa?w=${w}&h=${h}&s=${s}&pinos=${comBaloes ? 1 : 0}&v=${versaoDasCasas(lojas)}`,
+      `/api/mapa?w=${w}&h=${h}&s=${s}&pinos=${comBaloes ? 1 : 0}&v=${versaoDasCasas(lojas)}&lingua=${lingua}`,
       c.req.url,
     ),
   );
@@ -72,7 +74,7 @@ rotasDoMapa.get('/mapa', async (c) => {
     scale: String(s),
     colorScheme: 'dark',
     poi: '0',
-    lang: 'pt-PT',
+    lang: lingua === 'en' ? 'en-GB' : 'pt-PT',
     ...(comBaloes
       ? {
           annotations: JSON.stringify(

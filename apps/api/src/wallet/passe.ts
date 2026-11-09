@@ -1,5 +1,7 @@
 import {
   codigoCurto,
+  dataCurta as dataCurtaDoDominio,
+  diaEmLisboa,
   fraseDoCartao,
   fraseDesteCorte,
   fraseDoProximo,
@@ -60,12 +62,13 @@ const RGB = (hex6: string) => {
   return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
 };
 
+/** «7 nov» / «7 Nov», como nas apps: o pt-PT do Intl dava «7/11» (revisão das traduções, 9 nov). */
 const dataCurta = (unix: number, etiqueta: string) =>
-  new Date(unix * 1000).toLocaleDateString(etiqueta, {
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'Europe/Lisbon',
-  });
+  dataCurtaDoDominio(
+    diaEmLisboa(unix * 1000),
+    diaEmLisboa(),
+    etiqueta.startsWith('en') ? 'en' : 'pt',
+  );
 
 const minuscula = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 /** Um changeMessage é um formato da Apple: só o «%@» é especial, um «%» da recompensa escreve-se «%%». */

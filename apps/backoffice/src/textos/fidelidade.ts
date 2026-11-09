@@ -1,7 +1,7 @@
 /** As frases desta página: o português é a fonte; o inglês (britânico) tem as mesmas chaves. */
 export const pt = {
   camposPorCorrigir: 'Há campos por corrigir.',
-  carimbos: (n: number) => `${n} carimbos`,
+  carimbos: (n: number) => `${n} ${n === 1 ? 'carimbo' : 'carimbos'}`,
   objectivo: 'Carimbos para a recompensa',
   objectivoAjuda: 'Os cartões já começados completam-se com o número com que começaram.',
   recompensa: 'Recompensa',
@@ -19,7 +19,7 @@ export const pt = {
 
 export const en: typeof pt = {
   camposPorCorrigir: 'Some fields need fixing.',
-  carimbos: (n) => `${n} stamps`,
+  carimbos: (n) => `${n} ${n === 1 ? 'stamp' : 'stamps'}`,
   objectivo: 'Stamps needed for the reward',
   objectivoAjuda: 'Cards already started keep the number they started with.',
   recompensa: 'Reward',

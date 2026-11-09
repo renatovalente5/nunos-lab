@@ -63,7 +63,7 @@ function ondeSeResolve(c: CoisaPorFazer): string {
     case 'parceiro_incompleto':
       return `#/parceiros/${c.parceiroId}`;
     case 'a_acabar':
-      return `#/promocoes?abrir=${c.promocaoId}`;
+      return `#/vantagens?abrir=${c.promocaoId}`;
   }
 }
 
@@ -174,7 +174,11 @@ function colunasDoPeriodo(m: Metricas, lingua: Lingua, quandoDaSemana: (dia: str
   const porDia = new Map(m.porDia.map((d) => [d.dia, d.n]));
   const dias = Array.from({ length: diasEntre(m.de, m.ate) + 1 }, (_, i) => somarDias(m.de, i));
   if (dias.length <= 31)
-    return dias.map((d) => ({ chave: d, quando: dataCurta(d, hoje, lingua), n: porDia.get(d) ?? 0 }));
+    return dias.map((d) => ({
+      chave: d,
+      quando: dataCurta(d, hoje, lingua),
+      n: porDia.get(d) ?? 0,
+    }));
   if (dias.length <= 120) {
     const semanas: Coluna[] = [];
     for (let i = 0; i < dias.length; i += 7) {
@@ -188,7 +192,8 @@ function colunasDoPeriodo(m: Metricas, lingua: Lingua, quandoDaSemana: (dia: str
     return semanas;
   }
   const meses = new Map<string, number>();
-  for (const d of dias) meses.set(d.slice(0, 7), (meses.get(d.slice(0, 7)) ?? 0) + (porDia.get(d) ?? 0));
+  for (const d of dias)
+    meses.set(d.slice(0, 7), (meses.get(d.slice(0, 7)) ?? 0) + (porDia.get(d) ?? 0));
   return [...meses].map(([mes, n]) => ({
     chave: mes,
     quando: `${nomeDoMes(Number(mes.slice(5)) - 1, lingua)} ${mes.slice(0, 4)}`,
@@ -200,7 +205,7 @@ function colunasDoPeriodo(m: Metricas, lingua: Lingua, quandoDaSemana: (dia: str
 function topoDaEscala(maior: number): number {
   if (maior <= 5) return Math.max(1, maior);
   const p = 10 ** Math.floor(Math.log10(maior));
-  return ([1, 2, 2.5, 5, 10].map((f) => f * p).find((v) => v >= maior) ?? 10 * p);
+  return [1, 2, 2.5, 5, 10].map((f) => f * p).find((v) => v >= maior) ?? 10 * p;
 }
 
 /**
@@ -217,7 +222,9 @@ function GraficoDosCarimbos({ colunas, total }: { colunas: Coluna[]; total: numb
     const passo = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
     if (passo) {
       e.preventDefault();
-      setActiva((a) => Math.min(colunas.length - 1, Math.max(0, (a ?? colunas.length - 1) + passo)));
+      setActiva((a) =>
+        Math.min(colunas.length - 1, Math.max(0, (a ?? colunas.length - 1) + passo)),
+      );
     } else if (e.key === 'Home' || e.key === 'End') {
       e.preventDefault();
       setActiva(e.key === 'Home' ? 0 : colunas.length - 1);
@@ -297,14 +304,22 @@ function GraficoDosCarimbos({ colunas, total }: { colunas: Coluna[]; total: numb
 /** As duas primeiras letras do nome («Renato Valente» → «RV»). */
 function iniciais(nome: string): string {
   const partes = nome.trim().split(/\s+/);
-  return ((partes[0]?.[0] ?? '') + (partes.length > 1 ? (partes.at(-1)?.[0] ?? '') : '')).toUpperCase();
+  return (
+    (partes[0]?.[0] ?? '') + (partes.length > 1 ? (partes.at(-1)?.[0] ?? '') : '')
+  ).toUpperCase();
 }
 
 /** Uma lista do maior para o menor: o nome e o número numa linha, a barra fina por baixo. */
 function Ordem({
   linhas,
 }: {
-  linhas: { chave: string | number; nome: string; detalhe?: ReactNode; n: number; pessoa?: boolean }[];
+  linhas: {
+    chave: string | number;
+    nome: string;
+    detalhe?: ReactNode;
+    n: number;
+    pessoa?: boolean;
+  }[];
 }) {
   const maior = Math.max(1, ...linhas.map((l) => l.n));
   return (
@@ -425,7 +440,8 @@ export function Resumo() {
               valor={m.totais.recompensasGanhas}
               nota={[
                 t.resumo.entregues(m.totais.recompensasUsadas),
-                m.totais.recompensasPorUsar > 0 && t.resumo.porEntregar(m.totais.recompensasPorUsar),
+                m.totais.recompensasPorUsar > 0 &&
+                  t.resumo.porEntregar(m.totais.recompensasPorUsar),
               ]
                 .filter(Boolean)
                 .join(' · ')}

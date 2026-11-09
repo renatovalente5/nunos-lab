@@ -86,13 +86,16 @@ export default function Ficha() {
   const daLinhaDoHoje = carimboId !== null;
   const { data: hojeDaCasa } = useHoje(casa, !!eu && daLinhaDoHoje);
   const doHoje = hojeDaCasa?.ultimos.find((u) => u.id === carimboId) ?? null;
-  // Quem carimbou anula até ao instante que o servidor diz; o dono sempre.
+  // Quem carimbou anula até ao instante que o servidor diz; o dono sempre. O carimbo do prémio (o que
+  // completou o cartão) só o dono: o corte grátis dado e anulado voltava a contar (revisão de 9 nov).
   const podeAnular =
     !!doHoje &&
     !doHoje.anulado &&
     !!eu &&
     (eu.pessoa.papel === 'dono' ||
-      (doHoje.pessoaId === eu.pessoa.id && Date.now() / 1000 < doHoje.anulavelAte));
+      (doHoje.pessoaId === eu.pessoa.id &&
+        Date.now() / 1000 < doHoje.anulavelAte &&
+        !doHoje.recompensa));
   const [confirmar, folhaDeConfirmacao] = useConfirmacao();
   const [estado, setEstado] = useState<'pronto' | 'a-enviar' | 'feito' | 'erro'>('pronto');
   const [feito, setFeito] = useState<Feito | null>(null);

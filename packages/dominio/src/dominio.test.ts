@@ -371,7 +371,7 @@ test('as frases em inglês: o prémio, as datas e os limites', async () => {
   );
   assert.equal(recompensaNaLingua('Corte grátis', 'en'), 'Free haircut');
   assert.equal(fraseDoCorteOferecido('50% de desconto', 'en'), 'Your last haircut was 50% off');
-  assert.equal(fraseDoCorteOferecido('Barba grátis', 'en'), 'Barba grátis · used');
+  assert.equal(fraseDoCorteOferecido('Barba grátis', 'en'), 'Barba grátis · redeemed');
   // «10% discount» e «metade do preço» dizem-se como os outros descontos; um prémio à parte leva «Next:».
   assert.equal(recompensaNaLingua('10% discount', 'en'), '10% off');
   assert.equal(recompensaNaLingua('50% desconto', 'en'), '50% off');

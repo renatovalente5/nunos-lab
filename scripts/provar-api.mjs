@@ -1212,28 +1212,62 @@ await passo(
     });
     assert.equal(recusa.status, 409);
     assert.equal((await recusa.json()).erro, 'cliente_inactivo');
-    const [a, b] = daBaseLocal('SELECT codigo FROM clientes WHERE id IN (1003, 1015) ORDER BY id');
+    // Os cartões de exemplo já não se encontram com uma sessão a sério (revisão de batota, 9 nov):
+    // um parceiro ou um barbeiro usava-os, e nada aparecia nas contas do negócio.
+    const [exemplo] = daBaseLocal('SELECT codigo FROM clientes WHERE id = 1003');
+    const deExemplo = await pedir('/api/balcao/validar', {
+      method: 'POST',
+      token: tokenParceiro,
+      body: json({ codigo: exemplo.codigo, promocaoId: promocaoValidavel, chave: 'vale-prova-06' }),
+    });
+    assert.equal(deExemplo.status, 404, 'um cartão de exemplo não se encontra');
+    const [loja] = daBaseLocal('SELECT id FROM lojas ORDER BY id LIMIT 1');
+    // Uma sessão própria para estes carimbos: a do dono já vai perto dos 60 por minuto da API.
+    const donoAqui = await entrarNaBalcao('dono.prova@gmail.com');
+    const activoNovo = async (n) => {
+      const sessao = (
+        await (
+          await pedir('/api/eu/entrar/teste', {
+            method: 'POST',
+            body: json({
+              tipo: 'google',
+              sujeito: `prova-activo-${n}`,
+              email: `activo${n}@gmail.com`,
+            }),
+          })
+        ).json()
+      ).sessao;
+      const { codigo } = await (await pedir('/api/eu', { token: sessao })).json();
+      const carimbo = await pedir('/api/balcao/carimbar', {
+        method: 'POST',
+        token: donoAqui,
+        body: json({ codigo, chave: `carimbo-activo-${n}x`, lojaId: loja.id }),
+      });
+      assert.equal(carimbo.status, 200);
+      return codigo;
+    };
+    const a = await activoNovo(1);
+    const b = await activoNovo(2);
     const segunda = await pedir('/api/balcao/validar', {
       method: 'POST',
       token: tokenParceiro,
-      body: json({ codigo: a.codigo, promocaoId: promocaoValidavel, chave: 'vale-prova-06' }),
+      body: json({ codigo: a, promocaoId: promocaoValidavel, chave: 'vale-prova-06b' }),
     });
-    assert.equal(segunda.status, 200, 'um cliente de exemplo activo usa');
+    assert.equal(segunda.status, 200, 'um cliente activo usa');
     const terceira = await pedir('/api/balcao/validar', {
       method: 'POST',
       token: tokenParceiro,
-      body: json({ codigo: b.codigo, promocaoId: promocaoValidavel, chave: 'vale-prova-07' }),
+      body: json({ codigo: b, promocaoId: promocaoValidavel, chave: 'vale-prova-07' }),
     });
     assert.equal(terceira.status, 409);
     assert.equal((await terceira.json()).erro, 'limite_total');
     const m = await (await pedir('/api/bo/metricas', { token })).json();
-    // A validação do cliente de exemplo não entra nas métricas do negócio (Fase 1): só a do
-    // cliente da prova; a promoção, essa, conta as duas para o limite total.
-    assert.equal(m.parcerias.validacoes, 1);
-    assert.equal(m.parcerias.clientesUnicos, 1);
-    assert.ok(m.parcerias.porParceiro.find((x) => x.id === 1).n === 1);
+    // As duas validações são de clientes a sério: entram nas métricas e no limite total.
+    assert.equal(m.parcerias.validacoes, 2);
+    assert.equal(m.parcerias.clientesUnicos, 2);
+    assert.ok(m.parcerias.porParceiro.find((x) => x.id === 1).n === 2);
     const pp = m.parcerias.porPromocao.find((x) => x.id === promocaoValidavel);
-    assert.equal(pp.total, 1);
+    assert.equal(pp.total, 2);
     assert.equal(pp.limiteTotal, 2);
     assert.ok(m.parcerias.semValidacoes.length >= 1);
     assert.equal(m.parcerias.porCasa.length, 3);
@@ -1956,30 +1990,30 @@ await passo(
   },
 );
 
-await passo('um carimbo que vem da fila conta no dia em que foi dado', async () => {
+// A for partners deixou de carimbar sem rede (9 nov 2026), e a hora que vinha da fila servia para
+// dar carimbos nos 7 dias de trás, sem «Carimbar na mesma» e fora do «Hoje» (revisão de batota).
+await passo('a hora que vem da app já não conta: o carimbo conta quando chega', async () => {
   const s = (
     await (await entrarTeste('google', 'pf-p5', 'pf.p5@gmail.com', { nome: 'P Cinco' })).json()
   ).sessao;
   const codigo = (await euDe(s)).eu.codigo;
   const ontem = Math.floor(Date.now() / 1000) - 90_000;
+  const antes = Math.floor(Date.now() / 1000);
   const r = await pedir('/api/balcao/carimbar', {
     method: 'POST',
     token: tokenDono,
     body: json({ codigo, chave: chaveNova(), lojaId: lojaDaProva, quando: ontem }),
   });
   assert.equal(r.status, 200);
-  const hoje = await pedir('/api/balcao/carimbar', {
+  const outro = await pedir('/api/balcao/carimbar', {
     method: 'POST',
     token: tokenDono,
-    body: json({ codigo, chave: chaveNova(), lojaId: lojaDaProva }),
+    body: json({ codigo, chave: chaveNova(), lojaId: lojaDaProva, quando: ontem - 86_400 }),
   });
-  assert.equal(hoje.status, 200, 'o de ontem não gasta o limite de hoje');
+  assert.equal(outro.status, 409, 'com a hora para trás, o limite do dia vale na mesma');
   const visitas = (await euDe(s)).eu.visitas;
-  assert.equal(visitas.length, 2);
-  assert.ok(
-    visitas.some((v) => v.quando === ontem),
-    'a visita fica com o instante do toque',
-  );
+  assert.equal(visitas.length, 1);
+  assert.ok(visitas[0].quando >= antes, 'a visita fica com o instante em que chegou');
 });
 
 await passo(
@@ -2451,6 +2485,43 @@ await passo(
     }
   },
 );
+
+// A revisão de batota (9 nov 2026): com a chave de um carimbo qualquer, um barbeiro juntava o seu email
+// a um cliente sem email e entrava na conta dele pela app.
+await passo('a chave de outro carimbo não junta um email a um cliente', async () => {
+  // Uma sessão própria: a do dono já gastou os 60 carimbos por minuto da API nos passos de cima.
+  const dono = await entrarNaBalcao('dono.prova@gmail.com');
+  const novo = await pedir('/api/balcao/clientes', {
+    method: 'POST',
+    token: dono,
+    body: json({ nome: 'Sem Email Prova', carimbo: { chave: chaveNova(), lojaId: lojaDaProva } }),
+  });
+  assert.equal(novo.status, 200);
+  const { codigo } = (await novo.json()).ficha.cliente;
+  const k = chaveNova();
+  const carimbo = await pedir('/api/balcao/carimbar', {
+    method: 'POST',
+    token: dono,
+    body: json({ codigo, chave: k, lojaId: lojaDaProva, confirmar: true }),
+  });
+  assert.equal(carimbo.status, 200);
+  const roubo = await pedir('/api/balcao/clientes', {
+    method: 'POST',
+    token: dono,
+    body: json({
+      nome: 'x',
+      email: 'atacante.prova@gmail.com',
+      carimbo: { chave: k, lojaId: lojaDaProva },
+    }),
+  });
+  assert.equal(roubo.status, 409);
+  assert.equal((await roubo.json()).erro, 'repetido');
+  assert.equal(
+    daBaseLocal("SELECT count(*) AS n FROM identidades WHERE email = 'atacante.prova@gmail.com'")[0]
+      .n,
+    0,
+  );
+});
 
 await passo('sair termina a sessão', async () => {
   assert.equal((await pedir('/api/bo/sair', { method: 'POST', token })).status, 204);

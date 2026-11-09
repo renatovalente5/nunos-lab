@@ -2,16 +2,16 @@ import { plural } from '../util';
 
 /** As frases desta página: o português é a fonte; o inglês (britânico) tem as mesmas chaves. */
 export const pt = {
-  // A linha de uma promoção (aqui e na página do parceiro).
+  // A linha de uma vantagem (aqui e na página do parceiro).
   emDestaque: 'Em destaque',
   validacoes: (n: number) => plural(n, 'validação', 'validações'),
   parceiroPausado: 'Parceiro pausado',
   // A lista.
-  promocaoPausada: 'Promoção pausada',
-  promocaoLigada: 'Promoção ligada',
+  promocaoPausada: 'Vantagem pausada',
+  promocaoLigada: 'Vantagem ligada',
   saiuDoDestaque: 'Saiu do destaque',
-  naApp: (n: number) => `${plural(n, 'promoção', 'promoções')} na app`,
-  nova: 'Nova promoção',
+  naApp: (n: number) => `${plural(n, 'vantagem', 'vantagens')} na app`,
+  nova: 'Nova vantagem',
   estado: 'Estado',
   filtros: {
     todas: 'Todas',
@@ -23,9 +23,9 @@ export const pt = {
   parceiro: 'Parceiro',
   todosOsParceiros: 'Todos os parceiros',
   procurar: 'Procurar',
-  procurarPromocoes: 'Procurar promoções',
-  nenhumaAqui: 'Nenhuma promoção aqui',
-  aindaSem: 'Ainda sem promoções',
+  procurarPromocoes: 'Procurar vantagens',
+  nenhumaAqui: 'Nenhuma vantagem aqui',
+  aindaSem: 'Ainda sem vantagens',
   tirarDoDestaque: (titulo: string) => `Tirar ${titulo} do destaque`,
   porEmDestaqueDe: (titulo: string) => `Pôr ${titulo} em destaque`,
   porEmDestaque: 'Pôr em destaque',
@@ -37,15 +37,15 @@ export const pt = {
   limitesErrados: 'Os limites: de 1 a 100 por cliente, de 1 a 100 000 no total.',
   faltamCampos: 'Faltam campos obrigatórios.',
   guardado: 'Guardado',
-  criada: 'Promoção criada',
-  promocao: 'Promoção',
+  criada: 'Vantagem criada',
+  promocao: 'Vantagem',
   guardar: 'Guardar',
   criar: 'Criar',
-  apagarPergunta: 'Apagar a promoção?',
+  apagarPergunta: 'Apagar a vantagem?',
   apagarTexto: (vaoJunto: string) =>
     `Sai da app e do backoffice.${vaoJunto ? ` ${vaoJunto}` : ''} Não se desfaz. Para a tirar só por uns tempos, desliga-a.`,
   apagar: 'Apagar',
-  apagada: 'Promoção apagada',
+  apagada: 'Vantagem apagada',
   escolheOParceiro: 'Escolhe o parceiro',
   vaoComEla: 'As validações vão com ela para o parceiro novo.',
   emGrande: 'Em grande',
@@ -105,7 +105,8 @@ export const en: typeof pt = {
   tirarDoDestaque: (titulo) => `Stop featuring ${titulo}`,
   porEmDestaqueDe: (titulo) => `Feature ${titulo}`,
   porEmDestaque: 'Feature',
-  vaoJunto: (validacoes) => `${plural(validacoes, 'validation', 'validations')} will be deleted too.`,
+  vaoJunto: (validacoes) =>
+    `${plural(validacoes, 'validation', 'validations')} will be deleted too.`,
   fimAntesDoInicio: 'The end date must be on or after the start date.',
   limitesErrados: 'Limits: 1 to 100 per client, 1 to 100,000 in total.',
   faltamCampos: 'Fill in the required fields.',
@@ -116,7 +117,7 @@ export const en: typeof pt = {
   criar: 'Create',
   apagarPergunta: 'Delete this perk?',
   apagarTexto: (vaoJunto) =>
-    `It will be removed from the app and the backoffice.${vaoJunto ? ` ${vaoJunto}` : ''} This can't be undone. To hide it for a while, switch it off instead.`,
+    `It will be removed from the app and the backoffice.${vaoJunto ? ` ${vaoJunto}` : ''} This can’t be undone. To hide it for a while, switch it off instead.`,
   apagar: 'Delete',
   apagada: 'Perk deleted',
   escolheOParceiro: 'Choose a partner',

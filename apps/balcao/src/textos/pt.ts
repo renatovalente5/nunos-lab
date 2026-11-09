@@ -71,7 +71,9 @@ export const pt = {
     anularCarimbo: 'Anular carimbo',
     anularOCarimbo: (nome: string, hora: string) =>
       nome ? `Anular o carimbo de ${nome} das ${hora}?` : `Anular o carimbo das ${hora}?`,
-    entregar: (recompensa: string) => `Entregar: ${recompensa.toLowerCase()}`,
+    // Só a primeira letra: um prémio com uma marca («Pomada Reuzel») não perde as maiúsculas.
+    entregar: (recompensa: string) =>
+      `Entregar: ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`,
     recompensaEntregue: (recompensa: string | undefined) =>
       `${recompensa ?? 'Recompensa'} entregue`,
     carimbarNaMesma: 'Carimbar na mesma',
@@ -172,7 +174,7 @@ export const pt = {
     cartao_desconhecido: 'Este código não é de nenhum cartão.',
     outra_casa: 'A tua conta não carimba nesta barbearia.',
     so_barbearia: 'A tua conta não carimba.',
-    proprio_cartao: 'É o teu cartão. Pede a outro barbeiro.',
+    proprio_cartao: 'É o teu cartão. Pede a um colega.',
     entregue_hoje: 'O prémio foi entregue hoje: o corte do prémio não leva carimbo.',
     so_parceiro: 'A tua conta não valida vantagens.',
     parceiro_desligado: 'Este parceiro está desligado no Nuno’s Lab. Fala com a barbearia.',
@@ -183,6 +185,7 @@ export const pt = {
     so_dono: 'Só o dono vê isto.',
     ja_anulado: 'Já estava anulado.',
     tarde_para_anular: 'Já passaram 10 minutos: só o Nuno anula.',
+    premio_so_o_dono: 'O carimbo do prémio só o Nuno anula.',
     de_outra_pessoa: 'Foi outra pessoa que carimbou: só ela, ou o Nuno, anula.',
     recompensa_usada: 'A recompensa deste cartão já foi entregue.',
     cartao_seguinte: 'O cartão seguinte já tem carimbos.',

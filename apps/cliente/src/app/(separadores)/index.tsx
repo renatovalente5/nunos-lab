@@ -168,15 +168,17 @@ export default function Vantagens() {
       params: { id: String(p.id), ...(pr ? { p: String(pr.id) } : {}) },
     });
   // Sem corte no último ano as vantagens não valem (são todas só para clientes activos): o aviso diz
-  // que um corte as dá, e leva às Barbearias (o Renato, 8 e 9 nov). Só com vantagens na app.
+  // que um corte as dá, e leva às Barbearias (o Renato, 8 e 9 nov). Só com vantagens na app. Sem
+  // conta, o aviso de quem nunca cortou, como o cadeado na página do parceiro (o Renato, 9 nov).
   const avisoDoCorte =
-    temSessao && !!eu && !eu.activo && (data?.parceiros.length ?? 0) > 0
-      ? eu.cortes > 0
+    (!temSessao || (!!eu && !eu.activo)) && (data?.parceiros.length ?? 0) > 0
+      ? temSessao && eu && eu.cortes > 0
         ? t.vantagens.semCorteHaUmAno
         : t.vantagens.aindaSemCorte
       : null;
-  // Com o aviso do corte, os descontos levam o cadeado (o Renato escolheu-o, 9 nov).
-  const bloqueadas = !!avisoDoCorte;
+  // Com o aviso do corte, as vantagens levam o cadeado (o Renato escolheu-o, 9 nov); sem conta também,
+  // como na página do parceiro: as vantagens são só para clientes (revisão de batota, 9 nov).
+  const bloqueadas = !temSessao || !!avisoDoCorte;
   // O primeiro bloco fica a 18 do cabeçalho, como nos outros separadores; depois de um aviso, a 14.
   const primeiro = data?.aviso || avisoDoCorte ? 14 : 18;
 

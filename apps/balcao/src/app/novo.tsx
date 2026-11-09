@@ -23,6 +23,7 @@ import {
   useTextosDaUi,
 } from '@nunos-lab/ui';
 import { useTextos } from '../textos';
+import { pt } from '../textos/pt';
 
 /** A app do cliente, para ir na mensagem com o código. */
 const LIGACAO_DA_APP = 'https://renatovalente5.github.io/nunos-lab/';
@@ -95,7 +96,8 @@ export default function Novo() {
 
   /** O código para o cliente levar: a folha de partilha, ou copiado quando o browser não a tem. */
   const partilhar = async (codigo: string) => {
-    const texto = t.novo.mensagem(codigoCurto(codigo), LIGACAO_DA_APP);
+    // Em português, seja qual for a língua da for partners: a mensagem é para o cliente.
+    const texto = pt.novo.mensagem(codigoCurto(codigo), LIGACAO_DA_APP);
     try {
       if (Platform.OS !== 'web') {
         await Share.share({ message: texto });

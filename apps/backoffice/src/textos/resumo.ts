@@ -31,9 +31,9 @@ export const pt = {
   // O que falta fazer (o Renato, 9 nov).
   porFazer: 'Por fazer',
   tudoEmDia: 'Tudo em dia',
-  semQuemValide: 'não tem quem valide as promoções',
+  semQuemValide: 'não tem quem valide as vantagens',
   naoEntrou: (parceiro: string) => `(${parceiro}) ainda não entrou na app for partners`,
-  foraDaApp: 'não aparece na app: não tem promoções ligadas',
+  foraDaApp: 'não aparece na app: não tem vantagens ligadas',
   aAcabar: (parceiro: string, dias: number, dia: string) =>
     `(${parceiro}) acaba ${dias === 0 ? 'hoje' : dias === 1 ? 'amanhã' : `a ${dia}`}`,
   falta: (coisas: string[]) => `falta ${juntar(coisas, 'e')}`,
@@ -53,7 +53,7 @@ export const en: typeof pt = {
   carimbos: 'Stamps',
   recompensasGanhas: 'Rewards earned',
   entregues: (n) => `${n} redeemed`,
-  porEntregar: (n) => `${n} to give out`,
+  porEntregar: (n) => `${n} ready`,
   clientesNovos: 'New clients',
   quemCarimbou: 'Who stamped',
   ninguemCarimbou: 'No one stamped in this period',
@@ -66,7 +66,7 @@ export const en: typeof pt = {
   porFazer: 'To do',
   tudoEmDia: 'All up to date',
   semQuemValide: 'has no one to validate perks',
-  naoEntrou: (parceiro) => `(${parceiro}) hasn’t signed in to the partners app yet`,
+  naoEntrou: (parceiro) => `(${parceiro}) hasn’t signed in to the partner app yet`,
   foraDaApp: 'isn’t in the app: no perks switched on',
   aAcabar: (parceiro, dias, dia) =>
     `(${parceiro}) ends ${dias === 0 ? 'today' : dias === 1 ? 'tomorrow' : `on ${dia}`}`,

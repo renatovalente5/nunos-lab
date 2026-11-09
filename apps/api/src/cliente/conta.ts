@@ -273,9 +273,11 @@ async function lerEu(c: C): Promise<ClienteEu> {
     },
     // O saco das surpresas saiu (8 nov 2026); as apps de antes lêem a lista, vazia.
     cupoes: [],
-    // A prenda só com a data dada há 30 dias ou mais (senão mudava-se na véspera), e uma vez por ano.
+    // A prenda só com a data dada há 30 dias ou mais (senão mudava-se na véspera), uma vez por ano, e
+    // a quem teve um corte no último ano (como na for partners, que é quem a entrega).
     prenda:
       temPrendaHoje(cliente.aniversario, cliente.aniversario_desde, diaEmLisboa(), agora()) &&
+      r[8]!.results.length > 0 &&
       programa.aniversario &&
       r[9]!.results.length === 0
         ? naLingua(lingua, programa.aniversario, programa.aniversarioEn)

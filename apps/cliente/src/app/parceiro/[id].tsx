@@ -81,9 +81,16 @@ export default function PaginaDoParceiro() {
   const { data: euGuardado } = useEu(aFrente);
   // Depois de um 401 a sessão vai-se, mas a consulta ainda tem o «eu» da conta que saiu.
   const eu = temSessao ? euGuardado : undefined;
-  // Sem corte no último ano as vantagens não valem: apagadas, com o cadeado (o Renato, 9 nov).
-  const bloqueio: BloqueioDaVantagem =
-    eu && !eu.activo ? (eu.cortes > 0 ? 'expirou' : 'nunca') : null;
+  // Sem corte no último ano as vantagens não valem: apagadas, com o cadeado (o Renato, 9 nov). Sem
+  // conta também (desbloqueadas, chegava mostrar o ecrã a um parceiro que não lê o cartão), com a
+  // frase de quem nunca cortou: as vantagens começam no primeiro corte.
+  const bloqueio: BloqueioDaVantagem = !temSessao
+    ? 'nunca'
+    : eu && !eu.activo
+      ? eu.cortes > 0
+        ? 'expirou'
+        : 'nunca'
+      : null;
   const margens = useSafeAreaInsets();
   const [aEscolherMapa, setAEscolherMapa] = useState(false);
   const parceiro = data?.parceiros.find((p) => String(p.id) === id);
@@ -251,7 +258,6 @@ export default function PaginaDoParceiro() {
             promocao={pr}
             hoje={data.hoje}
             aoAbrir={() => contar('promocao', pr.id)}
-            temCartao={temSessao}
             bloqueio={bloqueio}
             usadas={vales.filter((v) => diaEmLisboa(v.quando * 1000) >= inicio).length}
             usadaHoje={

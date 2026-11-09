@@ -129,7 +129,7 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
     db.prepare(`${LISTA} WHERE k.id = ?`).bind(id),
     db
       .prepare(
-        `SELECT c.id, c.numero, c.objectivo, c.recompensa, c.iniciado_em, c.completo_em, c.usado_em,
+        `SELECT c.id, c.numero, c.objectivo, c.recompensa, c.recompensa_en, c.iniciado_em, c.completo_em, c.usado_em,
            l.nome AS usado_loja, e.nome AS usado_por,
            (SELECT count(*) FROM carimbos x WHERE x.cartao_id = c.id AND x.anulado_em IS NULL) AS carimbos
          FROM cartoes c LEFT JOIN lojas l ON l.id = c.usado_loja_id LEFT JOIN equipa e ON e.id = c.usado_por
@@ -154,6 +154,7 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
     numero: number;
     objectivo: number;
     recompensa: string;
+    recompensa_en: string | null;
     iniciado_em: number;
     completo_em: number | null;
     usado_em: number | null;
@@ -179,6 +180,7 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
       numero: x.numero,
       objectivo: x.objectivo,
       recompensa: x.recompensa,
+      recompensaEn: x.recompensa_en ?? '',
       carimbos: x.carimbos,
       iniciadoEm: x.iniciado_em,
       completoEm: x.completo_em,
@@ -332,7 +334,12 @@ rotasDosClientes.get('/clientes.csv', async (c) => {
     if (!a) return '';
     const dia = Number(a.slice(3));
     const mes = Number(a.slice(0, 2)) - 1;
-    return en ? `${dia} ${MESES_EN[mes] ?? ''}` : `${dia} de ${MESES[mes] ?? ''}`;
+    // Em inglês com o ordinal («5th Mar»): o Excel não o lê como data, como o «5 de mar».
+    const ordinal =
+      dia % 100 >= 11 && dia % 100 <= 13
+        ? 'th'
+        : (({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[dia % 10] ?? 'th');
+    return en ? `${dia}${ordinal} ${MESES_EN[mes] ?? ''}` : `${dia} de ${MESES[mes] ?? ''}`;
   };
   const linhas = [
     en
@@ -341,8 +348,8 @@ rotasDosClientes.get('/clientes.csv', async (c) => {
           'Email',
           'Code',
           'Haircuts',
-          'First',
-          'Last',
+          'First visit',
+          'Last visit',
           'Stamps',
           'Goal',
           'Rewards ready',

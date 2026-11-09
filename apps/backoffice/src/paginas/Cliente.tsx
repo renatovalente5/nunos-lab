@@ -287,8 +287,10 @@ export function Cliente({ id }: { id: string }) {
                           </span>
                         </div>
                         <div className="detalhe">
-                          {recompensaNaLingua(k.recompensa, lingua)} ·{' '}
-                          {t.cliente.cartoes.desde(diaDe(k.iniciadoEm, hoje, lingua))}
+                          {lingua === 'en' && k.recompensaEn
+                            ? k.recompensaEn
+                            : recompensaNaLingua(k.recompensa, lingua)}{' '}
+                          · {t.cliente.cartoes.desde(diaDe(k.iniciadoEm, hoje, lingua))}
                           {completo &&
                             ` · ${t.cliente.cartoes.completoA(diaDe(k.completoEm!, hoje, lingua))}`}
                           {usado &&

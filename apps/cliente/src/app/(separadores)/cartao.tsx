@@ -311,7 +311,10 @@ export default function Cartao() {
           {isError && (
             <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 20 }}>
               {dataUpdatedAt
-                ? t.cartao.semLigacaoDesde(quandoFoi(dataUpdatedAt, lingua))
+                ? t.cartao.semLigacaoDesde(
+                    quandoFoi(dataUpdatedAt, lingua),
+                    diaEmLisboa(dataUpdatedAt) === diaEmLisboa(),
+                  )
                 : t.cartao.semLigacao}
             </T>
           )}

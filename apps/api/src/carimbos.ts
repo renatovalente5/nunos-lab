@@ -48,6 +48,9 @@ export async function anularCarimbo(
   if (!quem.dono) {
     if (x.pessoa_id !== quem.pessoaId) recusar(403, 'de_outra_pessoa');
     if (x.criado_em < agora() - MINUTOS_PARA_ANULAR * 60) recusar(409, 'tarde_para_anular');
+    // O carimbo que completou o cartão (e entregou o prémio) só o dono anula: o barbeiro dava o
+    // corte grátis, anulava-o nos 10 minutos, e o cartão voltava a dar outro (revisão de 9 nov 2026).
+    if (x.completo_em && x.id === x.ultimo_id) recusar(403, 'premio_so_o_dono');
   }
   const instrucoes = [
     db

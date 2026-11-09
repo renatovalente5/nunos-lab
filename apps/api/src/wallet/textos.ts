@@ -51,7 +51,7 @@ const en: typeof pt = {
   porUsar: 'READY TO USE',
   ultimaVisita: 'Last visit',
   comoFunciona: 'How it works',
-  como: (objectivo, recompensa) => `One stamp per haircut. At ${objectivo} stamps, ${recompensa}.`,
+  como: (objectivo, recompensa) => `One stamp per haircut. ${objectivo} stamps: ${recompensa}.`,
   asCasas: 'Our barbershops',
   contacto: 'Contact',
   site: 'Website',

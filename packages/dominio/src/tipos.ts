@@ -512,6 +512,8 @@ export type FichaDoCliente = ClienteDoBackoffice & {
     numero: number;
     objectivo: number;
     recompensa: string;
+    /** O prémio em inglês (vazio nos cartões de antes do inglês: aí o português traduz-se pelas regras). */
+    recompensaEn: string;
     carimbos: number;
     iniciadoEm: number;
     completoEm: number | null;

@@ -9,7 +9,7 @@ export const pt = {
   apagarOsExemplos: {
     pergunta: 'Apagar os exemplos?',
     texto:
-      'Os parceiros de exemplo e as promoções deles saem da app e do backoffice. Não se desfaz.',
+      'Os parceiros de exemplo e as vantagens deles saem da app e do backoffice. Não se desfaz.',
     accao: 'Apagar os exemplos',
     feito: 'Exemplos apagados',
   },
@@ -17,7 +17,7 @@ export const pt = {
   filtros: {
     todos: 'Todos',
     app: 'Na app',
-    sem: 'Sem promoções',
+    sem: 'Sem vantagens',
     pausados: 'Pausados',
     exemplos: 'Exemplos',
   },
@@ -29,9 +29,9 @@ export const pt = {
   // Cada linha da lista.
   exemplo: 'Exemplo',
   pausado: 'Pausado',
-  promocoes: (n: number) => plural(n, 'promoção', 'promoções'),
+  promocoes: (n: number) => plural(n, 'vantagem', 'vantagens'),
   naApp: 'na app',
-  semPromocoes: 'Sem promoções',
+  semPromocoes: 'Sem vantagens',
 };
 
 export const en: typeof pt = {
@@ -42,7 +42,7 @@ export const en: typeof pt = {
   apagarOsExemplos: {
     pergunta: 'Delete the samples?',
     texto:
-      "The sample partners and their perks will be deleted from the app and the backoffice. This can't be undone.",
+      'The sample partners and their perks will be deleted from the app and the backoffice. This can’t be undone.',
     accao: 'Delete the samples',
     feito: 'Samples deleted',
   },

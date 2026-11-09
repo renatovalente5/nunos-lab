@@ -27,7 +27,7 @@ const SECCOES: {
   { caminho: '', nome: 'resumo', icone: 'resumo' },
   { caminho: 'clientes', nome: 'clientes', icone: 'clientes' },
   { caminho: 'parceiros', nome: 'parceiros', icone: 'parceiros' },
-  { caminho: 'promocoes', nome: 'promocoes', icone: 'promocoes' },
+  { caminho: 'vantagens', nome: 'promocoes', icone: 'promocoes' },
   { caminho: 'barbearia', nome: 'barbearia', icone: 'barbearia' },
   { caminho: 'equipa', nome: 'equipa', icone: 'equipa' },
   { caminho: 'historico', nome: 'historico', icone: 'registo' },
@@ -36,10 +36,11 @@ const SECCOES: {
 /**
  * Moradas antigas: «registo» era o nome do Histórico; Fidelidade, Acessos e Categorias passaram a
  * gavetas de outras páginas (8 nov), que as abrem logo quando se chega por aqui; o essencial das
- * Métricas ficou no Resumo.
+ * Métricas ficou no Resumo; «promocoes» passou a «vantagens» (o Renato, 9 nov: diz-se sempre «vantagem»).
  */
 const MORADAS_ANTIGAS: Record<string, string> = {
   registo: 'historico',
+  promocoes: 'vantagens',
   metricas: '',
   fidelidade: 'barbearia',
   acessos: 'equipa',
@@ -173,7 +174,7 @@ function Casca() {
   else if (actual === 'equipa') pagina = <Equipa />;
   else if (actual === 'parceiros' && rota[1]) pagina = <Parceiro key={rota[1]} id={rota[1]} />;
   else if (actual === 'parceiros') pagina = <Parceiros />;
-  else if (actual === 'promocoes') pagina = <Promocoes />;
+  else if (actual === 'vantagens') pagina = <Promocoes />;
   else if (actual === 'barbearia') pagina = <Barbearia />;
   else if (actual === 'historico') pagina = <Historico />;
   else pagina = <Resumo />;
