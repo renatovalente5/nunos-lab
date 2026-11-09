@@ -210,7 +210,8 @@ function topoDaEscala(maior: number): number {
 function GraficoDosCarimbos({ colunas, total }: { colunas: Coluna[]; total: number }) {
   const t = useTextos();
   const [activa, setActiva] = useState<number | null>(null);
-  const topo = topoDaEscala(Math.max(...colunas.map((c) => c.n)));
+  const maior = Math.max(...colunas.map((c) => c.n));
+  const topo = topoDaEscala(maior);
   const vista = activa === null ? null : colunas[activa]!;
   const tecla = (e: KeyboardEvent) => {
     const passo = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
@@ -237,9 +238,11 @@ function GraficoDosCarimbos({ colunas, total }: { colunas: Coluna[]; total: numb
         onBlur={() => setActiva(null)}
         onPointerLeave={() => setActiva(null)}
       >
-        <span className="topo" aria-hidden="true">
-          {numero(topo)}
-        </span>
+        {maior > 0 && (
+          <span className="topo" aria-hidden="true">
+            {numero(topo)}
+          </span>
+        )}
         <div
           className="colunas"
           style={{ gridTemplateColumns: `repeat(${colunas.length}, minmax(0, 1fr))` }}
@@ -409,12 +412,11 @@ export function Resumo() {
             <div className="nota">
               <Variacao actual={m.totais.carimbos} anterior={m.totais.carimbosAnterior} />
             </div>
-            {m.totais.carimbos > 0 && (
-              <GraficoDosCarimbos
-                colunas={colunasDoPeriodo(m, lingua, t.resumo.semanaDe)}
-                total={m.totais.carimbos}
-              />
-            )}
+            {/* Sempre, mesmo a zero: um período sem carimbos tem a mesma forma (o Renato, 9 nov). */}
+            <GraficoDosCarimbos
+              colunas={colunasDoPeriodo(m, lingua, t.resumo.semanaDe)}
+              total={m.totais.carimbos}
+            />
           </section>
 
           <div className="grelha duas">
@@ -440,33 +442,33 @@ export function Resumo() {
             />
           </div>
 
-          {(quem.length > 0 || porCasa.length > 0) && (
-            <div className={quem.length > 0 && porCasa.length > 0 ? 'grelha duas' : undefined}>
-              {quem.length > 0 && (
-                <section className="cartao lista-do-resumo" aria-labelledby="quem-carimbou">
-                  <h2 id="quem-carimbou">{t.resumo.quemCarimbou}</h2>
-                  <Ordem
-                    linhas={quem.map((p) => ({
-                      chave: p.id,
-                      nome: p.nome,
-                      pessoa: true,
-                      detalhe:
-                        [p.loja, p.recompensas > 0 && t.resumo.entregou(p.recompensas)]
-                          .filter(Boolean)
-                          .join(' · ') || undefined,
-                      n: p.n,
-                    }))}
-                  />
-                </section>
+          <div className={porCasa.length > 0 ? 'grelha duas' : undefined}>
+            <section className="cartao lista-do-resumo" aria-labelledby="quem-carimbou">
+              <h2 id="quem-carimbou">{t.resumo.quemCarimbou}</h2>
+              {quem.length > 0 ? (
+                <Ordem
+                  linhas={quem.map((p) => ({
+                    chave: p.id,
+                    nome: p.nome,
+                    pessoa: true,
+                    detalhe:
+                      [p.loja, p.recompensas > 0 && t.resumo.entregou(p.recompensas)]
+                        .filter(Boolean)
+                        .join(' · ') || undefined,
+                    n: p.n,
+                  }))}
+                />
+              ) : (
+                <p className="vazio-do-resumo">{t.resumo.ninguemCarimbou}</p>
               )}
-              {porCasa.length > 0 && (
-                <section className="cartao lista-do-resumo" aria-labelledby="por-casa">
-                  <h2 id="por-casa">{t.resumo.porCasa}</h2>
-                  <Ordem linhas={porCasa.map((l) => ({ chave: l.id, nome: l.nome, n: l.n }))} />
-                </section>
-              )}
-            </div>
-          )}
+            </section>
+            {porCasa.length > 0 && (
+              <section className="cartao lista-do-resumo" aria-labelledby="por-casa">
+                <h2 id="por-casa">{t.resumo.porCasa}</h2>
+                <Ordem linhas={porCasa.map((l) => ({ chave: l.id, nome: l.nome, n: l.n }))} />
+              </section>
+            )}
+          </div>
         </div>
       )}
     </>

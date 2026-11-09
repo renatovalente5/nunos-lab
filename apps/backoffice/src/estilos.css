@@ -2179,6 +2179,12 @@ details.gaveta[open] > summary > .resumo {
   color: var(--tinta-3);
   font-size: 12px;
 }
+.vazio-do-resumo {
+  margin: 0;
+  padding: 6px 20px 20px;
+  color: var(--tinta-3);
+  font-size: 14px;
+}
 .ordem {
   list-style: none;
   margin: 0;

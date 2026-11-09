@@ -20,6 +20,7 @@ export const pt = {
   porEntregar: (n: number) => `${n} por entregar`,
   clientesNovos: 'Clientes novos',
   quemCarimbou: 'Quem carimbou',
+  ninguemCarimbou: 'Ninguém carimbou neste período',
   entregou: (n: number) => `entregou ${n} ${n === 1 ? 'recompensa' : 'recompensas'}`,
   porCasa: 'Por barbearia',
   // O gráfico dos carimbos.
@@ -55,6 +56,7 @@ export const en: typeof pt = {
   porEntregar: (n) => `${n} to give out`,
   clientesNovos: 'New clients',
   quemCarimbou: 'Who stamped',
+  ninguemCarimbou: 'No one stamped in this period',
   entregou: (n) => `redeemed ${n} ${n === 1 ? 'reward' : 'rewards'}`,
   porCasa: 'By barbershop',
   carimbosN: (n, um) => `${n} ${um ? 'stamp' : 'stamps'}`,
