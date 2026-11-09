@@ -132,8 +132,8 @@ rotasDoConteudo.post('/parceiros', async (c) => {
       db
         .prepare(
           `INSERT INTO parceiros (nome, categoria_id, localidade, morada, telefone, instagram, site, horario, descricao,
-             horario_en, descricao_en, cor, logotipo_id, capa_id, activo, ordem)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM parceiros))
+             horario_en, descricao_en, cor, logotipo_id, logotipo_ajuste, capa_id, activo, ordem)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM parceiros))
            RETURNING id`,
         )
         .bind(
@@ -150,6 +150,7 @@ rotasDoConteudo.post('/parceiros', async (c) => {
           descricaoEn ?? '',
           p.cor,
           p.logotipo,
+          p.logotipoAjuste ?? null,
           p.capa,
           p.activo ? 1 : 0,
         ),

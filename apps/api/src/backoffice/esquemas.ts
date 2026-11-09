@@ -2,6 +2,8 @@ import { z } from 'zod';
 import {
   ICONES_DAS_CATEGORIAS,
   LIMITES,
+  LIMITES_DO_AJUSTE,
+  limitarAjuste,
   LIMITES_DOS_VALES,
   PERIODOS_DO_LIMITE,
   REDES,
@@ -51,6 +53,17 @@ export const Parceiro = z.object({
     .regex(/^#[0-9A-Fa-f]{6}$/)
     .transform((s) => s.toUpperCase()),
   logotipo: idDeImagem,
+  /** O fundo, o tamanho e o sítio do logótipo no círculo (0016): vai para a base em JSON. */
+  logotipoAjuste: z
+    .object({
+      fundo: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+      zoom: z.number().min(LIMITES_DO_AJUSTE.zoom.min).max(LIMITES_DO_AJUSTE.zoom.max),
+      x: z.number().min(-LIMITES_DO_AJUSTE.desvio).max(LIMITES_DO_AJUSTE.desvio),
+      y: z.number().min(-LIMITES_DO_AJUSTE.desvio).max(LIMITES_DO_AJUSTE.desvio),
+    })
+    .nullable()
+    .optional()
+    .transform((a) => (a ? JSON.stringify(limitarAjuste(a)) : a)),
   capa: idDeImagem,
   activo: z.boolean(),
 });
@@ -70,6 +83,7 @@ export const COLUNAS_DO_PARCEIRO = {
   descricaoEn: 'descricao_en',
   cor: 'cor',
   logotipo: 'logotipo_id',
+  logotipoAjuste: 'logotipo_ajuste',
   capa: 'capa_id',
   activo: 'activo',
 } as const satisfies Record<keyof z.output<typeof Parceiro>, string>;

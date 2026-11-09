@@ -1,6 +1,7 @@
 import {
   LIMITES,
   diaEmLisboa,
+  type AjusteDoLogotipo,
   type CategoriaComContagem,
   type Parceiro as ParceiroDoContrato,
   type ParceiroComPromocoes,
@@ -19,6 +20,7 @@ import {
   AreaDeTexto,
   Campo,
   CampoDeImagem,
+  CampoDoLogotipo,
   Cores,
   Esqueleto,
   Etiqueta,
@@ -60,6 +62,7 @@ type Formulario = {
   descricaoEn: string;
   cor: string;
   logotipo: string | null;
+  logotipoAjuste: AjusteDoLogotipo | null;
   capa: string | null;
   activo: boolean;
 };
@@ -78,6 +81,7 @@ const VAZIO: Formulario = {
   descricaoEn: '',
   cor: '#5C544C',
   logotipo: null,
+  logotipoAjuste: null,
   capa: null,
   activo: true,
 };
@@ -97,6 +101,7 @@ function doParceiro(p: ParceiroDoContrato): Formulario {
     descricaoEn: p.descricaoEn ?? '',
     cor: p.cor,
     logotipo: p.logotipo,
+    logotipoAjuste: p.logotipoAjuste ?? null,
     capa: p.capa,
     activo: p.activo,
   };
@@ -197,7 +202,7 @@ export function Parceiro({ id }: { id: string }) {
     } catch (e) {
       // Uma imagem escolhida há dias já saiu da base: volta-se a escolher só ela.
       if (e instanceof ErroDaApi && e.codigo === 'referencia' && (f.logotipo || f.capa)) {
-        setF((x) => (x ? { ...x, logotipo: null, capa: null } : x));
+        setF((x) => (x ? { ...x, logotipo: null, logotipoAjuste: null, capa: null } : x));
         setErros([f.logotipo && 'logotipo', f.capa && 'capa'].filter(Boolean) as string[]);
         avisar(t.parceiro.imagemCaducou, true);
         return;
@@ -314,11 +319,15 @@ export function Parceiro({ id }: { id: string }) {
             />
             <Cores valor={f.cor} mudar={mudar('cor')} />
             <div className="duas-colunas">
-              <CampoDeImagem
+              <CampoDoLogotipo
                 rotulo={t.parceiro.logotipo}
                 valor={f.logotipo}
-                mudar={mudar('logotipo')}
-                modo="logotipo"
+                ajuste={f.logotipoAjuste}
+                cor={f.cor}
+                mudar={(id, ajuste) => {
+                  mudar('logotipo')(id);
+                  mudar('logotipoAjuste')(ajuste);
+                }}
                 ajuda={t.parceiro.logotipoAjuda}
                 erro={erros.includes('logotipo')}
               />
@@ -539,7 +548,13 @@ export function Parceiro({ id }: { id: string }) {
                   border: '3px solid #0a0a0a',
                 }}
               >
-                <Logotipo nome={f.nome || '?'} cor={f.cor} logotipo={f.logotipo} tamanho={58} />
+                <Logotipo
+                  nome={f.nome || '?'}
+                  cor={f.cor}
+                  logotipo={f.logotipo}
+                  ajuste={f.logotipoAjuste}
+                  tamanho={58}
+                />
               </span>
               <div
                 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginTop: 6 }}

@@ -1,5 +1,5 @@
-import { BYTES_DA_IMAGEM } from '@nunos-lab/dominio';
-import { ErroDaApi, pedir } from './api';
+import { AJUSTE_DE_ORIGEM, BYTES_DA_IMAGEM, type AjusteDoLogotipo } from '@nunos-lab/dominio';
+import { API, ErroDaApi, pedir } from './api';
 
 /**
  * Reduz a imagem no próprio browser antes de a mandar: a fotografia de um
@@ -58,4 +58,53 @@ export async function carregarImagem(ficheiro: File, modo: 'logotipo' | 'capa'):
     binario: blob,
   });
   return id;
+}
+
+/**
+ * A cor do fundo de um logótipo: a das orlas da imagem, se forem opacas e de uma cor só (um
+ * logótipo quadrado de fundo verde, por exemplo). Transparentes ou de várias cores: null.
+ */
+export function corDasOrlas(imagem: ImageBitmap | HTMLImageElement): string | null {
+  const lado = 40;
+  const tela = document.createElement('canvas');
+  tela.width = lado;
+  tela.height = lado;
+  const ctx = tela.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(imagem, 0, 0, lado, lado);
+  const { data } = ctx.getImageData(0, 0, lado, lado);
+  const orla: number[][] = [];
+  for (let i = 0; i < lado; i++)
+    for (const [x, y] of [
+      [i, 0],
+      [i, lado - 1],
+      [0, i],
+      [lado - 1, i],
+    ] as const) {
+      const k = (y * lado + x) * 4;
+      if (data[k + 3]! < 230) return null;
+      orla.push([data[k]!, data[k + 1]!, data[k + 2]!]);
+    }
+  const media = [0, 1, 2].map((c) => orla.reduce((s, p) => s + p[c]!, 0) / orla.length);
+  const longe = orla.filter(
+    (p) => Math.hypot(p[0]! - media[0]!, p[1]! - media[1]!, p[2]! - media[2]!) > 40,
+  ).length;
+  if (longe > orla.length * 0.15) return null;
+  return `#${media.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`.toUpperCase();
+}
+
+/**
+ * Como pôr um logótipo novo no círculo: com fundo de uma cor só, essa cor no círculo e a imagem
+ * a 90 % (o que estiver dentro do círculo da imagem vê-se todo); transparente, o de sempre.
+ */
+export async function sugerirAjuste(ficheiro: File): Promise<AjusteDoLogotipo> {
+  const cor = corDasOrlas(await abrir(ficheiro));
+  return cor ? { fundo: cor, zoom: 0.9, x: 0, y: 0 } : AJUSTE_DE_ORIGEM;
+}
+
+/** A cor das orlas de um logótipo já guardado (a API deixa o backoffice lê-lo: CORS). */
+export async function corDoLogotipo(id: string): Promise<string | null> {
+  const r = await fetch(`${API}/api/imagens/${id}`);
+  if (!r.ok) return null;
+  return corDasOrlas(await createImageBitmap(await r.blob()));
 }

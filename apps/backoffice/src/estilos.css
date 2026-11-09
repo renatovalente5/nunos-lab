@@ -943,10 +943,42 @@ dialog.folha::backdrop {
   font-weight: 800;
   letter-spacing: -0.02em;
 }
+.logotipo {
+  position: relative;
+}
+/* A caixa do ajuste vem no estilo (as mesmas contas da app); sem ajuste, a 70 % e ao meio. */
 .logotipo img {
+  position: absolute;
   width: 70%;
   height: 70%;
+  left: 15%;
+  top: 15%;
   object-fit: contain;
+}
+
+/* O logótipo para acertar no círculo: arrasta-se, e a roda aproxima. */
+.ajuste-do-logotipo {
+  position: relative;
+  flex: none;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid var(--linha);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.ajuste-do-logotipo:active {
+  cursor: grabbing;
+}
+.ajuste-do-logotipo img {
+  position: absolute;
+  object-fit: contain;
+  pointer-events: none;
+}
+.fundo-do-logotipo {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 /* ——— pré-visualização (como na app) ——— */

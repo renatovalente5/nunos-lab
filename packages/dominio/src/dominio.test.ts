@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  AJUSTE_DE_ORIGEM,
+  caixaDoLogotipo,
+  lerAjusteDoLogotipo,
+  limitarAjuste,
   DESENHOS_DAS_CATEGORIAS,
   ICONES_DAS_APPS_ANTIGAS,
   ICONES_DAS_CATEGORIAS,
@@ -496,4 +500,36 @@ test('desenhos novos: as apps antigas recebem um que conhecem (9 nov)', () => {
     icone: 'cafe',
     desenho: 'cafe',
   });
+});
+
+test('ajuste do logótipo: limites, leitura da base e a caixa no círculo (9 nov)', () => {
+  // Sem ajuste: o de sempre, branco e a 70 % ao meio (arredondado: (1 − 0,7) / 2 não dá 0,15 exacto).
+  const redondo = (c: ReturnType<typeof caixaDoLogotipo>) =>
+    Object.fromEntries(
+      Object.entries(c).map(([k, v]) => [k, typeof v === 'number' ? Math.round(v * 1e6) / 1e6 : v]),
+    );
+  assert.deepEqual(redondo(caixaDoLogotipo(null)), {
+    fundo: '#FFFFFF',
+    lado: 0.7,
+    esquerda: 0.15,
+    topo: 0.15,
+  });
+  assert.deepEqual(redondo(caixaDoLogotipo({ fundo: '#0B3D2E', zoom: 1, x: 0.1, y: -0.2 })), {
+    fundo: '#0B3D2E',
+    lado: 1,
+    esquerda: 0.1,
+    topo: -0.2,
+  });
+  // Fora dos limites encosta; a cor fica em maiúsculas; o que não serve é null.
+  assert.deepEqual(limitarAjuste({ fundo: '#0b3d2e', zoom: 9, x: -5, y: 0.5 }), {
+    fundo: '#0B3D2E',
+    zoom: 3,
+    x: -1,
+    y: 0.5,
+  });
+  assert.equal(limitarAjuste({ fundo: 'verde', zoom: 1, x: 0, y: 0 }), null);
+  assert.equal(limitarAjuste({ fundo: '#FFFFFF', zoom: Number.NaN, x: 0, y: 0 }), null);
+  assert.deepEqual(lerAjusteDoLogotipo(JSON.stringify(AJUSTE_DE_ORIGEM)), AJUSTE_DE_ORIGEM);
+  assert.equal(lerAjusteDoLogotipo('{estragado'), null);
+  assert.equal(lerAjusteDoLogotipo(null), null);
 });

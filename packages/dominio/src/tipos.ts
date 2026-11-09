@@ -1,5 +1,6 @@
 import type { Rede } from './ligacoes.ts';
 import type { IconeDaCategoria } from './limites.ts';
+import type { AjusteDoLogotipo } from './logotipo.ts';
 import type { EstadoDaPromocao } from './promocoes.ts';
 import type { PeriodoDoLimite } from './vales.ts';
 
@@ -75,6 +76,8 @@ export type ParceiroPublico = ContactosDoParceiro & {
   cor: string;
   /** Identificadores de imagem: a app junta-lhes a morada da API. */
   logotipo: string | null;
+  /** O fundo, o tamanho e o sítio do logótipo no círculo (9 nov 2026); null: branco e a 70 %. */
+  logotipoAjuste: AjusteDoLogotipo | null;
   capa: string | null;
   /** Um parceiro inventado para a demonstração. */
   exemplo: boolean;
@@ -130,6 +133,7 @@ export type Parceiro = ContactosDoParceiro & {
   categoriaId: number | null;
   cor: string;
   logotipo: string | null;
+  logotipoAjuste: AjusteDoLogotipo | null;
   capa: string | null;
   exemplo: boolean;
   activo: boolean;

@@ -6,7 +6,7 @@ import type {
   PeriodoDoLimite,
   PromocaoPublica,
 } from '@nunos-lab/dominio';
-import { eIconeDaCategoria, naLingua, type Lingua } from '@nunos-lab/dominio';
+import { eIconeDaCategoria, lerAjusteDoLogotipo, naLingua, type Lingua } from '@nunos-lab/dominio';
 
 /** As linhas como vêm da base, e a passagem para o contrato da API. */
 
@@ -27,6 +27,8 @@ export type LinhaParceiro = {
   descricao_en: string;
   cor: string;
   logotipo_id: string | null;
+  /** JSON do ajuste do logótipo no círculo (0016); NULL: branco e a 70 %. */
+  logotipo_ajuste: string | null;
   capa_id: string | null;
   activo: number;
   exemplo: number;
@@ -127,6 +129,7 @@ export function parceiroBase(l: LinhaParceiro, lingua: Lingua = 'pt') {
     descricao: naLingua(lingua, l.descricao, l.descricao_en),
     cor: l.cor,
     logotipo: l.logotipo_id,
+    logotipoAjuste: lerAjusteDoLogotipo(l.logotipo_ajuste),
     capa: l.capa_id,
     exemplo: l.exemplo === 1,
   };

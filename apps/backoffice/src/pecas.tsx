@@ -1,13 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import {
+  AJUSTE_DE_ORIGEM,
   CORES_DOS_PARCEIROS,
   DESENHOS_DAS_CATEGORIAS,
   ICONES_DAS_CATEGORIAS,
+  caixaDoLogotipo,
   corParaBranco,
+  limitarAjuste,
   misturar,
   nomeDoDesenho,
   semPartir,
   validadeEmTexto,
+  type AjusteDoLogotipo,
   type CategoriaComContagem,
   type IconeDaCategoria,
 } from '@nunos-lab/dominio';
@@ -22,7 +26,7 @@ import {
   type ReactNode,
 } from 'react';
 import { API, mensagemDe, pedir } from './api';
-import { carregarImagem } from './imagens';
+import { carregarImagem, corDoLogotipo, sugerirAjuste } from './imagens';
 import { useLingua } from './lingua';
 import { textos, useTextos } from './textos';
 import { numero } from './util';
@@ -334,9 +338,7 @@ export function Contador({
           placeholder={vazio}
           inputMode="numeric"
           aria-invalid={erro || undefined}
-          onChange={(e) =>
-            mudar(e.target.value.replace(/\D/g, '').slice(0, String(maximo).length))
-          }
+          onChange={(e) => mudar(e.target.value.replace(/\D/g, '').slice(0, String(maximo).length))}
         />
         <button
           type="button"
@@ -873,15 +875,30 @@ export function urlDaImagem(id: string) {
   return `${API}/api/imagens/${id}`;
 }
 
+/** A imagem do logótipo na caixa do ajuste, em percentagem do círculo (as contas da app). */
+function estiloDoLogotipo(ajuste: AjusteDoLogotipo | null | undefined) {
+  const caixa = caixaDoLogotipo(ajuste);
+  const pc = (n: number) => `${n * 100}%`;
+  return {
+    width: pc(caixa.lado),
+    height: pc(caixa.lado),
+    left: pc(caixa.esquerda),
+    top: pc(caixa.topo),
+  };
+}
+
 export function Logotipo({
   nome,
   cor,
   logotipo,
+  ajuste,
   tamanho = 44,
 }: {
   nome: string;
   cor: string;
   logotipo: string | null;
+  /** O fundo, o tamanho e o sítio no círculo; sem ele, branco e a 70 %. */
+  ajuste?: AjusteDoLogotipo | null;
   tamanho?: number;
 }) {
   if (logotipo)
@@ -891,12 +908,12 @@ export function Logotipo({
         style={{
           width: tamanho,
           height: tamanho,
-          background: '#fff',
+          background: caixaDoLogotipo(ajuste).fundo,
           border: '1px solid var(--linha)',
         }}
         aria-hidden="true"
       >
-        <img src={urlDaImagem(logotipo)} alt="" />
+        <img src={urlDaImagem(logotipo)} alt="" style={estiloDoLogotipo(ajuste)} />
       </span>
     );
   return (
@@ -991,6 +1008,238 @@ export function CampoDeImagem({
 }
 
 /**
+ * O logótipo no círculo, para acertar como fica na app: arrastar muda-o de sítio, a roda (ou os
+ * dedos no trackpad, que chegam como roda com Ctrl) aproxima, e no teclado as setas e o + e o −.
+ */
+function EditorDoLogotipo({
+  id,
+  ajuste,
+  mudar,
+}: {
+  id: string;
+  ajuste: AjusteDoLogotipo;
+  mudar: (a: AjusteDoLogotipo) => void;
+}) {
+  const t = useTextos();
+  const lado = 112;
+  const idDasTeclas = useId();
+  const moldura = useRef<HTMLDivElement>(null);
+  const gesto = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
+  // Os tratadores lêem daqui o último ajuste e o último «mudar» (a roda é um ouvinte posto uma vez).
+  const ultimo = useRef(ajuste);
+  const mudarAgora = useRef(mudar);
+  useEffect(() => {
+    ultimo.current = ajuste;
+    mudarAgora.current = mudar;
+  }, [ajuste, mudar]);
+  const aplicar = (novo: Partial<AjusteDoLogotipo>) => {
+    const a = limitarAjuste({ ...ultimo.current, ...novo });
+    if (!a) return;
+    ultimo.current = a;
+    mudarAgora.current(a);
+  };
+  // A roda do React é passiva: para a página não rolar enquanto se aproxima, um ouvinte nativo.
+  useEffect(() => {
+    const el = moldura.current;
+    if (!el) return;
+    const roda = (e: WheelEvent) => {
+      e.preventDefault();
+      const a = ultimo.current;
+      const novo = limitarAjuste({
+        ...a,
+        zoom: a.zoom * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.002)),
+      });
+      if (!novo) return;
+      ultimo.current = novo;
+      mudarAgora.current(novo);
+    };
+    el.addEventListener('wheel', roda, { passive: false });
+    return () => el.removeEventListener('wheel', roda);
+  }, []);
+  return (
+    <div
+      ref={moldura}
+      className="ajuste-do-logotipo"
+      style={{ width: lado, height: lado, background: ajuste.fundo }}
+      tabIndex={0}
+      role="group"
+      aria-label={t.parceiro.ajustarLogotipo}
+      aria-describedby={idDasTeclas}
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        gesto.current = { px: e.clientX, py: e.clientY, x: ultimo.current.x, y: ultimo.current.y };
+      }}
+      onPointerMove={(e) => {
+        const g = gesto.current;
+        if (g) aplicar({ x: g.x + (e.clientX - g.px) / lado, y: g.y + (e.clientY - g.py) / lado });
+      }}
+      onPointerUp={() => (gesto.current = null)}
+      onPointerCancel={() => (gesto.current = null)}
+      onKeyDown={(e) => {
+        const a = ultimo.current;
+        const passo = e.shiftKey ? 0.1 : 0.02;
+        const teclas: Record<string, Partial<AjusteDoLogotipo>> = {
+          ArrowLeft: { x: a.x - passo },
+          ArrowRight: { x: a.x + passo },
+          ArrowUp: { y: a.y - passo },
+          ArrowDown: { y: a.y + passo },
+          '+': { zoom: a.zoom * 1.08 },
+          '=': { zoom: a.zoom * 1.08 },
+          '-': { zoom: a.zoom / 1.08 },
+        };
+        const novo = teclas[e.key];
+        if (!novo) return;
+        e.preventDefault();
+        aplicar(novo);
+      }}
+    >
+      <img src={urlDaImagem(id)} alt="" draggable={false} style={estiloDoLogotipo(ajuste)} />
+      <span id={idDasTeclas} className="so-leitor">
+        {t.parceiro.teclasDoLogotipo}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * O logótipo do parceiro: a imagem, acertada no círculo como fica na app, e a cor do fundo do
+ * círculo (o Renato, 9 nov: um logótipo quadrado de fundo verde ficava num círculo branco). A
+ * primeira cor é a das orlas do logótipo; uma imagem nova já vem com ela, se for de uma cor só.
+ */
+export function CampoDoLogotipo({
+  rotulo,
+  valor,
+  ajuste,
+  cor,
+  mudar,
+  ajuda,
+  erro,
+}: {
+  rotulo: string;
+  valor: string | null;
+  ajuste: AjusteDoLogotipo | null;
+  /** A cor do parceiro, que é uma das hipóteses para o fundo. */
+  cor: string;
+  mudar: (id: string | null, ajuste: AjusteDoLogotipo | null) => void;
+  ajuda: string;
+  erro?: boolean;
+}) {
+  const t = useTextos();
+  const entrada = useRef<HTMLInputElement>(null);
+  const idDoFundo = useId();
+  const avisar = useAvisar();
+  const [aCarregar, setACarregar] = useState(false);
+  const daImagem = useQuery({
+    queryKey: ['cor-do-logotipo', valor],
+    queryFn: () => (valor ? corDoLogotipo(valor) : null),
+    enabled: !!valor,
+    staleTime: Infinity,
+  });
+  const a = ajuste ?? AJUSTE_DE_ORIGEM;
+  const fundos = [
+    { cor: daImagem.data, nome: t.parceiro.fundos.logotipo },
+    { cor: '#FFFFFF', nome: t.parceiro.fundos.branco },
+    { cor: '#000000', nome: t.parceiro.fundos.preto },
+    { cor: corParaBranco(cor).toUpperCase(), nome: t.parceiro.fundos.parceiro },
+  ].filter(
+    (f, i, l): f is { cor: string; nome: string } =>
+      !!f.cor && l.findIndex((g) => g.cor === f.cor) === i,
+  );
+  return (
+    <div className={`campo${erro ? ' erro' : ''}`}>
+      <span className="rotulo-campo">{rotulo}</span>
+      <div className="imagem-campo">
+        {valor ? (
+          <EditorDoLogotipo id={valor} ajuste={a} mudar={(novo) => mudar(valor, novo)} />
+        ) : (
+          <div className="previa">
+            <span className="ajuda">—</span>
+          </div>
+        )}
+        <div className="botoes">
+          <button
+            type="button"
+            className="botao secundario pequeno"
+            disabled={aCarregar}
+            onClick={() => entrada.current?.click()}
+          >
+            {aCarregar
+              ? t.geral.imagem.aCarregar
+              : valor
+                ? t.geral.imagem.trocar
+                : t.geral.imagem.escolher}
+          </button>
+          {valor && (
+            <button
+              type="button"
+              className="botao secundario pequeno"
+              onClick={() => mudar(null, null)}
+            >
+              {t.geral.imagem.tirar}
+            </button>
+          )}
+        </div>
+        <input
+          ref={entrada}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={async (e) => {
+            const ficheiro = e.target.files?.[0];
+            e.target.value = '';
+            if (!ficheiro) return;
+            setACarregar(true);
+            try {
+              const [id, sugestao] = await Promise.all([
+                carregarImagem(ficheiro, 'logotipo'),
+                sugerirAjuste(ficheiro).catch(() => AJUSTE_DE_ORIGEM),
+              ]);
+              mudar(id, sugestao);
+            } catch (erro) {
+              avisar(mensagemDe(erro), true);
+            } finally {
+              setACarregar(false);
+            }
+          }}
+        />
+      </div>
+      {valor && (
+        <div className="fundo-do-logotipo">
+          <span className="rotulo-campo" id={idDoFundo}>
+            {t.parceiro.fundo}
+          </span>
+          <div className="cores" role="group" aria-labelledby={idDoFundo}>
+            {fundos.map((f) => (
+              <button
+                key={f.cor}
+                type="button"
+                className="cor"
+                style={{ background: f.cor }}
+                aria-pressed={a.fundo === f.cor}
+                aria-label={f.nome}
+                onClick={() => mudar(valor, { ...a, fundo: f.cor })}
+              />
+            ))}
+            <input
+              type="color"
+              className="cor-propria"
+              value={a.fundo.toLowerCase()}
+              aria-label={t.geral.outraCor}
+              onChange={(e) => mudar(valor, { ...a, fundo: e.target.value.toUpperCase() })}
+            />
+          </div>
+        </div>
+      )}
+      {erro ? (
+        <div className="mensagem-erro">{t.geral.reveEsteCampo}</div>
+      ) : (
+        <div className="ajuda">{ajuda}</div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Desenho de fundo de uma capa sem fotografia: a cor do parceiro a escurecer,
  * como na app (uma cor clara desce até o texto branco se ler).
  */
@@ -1010,7 +1259,13 @@ export function PrevisaoDaPromocao({
   hoje,
   limite = null,
 }: {
-  parceiro: { nome: string; cor: string; logotipo: string | null; capa: string | null } | null;
+  parceiro: {
+    nome: string;
+    cor: string;
+    logotipo: string | null;
+    logotipoAjuste?: AjusteDoLogotipo | null;
+    capa: string | null;
+  } | null;
   destaque: string;
   titulo: string;
   detalhe: string;
@@ -1032,7 +1287,13 @@ export function PrevisaoDaPromocao({
         {parceiro?.capa && <img className="fundo" src={urlDaImagem(parceiro.capa)} alt="" />}
         <div className="topo-capa">
           {parceiro && (
-            <Logotipo nome={parceiro.nome} cor={cor} logotipo={parceiro.logotipo} tamanho={30} />
+            <Logotipo
+              nome={parceiro.nome}
+              cor={cor}
+              logotipo={parceiro.logotipo}
+              ajuste={parceiro.logotipoAjuste}
+              tamanho={30}
+            />
           )}
           <span>{parceiro?.nome ?? t.geral.previsao.parceiro}</span>
         </div>

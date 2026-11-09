@@ -1,5 +1,5 @@
 import type { ParceiroPublico } from '@nunos-lab/dominio';
-import { corParaBranco } from '@nunos-lab/dominio';
+import { caixaDoLogotipo, corParaBranco } from '@nunos-lab/dominio';
 import { Image, Text, View } from 'react-native';
 import { urlDaImagem } from '../dados';
 import { cor, letra } from '@nunos-lab/ui';
@@ -15,16 +15,17 @@ export function iniciaisDe(nome: string): string {
 }
 
 /**
- * O logótipo do parceiro num círculo branco; sem logótipo, as iniciais a branco
- * sobre a cor dele (escurecida se for clara). Está sempre ao lado do nome, por
- * isso o leitor de ecrã salta-o.
+ * O logótipo do parceiro num círculo, com o fundo, o tamanho e o sítio que o Nuno acertou no
+ * backoffice (sem ajuste: branco e a 70 %); sem logótipo, as iniciais a branco sobre a cor dele
+ * (escurecida se for clara). Está sempre ao lado do nome, por isso o leitor de ecrã salta-o.
  */
 export function Logotipo({
   parceiro,
   tamanho = 48,
   anel = false,
 }: {
-  parceiro: Pick<ParceiroPublico, 'nome' | 'cor' | 'logotipo'>;
+  parceiro: Pick<ParceiroPublico, 'nome' | 'cor' | 'logotipo'> &
+    Partial<Pick<ParceiroPublico, 'logotipoAjuste'>>;
   tamanho?: number;
   anel?: boolean;
 }) {
@@ -39,16 +40,26 @@ export function Logotipo({
     borderWidth: borda,
     borderColor: cor.fundo,
   } as const;
-  if (parceiro.logotipo)
+  if (parceiro.logotipo) {
+    // Dentro do anel: as contas são do círculo de dentro (as posições contam do lado de dentro da borda).
+    const dentro = tamanho - 2 * borda;
+    const caixa = caixaDoLogotipo(parceiro.logotipoAjuste);
     return (
-      <View style={[base, { backgroundColor: '#FFFFFF' }]} aria-hidden>
+      <View style={[base, { backgroundColor: caixa.fundo }]} aria-hidden>
         <Image
           source={{ uri: urlDaImagem(parceiro.logotipo) }}
-          style={{ width: tamanho * 0.7, height: tamanho * 0.7 }}
+          style={{
+            position: 'absolute',
+            width: dentro * caixa.lado,
+            height: dentro * caixa.lado,
+            left: dentro * caixa.esquerda,
+            top: dentro * caixa.topo,
+          }}
           resizeMode="contain"
         />
       </View>
     );
+  }
   return (
     <View style={[base, { backgroundColor: corParaBranco(parceiro.cor) }]} aria-hidden>
       {/* O círculo tem tamanho fixo: com a letra grande do iPhone as iniciais saíam cortadas («T» de «TV»).

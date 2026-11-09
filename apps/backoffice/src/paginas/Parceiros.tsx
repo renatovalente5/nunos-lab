@@ -74,7 +74,7 @@ export function Parceiros() {
 
   const linha = (p: Parceiro) => (
     <a className="linha" href={`#/parceiros/${p.id}`}>
-      <Logotipo nome={p.nome} cor={p.cor} logotipo={p.logotipo} />
+      <Logotipo nome={p.nome} cor={p.cor} logotipo={p.logotipo} ajuste={p.logotipoAjuste} />
       <div className="meio">
         <div className="titulo-linha">{p.nome}</div>
         <div className="detalhe">
