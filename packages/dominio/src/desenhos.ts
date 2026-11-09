@@ -1,5 +1,10 @@
-import type { IconeDaCategoria } from './limites.ts';
+import {
+  ICONES_DAS_APPS_ANTIGAS,
+  PARECIDO_PARA_AS_APPS_ANTIGAS,
+  type IconeDaCategoria,
+} from './limites.ts';
 import type { Lingua } from './lingua.ts';
+import type { Categoria } from './tipos.ts';
 
 /**
  * Os desenhos das categorias: linha, 24×24, traço redondo. Os mesmos na app
@@ -39,6 +44,8 @@ export const DESENHOS_DAS_CATEGORIAS: Record<IconeDaCategoria, readonly string[]
   ],
   roupa: ['M9 3.5 4 6l1.6 4 2-.9V20h8.8V9.1l2 .9L20 6l-5-2.5a3 3 0 0 1-6 0z'],
   compras: ['M5 8h14l-1.2 12.1a1 1 0 0 1-1 .9H7.2a1 1 0 0 1-1-.9z', 'M9 10V6.5a3 3 0 0 1 6 0V10'],
+  // O diamante, para as ourivesarias (o Renato, 9 nov).
+  joias: ['M7 4h10l4 5-9 11.5L3 9z', 'M3 9h18', 'M10 4 8 9l4 11.5', 'M14 4l2 5-4 11.5'],
   casa: ['M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z'],
   animais: [
     'M12 12.5c-2.4 0-4.4 2.5-4.4 4.5 0 1.5 1.2 2.3 2.5 2.3.8 0 1.2-.4 1.9-.4s1.1.4 1.9.4c1.3 0 2.5-.8 2.5-2.3 0-2-2-4.5-4.4-4.5z',
@@ -71,6 +78,7 @@ export const NOMES_DOS_DESENHOS: Record<IconeDaCategoria, string> = {
   saude: 'Coração',
   roupa: 'Camisola',
   compras: 'Saco',
+  joias: 'Diamante',
   casa: 'Casa',
   animais: 'Pata',
   tecnologia: 'Telemóvel',
@@ -90,6 +98,7 @@ export const NOMES_DOS_DESENHOS_EN: Record<IconeDaCategoria, string> = {
   saude: 'Heart',
   roupa: 'T-shirt',
   compras: 'Bag',
+  joias: 'Diamond',
   casa: 'House',
   animais: 'Paw',
   tecnologia: 'Mobile phone',
@@ -97,6 +106,19 @@ export const NOMES_DOS_DESENHOS_EN: Record<IconeDaCategoria, string> = {
   lazer: 'Star',
   outro: 'Dots',
 };
+
+/**
+ * Uma categoria como vai para as apps: o `icone` é sempre um que as apps antigas conhecem (o mais
+ * parecido, ou «outro»), e o `desenho`, o verdadeiro, que as apps de agora lêem primeiro.
+ */
+export function categoriaParaAsApps(k: Categoria): Categoria {
+  const conhecido = ICONES_DAS_APPS_ANTIGAS.includes(k.icone);
+  return {
+    ...k,
+    icone: conhecido ? k.icone : (PARECIDO_PARA_AS_APPS_ANTIGAS[k.icone] ?? 'outro'),
+    desenho: k.icone,
+  };
+}
 
 export function nomeDoDesenho(icone: IconeDaCategoria, lingua: Lingua = 'pt'): string {
   return (lingua === 'en' ? NOMES_DOS_DESENHOS_EN : NOMES_DOS_DESENHOS)[icone];

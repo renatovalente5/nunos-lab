@@ -33,6 +33,7 @@ export const ICONES_DAS_CATEGORIAS = [
   'saude',
   'roupa',
   'compras',
+  'joias',
   'casa',
   'animais',
   'tecnologia',
@@ -45,6 +46,34 @@ export type IconeDaCategoria = (typeof ICONES_DAS_CATEGORIAS)[number];
 export function eIconeDaCategoria(valor: string): valor is IconeDaCategoria {
   return (ICONES_DAS_CATEGORIAS as readonly string[]).includes(valor);
 }
+
+/**
+ * Os desenhos que as apps instaladas até 9 nov 2026 conhecem: um que não conheçam rebenta o ecrã.
+ * A API dá-lhes o mais parecido (`PARECIDO_PARA_AS_APPS_ANTIGAS`) e o verdadeiro à parte.
+ */
+export const ICONES_DAS_APPS_ANTIGAS: readonly IconeDaCategoria[] = [
+  'comer',
+  'cafe',
+  'bebidas',
+  'carro',
+  'oficina',
+  'treino',
+  'beleza',
+  'saude',
+  'roupa',
+  'compras',
+  'casa',
+  'animais',
+  'tecnologia',
+  'educacao',
+  'lazer',
+  'outro',
+];
+
+/** O desenho de antes mais parecido com cada um que veio depois. */
+export const PARECIDO_PARA_AS_APPS_ANTIGAS: Partial<Record<IconeDaCategoria, IconeDaCategoria>> = {
+  joias: 'beleza',
+};
 
 /** A paleta proposta para a cor de um parceiro (aceita-se qualquer #RRGGBB). */
 export const CORES_DOS_PARCEIROS = [

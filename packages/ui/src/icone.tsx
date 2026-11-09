@@ -151,7 +151,8 @@ export function Icone({
       opacity={opacidade}
       aria-hidden
     >
-      {DESENHOS[nome].map((d) => (
+      {/* Um nome que esta versão não conhece desenha os pontos, em vez de rebentar o ecrã. */}
+      {(DESENHOS[nome] ?? DESENHOS.outro).map((d) => (
         <Path
           key={d}
           d={d}

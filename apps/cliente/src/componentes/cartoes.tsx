@@ -1,5 +1,6 @@
 import {
   degrauDoDesconto,
+  eIconeDaCategoria,
   limiteEmTexto,
   semPartir,
   validadeEmTexto,
@@ -27,7 +28,10 @@ import {
 } from '@nunos-lab/ui';
 
 export function iconeDe(parceiro: ParceiroPublico, categorias: Categoria[]): IconeDaCategoria {
-  return categorias.find((k) => k.id === parceiro.categoriaId)?.icone ?? 'outro';
+  const k = categorias.find((k) => k.id === parceiro.categoriaId);
+  // O desenho verdadeiro, se esta app o conhece; senão, o parecido que a API manda em `icone`.
+  if (k?.desenho && eIconeDaCategoria(k.desenho)) return k.desenho;
+  return k && eIconeDaCategoria(k.icone) ? k.icone : 'outro';
 }
 
 export function categoriaELocal(parceiro: ParceiroPublico, categorias: Categoria[]): string {

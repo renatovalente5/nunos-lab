@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  DESENHOS_DAS_CATEGORIAS,
+  ICONES_DAS_APPS_ANTIGAS,
+  ICONES_DAS_CATEGORIAS,
+  NOMES_DOS_DESENHOS,
+  NOMES_DOS_DESENHOS_EN,
+  PARECIDO_PARA_AS_APPS_ANTIGAS,
+  categoriaParaAsApps,
   contraste,
   corParaBranco,
   dataCurta,
@@ -400,9 +407,25 @@ test('o que falta fazer: só o que deixa a app a meio, pela ordem em que importa
       ...extra,
     }) as never;
   const pessoa = (parceiroId: number, sessoes: unknown[], extra: Record<string, unknown> = {}) =>
-    ({ nome: `Quem ${parceiroId}`, papel: 'parceiro', parceiroId, activo: true, sessoes, ...extra }) as never;
+    ({
+      nome: `Quem ${parceiroId}`,
+      papel: 'parceiro',
+      parceiroId,
+      activo: true,
+      sessoes,
+      ...extra,
+    }) as never;
   const promocao = (fim: string | null, extra: Record<string, unknown> = {}) =>
-    ({ id: 5, parceiroId: 1, parceiro: 'P1', destaque: '−10%', titulo: 'Na refeição', estado: 'activa', fim, ...extra }) as never;
+    ({
+      id: 5,
+      parceiroId: 1,
+      parceiro: 'P1',
+      destaque: '−10%',
+      titulo: 'Na refeição',
+      estado: 'activa',
+      fim,
+      ...extra,
+    }) as never;
   const hoje = '2026-11-09';
 
   const tudoBem = oQueFaltaFazer({
@@ -421,23 +444,56 @@ test('o que falta fazer: só o que deixa a app a meio, pela ordem em que importa
       parceiro(4, { exemplo: true }),
     ],
     equipa: [pessoa(1, []), pessoa(2, [{}], { activo: false })],
-    promocoes: [promocao('2026-11-10'), promocao('2026-11-30', { id: 6 }), promocao('2026-11-08', { id: 7 })],
+    promocoes: [
+      promocao('2026-11-10'),
+      promocao('2026-11-30', { id: 6 }),
+      promocao('2026-11-08', { id: 7 }),
+    ],
     hoje,
   });
   assert.deepEqual(
     lista.map((c) => c.tipo),
-    [
-      'sem_quem_valide',
-      'nao_entrou',
-      'fora_da_app',
-      'a_acabar',
-      'parceiro_incompleto',
-    ],
+    ['sem_quem_valide', 'nao_entrou', 'fora_da_app', 'a_acabar', 'parceiro_incompleto'],
   );
-  assert.equal(lista.find((c) => c.tipo === 'sem_quem_valide')?.parceiro, 'P2', 'quem está desligado não valida');
+  assert.equal(
+    lista.find((c) => c.tipo === 'sem_quem_valide')?.parceiro,
+    'P2',
+    'quem está desligado não valida',
+  );
   const aAcabar = lista.find((c) => c.tipo === 'a_acabar');
   assert.ok(aAcabar?.tipo === 'a_acabar' && aAcabar.dias === 1 && aAcabar.promocaoId === 5);
   const incompleto = lista.find((c) => c.tipo === 'parceiro_incompleto');
-  assert.deepEqual(incompleto?.tipo === 'parceiro_incompleto' && incompleto.falta, ['morada', 'logotipo']);
-  assert.ok(!lista.some((c) => 'parceiroId' in c && (c.parceiroId === 3 || c.parceiroId === 4)), 'desligados e exemplos não contam');
+  assert.deepEqual(incompleto?.tipo === 'parceiro_incompleto' && incompleto.falta, [
+    'morada',
+    'logotipo',
+  ]);
+  assert.ok(
+    !lista.some((c) => 'parceiroId' in c && (c.parceiroId === 3 || c.parceiroId === 4)),
+    'desligados e exemplos não contam',
+  );
+});
+
+test('desenhos novos: as apps antigas recebem um que conhecem (9 nov)', () => {
+  // Cada desenho tem traço e nome; o que as apps antigas não conhecem tem um parecido que conhecem.
+  for (const icone of ICONES_DAS_CATEGORIAS) {
+    assert.ok(DESENHOS_DAS_CATEGORIAS[icone]?.length, `${icone} sem desenho`);
+    assert.ok(NOMES_DOS_DESENHOS[icone] && NOMES_DOS_DESENHOS_EN[icone], `${icone} sem nome`);
+    if (ICONES_DAS_APPS_ANTIGAS.includes(icone)) continue;
+    const parecido = PARECIDO_PARA_AS_APPS_ANTIGAS[icone];
+    assert.ok(
+      parecido && ICONES_DAS_APPS_ANTIGAS.includes(parecido),
+      `${icone} sem parecido antigo`,
+    );
+  }
+  const base = { id: 7, nome: 'Joias', ordem: 3 };
+  assert.deepEqual(categoriaParaAsApps({ ...base, icone: 'joias' }), {
+    ...base,
+    icone: 'beleza',
+    desenho: 'joias',
+  });
+  assert.deepEqual(categoriaParaAsApps({ ...base, icone: 'cafe' }), {
+    ...base,
+    icone: 'cafe',
+    desenho: 'cafe',
+  });
 });

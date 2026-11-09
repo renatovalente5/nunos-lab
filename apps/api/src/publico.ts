@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import {
+  categoriaParaAsApps,
   naLingua,
   DIAS_DE_NOVO,
   TIPOS_DE_CONTAGEM,
@@ -94,7 +95,7 @@ rotasPublicas.get('/app', async (c) => {
     avisoAte: aviso && avisoAte ? avisoAte : null,
     categorias: (cats!.results as LinhaCategoria[])
       .filter((l) => usadas.has(l.id))
-      .map((l) => categoria(l, lingua)),
+      .map((l) => categoriaParaAsApps(categoria(l, lingua))),
     parceiros,
     // O cartão de quem ainda não entrou promete o programa de agora, e não o que a app traz de origem.
     programa: (({ objectivo, recompensa, recompensaEn }) => ({

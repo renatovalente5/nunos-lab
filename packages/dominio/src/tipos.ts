@@ -5,7 +5,15 @@ import type { PeriodoDoLimite } from './vales.ts';
 
 /** O contrato da API: o que a app e o backoffice recebem. A API acrescenta, nunca renomeia. */
 
-export type Categoria = { id: number; nome: string; icone: IconeDaCategoria; ordem: number };
+export type Categoria = {
+  id: number;
+  nome: string;
+  /** Para as apps, sempre um desenho que as antigas conhecem (ver `categoriaParaAsApps`). */
+  icone: IconeDaCategoria;
+  ordem: number;
+  /** O desenho verdadeiro, quando é novo de mais para as apps antigas (9 nov 2026). */
+  desenho?: IconeDaCategoria;
+};
 
 export type Loja = {
   id: number;
