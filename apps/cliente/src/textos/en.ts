@@ -38,7 +38,10 @@ export const en: Textos = {
     },
     mostraOCartao: 'Show your card when you pay',
     comOCartao: 'With a Nuno’s Lab card',
-    soClientes: 'Only for Nuno’s Lab clients',
+    bloqueada: {
+      nunca: 'Unlocks with your first cut',
+      expirou: 'Expired · back with your next cut',
+    },
   },
   cartao: {
     titulo: 'Card',
@@ -138,6 +141,8 @@ export const en: Textos = {
     siteDe: (nome) => `${nome} website`,
     aTuaVantagem: 'Your perk',
     asTuasVantagens: 'Your perks',
+    vantagem: 'Perk',
+    vantagens: 'Perks',
     morada: (morada) => `Address: ${morada}. Open in maps.`,
   },
   privacidade: {

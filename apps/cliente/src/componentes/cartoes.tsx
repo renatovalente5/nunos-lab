@@ -257,16 +257,19 @@ export function horaDe(unix: number): string {
  * Uma vantagem na página do parceiro. As condições longas abrem com um toque.
  * Diz que o cartão se mostra ao balcão (qualquer vantagem se valida ao ler o cartão,
  * se o parceiro quiser) — só quando o parceiro vai aceitar: senão, porque não (limite
- * gasto) — e, depois de validada hoje, a que horas foi. A quem não corta o cabelo há
- * mais de um ano, que é só para clientes do Nuno's Lab (o Renato, 9 nov); o porquê está
- * no aviso do topo das Vantagens.
+ * gasto) — e, depois de validada hoje, a que horas foi. A quem nunca cortou o cabelo, ou
+ * não corta há mais de um ano, aparece apagada e com o cadeado: como se desbloqueia (o
+ * Renato escolheu esta entre três, 9 nov).
  */
+/** Porque é que uma vantagem ainda não vale: nunca cortou, ou não corta há mais de um ano. */
+export type BloqueioDaVantagem = 'nunca' | 'expirou' | null;
+
 export function CartaoDaPromocao({
   promocao,
   hoje,
   aoAbrir,
   temCartao = false,
-  activo = true,
+  bloqueio = null,
   usadas = 0,
   usadaHoje = null,
 }: {
@@ -275,8 +278,8 @@ export function CartaoDaPromocao({
   aoAbrir?: () => void;
   /** Há conta com cartão neste aparelho. */
   temCartao?: boolean;
-  /** O cliente cortou o cabelo no último ano (as vantagens só para activos). */
-  activo?: boolean;
+  /** Sem corte no último ano a vantagem não vale: nunca cortou, ou o último foi há mais de um ano. */
+  bloqueio?: BloqueioDaVantagem;
   /** Quantas vezes este cliente a usou no período do limite. */
   usadas?: number;
   /** O instante em que o parceiro a validou hoje, se validou. */
@@ -285,68 +288,68 @@ export function CartaoDaPromocao({
   const t = useTextos();
   const lingua = useLingua();
   const [aberta, setAberta] = useState(false);
-  // Todas as vantagens são só para clientes activos.
-  const inactivo = !activo;
   const esgotada = promocao.limitePorCliente !== null && usadas >= promocao.limitePorCliente;
-  const usada = !inactivo && (esgotada || !!usadaHoje);
+  const usada = !bloqueio && (esgotada || !!usadaHoje);
   const validade = validadeEmTexto(promocao, hoje, lingua);
   const limite = limiteEmTexto(promocao, lingua);
   const longo = promocao.detalhe.length > 90;
   const conteudo = (
     <>
-      <View
-        style={{
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          columnGap: 12,
-          rowGap: 6,
-        }}
-      >
-        <T style={letraDoDesconto(promocao.destaque, ESCALA_DO_BILHETE, cor.texto)}>
-          {semPartir(promocao.destaque)}
+      <View style={bloqueio ? { opacity: 0.38 } : undefined}>
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            columnGap: 12,
+            rowGap: 6,
+          }}
+        >
+          <T style={letraDoDesconto(promocao.destaque, ESCALA_DO_BILHETE, cor.texto)}>
+            {semPartir(promocao.destaque)}
+          </T>
+          {(validade || limite) && (
+            <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+              {[validade, limite].filter(Boolean).map((texto) => (
+                <View
+                  key={texto}
+                  style={{
+                    backgroundColor: cor.superficieAlta,
+                    borderRadius: raio.pilula,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                  }}
+                >
+                  <T v="legenda">{texto}</T>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+        <T v="tituloCartao" style={{ marginTop: 4 }}>
+          {semPartir(promocao.titulo)}
         </T>
-        {(validade || limite) && (
-          <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
-            {[validade, limite].filter(Boolean).map((texto) => (
-              <View
-                key={texto}
-                style={{
-                  backgroundColor: cor.superficieAlta,
-                  borderRadius: raio.pilula,
-                  paddingHorizontal: 10,
-                  paddingVertical: 5,
-                }}
-              >
-                <T v="legenda">{texto}</T>
-              </View>
-            ))}
+        {!!promocao.detalhe && (
+          <T
+            v="corpo"
+            style={{ color: cor.texto2, marginTop: 6 }}
+            numberOfLines={aberta || !longo ? undefined : 2}
+          >
+            {semPartir(promocao.detalhe)}
+          </T>
+        )}
+        {longo && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
+            <T v="legenda" style={{ color: cor.texto3 }}>
+              {aberta ? t.promocao.menos : t.promocao.verTudo}
+            </T>
+            <View style={{ transform: [{ rotate: aberta ? '-90deg' : '90deg' }] }}>
+              <Icone nome="seguinte" tamanho={14} cor={cor.texto3} />
+            </View>
           </View>
         )}
       </View>
-      <T v="tituloCartao" style={{ marginTop: 4 }}>
-        {semPartir(promocao.titulo)}
-      </T>
-      {!!promocao.detalhe && (
-        <T
-          v="corpo"
-          style={{ color: cor.texto2, marginTop: 6 }}
-          numberOfLines={aberta || !longo ? undefined : 2}
-        >
-          {semPartir(promocao.detalhe)}
-        </T>
-      )}
-      {longo && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
-          <T v="legenda" style={{ color: cor.texto3 }}>
-            {aberta ? t.promocao.menos : t.promocao.verTudo}
-          </T>
-          <View style={{ transform: [{ rotate: aberta ? '-90deg' : '90deg' }] }}>
-            <Icone nome="seguinte" tamanho={14} cor={cor.texto3} />
-          </View>
-        </View>
-      )}
       <View
         style={{
           flexDirection: 'row',
@@ -359,14 +362,14 @@ export function CartaoDaPromocao({
         }}
       >
         <Icone
-          nome={usada ? 'certo' : 'cartao'}
+          nome={bloqueio ? 'cadeado' : usada ? 'certo' : 'cartao'}
           tamanho={16}
-          cor={usada ? cor.texto : cor.texto2}
+          cor={bloqueio || usada ? cor.texto : cor.texto2}
           espessura={2.2}
         />
-        <T v="legenda" style={{ color: usada ? cor.texto : cor.texto2 }}>
-          {inactivo
-            ? t.promocao.soClientes
+        <T v="legenda" style={{ color: bloqueio || usada ? cor.texto : cor.texto2 }}>
+          {bloqueio
+            ? t.promocao.bloqueada[bloqueio]
             : usadaHoje
               ? t.promocao.usadaHoje(horaDe(usadaHoje))
               : esgotada

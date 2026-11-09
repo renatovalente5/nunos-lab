@@ -35,7 +35,11 @@ export const pt = {
     } as Record<PeriodoDoLimite, string>,
     mostraOCartao: 'Mostra o cartão ao balcão',
     comOCartao: 'Com o cartão Nuno’s Lab',
-    soClientes: 'Só para clientes do Nuno’s Lab',
+    // A vantagem apagada, com o cadeado: a quem nunca cortou e a quem não corta há um ano (9 nov).
+    bloqueada: {
+      nunca: 'Desbloqueia com o teu primeiro corte',
+      expirou: 'Expirou · volta com o próximo corte',
+    },
   },
   cartao: {
     titulo: 'Cartão',
@@ -136,6 +140,8 @@ export const pt = {
     siteDe: (nome: string) => `Site de ${nome}`,
     aTuaVantagem: 'A tua vantagem',
     asTuasVantagens: 'As tuas vantagens',
+    vantagem: 'Vantagem',
+    vantagens: 'Vantagens',
     morada: (morada: string) => `Morada: ${morada}. Abrir no mapa.`,
   },
   privacidade: {

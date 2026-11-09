@@ -5,6 +5,10 @@ import Svg, { Path } from 'react-native-svg';
 const DESENHOS = {
   voltar: ['M15 5l-7 7 7 7'],
   seguinte: ['M9 5l7 7-7 7'],
+  cadeado: [
+    'M6 11h12a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z',
+    'M8 11V7a4 4 0 0 1 8 0v4',
+  ],
   mapa: [
     'M12 21s-7-6.1-7-11.4a7 7 0 0 1 14 0C19 14.9 12 21 12 21z',
     'M12 12a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8z',

@@ -10,7 +10,12 @@ import { useEffect, useState } from 'react';
 import { Platform, Pressable, View, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Capa } from '../../componentes/capa';
-import { CartaoDaPromocao, categoriaELocal, iconeDe } from '../../componentes/cartoes';
+import {
+  CartaoDaPromocao,
+  categoriaELocal,
+  iconeDe,
+  type BloqueioDaVantagem,
+} from '../../componentes/cartoes';
 import { Logotipo } from '../../componentes/logotipo';
 import { EscolherMapa } from '../../componentes/mapas';
 import { useEu, useTemSessao } from '../../conta';
@@ -77,6 +82,9 @@ export default function PaginaDoParceiro() {
   const { data: euGuardado } = useEu(aFrente);
   // Depois de um 401 a sessão vai-se, mas a consulta ainda tem o «eu» da conta que saiu.
   const eu = temSessao ? euGuardado : undefined;
+  // Sem corte no último ano as vantagens não valem: apagadas, com o cadeado (o Renato, 9 nov).
+  const bloqueio: BloqueioDaVantagem =
+    eu && !eu.activo ? (eu.cortes > 0 ? 'expirou' : 'nunca') : null;
   const margens = useSafeAreaInsets();
   const [aEscolherMapa, setAEscolherMapa] = useState(false);
   const parceiro = data?.parceiros.find((p) => String(p.id) === id);
@@ -224,8 +232,15 @@ export default function PaginaDoParceiro() {
         </View>
       )}
 
+      {/* Bloqueadas não são «tuas»: o título diz só «Vantagem». */}
       <Rotulo>
-        {p.promocoes.length === 1 ? t.parceiro.aTuaVantagem : t.parceiro.asTuasVantagens}
+        {p.promocoes.length === 1
+          ? bloqueio
+            ? t.parceiro.vantagem
+            : t.parceiro.aTuaVantagem
+          : bloqueio
+            ? t.parceiro.vantagens
+            : t.parceiro.asTuasVantagens}
       </Rotulo>
       {p.promocoes.map((pr) => {
         const vales = eu?.vales.filter((v) => v.promocaoId === pr.id) ?? [];
@@ -237,7 +252,7 @@ export default function PaginaDoParceiro() {
             hoje={data.hoje}
             aoAbrir={() => contar('promocao', pr.id)}
             temCartao={temSessao}
-            activo={eu?.activo ?? true}
+            bloqueio={bloqueio}
             usadas={vales.filter((v) => diaEmLisboa(v.quando * 1000) >= inicio).length}
             usadaHoje={
               vales.find((v) => diaEmLisboa(v.quando * 1000) === data.hoje)?.quando ?? null
