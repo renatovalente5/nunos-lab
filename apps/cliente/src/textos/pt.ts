@@ -144,7 +144,6 @@ export const pt = {
     asTuasVantagens: 'As tuas vantagens',
     vantagem: 'Vantagem',
     vantagens: 'Vantagens',
-    morada: (morada: string) => `Morada: ${morada}. Abrir no mapa.`,
   },
   privacidade: {
     titulo: 'Privacidade',

@@ -144,7 +144,6 @@ export const en: Textos = {
     asTuasVantagens: 'Your perks',
     vantagem: 'Perk',
     vantagens: 'Perks',
-    morada: (morada) => `Address: ${morada}. Open in maps.`,
   },
   privacidade: {
     titulo: 'Privacy',

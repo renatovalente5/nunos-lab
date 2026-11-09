@@ -33,7 +33,6 @@ import {
   raio,
   Rotulo,
   SemLigacao,
-  Separador,
   T,
 } from '@nunos-lab/ui';
 import { useTextos } from '../../textos';
@@ -143,7 +142,8 @@ export default function PaginaDoParceiro() {
     p.morada && {
       icone: 'mapa' as const,
       nome: t.mapa.ir,
-      rotulo: t.mapa.irA(p.nome),
+      // A morada só aparece na folha que o «Ir» abre: o leitor de ecrã ouve-a já aqui.
+      rotulo: `${t.mapa.irA(p.nome)}, ${p.morada}`,
       tipo: 'mapa' as const,
       // O «Ir» abre a folha para escolher o mapa: a contagem fica para quando se escolhe.
       url: '',
@@ -261,37 +261,15 @@ export default function PaginaDoParceiro() {
         );
       })}
 
-      {(!!p.horario || !!p.morada) && (
+      {/* A morada saiu daqui: o «Ir» lá em cima abre a folha com ela (o Renato, 9 nov). */}
+      {!!p.horario && (
         <Grupo style={{ marginTop: 20 }}>
-          {!!p.horario && (
-            <View style={{ flexDirection: 'row', gap: 14, padding: 16, alignItems: 'flex-start' }}>
-              <Icone nome="relogio" tamanho={20} cor={cor.texto2} />
-              <T v="corpo" style={{ flex: 1 }}>
-                {semPartir(p.horario)}
-              </T>
-            </View>
-          )}
-          {!!p.horario && !!p.morada && <Separador recuo={50} />}
-          {!!p.morada && (
-            <Pressable
-              onPress={() => setAEscolherMapa(true)}
-              role="link"
-              aria-label={t.parceiro.morada(p.morada)}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                gap: 14,
-                padding: 16,
-                alignItems: 'center',
-                backgroundColor: pressed ? cor.superficieAlta : 'transparent',
-              })}
-            >
-              <Icone nome="mapa" tamanho={20} cor={cor.texto2} />
-              <T v="corpo" style={{ flex: 1 }}>
-                {semPartir(p.morada)}
-              </T>
-              <Icone nome="seguinte" tamanho={18} cor={cor.texto3} />
-            </Pressable>
-          )}
+          <View style={{ flexDirection: 'row', gap: 14, padding: 16, alignItems: 'flex-start' }}>
+            <Icone nome="relogio" tamanho={20} cor={cor.texto2} />
+            <T v="corpo" style={{ flex: 1 }}>
+              {semPartir(p.horario)}
+            </T>
+          </View>
         </Grupo>
       )}
 
