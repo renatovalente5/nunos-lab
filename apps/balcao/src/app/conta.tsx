@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConfirmacao } from '../componentes/confirmar';
@@ -11,9 +12,10 @@ import {
   useCasa,
   useEu,
 } from '../sessao';
-import { LINGUAS, NOME_DA_LINGUA } from '@nunos-lab/dominio';
+import { NOME_DA_LINGUA } from '@nunos-lab/dominio';
 import {
   Ecra,
+  FolhaDaLingua,
   Grupo,
   Icone,
   MARGEM,
@@ -21,13 +23,12 @@ import {
   Rotulo,
   T,
   cor,
-  escolherLingua,
   useLingua,
   useTextosDaUi,
 } from '@nunos-lab/ui';
 import { useTextos } from '../textos';
 
-/** A casa em que este aparelho carimba, a língua, quem está a usar, e sair. */
+/** A barbearia em que este aparelho carimba, a linguagem, quem está a usar, e sair. */
 export default function Conta() {
   const t = useTextos();
   const ui = useTextosDaUi();
@@ -38,6 +39,7 @@ export default function Conta() {
   const podeMudar =
     !!eu && eu.lojas.length > 1 && !(eu.pessoa.papel === 'barbeiro' && eu.pessoa.lojaId);
   const [confirmar, folhaDeConfirmacao] = useConfirmacao();
+  const [aEscolherLingua, setAEscolherLingua] = useState(false);
   const sair = async () => {
     // Sair ao primeiro toque custava: quem entra por ligação precisa de outra, e os carimbos
     // guardados sem rede ficam presos até esta pessoa voltar a entrar aqui.
@@ -116,17 +118,30 @@ export default function Conta() {
         </>
       )}
 
-      <Rotulo>{ui.lingua}</Rotulo>
+      {/* A linguagem numa linha que abre a folha, como na app do cliente, em «Definições» (o Renato, 9 nov). */}
+      <Rotulo>{t.conta.definicoes}</Rotulo>
       <Grupo>
-        {LINGUAS.map((l, i) => (
-          <OpcaoDaFolha
-            key={l}
-            nome={NOME_DA_LINGUA[l]}
-            escolhida={l === lingua}
-            separador={i > 0}
-            onPress={() => escolherLingua(l)}
-          />
-        ))}
+        <Pressable
+          onPress={() => setAEscolherLingua(true)}
+          role="button"
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            minHeight: 54,
+            paddingHorizontal: 16,
+            backgroundColor: pressed ? cor.superficieAlta : 'transparent',
+          })}
+        >
+          <Icone nome="site" tamanho={20} cor={cor.texto2} espessura={2} />
+          <T v="forte" style={{ flex: 1 }}>
+            {ui.lingua}
+          </T>
+          <T v="legenda" style={{ color: cor.texto2 }}>
+            {NOME_DA_LINGUA[lingua]}
+          </T>
+          <Icone nome="seguinte" tamanho={16} cor={cor.texto3} espessura={2.2} />
+        </Pressable>
       </Grupo>
 
       <Rotulo>{t.conta.sessao}</Rotulo>
@@ -147,6 +162,7 @@ export default function Conta() {
           <T v="forte">{t.conta.sairDesteAparelho}</T>
         </Pressable>
       </Grupo>
+      <FolhaDaLingua aberta={aEscolherLingua} fechar={() => setAEscolherLingua(false)} />
       {folhaDeConfirmacao}
     </Ecra>
   );

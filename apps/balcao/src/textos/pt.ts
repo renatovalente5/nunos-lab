@@ -149,6 +149,7 @@ export const pt = {
     papel: { dono: 'Dono', barbeiro: 'Barbeiro', parceiro: 'Parceiro' },
     casaOndeCarimbo: 'Barbearia onde estou a carimbar',
     aMinhaCasa: 'A minha barbearia',
+    definicoes: 'Definições',
     sessao: 'Sessão',
     sairDesteAparelho: 'Sair deste aparelho',
     sairPergunta: 'Sair deste aparelho?',

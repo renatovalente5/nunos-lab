@@ -142,6 +142,7 @@ export const en: Textos = {
     papel: { dono: 'Owner', barbeiro: 'Barber', parceiro: 'Partner' },
     casaOndeCarimbo: 'Stamping at',
     aMinhaCasa: 'My barbershop',
+    definicoes: 'Settings',
     sessao: 'Session',
     sairDesteAparelho: 'Sign out of this device',
     sairPergunta: 'Sign out of this device?',
