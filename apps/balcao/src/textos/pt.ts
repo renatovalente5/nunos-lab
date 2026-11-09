@@ -31,12 +31,8 @@ export const pt = {
     aEnviar: (n: number) =>
       n === 1 ? '1 carimbo guardado, a enviar…' : `${n} carimbos guardados, a enviar…`,
     naoEntraram: 'Não entraram',
-    dispensar: 'Dispensar',
-    dispensarDe: (nome: string) => `Dispensar o carimbo de ${nome}`,
     repetido: 'repetido',
     semCarimbos: (dia: string) => `${dia} · ainda sem carimbos`,
-    anularOCarimbo: (nome: string, hora: string) =>
-      nome ? `Anular o carimbo de ${nome} das ${hora}?` : `Anular o carimbo das ${hora}?`,
   },
   parceiro: {
     parceiroDoNunosLab: 'Parceiro Nuno’s Lab',
@@ -76,6 +72,13 @@ export const pt = {
     premioEntregueHoje: (recompensa: string, hora: string, pessoa: string | null) =>
       `${recompensa || 'Prémio'} entregue hoje às ${hora}${pessoa ? ` por ${pessoa}` : ''}. Não leva carimbo.`,
     jaCarimbado: 'Já carimbado hoje.',
+    carimbadoAs: (hora: string, pessoa: string | null) =>
+      `Carimbado hoje às ${hora}${pessoa ? ` por ${pessoa}` : ''}`,
+    carimboAnulado: (hora: string) => `Carimbo das ${hora} anulado`,
+    anularCarimbo: 'Anular carimbo',
+    anularOCarimbo: (nome: string, hora: string) =>
+      nome ? `Anular o carimbo de ${nome} das ${hora}?` : `Anular o carimbo das ${hora}?`,
+    dispensar: 'Dispensar',
     entregar: (recompensa: string) => `Entregar: ${recompensa.toLowerCase()}`,
     recompensaEntregue: (recompensa: string | undefined) =>
       `${recompensa ?? 'Recompensa'} entregue`,

@@ -1,19 +1,11 @@
-import {
-  codigoCurto,
-  dataCurta,
-  diaEmLisboa,
-  type Lingua,
-  type UltimoCarimbo,
-} from '@nunos-lab/dominio';
+import { codigoCurto, dataCurta, diaEmLisboa, type Lingua } from '@nunos-lab/dominio';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
-import { useConfirmacao } from '../componentes/confirmar';
 import {
   APPLE_CLIENTE,
   ErroDaBalcao,
   GOOGLE_CLIENTE,
-  dispensarRecusa,
   guardarSessao,
   lerFila,
   lerRecusas,
@@ -329,28 +321,11 @@ function Hoje() {
   const lingua = useLingua();
   const { data: eu } = useEu();
   const casa = useCasa(eu);
-  const { data: hoje, refetch } = useHoje(casa, !!eu);
+  const { data: hoje } = useHoje(casa, !!eu);
   const fila = useFila();
   const recusasTexto = useRecusas();
   useDespejarFila(eu?.pessoa.id);
-  const [aviso, setAviso] = useState<string | null>(null);
-  const [confirmar, folhaDeConfirmacao] = useConfirmacao();
   const nomeDaCasa = eu?.lojas.find((l) => l.id === casa)?.nome ?? '';
-  const anular = async (u: UltimoCarimbo) => {
-    // Uma pastilha pequena, com pressa e uma mão: a pergunta antes custa menos do que o engano.
-    const sim = await confirmar({
-      titulo: t.inicio.anularOCarimbo(u.cliente || '', hora(u.quando)),
-      accao: t.geral.anular,
-    });
-    if (!sim) return;
-    setAviso(null);
-    try {
-      await pedir('/anular', { metodo: 'POST', corpo: { carimboId: u.id } });
-      await refetch();
-    } catch (e) {
-      setAviso(mensagemDe(e));
-    }
-  };
   // A fila é desta pessoa (os itens sem pessoa são da fila antiga); o primeiro erro guardado é o motivo.
   const itensNaFila = fila
     ? lerFila().filter((p) => p.pessoaId === undefined || p.pessoaId === eu?.pessoa.id)
@@ -473,15 +448,6 @@ function Hoje() {
           {motivo ? t.inicio.porEnviar(naFila, motivoCurto(motivo)) : t.inicio.aEnviar(naFila)}
         </T>
       )}
-      {aviso && (
-        <T
-          v="legenda"
-          role="alert"
-          style={{ color: '#E07A72', textAlign: 'center', marginTop: 16 }}
-        >
-          {aviso}
-        </T>
-      )}
 
       {recusas.length > 0 && (
         <>
@@ -490,12 +456,12 @@ function Hoje() {
             {recusas.map((r, i) => (
               <View key={r.chave}>
                 {i > 0 && <Separador />}
-                {/* Um toque abre a ficha: lá decide-se «Carimbar na mesma» ou deixar. */}
+                {/* Um toque abre a ficha, e é lá que se decide: «Carimbar na mesma» ou «Dispensar». */}
                 <Pressable
                   onPress={() =>
                     router.push({
                       pathname: '/ficha/[codigo]',
-                      params: { codigo: r.codigo, semLeitura: '1' },
+                      params: { codigo: r.codigo, semLeitura: '1', recusa: r.chave },
                     })
                   }
                   role="link"
@@ -516,20 +482,7 @@ function Hoje() {
                       {quandoCurto(r.quando, lingua)} · {motivoCurto(r.motivo)}
                     </T>
                   </View>
-                  <Pressable
-                    onPress={() => dispensarRecusa(r.chave)}
-                    role="button"
-                    aria-label={t.inicio.dispensarDe(r.nome || codigoCurto(r.codigo))}
-                    hitSlop={8}
-                    style={({ pressed }) => ({
-                      paddingHorizontal: 10,
-                      paddingVertical: 6,
-                      borderRadius: 999,
-                      backgroundColor: pressed ? cor.linha : cor.superficieAlta,
-                    })}
-                  >
-                    <T v="legenda">{t.inicio.dispensar}</T>
-                  </Pressable>
+                  <Icone nome="seguinte" tamanho={18} cor={cor.texto3} espessura={2.4} />
                 </Pressable>
               </View>
             ))}
@@ -541,72 +494,52 @@ function Hoje() {
         <>
           <Rotulo>{t.geral.hoje}</Rotulo>
           <Grupo>
-            {hoje.ultimos.map((u, i) => {
-              // Quem carimbou anula até ao instante que o servidor diz; o dono sempre.
-              const minhaEmTempo =
-                !!eu && u.pessoaId === eu.pessoa.id && Date.now() / 1000 < u.anulavelAte;
-              const podeAnular = minhaEmTempo || eu?.pessoa.papel === 'dono';
-              return (
-                <View key={u.id}>
-                  {i > 0 && <Separador />}
-                  <Pressable
-                    onPress={() =>
-                      router.push({
-                        pathname: '/ficha/[codigo]',
-                        params: { codigo: u.codigo, semLeitura: '1' },
-                      })
-                    }
-                    role="link"
-                    style={({ pressed }) => ({
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 12,
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
-                      backgroundColor: pressed ? cor.superficieAlta : 'transparent',
-                      opacity: u.anulado ? 0.5 : 1,
-                    })}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <T
-                        v="forte"
-                        numberOfLines={1}
-                        style={u.anulado ? { textDecorationLine: 'line-through' } : null}
-                      >
-                        {u.cliente || t.geral.semNome}
-                      </T>
-                      <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
-                        {[hora(u.quando), u.pessoa, u.repetido ? t.inicio.repetido : null]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </T>
-                    </View>
-                    {u.recompensa && (
-                      <Icone nome="presente" tamanho={18} cor={cor.texto2} espessura={2} />
-                    )}
-                    <T v="forte" style={{ color: cor.texto2 }}>
-                      {u.carimbos}/{u.objectivo}
+            {hoje.ultimos.map((u, i) => (
+              <View key={u.id}>
+                {i > 0 && <Separador />}
+                {/* Um toque abre a ficha deste carimbo, e é lá que se anula (o Renato, 9 nov). */}
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: '/ficha/[codigo]',
+                      params: { codigo: u.codigo, carimbo: String(u.id) },
+                    })
+                  }
+                  role="link"
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    backgroundColor: pressed ? cor.superficieAlta : 'transparent',
+                    opacity: u.anulado ? 0.5 : 1,
+                  })}
+                >
+                  <View style={{ flex: 1 }}>
+                    <T
+                      v="forte"
+                      numberOfLines={1}
+                      style={u.anulado ? { textDecorationLine: 'line-through' } : null}
+                    >
+                      {u.cliente || t.geral.semNome}
                     </T>
-                    {podeAnular && !u.anulado && (
-                      <Pressable
-                        onPress={() => anular(u)}
-                        role="button"
-                        aria-label={t.geral.anular}
-                        hitSlop={8}
-                        style={({ pressed }) => ({
-                          paddingHorizontal: 10,
-                          paddingVertical: 6,
-                          borderRadius: 999,
-                          backgroundColor: pressed ? cor.linha : cor.superficieAlta,
-                        })}
-                      >
-                        <T v="legenda">{t.geral.anular}</T>
-                      </Pressable>
-                    )}
-                  </Pressable>
-                </View>
-              );
-            })}
+                    <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
+                      {[hora(u.quando), u.pessoa, u.repetido ? t.inicio.repetido : null]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </T>
+                  </View>
+                  {u.recompensa && (
+                    <Icone nome="presente" tamanho={18} cor={cor.texto2} espessura={2} />
+                  )}
+                  <T v="forte" style={{ color: cor.texto2 }}>
+                    {u.carimbos}/{u.objectivo}
+                  </T>
+                  <Icone nome="seguinte" tamanho={18} cor={cor.texto3} espessura={2.4} />
+                </Pressable>
+              </View>
+            ))}
           </Grupo>
         </>
       )}
@@ -615,7 +548,6 @@ function Hoje() {
           {t.inicio.semCarimbos(dataCurta(hoje.dia, diaEmLisboa(), lingua))}
         </T>
       )}
-      {folhaDeConfirmacao}
     </Ecra>
   );
 }

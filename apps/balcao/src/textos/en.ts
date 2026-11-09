@@ -27,12 +27,8 @@ export const en: Textos = {
     porEnviar: (n, motivo) => `${n} ${n === 1 ? 'stamp' : 'stamps'} not sent · ${motivo}`,
     aEnviar: (n) => (n === 1 ? '1 stamp saved, sending…' : `${n} stamps saved, sending…`),
     naoEntraram: 'Stamps not added',
-    dispensar: 'Dismiss',
-    dispensarDe: (nome) => `Dismiss stamp for ${nome}`,
     repetido: 'extra',
     semCarimbos: (dia) => `${dia} · no stamps yet`,
-    anularOCarimbo: (nome, hora) =>
-      nome ? `Undo ${nome}’s stamp from ${hora}?` : `Undo the stamp from ${hora}?`,
   },
   parceiro: {
     parceiroDoNunosLab: 'Nuno’s Lab partner',
@@ -71,6 +67,12 @@ export const en: Textos = {
     premioEntregueHoje: (recompensa, hora, pessoa) =>
       `${recompensa || 'Reward'} redeemed today at ${hora}${pessoa ? ` by ${pessoa}` : ''}. This haircut doesn’t get a stamp.`,
     jaCarimbado: 'Already stamped today.',
+    carimbadoAs: (hora, pessoa) => `Stamped today at ${hora}${pessoa ? ` by ${pessoa}` : ''}`,
+    carimboAnulado: (hora) => `Stamp from ${hora} undone`,
+    anularCarimbo: 'Undo stamp',
+    anularOCarimbo: (nome, hora) =>
+      nome ? `Undo ${nome}’s stamp from ${hora}?` : `Undo the stamp from ${hora}?`,
+    dispensar: 'Dismiss',
     entregar: (recompensa) => `Redeem ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`,
     recompensaEntregue: (recompensa) => `${recompensa ?? 'Reward'} redeemed`,
     carimbarNaMesma: 'Stamp anyway',
