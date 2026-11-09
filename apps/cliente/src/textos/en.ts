@@ -38,6 +38,7 @@ export const en: Textos = {
     },
     mostraOCartao: 'Show your card when you pay',
     comOCartao: 'With a Nuno’s Lab card',
+    soClientes: 'Only for Nuno’s Lab clients',
   },
   cartao: {
     titulo: 'Card',

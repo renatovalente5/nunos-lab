@@ -35,6 +35,7 @@ export const pt = {
     } as Record<PeriodoDoLimite, string>,
     mostraOCartao: 'Mostra o cartão ao balcão',
     comOCartao: 'Com o cartão Nuno’s Lab',
+    soClientes: 'Só para clientes do Nuno’s Lab',
   },
   cartao: {
     titulo: 'Cartão',
