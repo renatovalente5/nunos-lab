@@ -161,7 +161,7 @@ export const pt = {
     semVisitas: 'sem visitas',
     ninguem: (q: string) => `Ninguém com «${q}».`,
   },
-  confirmar: { deixar: 'Deixar' },
+  confirmar: { cancelar: 'Cancelar' },
   naoEncontrado: { texto: 'Esta página não existe', irParaOInicio: 'Ir para o início' },
   erroDoEcra: { titulo: 'Algo correu mal', texto: 'A app não conseguiu abrir este ecrã.' },
   erros: {

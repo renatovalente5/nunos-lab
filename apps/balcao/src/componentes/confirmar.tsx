@@ -12,7 +12,7 @@ type Pergunta = {
 
 /**
  * Uma pergunta antes de um acto com custo («Anular o carimbo…?», «Sair deste
- * aparelho?»): a mesma folha que a app usa para escolher, com o «Deixar» e o
+ * aparelho?»): a mesma folha que a app usa para escolher, com o «Cancelar» e o
  * botão que faz. O Alert do React Native não existe na web; a folha sobe nas duas.
  */
 export function useConfirmacao(): [(p: Pergunta) => Promise<boolean>, ReactNode] {
@@ -40,7 +40,7 @@ export function useConfirmacao(): [(p: Pergunta) => Promise<boolean>, ReactNode]
     >
       <View style={{ paddingHorizontal: MARGEM, paddingTop: 10 }}>
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Botao nome={t.confirmar.deixar} secundario largo onPress={() => fechar(false)} />
+          <Botao nome={t.confirmar.cancelar} secundario largo onPress={() => fechar(false)} />
           <Botao nome={pergunta?.accao ?? ''} largo onPress={() => fechar(true)} />
         </View>
       </View>

@@ -155,7 +155,7 @@ export const en: Textos = {
     semVisitas: 'no visits',
     ninguem: (q) => `No one matching “${q}”.`,
   },
-  confirmar: { deixar: 'Cancel' },
+  confirmar: { cancelar: 'Cancel' },
   naoEncontrado: { texto: 'This page doesn’t exist', irParaOInicio: 'Back to home' },
   erroDoEcra: { titulo: 'Something went wrong', texto: 'The app couldn’t open this screen.' },
   erros: {
