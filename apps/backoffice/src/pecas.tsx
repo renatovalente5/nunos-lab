@@ -6,6 +6,7 @@ import {
   ICONES_DAS_CATEGORIAS,
   caixaDoLogotipo,
   corParaBranco,
+  eCor,
   limitarAjuste,
   misturar,
   nomeDoDesenho,
@@ -479,15 +480,44 @@ export function Cores({ valor, mudar }: { valor: string; mudar: (v: string) => v
             onClick={() => mudar(c)}
           />
         ))}
-        <input
-          type="color"
-          className="cor-propria"
-          value={valor}
-          aria-label={t.geral.outraCor}
-          onChange={(e) => mudar(e.target.value.toUpperCase())}
-        />
+        <OutraCor valor={valor} mudar={mudar} />
       </div>
     </div>
+  );
+}
+
+/**
+ * Outra cor, com o código sempre à vista (o Renato, 9 nov: «por default deve aparecer sempre o
+ * código Hex»): o círculo abre o selector do sistema, e o código escreve-se ou cola-se (#0A2020 ou
+ * 0a2020). Mostra a cor de agora, seja ela das de cima ou não; um código a meio não muda nada.
+ */
+export function OutraCor({ valor, mudar }: { valor: string; mudar: (v: string) => void }) {
+  const t = useTextos();
+  const [texto, setTexto] = useState(valor.toUpperCase());
+  useEffect(() => setTexto(valor.toUpperCase()), [valor]);
+  return (
+    <span className="outra-cor">
+      <input
+        type="color"
+        value={valor.toLowerCase()}
+        aria-label={t.geral.outraCor}
+        onChange={(e) => mudar(e.target.value.toUpperCase())}
+      />
+      <input
+        type="text"
+        value={texto}
+        maxLength={7}
+        spellCheck={false}
+        autoComplete="off"
+        aria-label={t.geral.codigoDaCor}
+        onChange={(e) => {
+          setTexto(e.target.value);
+          const hex = `#${e.target.value.trim().replace(/^#/, '')}`.toUpperCase();
+          if (eCor(hex)) mudar(hex);
+        }}
+        onBlur={() => setTexto(valor.toUpperCase())}
+      />
+    </span>
   );
 }
 
@@ -940,6 +970,7 @@ export function CampoDeImagem({
   modo,
   ajuda,
   erro,
+  semImagem,
 }: {
   rotulo: string;
   valor: string | null;
@@ -947,6 +978,8 @@ export function CampoDeImagem({
   modo: 'logotipo' | 'capa';
   ajuda: string;
   erro?: boolean;
+  /** O que fica na caixa sem imagem (a capa: a cor e o desenho, como na app); sem isto, um traço. */
+  semImagem?: ReactNode;
 }) {
   const t = useTextos();
   const entrada = useRef<HTMLInputElement>(null);
@@ -957,7 +990,11 @@ export function CampoDeImagem({
       <span className="rotulo-campo">{rotulo}</span>
       <div className="imagem-campo">
         <div className={`previa${modo === 'capa' ? ' capa' : ''}`}>
-          {valor ? <img src={urlDaImagem(valor)} alt="" /> : <span className="ajuda">—</span>}
+          {valor ? (
+            <img src={urlDaImagem(valor)} alt="" />
+          ) : (
+            (semImagem ?? <span className="ajuda">—</span>)
+          )}
         </div>
         <div className="botoes">
           <button
@@ -1217,13 +1254,7 @@ export function CampoDoLogotipo({
                 onClick={() => mudar(valor, { ...a, fundo: f.cor })}
               />
             ))}
-            <input
-              type="color"
-              className="cor-propria"
-              value={a.fundo.toLowerCase()}
-              aria-label={t.geral.outraCor}
-              onChange={(e) => mudar(valor, { ...a, fundo: e.target.value.toUpperCase() })}
-            />
+            <OutraCor valor={a.fundo} mudar={(fundo) => mudar(valor, { ...a, fundo })} />
           </div>
         </div>
       )}
@@ -1245,6 +1276,49 @@ export function fundoDaCapa(cor: string) {
   return `linear-gradient(135deg, ${base}, ${misturar(base, '#000000', 0.45)})`;
 }
 
+/**
+ * O desenho da categoria numa capa sem fotografia, como a `Capa` da app: em grande (95 % da
+ * altura), rodado e a sair pelo canto, branco a 13 %. Vai dentro da caixa com a cor, por baixo
+ * do véu (o Renato, 9 nov: «mesmo que não haja foto de capa, mostrar com a cor e o icon certo»).
+ */
+export function DesenhoDaCapa({ icone }: { icone: IconeDaCategoria }) {
+  return (
+    <span className="desenho-da-capa" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none">
+        {(DESENHOS_DAS_CATEGORIAS[icone] ?? DESENHOS_DAS_CATEGORIAS.outro).map((d) => (
+          <path
+            key={d}
+            d={d}
+            stroke="#FFFFFF"
+            strokeWidth={1.1}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ))}
+      </svg>
+    </span>
+  );
+}
+
+/** A capa de quem não tem fotografia, em pequeno (a caixa da «Fotografia de capa»). */
+export function CapaSemFotografia({ cor, icone }: { cor: string; icone: IconeDaCategoria }) {
+  return (
+    <span className="capa-sem-fotografia" style={{ background: fundoDaCapa(cor) }}>
+      <DesenhoDaCapa icone={icone} />
+    </span>
+  );
+}
+
+/** O desenho verdadeiro da categoria de um parceiro (o diamante das Joias); sem categoria, os pontos. */
+export function useDesenhoDaCategoria(categoriaId: number | null | undefined): IconeDaCategoria {
+  const categorias = useQuery({
+    queryKey: ['categorias'],
+    queryFn: () => pedir<CategoriaComContagem[]>('/api/bo/categorias'),
+  });
+  const k = categorias.data?.find((c) => c.id === categoriaId);
+  return k?.desenho ?? k?.icone ?? 'outro';
+}
+
 /** A promoção como fica no cartão grande da app (para ver antes de gravar). */
 export function PrevisaoDaPromocao({
   parceiro,
@@ -1262,6 +1336,7 @@ export function PrevisaoDaPromocao({
     logotipo: string | null;
     logotipoAjuste?: AjusteDoLogotipo | null;
     capa: string | null;
+    categoriaId?: number | null;
   } | null;
   destaque: string;
   titulo: string;
@@ -1269,7 +1344,6 @@ export function PrevisaoDaPromocao({
   inicio: string | null;
   fim: string | null;
   hoje: string;
-  icone?: IconeDaCategoria;
   /** O limite ao ler o cartão («1 por dia»), ao lado do «Mostra o cartão ao balcão». */
   limite?: string | null;
 }) {
@@ -1277,11 +1351,16 @@ export function PrevisaoDaPromocao({
   const lingua = useLingua();
   const validade = validadeEmTexto({ inicio, fim }, hoje, lingua);
   const cor = parceiro?.cor ?? '#5C544C';
+  const desenho = useDesenhoDaCategoria(parceiro?.categoriaId);
   return (
     <div className="previsao" aria-label={t.geral.previsao.rotulo}>
       <div className="rotulo-previsao">{t.geral.previsao.naApp}</div>
       <div className="capa-previsao" style={{ background: fundoDaCapa(cor) }}>
-        {parceiro?.capa && <img className="fundo" src={urlDaImagem(parceiro.capa)} alt="" />}
+        {parceiro?.capa ? (
+          <img className="fundo" src={urlDaImagem(parceiro.capa)} alt="" />
+        ) : (
+          parceiro && <DesenhoDaCapa icone={desenho} />
+        )}
         <div className="topo-capa">
           {parceiro && (
             <Logotipo

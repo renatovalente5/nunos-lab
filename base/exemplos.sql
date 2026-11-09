@@ -32,23 +32,23 @@ INSERT INTO definicoes (chave, valor) VALUES
   ('aviso', ''),
   ('aviso_ate', '');
 
-INSERT INTO parceiros (id, nome, categoria_id, localidade, morada, horario, descricao, cor, exemplo, ordem) VALUES
+INSERT INTO parceiros (id, nome, categoria_id, localidade, morada, horario_semana, descricao, cor, exemplo, ordem) VALUES
   (1, 'Tasca Velha do Cravo', 1, 'Nogueira do Cravo', 'Nogueira do Cravo, Oliveira de Azeméis',
-   'Seg a sáb · 12:00–15:00 · 19:00–22:30', 'Cozinha portuguesa, ao almoço e ao jantar.', '#B4532A', 1, 1),
+   '[{"dias":[1,2,3,4,5,6],"horas":[["12:00","15:00"],["19:00","22:30"]]}]', 'Cozinha portuguesa, ao almoço e ao jantar.', '#B4532A', 1, 1),
   (2, 'Azeméis Motor', 3, 'Oliveira de Azeméis', 'Oliveira de Azeméis',
-   'Seg a sex · 9:00–19:00 · Sáb · 9:00–13:00', 'Usados com garantia e oficina própria.', '#26303D', 1, 2),
+   '[{"dias":[1,2,3,4,5],"horas":[["09:00","19:00"]]},{"dias":[6],"horas":[["09:00","13:00"]]}]', 'Usados com garantia e oficina própria.', '#26303D', 1, 2),
   (3, 'Forno Lento', 1, 'Oliveira de Azeméis', 'Oliveira de Azeméis',
-   'Ter a dom · 19:00–23:00', 'Pizza de massa lenta, em forno a lenha.', '#9A6A12', 1, 3),
+   '[{"dias":[2,3,4,5,6,7],"horas":[["19:00","23:00"]]}]', 'Pizza de massa lenta, em forno a lenha.', '#9A6A12', 1, 3),
   (4, 'Ginásio Pulso', 4, 'Santa Maria da Feira', 'Santa Maria da Feira',
-   'Todos os dias · 7:00–22:00', 'Musculação, aulas de grupo e treino personalizado.', '#2456B8', 1, 4),
+   '[{"dias":[1,2,3,4,5,6,7],"horas":[["07:00","22:00"]]}]', 'Musculação, aulas de grupo e treino personalizado.', '#2456B8', 1, 4),
   (5, 'Café Grão Fino', 2, 'Nogueira do Cravo', 'Nogueira do Cravo, Oliveira de Azeméis',
-   'Todos os dias · 7:00–20:00', 'Café de especialidade e pastelaria da casa.', '#5C544C', 1, 5),
+   '[{"dias":[1,2,3,4,5,6,7],"horas":[["07:00","20:00"]]}]', 'Café de especialidade e pastelaria da casa.', '#5C544C', 1, 5),
   (6, 'Lavagem Onda Azul', 3, 'Aveiro', 'Aveiro',
-   'Seg a sáb · 8:30–19:30', 'Lavagem à mão, por dentro e por fora.', '#0F6E80', 1, 6),
+   '[{"dias":[1,2,3,4,5,6],"horas":[["08:30","19:30"]]}]', 'Lavagem à mão, por dentro e por fora.', '#0F6E80', 1, 6),
   (7, 'Ótica Lume', 5, 'Aveiro', 'Aveiro',
-   'Seg a sáb · 10:00–19:00', 'Exames de visão, óculos e lentes de contacto.', '#6D3FC0', 1, 7),
+   '[{"dias":[1,2,3,4,5,6],"horas":[["10:00","19:00"]]}]', 'Exames de visão, óculos e lentes de contacto.', '#6D3FC0', 1, 7),
   (8, 'Gelataria Neve Doce', 1, 'Santa Maria da Feira', 'Santa Maria da Feira',
-   'Todos os dias · 13:00–23:00', 'Gelado artesanal feito todos os dias.', '#9D2B6B', 1, 8);
+   '[{"dias":[1,2,3,4,5,6,7],"horas":[["13:00","23:00"]]}]', 'Gelado artesanal feito todos os dias.', '#9D2B6B', 1, 8);
 
 INSERT INTO promocoes (parceiro_id, destaque, titulo, detalhe, inicio, fim, em_destaque, activa, ordem) VALUES
   (1, '−10%', 'Na refeição', 'Ao almoço e ao jantar, de segunda a sexta. Não junta com outras promoções.', NULL, NULL, 1, 1, 1),

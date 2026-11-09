@@ -6,7 +6,14 @@ import type {
   PeriodoDoLimite,
   PromocaoPublica,
 } from '@nunos-lab/dominio';
-import { eIconeDaCategoria, lerAjusteDoLogotipo, naLingua, type Lingua } from '@nunos-lab/dominio';
+import {
+  eIconeDaCategoria,
+  lerAjusteDoLogotipo,
+  lerHorarioDaSemana,
+  naLingua,
+  textoDoHorario,
+  type Lingua,
+} from '@nunos-lab/dominio';
 
 /** As linhas como vêm da base, e a passagem para o contrato da API. */
 
@@ -21,8 +28,11 @@ export type LinhaParceiro = {
   telefone: string;
   instagram: string;
   site: string;
+  /** O texto livre de antes do horário por dias (vazio depois dele). */
   horario: string;
   horario_en: string;
+  /** JSON do horário por dias (0017); NULL: só o texto livre, ou nenhum. */
+  horario_semana: string | null;
   descricao: string;
   descricao_en: string;
   cor: string;
@@ -116,6 +126,7 @@ export function promocaoPublica(l: LinhaPromocao, lingua: Lingua = 'pt'): Promoc
 }
 
 export function parceiroBase(l: LinhaParceiro, lingua: Lingua = 'pt') {
+  const semana = lerHorarioDaSemana(l.horario_semana);
   return {
     id: l.id,
     nome: l.nome,
@@ -125,7 +136,10 @@ export function parceiroBase(l: LinhaParceiro, lingua: Lingua = 'pt') {
     telefone: l.telefone,
     instagram: l.instagram,
     site: l.site,
-    horario: naLingua(lingua, l.horario, l.horario_en),
+    // Com o horário por dias, o texto escreve-se dele na língua pedida (as apps instaladas antes de
+    // 9 nov mostram só este texto); sem ele, o texto livre de antes.
+    horario: semana ? textoDoHorario(semana, lingua) : naLingua(lingua, l.horario, l.horario_en),
+    horarioSemana: semana,
     descricao: naLingua(lingua, l.descricao, l.descricao_en),
     cor: l.cor,
     logotipo: l.logotipo_id,
@@ -140,6 +154,8 @@ export function parceiroDoBackoffice(
 ): Parceiro {
   return {
     ...parceiroBase(l),
+    // O texto livre de antes, tal como está: o formulário mostra-o enquanto não houver dias e horas.
+    horario: l.horario,
     horarioEn: l.horario_en,
     descricaoEn: l.descricao_en,
     activo: l.activo === 1,

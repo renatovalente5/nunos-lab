@@ -1,8 +1,10 @@
 import {
   LIMITES,
   diaEmLisboa,
+  eHorarioValido,
   type AjusteDoLogotipo,
   type CategoriaComContagem,
+  type HorarioDaSemana,
   type Parceiro as ParceiroDoContrato,
   type ParceiroComPromocoes,
   type Promocao,
@@ -20,8 +22,10 @@ import {
   AreaDeTexto,
   Campo,
   CampoDeImagem,
+  CapaSemFotografia,
   CampoDoLogotipo,
   Cores,
+  DesenhoDaCapa,
   Esqueleto,
   Etiqueta,
   fundoDaCapa,
@@ -38,6 +42,7 @@ import {
   Vazio,
 } from '../pecas';
 import { ListaArrastavel } from '../arrastar';
+import { CampoDoHorario } from '../horario';
 import { useLingua } from '../lingua';
 import { useTextos } from '../textos';
 import { ir, parametro, useAvisoAoSair } from '../util';
@@ -55,10 +60,10 @@ type Formulario = {
   telefone: string;
   instagram: string;
   site: string;
-  horario: string;
+  /** Por dias (9 nov): o texto escreve-se disto, nas duas línguas. */
+  horarioSemana: HorarioDaSemana | null;
   descricao: string;
   /** Em inglês: vazio, a app em inglês mostra o português. */
-  horarioEn: string;
   descricaoEn: string;
   cor: string;
   logotipo: string | null;
@@ -75,9 +80,8 @@ const VAZIO: Formulario = {
   telefone: '',
   instagram: '',
   site: '',
-  horario: '',
+  horarioSemana: null,
   descricao: '',
-  horarioEn: '',
   descricaoEn: '',
   cor: '#5C544C',
   logotipo: null,
@@ -95,9 +99,8 @@ function doParceiro(p: ParceiroDoContrato): Formulario {
     telefone: p.telefone,
     instagram: p.instagram,
     site: p.site,
-    horario: p.horario,
+    horarioSemana: p.horarioSemana ?? null,
     descricao: p.descricao,
-    horarioEn: p.horarioEn ?? '',
     descricaoEn: p.descricaoEn ?? '',
     cor: p.cor,
     logotipo: p.logotipo,
@@ -107,7 +110,7 @@ function doParceiro(p: ParceiroDoContrato): Formulario {
   };
 }
 
-const DOS_CONTACTOS = ['morada', 'telefone', 'instagram', 'site', 'horario'];
+const DOS_CONTACTOS = ['morada', 'telefone', 'instagram', 'site', 'horarioSemana'];
 
 export function Parceiro({ id }: { id: string }) {
   const t = useTextos();
@@ -171,6 +174,7 @@ export function Parceiro({ id }: { id: string }) {
       normalizarInstagram(f.instagram) === null && 'instagram',
       normalizarTelefone(f.telefone) === null && 'telefone',
       normalizarSite(f.site) === null && 'site',
+      f.horarioSemana !== null && !eHorarioValido(f.horarioSemana) && 'horarioSemana',
     ].filter((x): x is string => typeof x === 'string');
     if (errados.length) {
       setErros(errados);
@@ -236,11 +240,17 @@ export function Parceiro({ id }: { id: string }) {
       p.activa ? t.parceiro.promocaoDesligada : t.parceiro.promocaoLigada,
     );
   const categoria = categorias.data?.find((k) => k.id === f.categoriaId);
+  // O desenho da capa sem fotografia, o mesmo da app (sem categoria, os pontos).
+  const desenho = categoria?.desenho ?? categoria?.icone ?? 'outro';
   // O parceiro e a categoria, para a tradução escolher as palavras («Azeméis Motor — Carros»).
   const onde = categoria ? `${f.nome} — ${categoria.nome}` : f.nome;
   const primeira = promocoes.find((p) => p.estado === 'activa');
   // A pré-visualização na língua do backoffice: em inglês, os textos em inglês (ou o português).
   const naLinguaDoBackoffice = (pt: string, en: string | undefined) => naLingua(lingua, pt, en);
+  // O texto livre de um parceiro de antes de 9 nov, enquanto não se passar para dias e horas.
+  const horarioAntigo = dados.data?.parceiro.horarioSemana
+    ? ''
+    : (dados.data?.parceiro.horario ?? '');
 
   return (
     <>
@@ -338,6 +348,7 @@ export function Parceiro({ id }: { id: string }) {
                 modo="capa"
                 ajuda={t.parceiro.capaAjuda}
                 erro={erros.includes('capa')}
+                semImagem={<CapaSemFotografia cor={f.cor} icone={desenho} />}
               />
             </div>
             <Interruptor
@@ -358,7 +369,7 @@ export function Parceiro({ id }: { id: string }) {
                   f.telefone && t.parceiro.telefone,
                   f.instagram && 'Instagram',
                   f.site && t.parceiro.site,
-                  f.horario && t.parceiro.horario,
+                  (f.horarioSemana || horarioAntigo) && t.parceiro.horario,
                 ]
                   .filter(Boolean)
                   .join(' · ') || t.parceiro.porPreencher
@@ -403,22 +414,18 @@ export function Parceiro({ id }: { id: string }) {
                   erroTexto={t.parceiro.razoes.site}
                   placeholder={t.parceiro.siteExemplo}
                 />
-                <Campo
-                  rotulo={t.parceiro.horario}
-                  valor={f.horario}
-                  mudar={mudar('horario')}
-                  max={LIMITES.horario}
-                  placeholder={t.parceiro.horarioExemplo}
+                <CampoDoHorario
+                  valor={f.horarioSemana}
+                  mudar={mudar('horarioSemana')}
+                  antigo={horarioAntigo}
+                  erro={erros.includes('horarioSemana')}
                 />
               </div>
             </Gaveta>
 
             <GrupoEmIngles
               seccao
-              pares={[
-                { campo: 'descricao', pt: f.descricao, definir: mudar('descricaoEn'), onde },
-                { campo: 'horario', pt: f.horario, definir: mudar('horarioEn'), onde },
-              ]}
+              pares={[{ campo: 'descricao', pt: f.descricao, definir: mudar('descricaoEn'), onde }]}
             >
               <AreaDeTexto
                 rotulo={t.parceiro.descricao}
@@ -426,13 +433,6 @@ export function Parceiro({ id }: { id: string }) {
                 mudar={mudar('descricaoEn')}
                 max={LIMITES.descricao}
                 erro={erros.includes('descricaoEn')}
-              />
-              <Campo
-                rotulo={t.parceiro.horario}
-                valor={f.horarioEn}
-                mudar={mudar('horarioEn')}
-                max={LIMITES.horario}
-                placeholder={t.parceiro.horarioExemploEn}
               />
             </GrupoEmIngles>
 
@@ -536,9 +536,15 @@ export function Parceiro({ id }: { id: string }) {
             <div className="rotulo-previsao">{t.geral.previsao.naApp}</div>
             <div
               className="capa-previsao"
-              style={{ aspectRatio: '16 / 10', background: fundoDaCapa(f.cor) }}
+              // A proporção da capa na app (300 pt mais a barra de cima, na largura do iPhone): o
+              // desenho da categoria e as fotografias ficam do tamanho e com o corte de lá.
+              style={{ aspectRatio: '9 / 8', background: fundoDaCapa(f.cor) }}
             >
-              {f.capa && <img className="fundo" src={urlDaImagem(f.capa)} alt="" />}
+              {f.capa ? (
+                <img className="fundo" src={urlDaImagem(f.capa)} alt="" />
+              ) : (
+                <DesenhoDaCapa icone={desenho} />
+              )}
             </div>
             <div style={{ marginTop: -30, position: 'relative', paddingLeft: 6 }}>
               <span

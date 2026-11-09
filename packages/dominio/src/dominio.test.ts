@@ -133,7 +133,13 @@ test('o que se lê de uma vez não parte, e aplicar duas vezes dá o mesmo', () 
   assert.equal(semPartir('Sáb · 9:00–13:00'), `Sáb${N}· 9:00${J}–${J}13:00`);
   assert.equal(semPartir('−300 €'), `−300${N}€`);
   assert.equal(semPartir('9:00 - 19:00'), `9:00${J}-${J}19:00`);
-  for (const t of ['Seg a sex · 9:00–19:00 · Sáb · 9:00–13:00', '−300 €', 'Grátis'])
+  assert.equal(semPartir('9h–12h30 e 14h30–19h'), `9h${J}–${J}12h30 e 14h30${J}–${J}19h`);
+  for (const t of [
+    'Seg a sex · 9:00–19:00 · Sáb · 9:00–13:00',
+    '9h–12h30 e 14h30–19h',
+    '−300 €',
+    'Grátis',
+  ])
     assert.equal(semPartir(semPartir(t)), semPartir(t));
 });
 

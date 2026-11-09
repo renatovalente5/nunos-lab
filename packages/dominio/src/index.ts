@@ -10,6 +10,7 @@ export * from './ligacoes.ts';
 export * from './cores.ts';
 export * from './desenhos.ts';
 export * from './logotipo.ts';
+export * from './horario.ts';
 export * from './texto.ts';
 export * from './cartao.ts';
 export * from './fidelidade.ts';

@@ -589,6 +589,114 @@ select.entrada:disabled {
   cursor: default;
 }
 
+/* O horário do parceiro (9 nov): em cada grupo, os dias em botões e as horas, com a pausa. */
+.campo-do-horario {
+  gap: 10px;
+}
+.campo-do-horario > .botao {
+  align-self: flex-start;
+}
+.grupo-do-horario {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--linha);
+  border-radius: 14px;
+  background: var(--fundo);
+}
+.campo-do-horario.erro .grupo-do-horario {
+  border-color: var(--mau);
+}
+.dias-do-horario {
+  display: flex;
+  gap: 6px;
+}
+.dia-do-horario {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--linha-forte);
+  background: var(--superficie);
+  color: var(--tinta-2);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+/* No telemóvel os sete cabem numa linha, com a letra e o espaço um pouco mais pequenos. */
+@media (max-width: 400px) {
+  .dias-do-horario {
+    gap: 4px;
+  }
+  .dia-do-horario {
+    font-size: 13px;
+  }
+}
+.dia-do-horario:hover:not(:disabled) {
+  border-color: var(--tinta-3);
+}
+.dia-do-horario[aria-pressed='true'] {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: #fff;
+}
+/* Já está noutro grupo: vê-se que existe, mas não se escolhe aqui. */
+.dia-do-horario:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.horas-do-horario {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+.intervalo-do-horario,
+.depois-da-pausa {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tinta-3);
+}
+select.entrada.hora-do-horario {
+  width: auto;
+  min-width: 0;
+  padding-left: 13px;
+  padding-right: 34px;
+  background-position: right 10px center;
+  background-size: 16px 16px;
+  color: var(--tinta);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.e-do-horario {
+  color: var(--tinta-3);
+}
+.tirar-pausa {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--tinta-3);
+  cursor: pointer;
+}
+.tirar-pausa:hover {
+  background: var(--superficie-2);
+  color: var(--tinta);
+}
+.horas-do-horario .tirar-dias {
+  margin-left: auto;
+}
+.previsao-do-horario b {
+  color: var(--tinta);
+  white-space: pre-line;
+}
+
 .interruptor-linha {
   display: flex;
   align-items: center;
@@ -659,13 +767,55 @@ select.entrada:disabled {
   outline: 2px solid var(--tinta);
   outline-offset: 2px;
 }
-.cor-propria {
-  width: 44px;
-  height: 34px;
+/* Outra cor, com o código à vista: o círculo abre o selector do sistema, o código escreve-se. */
+.outra-cor {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px 0 3px;
   border: 1px solid var(--linha-forte);
-  border-radius: 10px;
+  border-radius: 999px;
+  background: var(--superficie);
+}
+.outra-cor:focus-within {
+  outline: 2px solid var(--foco);
+  outline-offset: 1px;
+}
+.outra-cor input[type='color'] {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
   background: none;
-  padding: 2px;
+  cursor: pointer;
+}
+.outra-cor input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.outra-cor input[type='color']::-webkit-color-swatch {
+  border: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.outra-cor input[type='color']::-moz-color-swatch {
+  border: 0;
+  border-radius: 50%;
+}
+.outra-cor input[type='text'] {
+  width: 8.5ch;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+/* O contorno é o da cápsula toda (o :focus-within de cima). */
+.outra-cor input:focus-visible {
+  outline: none;
 }
 
 .sugestoes {
@@ -717,6 +867,30 @@ select.entrada:disabled {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+.capa-sem-fotografia {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* O desenho da categoria numa capa sem fotografia, como na app: 95 % da altura, rodado 12°, a
+   sair pelo canto de baixo. As medidas são da altura da caixa, por isso ela é um contentor. */
+.desenho-da-capa {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  container-type: size;
+  pointer-events: none;
+}
+.desenho-da-capa svg {
+  position: absolute;
+  width: 95cqh;
+  height: 95cqh;
+  right: -12cqh;
+  bottom: -10cqh;
+  transform: rotate(-12deg);
+  opacity: 0.13;
 }
 
 /* ——— barra de gravar, presa em baixo ——— */

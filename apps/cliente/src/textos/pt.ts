@@ -144,6 +144,15 @@ export const pt = {
     asTuasVantagens: 'As tuas vantagens',
     vantagem: 'Vantagem',
     vantagens: 'Vantagens',
+    // O horário (9 nov): aberto ou fechado agora, pela hora de Lisboa.
+    aberto: 'Aberto',
+    fechaAs: (aHora: string) => `fecha ${aHora}`,
+    fechado: 'Fechado',
+    abreAs: (aHora: string) => `abre ${aHora}`,
+    abreAmanha: (aHora: string) => `abre amanhã ${aHora}`,
+    abreNoDia: (dia: string, aHora: string) => `abre ${dia} ${aHora}`,
+    feriado: 'Feriado',
+    podeEstarFechado: 'pode estar fechado',
   },
   privacidade: {
     titulo: 'Privacidade',

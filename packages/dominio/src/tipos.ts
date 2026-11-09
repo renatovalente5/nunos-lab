@@ -1,3 +1,4 @@
+import type { HorarioDaSemana } from './horario.ts';
 import type { Rede } from './ligacoes.ts';
 import type { IconeDaCategoria } from './limites.ts';
 import type { AjusteDoLogotipo } from './logotipo.ts';
@@ -60,7 +61,10 @@ export type ContactosDoParceiro = {
   telefone: string;
   instagram: string;
   site: string;
+  /** Com o horário por dias, o texto dele na língua pedida; sem ele, o texto livre de antes. */
   horario: string;
+  /** O horário por dias (9 nov 2026); null: só o texto livre de antes, ou nenhum. */
+  horarioSemana: HorarioDaSemana | null;
   descricao: string;
 };
 
@@ -127,7 +131,10 @@ export type TipoDeContagem = (typeof TIPOS_DE_CONTAGEM)[number];
 export type Parceiro = ContactosDoParceiro & {
   id: number;
   nome: string;
-  /** O horário e a descrição em inglês (vazio: a app em inglês mostra o português). */
+  /**
+   * A descrição e o horário de antes (o texto livre) em inglês (vazio: a app em inglês mostra o
+   * português). O horário por dias já vem nas duas línguas.
+   */
   horarioEn: string;
   descricaoEn: string;
   categoriaId: number | null;

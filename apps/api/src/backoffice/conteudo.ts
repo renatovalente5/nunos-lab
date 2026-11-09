@@ -123,6 +123,11 @@ rotasDoConteudo.post('/parceiros', async (c) => {
         .first<{ nome: string }>()
     : null;
   const onde = ondeDe({ nome: p.nome, categoria: categoria?.nome });
+  // Com o horário por dias, o texto escreve-se dele nas duas línguas: não há texto livre a guardar.
+  if (p.horarioSemana) {
+    p.horario = '';
+    p.horarioEn = '';
+  }
   const [horarioEn, descricaoEn] = await completarIngles(c.env.AI, [
     { campo: 'horario', pt: p.horario, en: p.horarioEn, onde },
     { campo: 'descricao', pt: p.descricao, en: p.descricaoEn, onde },
@@ -131,9 +136,9 @@ rotasDoConteudo.post('/parceiros', async (c) => {
     const [novo] = await db.batch([
       db
         .prepare(
-          `INSERT INTO parceiros (nome, categoria_id, localidade, morada, telefone, instagram, site, horario, descricao,
-             horario_en, descricao_en, cor, logotipo_id, logotipo_ajuste, capa_id, activo, ordem)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM parceiros))
+          `INSERT INTO parceiros (nome, categoria_id, localidade, morada, telefone, instagram, site, horario, horario_semana,
+             descricao, horario_en, descricao_en, cor, logotipo_id, logotipo_ajuste, capa_id, activo, ordem)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM parceiros))
            RETURNING id`,
         )
         .bind(
@@ -144,7 +149,8 @@ rotasDoConteudo.post('/parceiros', async (c) => {
           p.telefone,
           p.instagram,
           p.site,
-          p.horario,
+          p.horario ?? '',
+          p.horarioSemana ?? null,
           p.descricao,
           horarioEn ?? '',
           descricaoEn ?? '',
@@ -185,19 +191,30 @@ rotasDoConteudo.patch('/parceiros/:id', async (c) => {
   const db = c.env.DB;
   const antes = await db
     .prepare(
-      `SELECT pa.nome, pa.horario, pa.descricao, pa.horario_en, pa.descricao_en, ca.nome AS categoria
+      `SELECT pa.nome, pa.horario, pa.horario_semana, pa.descricao, pa.horario_en, pa.descricao_en,
+         ca.nome AS categoria
        FROM parceiros pa LEFT JOIN categorias ca ON ca.id = pa.categoria_id WHERE pa.id = ?`,
     )
     .bind(id)
     .first<{
       nome: string;
       horario: string;
+      horario_semana: string | null;
       descricao: string;
       horario_en: string;
       descricao_en: string;
       categoria: string | null;
     }>();
   if (!antes) recusar(404, 'nao_existe');
+  // O horário por dias põe de parte o texto livre de antes (o texto escreve-se dele, nas duas
+  // línguas); e tirá-lo tira o horário todo, sem voltar o texto antigo.
+  if (
+    dados.horarioSemana !== undefined &&
+    (dados.horarioSemana !== null || antes.horario_semana !== null)
+  ) {
+    dados.horario = '';
+    dados.horarioEn = '';
+  }
   // O inglês vazio, ou que ficou para trás de um português novo, traduz-se sozinho.
   const onde = ondeDe({ nome: dados.nome ?? antes.nome, categoria: antes.categoria });
   const [horarioEn, descricaoEn] = await completarIngles(c.env.AI, [

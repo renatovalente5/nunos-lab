@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import {
+  arrumarHorario,
+  eHorarioValido,
   ICONES_DAS_CATEGORIAS,
   LIMITES,
   LIMITES_DO_AJUSTE,
@@ -43,7 +45,19 @@ export const Parceiro = z.object({
   telefone: normalizado(LIMITES.telefone, normalizarTelefone),
   instagram: normalizado(200, normalizarInstagram),
   site: normalizado(LIMITES.site, normalizarSite),
-  horario: texto(LIMITES.horario),
+  /** O texto livre de antes do horário por dias: o backoffice de agora já não o manda. */
+  horario: texto(LIMITES.horario).optional(),
+  /**
+   * O horário por dias (0017): vai para a base em JSON, arrumado. Null, ou sem grupos, é sem
+   * horário; sem o campo, fica como está.
+   */
+  horarioSemana: z
+    .unknown()
+    .refine((v) => v == null || (Array.isArray(v) && !v.length) || eHorarioValido(v))
+    .transform((v) =>
+      v === undefined ? undefined : eHorarioValido(v) ? JSON.stringify(arrumarHorario(v)) : null,
+    )
+    .optional(),
   descricao: texto(LIMITES.descricao),
   /** Em inglês (vazio: a app em inglês mostra o português); sem eles, ficam como estão. */
   horarioEn: texto(LIMITES.horario).optional(),
@@ -78,6 +92,7 @@ export const COLUNAS_DO_PARCEIRO = {
   instagram: 'instagram',
   site: 'site',
   horario: 'horario',
+  horarioSemana: 'horario_semana',
   descricao: 'descricao',
   horarioEn: 'horario_en',
   descricaoEn: 'descricao_en',

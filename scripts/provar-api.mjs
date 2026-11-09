@@ -120,6 +120,10 @@ await passo('a app recebe os parceiros com promoções na app', async () => {
   );
   const gelataria = dados.parceiros.find((p) => p.nome === 'Gelataria Neve Doce');
   assert.equal(gelataria.promocoes.length, 1, 'a pausada não aparece');
+  // O horário por dias (9 nov 2026): o texto escreve-se dele.
+  const motor = dados.parceiros.find((p) => p.nome === 'Azeméis Motor');
+  assert.equal(motor.horario, 'Seg a sex · 9h–19h\nSáb · 9h–13h');
+  assert.equal(motor.horarioSemana.length, 2);
   assert.ok(dados.parceiros.every((p) => p.exemplo));
   assert.equal(dados.barbearia.lojas.length, 3);
   assert.ok(
@@ -289,6 +293,47 @@ await passo('criar um parceiro, com contactos arrumados', async () => {
   assert.equal(antigo.status, 200, 'a casa de um backoffice antigo ignora-se');
 });
 
+const SEMANA_DE_PROVA = [
+  {
+    dias: [1, 2, 3, 4, 5, 6],
+    horas: [
+      ['09:00', '12:30'],
+      ['14:30', '19:00'],
+    ],
+  },
+];
+await passo(
+  'o horário por dias põe de parte o texto livre, e tirá-lo não o traz de volta',
+  async () => {
+    const mudar = (corpo) =>
+      pedir(`/api/bo/parceiros/${parceiro}`, { method: 'PATCH', token, body: json(corpo) });
+    // Como um parceiro de antes de 9 nov: só o texto livre (com o inglês, para não ir à tradução).
+    const antes = await (
+      await mudar({ horario: 'Seg a sex 9-19', horarioEn: 'Mon to Fri 9-19' })
+    ).json();
+    assert.equal(antes.horario, 'Seg a sex 9-19');
+    assert.equal(antes.horarioSemana, null);
+    // Baralhado, como o pode mandar quem escolhe os dias por outra ordem: grava-se arrumado.
+    const r = await mudar({
+      horarioSemana: [{ dias: [6, 5, 4, 3, 2, 1], horas: [...SEMANA_DE_PROVA[0].horas].reverse() }],
+    });
+    assert.equal(r.status, 200);
+    const g = await r.json();
+    assert.deepEqual(g.horarioSemana, SEMANA_DE_PROVA);
+    assert.equal(g.horario, '', 'o texto livre sai');
+    assert.deepEqual(
+      daBaseLocal(`SELECT horario, horario_en FROM parceiros WHERE id = ${parceiro}`),
+      [{ horario: '', horario_en: '' }],
+    );
+    const mal = await mudar({ horarioSemana: [{ dias: [1], horas: [['09:00', '09:00']] }] });
+    assert.equal(mal.status, 400, 'abrir e fechar à mesma hora não serve');
+    const sem = await (await mudar({ horarioSemana: null })).json();
+    assert.equal(sem.horarioSemana, null);
+    assert.equal(sem.horario, '', 'o texto de antes não volta');
+    assert.equal((await mudar({ horarioSemana: SEMANA_DE_PROVA })).status, 200);
+  },
+);
+
 await passo('sem promoções, o parceiro não aparece na app', async () => {
   const d = await (await pedir('/api/app')).json();
   assert.ok(!d.parceiros.some((p) => p.id === parceiro));
@@ -332,6 +377,13 @@ await passo('com uma promoção, aparece; com datas trocadas, é recusada', asyn
   assert.ok(p, 'aparece');
   assert.equal(p.promocoes[0].destaque, '−15%');
   assert.equal(p.novo, true);
+  // O horário em texto para as apps instaladas antes de 9 nov, nas duas línguas, e por dias.
+  assert.equal(p.horario, 'Seg a sáb · 9h–12h30 e 14h30–19h');
+  assert.deepEqual(p.horarioSemana, SEMANA_DE_PROVA);
+  const en = (await (await pedir('/api/app?lingua=en')).json()).parceiros.find(
+    (x) => x.id === parceiro,
+  );
+  assert.equal(en.horario, 'Mon to Sat · 9:00–12:30 and 14:30–19:00');
 });
 
 await passo('pausar a promoção tira o parceiro da app', async () => {
@@ -1231,7 +1283,11 @@ await passo(
       'as apps de antes de 8 nov lêem validar e surpresa',
     );
     const promo = await (await pedir(`/api/bo/promocoes/${id}`, { token })).json();
-    assert.equal('cupoes' in promo || 'surpresaDias' in promo, false, 'o backoffice já não tem o saco');
+    assert.equal(
+      'cupoes' in promo || 'surpresaDias' in promo,
+      false,
+      'o backoffice já não tem o saco',
+    );
     // Sem ter ligado nada, o parceiro lê-a ao balcão; sem limite, valida as vezes que quiser.
     const ficha = await (
       await pedir(`/api/balcao/ficha-parceiro/${codigoDoCliente}`, { token: tokenParceiro })
@@ -1259,11 +1315,11 @@ await passo(
     assert.deepEqual(eu.cupoes, [], 'as apps de antes de 8 nov lêem a lista');
     const m = await (await pedir('/api/bo/metricas', { token })).json();
     assert.equal('cupoesSaidos' in m.parcerias, false);
-    assert.ok(m.parcerias.porPromocao.some((x) => x.id === id), 'conta nas parcerias');
-    assert.equal(
-      (await pedir(`/api/bo/promocoes/${id}`, { method: 'DELETE', token })).status,
-      204,
+    assert.ok(
+      m.parcerias.porPromocao.some((x) => x.id === id),
+      'conta nas parcerias',
     );
+    assert.equal((await pedir(`/api/bo/promocoes/${id}`, { method: 'DELETE', token })).status, 204);
   },
 );
 

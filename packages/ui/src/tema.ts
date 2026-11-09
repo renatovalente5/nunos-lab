@@ -17,6 +17,10 @@ export const cor = {
   claro: '#F4F1EC',
   /** O que não se desfaz (apagar a conta) e os erros: 5,3:1 sobre a superfície alta. */
   perigo: '#E07A72',
+  /** «Aberto» no horário de um parceiro (o verde do iOS escuro): 9,0:1 sobre os cartões. */
+  aberto: '#30D158',
+  /** «Feriado» no horário, que pode estar fechado (o laranja do iOS escuro): 8,8:1 sobre os cartões. */
+  atencao: '#FF9F0A',
   claroPremido: '#DDD9D2',
   sobreClaro: '#0A0A0A',
   /** Os botões redondos sobre uma capa (Voltar, Partilhar). */

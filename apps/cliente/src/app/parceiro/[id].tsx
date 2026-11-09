@@ -3,7 +3,6 @@ import {
   inicioDoPeriodo,
   ligacaoDoInstagram,
   ligacaoDoTelefone,
-  semPartir,
 } from '@nunos-lab/dominio';
 import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -16,6 +15,7 @@ import {
   iconeDe,
   type BloqueioDaVantagem,
 } from '../../componentes/cartoes';
+import { HorarioDoParceiro } from '../../componentes/horario';
 import { Logotipo } from '../../componentes/logotipo';
 import { EscolherMapa } from '../../componentes/mapas';
 import { useEu, useTemSessao } from '../../conta';
@@ -262,16 +262,7 @@ export default function PaginaDoParceiro() {
       })}
 
       {/* A morada saiu daqui: o «Ir» lá em cima abre a folha com ela (o Renato, 9 nov). */}
-      {!!p.horario && (
-        <Grupo style={{ marginTop: 20 }}>
-          <View style={{ flexDirection: 'row', gap: 14, padding: 16, alignItems: 'flex-start' }}>
-            <Icone nome="relogio" tamanho={20} cor={cor.texto2} />
-            <T v="corpo" style={{ flex: 1 }}>
-              {semPartir(p.horario)}
-            </T>
-          </View>
-        </Grupo>
-      )}
+      {!!p.horario && <HorarioDoParceiro texto={p.horario} semana={p.horarioSemana ?? null} />}
 
       <EscolherMapa
         destino={
