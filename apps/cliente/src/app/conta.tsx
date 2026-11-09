@@ -146,7 +146,7 @@ export default function Conta() {
   const conta = useConta();
   const [aviso, setAviso] = useState<string | null>(null);
   const [folha, setFolha] = useState<
-    'nome' | 'aniversario' | 'casa' | 'juntar' | 'apagar' | 'lingua' | null
+    'nome' | 'aniversario' | 'casa' | 'juntar' | 'apagar' | 'lingua' | 'sessoes' | null
   >(null);
   const [texto, setTexto] = useState('');
   const [erro, setErro] = useState<string | null>(null);
@@ -269,68 +269,14 @@ export default function Conta() {
         )}
       </Grupo>
 
-      {/* Os aparelhos com sessão, este em primeiro: cada outro sai sozinho (o Renato, 8 nov). */}
-      <Rotulo>{t.conta.sessoes}</Rotulo>
-      <Grupo>
-        {sessoes.map((x, i) => {
-          // A API chama «Aparelho» ao que não conhece («Aparelho · Chrome»): diz-se na língua da app.
-          const nome = (x.aparelho || 'Aparelho').replace(/^Aparelho\b/, t.conta.aparelhoSemNome);
-          const dia = diaEmLisboa(x.vistaEm * 1000);
-          return (
-            <View key={x.id}>
-              {i > 0 && <Separador recuo={48} />}
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 12,
-                  minHeight: 54,
-                  paddingHorizontal: 16,
-                }}
-              >
-                <Icone
-                  nome={NO_BROWSER.test(x.aparelho) ? 'site' : 'aparelho'}
-                  tamanho={20}
-                  cor={cor.texto2}
-                  espessura={2}
-                />
-                <View style={{ flex: 1 }}>
-                  <T v="forte" numberOfLines={1}>
-                    {nome}
-                  </T>
-                  <T v="legenda" style={{ color: cor.texto2 }} numberOfLines={1}>
-                    {x.actual
-                      ? t.conta.esteAparelho
-                      : t.conta.usado(diasEntre(dia, hoje), dataCurta(dia, hoje, lingua))}
-                  </T>
-                </View>
-                {!x.actual && !demonstracao && (
-                  <Pressable
-                    onPress={() => correr(() => conta.terminarSessao(x.id))}
-                    role="button"
-                    aria-label={t.conta.terminarSessao(nome)}
-                    hitSlop={8}
-                    style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-                  >
-                    <T v="legenda" style={{ color: cor.texto2 }}>
-                      {t.conta.terminar}
-                    </T>
-                  </Pressable>
-                )}
-              </View>
-            </View>
-          );
-        })}
-        {sessoes.length > 2 && !demonstracao && (
-          <>
-            <Separador recuo={48} />
-            <Linha
-              icone="fechar"
-              nome={t.conta.terminarAsOutras}
-              onPress={() => correr(() => conta.sairDasOutras())}
-            />
-          </>
-        )}
+      {/* As sessões numa folha (o Renato, 9 nov: «para não ocupar muito espaço»); «Sair» fica à mão. */}
+      <Grupo style={{ marginTop: 28 }}>
+        <Linha
+          icone="aparelho"
+          nome={t.conta.sessoes}
+          valor={String(sessoes.length)}
+          onPress={() => abrir('sessoes')}
+        />
         <Separador recuo={48} />
         <Linha
           icone="sair"
@@ -547,6 +493,79 @@ export default function Conta() {
             </T>
           )}
         </View>
+      </Folha>
+      {/* Os aparelhos com sessão, este em primeiro: cada outro sai sozinho (o Renato, 8 nov). */}
+      <Folha aberta={folha === 'sessoes'} fechar={() => setFolha(null)} titulo={t.conta.sessoes}>
+        <CartaoDaFolha role="list" aria-label={t.conta.sessoes}>
+          {sessoes.map((x, i) => {
+            // A API chama «Aparelho» ao que não conhece («Aparelho · Chrome»): diz-se na língua da app.
+            const nome = (x.aparelho || 'Aparelho').replace(/^Aparelho\b/, t.conta.aparelhoSemNome);
+            const dia = diaEmLisboa(x.vistaEm * 1000);
+            return (
+              <View key={x.id}>
+                {i > 0 && <Separador recuo={48} />}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    minHeight: 54,
+                    paddingHorizontal: 16,
+                  }}
+                >
+                  <Icone
+                    nome={NO_BROWSER.test(x.aparelho) ? 'site' : 'aparelho'}
+                    tamanho={20}
+                    cor={cor.texto2}
+                    espessura={2}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <T v="forte" numberOfLines={1}>
+                      {nome}
+                    </T>
+                    <T v="legenda" style={{ color: cor.texto2 }} numberOfLines={1}>
+                      {x.actual
+                        ? t.conta.esteAparelho
+                        : t.conta.usado(diasEntre(dia, hoje), dataCurta(dia, hoje, lingua))}
+                    </T>
+                  </View>
+                  {!x.actual && !demonstracao && (
+                    <Pressable
+                      onPress={() => correr(() => conta.terminarSessao(x.id))}
+                      role="button"
+                      aria-label={t.conta.terminarSessao(nome)}
+                      hitSlop={8}
+                      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+                    >
+                      <T v="legenda" style={{ color: cor.texto2 }}>
+                        {t.conta.terminar}
+                      </T>
+                    </Pressable>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+          {sessoes.length > 2 && !demonstracao && (
+            <>
+              <Separador recuo={48} />
+              <Linha
+                icone="fechar"
+                nome={t.conta.terminarAsOutras}
+                onPress={() => correr(() => conta.sairDasOutras())}
+              />
+            </>
+          )}
+        </CartaoDaFolha>
+        {erro && (
+          <T
+            v="legenda"
+            role="alert"
+            style={{ color: '#E07A72', marginTop: 12, paddingHorizontal: MARGEM }}
+          >
+            {erro}
+          </T>
+        )}
       </Folha>
       <FolhaDaLingua
         aberta={folha === 'lingua'}

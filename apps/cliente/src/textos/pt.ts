@@ -96,7 +96,7 @@ export const pt = {
     terminarAsOutras: 'Terminar as outras',
     sair: 'Sair',
     mais: 'Mais',
-    lingua: 'Língua',
+    lingua: 'Linguagem',
     privacidade: 'Privacidade',
     apagarAConta: 'Apagar a conta',
     oTeuNome: 'O teu nome',

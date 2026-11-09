@@ -23,7 +23,7 @@ export const pt = {
   },
   sair: 'Sair',
   entrasteComo: 'Entraste como',
-  lingua: 'Língua',
+  lingua: 'Linguagem',
   // Os campos, as folhas e as peças.
   reveEsteCampo: 'Revê este campo.',
   menos: 'Menos',

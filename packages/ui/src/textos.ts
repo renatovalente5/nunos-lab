@@ -16,7 +16,7 @@ const pt = {
   googleNaoAbriu: 'O Google não abriu. Tenta outra vez.',
   googleNaoAbriuNaWeb: 'O Google não abriu. Recarrega a página.',
   semServicosDoGoogle: 'Este telemóvel não tem os serviços do Google.',
-  lingua: 'Língua',
+  lingua: 'Linguagem',
 };
 
 const en: typeof pt = {
