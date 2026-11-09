@@ -24,9 +24,6 @@ export const en: Textos = {
     procurar: 'Search',
     clienteNovo: 'New client',
     resumo: 'Summary',
-    porEnviar: (n, motivo) => `${n} ${n === 1 ? 'stamp' : 'stamps'} not sent · ${motivo}`,
-    aEnviar: (n) => (n === 1 ? '1 stamp saved, sending…' : `${n} stamps saved, sending…`),
-    naoEntraram: 'Stamps not added',
     repetido: 'extra',
     semCarimbos: (dia) => `${dia} · no stamps yet`,
   },
@@ -44,9 +41,7 @@ export const en: Textos = {
     ontem: 'yesterday',
     haDias: (n) => `${n} days ago`,
     haSemanas: (n) => `${n} weeks ago`,
-    carimbarSemRede: 'Stamp offline',
     cartaoCompleto: 'Card complete',
-    semRedeGuardado: 'No connection. Saved to send later.',
     fazAnos: 'Birthday',
     clienteDesde: (ano, cortes, completos) =>
       `Client since ${ano} · ${cortes} ${cortes === 1 ? 'haircut' : 'haircuts'}${
@@ -55,7 +50,6 @@ export const en: Textos = {
           : ''
       }`,
     deObjectivo: (objectivo) => `of ${objectivo}`,
-    porEnviar: (n) => (n === 1 ? '1 stamp not sent yet' : `${n} stamps not sent yet`),
     ultimaVisita: (quando) => `Last visit ${quando}`,
     primeiraVisita: 'First visit',
     prendaDeAnos: (prenda) => `Birthday gift: ${prenda}`,
@@ -72,7 +66,6 @@ export const en: Textos = {
     anularCarimbo: 'Undo stamp',
     anularOCarimbo: (nome, hora) =>
       nome ? `Undo ${nome}’s stamp from ${hora}?` : `Undo the stamp from ${hora}?`,
-    dispensar: 'Dismiss',
     entregar: (recompensa) => `Redeem ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`,
     recompensaEntregue: (recompensa) => `${recompensa ?? 'Reward'} redeemed`,
     carimbarNaMesma: 'Stamp anyway',
@@ -148,8 +141,6 @@ export const en: Textos = {
     sessao: 'Session',
     sairDesteAparelho: 'Sign out of this device',
     sairPergunta: 'Sign out of this device?',
-    porEnviar: (n) =>
-      n === 1 ? '1 stamp hasn’t been sent yet.' : `${n} stamps haven’t been sent yet.`,
     sair: 'Sign out',
   },
   procurar: {

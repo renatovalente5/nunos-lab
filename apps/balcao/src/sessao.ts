@@ -38,8 +38,6 @@ const CHAVE_DA_SESSAO = 'nunoslab:balcao:sessao';
 const CHAVE_DO_EU = 'nunoslab:balcao:eu:1';
 const CHAVE_DA_CASA = 'nunoslab:balcao:casa';
 const CHAVE_DA_FILA = 'nunoslab:balcao:fila';
-const CHAVE_DAS_RECUSAS = 'nunoslab:balcao:recusas';
-const CHAVE_DAS_FICHAS = 'nunoslab:balcao:fichas:1';
 
 const ouvintes = new Set<() => void>();
 const avisar = () => {
@@ -48,15 +46,13 @@ const avisar = () => {
 const ler = (chave: string) => lerSincrono(chave);
 const escrever = (chave: string, valor: string | null) => guardarNoArmazem(chave, valor);
 
+// O carimbo sem rede saiu a 9 nov 2026 (o Renato: o cliente tem de ver o carimbo a aparecer na app
+// dele): as fichas guardadas para o mostrar, com nomes de clientes, e os «Não entraram» saem do aparelho.
+for (const antiga of ['nunoslab:balcao:fichas:1', 'nunoslab:balcao:recusas'])
+  escrever(antiga, null);
+
 /** As chaves que a app guarda no aparelho (o telemóvel carrega-as ao arrancar). */
-export const CHAVES_DO_ARMAZEM = [
-  CHAVE_DA_LINGUA,
-  CHAVE_DO_EU,
-  CHAVE_DA_CASA,
-  CHAVE_DA_FILA,
-  CHAVE_DAS_RECUSAS,
-  CHAVE_DAS_FICHAS,
-];
+export const CHAVES_DO_ARMAZEM = [CHAVE_DA_LINGUA, CHAVE_DO_EU, CHAVE_DA_CASA, CHAVE_DA_FILA];
 export const CHAVES_SECRETAS = [CHAVE_DA_SESSAO];
 
 export const sessao = () => ler(CHAVE_DA_SESSAO);
@@ -124,16 +120,14 @@ export const semRemedio = (e: unknown) =>
 /** A mensagem de um erro na língua de agora (mudar de língua muda também o erro à vista). */
 export const mensagemDe = (e: unknown) =>
   textoDoCodigo(e instanceof ErroDaBalcao ? e.codigo : 'interno');
-/** A primeira frase da mensagem («Sem ligação»), para caber numa linha ao lado de um número. */
-export const motivoCurto = (codigo: string) => textoDoCodigo(codigo).split('.')[0] ?? '';
 
 /** Com rede fraca o sistema só desiste ao fim de ~60 s; 8 s chegam para a API e deixam o balcão seguir. */
 const TEMPO_LIMITE = 8000;
 
 /**
  * Os pedidos que mudam alguma coisa (carimbar, despejar a fila, um cliente novo) ainda sem
- * resposta. Uma actualização da app não reinicia a meio deles: o carimbo só vai para a fila
- * quando o pedido falha, e um reinício a meio perdia-o sem aviso.
+ * resposta. Uma actualização da app não reinicia a meio deles: o barbeiro ficava sem saber se o
+ * carimbo entrou.
  */
 let escritasEmCurso = 0;
 export const haEscritaEmCurso = () => escritasEmCurso > 0;
@@ -251,11 +245,7 @@ export function useResumo(
 export const useFicha = (codigo: string) =>
   useQuery({
     queryKey: ['balcao', 'ficha', codigo],
-    queryFn: async () => {
-      const ficha = await pedir<FichaDoBalcao>(`/ficha/${encodeURIComponent(codigo)}`);
-      guardarFichaVista(ficha);
-      return ficha;
-    },
+    queryFn: () => pedir<FichaDoBalcao>(`/ficha/${encodeURIComponent(codigo)}`),
     networkMode: 'always',
     staleTime: 0,
     retry: (n, e) => !(e instanceof ErroDaBalcao && e.codigo === 'cartao_desconhecido') && n < 1,
@@ -284,11 +274,8 @@ export const useFichaParceiro = (codigo: string) =>
     retry: (n, e) => !(e instanceof ErroDaBalcao && e.codigo === 'cartao_desconhecido') && n < 1,
   });
 
-export const validar = (corpo: {
-  codigo: string;
-  promocaoId: number;
-  chave: string;
-}) => pedir<{ vale: Vale; ficha: FichaDoParceiro }>('/validar', { metodo: 'POST', corpo });
+export const validar = (corpo: { codigo: string; promocaoId: number; chave: string }) =>
+  pedir<{ vale: Vale; ficha: FichaDoParceiro }>('/validar', { metodo: 'POST', corpo });
 
 /** Entregar a prenda de anos: a API devolve a ficha já com a prenda marcada como entregue. */
 export const entregarPrenda = (corpo: { codigo: string; lojaId: number }) =>
@@ -299,7 +286,11 @@ export function chaveNova(): string {
   return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
 }
 
-// ——— a fila sem rede ———
+// ——— o que ficou na fila sem rede ———
+
+// Até 9 nov 2026 carimbava-se sem rede, para uma fila que seguia quando a rede voltasse. Já não:
+// sem rede o carimbo não sai, para o cliente o ver a aparecer. Esta fila só envia o que ainda
+// estiver guardado num telemóvel desde então.
 
 export type CarimboNaFila = {
   codigo: string;
@@ -310,8 +301,6 @@ export type CarimboNaFila = {
   /** Quem deu o carimbo: a fila é da pessoa, só ela a despeja (sem id: a fila antiga, vai sempre). */
   pessoaId?: number;
   quando: number;
-  /** O código da última recusa que não foi definitiva: o início mostra o motivo. */
-  erro?: string;
 };
 export const lerFila = (): CarimboNaFila[] => {
   try {
@@ -324,7 +313,7 @@ const guardarFila = (fila: CarimboNaFila[]) => {
   escrever(CHAVE_DA_FILA, fila.length ? JSON.stringify(fila) : null);
   avisar();
 };
-export const useFila = () =>
+const useFila = () =>
   useSyncExternalStore(
     (o) => {
       ouvintes.add(o);
@@ -334,92 +323,8 @@ export const useFila = () =>
     () => '',
   );
 
-/** Mete um carimbo na fila sem o tentar enviar (a ficha que não abriu por falta de rede). */
-export function guardarNaFila(pedido: Omit<CarimboNaFila, 'quando' | 'erro'>) {
-  guardarFila([...lerFila(), { ...pedido, quando: Date.now() }]);
-}
-
-// ——— as últimas fichas vistas ———
-
-/** O pouco que a ficha mostra sem rede: o nome e onde o cartão ia quando se viu. */
-export type FichaVista = { nome: string; carimbos: number; objectivo: number; vistaEm: number };
-const FICHAS_GUARDADAS = 50;
-const lerFichasVistas = (): Record<string, FichaVista> => {
-  try {
-    return JSON.parse(ler(CHAVE_DAS_FICHAS) ?? '{}') as Record<string, FichaVista>;
-  } catch {
-    return {};
-  }
-};
-export const fichaVista = (codigo: string): FichaVista | null => lerFichasVistas()[codigo] ?? null;
-function guardarFichaVista(ficha: FichaDoBalcao) {
-  const todas = lerFichasVistas();
-  todas[ficha.cliente.codigo] = {
-    nome: ficha.cliente.nome,
-    carimbos: ficha.cartao.carimbos,
-    objectivo: ficha.cartao.objectivo,
-    vistaEm: Date.now(),
-  };
-  // Só as últimas: o armazém do balcão não é um registo de clientes.
-  const recentes = Object.entries(todas)
-    .sort((a, b) => b[1].vistaEm - a[1].vistaEm)
-    .slice(0, FICHAS_GUARDADAS);
-  escrever(CHAVE_DAS_FICHAS, JSON.stringify(Object.fromEntries(recentes)));
-}
-/** Um carimbo entrou: o cartão guardado avança com ele, senão a ficha sem rede contava a partir da última vista. */
-function avancarFichaVista(codigo: string, cartao: { carimbos: number; objectivo: number }) {
-  const todas = lerFichasVistas();
-  const vista = todas[codigo];
-  if (!vista) return;
-  todas[codigo] = { ...vista, carimbos: cartao.carimbos, objectivo: cartao.objectivo };
-  escrever(CHAVE_DAS_FICHAS, JSON.stringify(todas));
-}
-
-// ——— os carimbos que não entraram ———
-
-/** Um carimbo da fila que a API recusou de vez: fica à vista até alguém decidir. */
-export type CarimboRecusado = {
-  codigo: string;
-  chave: string;
-  nome?: string;
-  lojaId: number;
-  pessoaId?: number;
-  /** O instante do toque (ms). */
-  quando: number;
-  /** O código da recusa (o dicionário diz o motivo). */
-  motivo: string;
-};
-const RECUSAS_GUARDADAS = 20;
-export const lerRecusas = (): CarimboRecusado[] => {
-  try {
-    return JSON.parse(ler(CHAVE_DAS_RECUSAS) ?? '[]') as CarimboRecusado[];
-  } catch {
-    return [];
-  }
-};
-const guardarRecusas = (recusas: CarimboRecusado[]) => {
-  escrever(CHAVE_DAS_RECUSAS, recusas.length ? JSON.stringify(recusas) : null);
-  avisar();
-};
-export const useRecusas = () =>
-  useSyncExternalStore(
-    (o) => {
-      ouvintes.add(o);
-      return () => ouvintes.delete(o);
-    },
-    () => ler(CHAVE_DAS_RECUSAS) ?? '',
-    () => '',
-  );
-export const dispensarRecusa = (chave: string) =>
-  guardarRecusas(lerRecusas().filter((r) => r.chave !== chave));
-/** Um carimbo deste cartão entrou (de uma ficha aberta): o que não entrou já está decidido. */
-const resolverRecusasDe = (codigo: string) => {
-  if (lerRecusas().some((r) => r.codigo === codigo))
-    guardarRecusas(lerRecusas().filter((r) => r.codigo !== codigo));
-};
-
-/** O corpo que a API espera: a pessoa e o erro ficam só no aparelho. */
-const corpoDoCarimbo = (p: Omit<CarimboNaFila, 'quando' | 'erro'>, quando?: number) => ({
+/** O corpo que a API espera: a pessoa fica só no aparelho. */
+const corpoDoCarimbo = (p: Omit<CarimboNaFila, 'quando'>, quando?: number) => ({
   codigo: p.codigo,
   chave: p.chave,
   lojaId: p.lojaId,
@@ -429,30 +334,13 @@ const corpoDoCarimbo = (p: Omit<CarimboNaFila, 'quando' | 'erro'>, quando?: numb
 });
 
 /**
- * Carimbar: tenta já; sem rede, fica na fila (a chave garante que nunca conta
- * duas vezes) e devolve «na fila». Um 409 do limite do dia sobe como erro.
+ * Carimbar, só com rede. A chave é a da ficha aberta: tocar outra vez depois de um «Sem ligação»
+ * nunca conta duas vezes. Um 409 do limite do dia sobe como erro.
  */
-export async function carimbar(
-  pedido: Omit<CarimboNaFila, 'quando' | 'erro'>,
-): Promise<{ resultado: ResultadoDoCarimbo } | { naFila: true }> {
-  try {
-    const resultado = await pedir<ResultadoDoCarimbo>('/carimbar', {
-      metodo: 'POST',
-      corpo: corpoDoCarimbo(pedido),
-    });
-    resolverRecusasDe(pedido.codigo);
-    avancarFichaVista(pedido.codigo, resultado.cartao);
-    return { resultado };
-  } catch (e) {
-    if (e instanceof ErroDaBalcao && e.codigo === 'rede') {
-      guardarNaFila(pedido);
-      return { naFila: true };
-    }
-    throw e;
-  }
-}
+export const carimbar = (pedido: Omit<CarimboNaFila, 'quando' | 'pessoaId'>) =>
+  pedir<ResultadoDoCarimbo>('/carimbar', { metodo: 'POST', corpo: corpoDoCarimbo(pedido) });
 
-/** As recusas que voltar a enviar não resolve: o item sai da fila e fica em «Não entraram». */
+/** As recusas que voltar a enviar não resolve: o item sai da fila. */
 const RECUSAS_DEFINITIVAS = [
   'cartao_desconhecido',
   'repetido',
@@ -480,41 +368,22 @@ export function despejarFila(pessoaId?: number): Promise<number> {
 /**
  * Despeja a fila desta pessoa (os itens sem pessoa, da fila antiga, vão também):
  * um a um, pela ordem, com o que foi decidido ao tocar e o instante do toque.
- * Sai da fila com sucesso, ou com uma recusa definitiva (passa para «Não
- * entraram», com o motivo); outra falha (rede, sessão, limite, servidor) pára
- * o ciclo e fica guardada no item.
+ * Sai da fila com sucesso ou com uma recusa definitiva; outra falha (rede,
+ * sessão, limite, servidor) pára o ciclo, e tenta-se da próxima vez.
  */
 async function despejarAgora(pessoaId?: number): Promise<number> {
   let feitos = 0;
   for (const p of lerFila()) {
     if (p.pessoaId !== undefined && p.pessoaId !== pessoaId) continue;
     try {
-      const r = await pedir<ResultadoDoCarimbo>('/carimbar', {
+      await pedir<ResultadoDoCarimbo>('/carimbar', {
         metodo: 'POST',
         corpo: corpoDoCarimbo(p, Math.floor(p.quando / 1000)),
       });
-      resolverRecusasDe(p.codigo);
-      avancarFichaVista(p.codigo, r.cartao);
       feitos++;
     } catch (e) {
       const codigo = e instanceof ErroDaBalcao ? e.codigo : 'interno';
-      if (!RECUSAS_DEFINITIVAS.includes(codigo)) {
-        guardarFila(lerFila().map((x) => (x.chave === p.chave ? { ...x, erro: codigo } : x)));
-        break;
-      }
-      // Apagar em silêncio deixava o cliente sem carimbo sem ninguém saber: fica à vista no início.
-      const recusa: CarimboRecusado = {
-        codigo: p.codigo,
-        chave: p.chave,
-        nome: fichaVista(p.codigo)?.nome,
-        lojaId: p.lojaId,
-        pessoaId: p.pessoaId,
-        quando: p.quando,
-        motivo: codigo,
-      };
-      guardarRecusas(
-        [...lerRecusas().filter((r) => r.chave !== p.chave), recusa].slice(-RECUSAS_GUARDADAS),
-      );
+      if (!RECUSAS_DEFINITIVAS.includes(codigo)) break;
     }
     guardarFila(lerFila().filter((x) => x.chave !== p.chave));
   }

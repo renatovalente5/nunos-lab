@@ -27,10 +27,6 @@ export const pt = {
     procurar: 'Procurar',
     clienteNovo: 'Cliente novo',
     resumo: 'Resumo',
-    porEnviar: (n: number, motivo: string) => `${n} por enviar · ${motivo}`,
-    aEnviar: (n: number) =>
-      n === 1 ? '1 carimbo guardado, a enviar…' : `${n} carimbos guardados, a enviar…`,
-    naoEntraram: 'Não entraram',
     repetido: 'repetido',
     semCarimbos: (dia: string) => `${dia} · ainda sem carimbos`,
   },
@@ -49,9 +45,7 @@ export const pt = {
     ontem: 'ontem',
     haDias: (n: number) => `há ${n} dias`,
     haSemanas: (n: number) => `há ${n} semanas`,
-    carimbarSemRede: 'Carimbar sem rede',
     cartaoCompleto: 'Cartão completo',
-    semRedeGuardado: 'Sem rede: guardado, envia-se depois.',
     fazAnos: 'Faz anos',
     clienteDesde: (ano: number, cortes: number, completos: number) =>
       `Cliente desde ${ano} · ${cortes} ${cortes === 1 ? 'corte' : 'cortes'}${
@@ -60,7 +54,6 @@ export const pt = {
           : ''
       }`,
     deObjectivo: (objectivo: number) => `de ${objectivo}`,
-    porEnviar: (n: number) => (n === 1 ? '1 carimbo por enviar' : `${n} carimbos por enviar`),
     ultimaVisita: (quando: string) => `Última visita ${quando}`,
     primeiraVisita: 'Primeira visita',
     prendaDeAnos: (prenda: string) => `Prenda de anos: ${prenda}`,
@@ -78,7 +71,6 @@ export const pt = {
     anularCarimbo: 'Anular carimbo',
     anularOCarimbo: (nome: string, hora: string) =>
       nome ? `Anular o carimbo de ${nome} das ${hora}?` : `Anular o carimbo das ${hora}?`,
-    dispensar: 'Dispensar',
     entregar: (recompensa: string) => `Entregar: ${recompensa.toLowerCase()}`,
     recompensaEntregue: (recompensa: string | undefined) =>
       `${recompensa ?? 'Recompensa'} entregue`,
@@ -156,7 +148,6 @@ export const pt = {
     sessao: 'Sessão',
     sairDesteAparelho: 'Sair deste aparelho',
     sairPergunta: 'Sair deste aparelho?',
-    porEnviar: (n: number) => `Há ${n} ${n === 1 ? 'carimbo' : 'carimbos'} por enviar.`,
     sair: 'Sair',
   },
   procurar: {

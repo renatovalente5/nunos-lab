@@ -1,12 +1,10 @@
 import {
   codigoCurto,
-  codigoValido,
   dataCurta,
   diaEmLisboa,
   diasEntre,
   fraseDesteCorte,
   fraseDoCartao,
-  normalizarCodigo,
   recompensaNaLingua,
   type Lingua,
 } from '@nunos-lab/dominio';
@@ -19,21 +17,14 @@ import { useConfirmacao } from '../../componentes/confirmar';
 import {
   carimbar,
   chaveNova,
-  dispensarRecusa,
   entregarPrenda,
-  fichaVista,
-  guardarNaFila,
-  lerFila,
-  lerRecusas,
   mensagemDe,
   pedir,
   semRemedio,
   useCasa,
   useEu,
   useFicha,
-  useFila,
   useHoje,
-  useRecusas,
   ErroDaBalcao,
 } from '../../sessao';
 import {
@@ -71,19 +62,14 @@ type Feito = {
   objectivo: number;
   completo: boolean;
   recompensa: string | null;
-  /** Sem ficha nem nada guardado (sem rede), o título é o código: «1 de 10» seria inventado. */
-  titulo?: string;
-  nome?: string;
 };
 
 export default function Ficha() {
-  const { codigo, semLeitura, carimbo, recusa } = useLocalSearchParams<{
+  const { codigo, semLeitura, carimbo } = useLocalSearchParams<{
     codigo: string;
     semLeitura?: string;
     /** Aberta de uma linha do «Hoje»: o id desse carimbo. */
     carimbo?: string;
-    /** Aberta dos «Não entraram»: a chave do carimbo recusado. */
-    recusa?: string;
   }>();
   const t = useTextos();
   const ui = useTextosDaUi();
@@ -94,7 +80,6 @@ export default function Ficha() {
   const { data: eu } = useEu();
   const casa = useCasa(eu);
   const { data: ficha, error, refetch, isPending } = useFicha(codigo ?? '');
-  const filaTexto = useFila();
   // Aberta de uma linha do «Hoje», a ficha mostra esse carimbo e só deixa anulá-lo: o «Carimbar na
   // mesma» estava onde se carrega para carimbar, e um toque à pressa dava outro (o Renato, 9 nov).
   const carimboId = carimbo && /^\d+$/.test(carimbo) ? Number(carimbo) : null;
@@ -108,13 +93,8 @@ export default function Ficha() {
     !!eu &&
     (eu.pessoa.papel === 'dono' ||
       (doHoje.pessoaId === eu.pessoa.id && Date.now() / 1000 < doHoje.anulavelAte));
-  // Aberta dos «Não entraram»: é aqui que se carimba na mesma ou se dispensa.
-  const recusasTexto = useRecusas();
-  const comRecusa = !!recusa && !!recusasTexto && lerRecusas().some((r) => r.chave === recusa);
   const [confirmar, folhaDeConfirmacao] = useConfirmacao();
-  const [estado, setEstado] = useState<'pronto' | 'a-enviar' | 'feito' | 'na-fila' | 'erro'>(
-    'pronto',
-  );
+  const [estado, setEstado] = useState<'pronto' | 'a-enviar' | 'feito' | 'erro'>('pronto');
   const [feito, setFeito] = useState<Feito | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<{
@@ -128,14 +108,7 @@ export default function Ficha() {
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => clearTimeout(temporizador.current ?? undefined), []);
 
-  // Sem rede a ficha não abre, mas o código lido chega para carimbar: a letra de controlo diz se é um cartão.
-  const codigoLimpo = normalizarCodigo(codigo ?? '');
-  const codigoOk = codigoValido(codigoLimpo);
-  const vista = !ficha && codigoOk ? fichaVista(codigoLimpo) : null;
-  // Os carimbos deste cartão ainda na fila sem rede contam como dados: nos círculos, no número e no «já hoje».
-  const naFila =
-    filaTexto && codigoOk ? lerFila().filter((p) => p.codigo === codigoLimpo).length : 0;
-  const carimbos = (ficha?.cartao.carimbos ?? 0) + naFila;
+  const carimbos = ficha?.cartao.carimbos ?? 0;
   // Os 10 círculos numa linha cabem nas margens em qualquer largura (a 320 px eram 334 px).
   const tamanho = Math.min(
     28,
@@ -143,7 +116,7 @@ export default function Ficha() {
   );
   // Com o limite do dia já atingido, o botão diz logo «Carimbar na mesma»: antes só o dizia depois de
   // a API recusar, e o barbeiro tinha de carregar duas vezes.
-  const jaHoje = !!ficha && ficha.hoje.carimbos + naFila >= (eu?.programa.porDia ?? 1);
+  const jaHoje = !!ficha && ficha.hoje.carimbos >= (eu?.programa.porDia ?? 1);
   // O prémio entregue hoje: o corte grátis não leva carimbo, e carimbar pede confirmação.
   const entregueHoje = ficha?.hoje.entregue ?? null;
   const precisaConfirmar = jaHoje || !!entregueHoje;
@@ -171,29 +144,18 @@ export default function Ficha() {
         lojaId: casa,
         confirmar,
         semLeitura: semLeitura === '1',
-        pessoaId: eu?.pessoa.id,
       });
-      if ('naFila' in r) {
-        setEstado('na-fila');
-        setFeito({
-          carimbos: carimbos + 1,
-          objectivo: ficha.cartao.objectivo,
-          completo: false,
-          recompensa: null,
-        });
-      } else {
-        setEstado('feito');
-        vibrar(r.resultado.completo ? 'festa' : 'feito');
-        setFeito({
-          carimbos: r.resultado.cartao.carimbos,
-          objectivo: r.resultado.cartao.objectivo,
-          completo: r.resultado.completo,
-          recompensa: r.resultado.recompensa,
-        });
-      }
+      setEstado('feito');
+      vibrar(r.completo ? 'festa' : 'feito');
+      setFeito({
+        carimbos: r.cartao.carimbos,
+        objectivo: r.cartao.objectivo,
+        completo: r.completo,
+        recompensa: r.recompensa,
+      });
       Animated.spring(escala, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
       // Com um prémio fica até «Concluir»: o barbeiro tem de o dizer ao cliente.
-      if (!('resultado' in r && r.resultado.completo)) concluir();
+      if (!r.completo) concluir();
     } catch (e) {
       if (
         e instanceof ErroDaBalcao &&
@@ -212,30 +174,6 @@ export default function Ficha() {
       setEstado('erro');
       setErro(mensagemDe(e));
     }
-  };
-
-  /** A ficha não abriu por falta de rede: o carimbo vai para a fila só com o código, a chave e a casa. */
-  const guardarSemRede = () => {
-    if (!codigoOk || !casa || estado === 'na-fila') return;
-    guardarNaFila({
-      codigo: codigoLimpo,
-      chave: chave.current,
-      lojaId: casa,
-      confirmar: false,
-      semLeitura: semLeitura === '1',
-      pessoaId: eu?.pessoa.id,
-    });
-    setEstado('na-fila');
-    setFeito({
-      carimbos: (vista?.carimbos ?? 0) + naFila + 1,
-      objectivo: vista?.objectivo ?? eu?.programa.objectivo ?? 10,
-      completo: false,
-      recompensa: null,
-      titulo: vista ? undefined : codigoCurto(codigoLimpo),
-      nome: vista?.nome || undefined,
-    });
-    Animated.spring(escala, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
-    concluir();
   };
 
   /** A prenda de anos: a API devolve a ficha já com «entregue às…», e o botão desaparece. */
@@ -311,11 +249,6 @@ export default function Ficha() {
       setErro(mensagemDe(e));
     }
   };
-
-  const dispensar = () => {
-    if (recusa) dispensarRecusa(recusa);
-    sair();
-  };
   // A prenda entregue: «às 15:12» hoje, «a 3 nov» noutro dia.
   const prendaEntregueHoje =
     !!ficha?.prendaEntregue && diaEmLisboa(ficha.prendaEntregue.quando * 1000) === diaEmLisboa();
@@ -360,7 +293,7 @@ export default function Ficha() {
           </T>
         </View>
       )}
-      {!ficha && error && estado !== 'na-fila' && (
+      {!ficha && error && (
         <View
           style={{
             flex: 1,
@@ -373,30 +306,15 @@ export default function Ficha() {
           <T v="subtitulo" style={{ textAlign: 'center' }}>
             {mensagemDe(error)}
           </T>
-          {/* O que se sabe do cartão sem rede: o nome da última vez, ou só o código. */}
-          {error instanceof ErroDaBalcao && error.codigo === 'rede' && codigoOk && (
-            <T v="legenda" style={{ color: cor.texto2, textAlign: 'center', marginTop: -6 }}>
-              {[vista?.nome, codigoCurto(codigoLimpo)].filter(Boolean).join(' · ')}
-            </T>
-          )}
           {semRemedio(error) ? (
             <Botao nome={ui.fechar} secundario onPress={sair} />
           ) : (
-            <>
-              {/* Sem rede carimba-se na mesma: a fila leva o código, a chave e a casa, e envia depois.
-                  Vinda do «Hoje» não: aí só se vê um carimbo já dado. */}
-              {error instanceof ErroDaBalcao &&
-                error.codigo === 'rede' &&
-                codigoOk &&
-                !!casa &&
-                !daLinhaDoHoje && <Botao nome={t.ficha.carimbarSemRede} onPress={guardarSemRede} />}
-              <Botao nome={ui.tentarOutraVez} secundario onPress={() => refetch()} />
-            </>
+            <Botao nome={ui.tentarOutraVez} secundario onPress={() => refetch()} />
           )}
         </View>
       )}
 
-      {(estado === 'feito' || estado === 'na-fila') && feito && (
+      {estado === 'feito' && feito && (
         <View
           style={{
             flex: 1,
@@ -424,26 +342,15 @@ export default function Ficha() {
             />
           </Animated.View>
           <T v="titulo" style={{ marginTop: 28, textAlign: 'center' }}>
-            {feito.titulo ??
-              (feito.recompensa && !feito.completo
-                ? feito.recompensa
-                : feito.completo
-                  ? t.ficha.cartaoCompleto
-                  : t.geral.carimbosDe(feito.carimbos, feito.objectivo))}
+            {feito.recompensa && !feito.completo
+              ? feito.recompensa
+              : feito.completo
+                ? t.ficha.cartaoCompleto
+                : t.geral.carimbosDe(feito.carimbos, feito.objectivo)}
           </T>
-          {!!feito.nome && (
-            <T v="subtitulo" style={{ color: cor.texto2, marginTop: 8, textAlign: 'center' }}>
-              {feito.nome}
-            </T>
-          )}
           {feito.completo && feito.recompensa && (
             <T v="subtitulo" style={{ color: cor.texto2, marginTop: 8, textAlign: 'center' }}>
               {fraseDesteCorte(feito.recompensa, lingua)}
-            </T>
-          )}
-          {estado === 'na-fila' && (
-            <T v="legenda" style={{ color: cor.texto2, marginTop: 10 }}>
-              {t.ficha.semRedeGuardado}
             </T>
           )}
           <View style={{ marginTop: 28 }}>
@@ -452,7 +359,7 @@ export default function Ficha() {
         </View>
       )}
 
-      {ficha && estado !== 'feito' && estado !== 'na-fila' && (
+      {ficha && estado !== 'feito' && (
         <View style={{ flex: 1, width: '100%', maxWidth: LARGURA_MAXIMA, alignSelf: 'center' }}>
           {/* A ficha lê-se de cima; as acções ficam presas ao fundo, à mão. */}
           <ScrollView
@@ -522,11 +429,6 @@ export default function Ficha() {
                 </T>
               )}
             </View>
-            {naFila > 0 && (
-              <T v="legenda" style={{ color: cor.texto2, paddingHorizontal: MARGEM, marginTop: 6 }}>
-                {t.ficha.porEnviar(naFila)}
-              </T>
-            )}
 
             <View
               style={{
@@ -619,30 +521,27 @@ export default function Ficha() {
                 </T>
               </View>
             )}
-            {/* Ao 9.º (sem carimbo hoje) este corte é o grátis; e também quando o 10.º já está na fila por enviar. */}
-            {!daLinhaDoHoje &&
-              (carimbos === ficha.cartao.objectivo - 1
-                ? !jaHoje
-                : naFila > 0 && carimbos >= ficha.cartao.objectivo) && (
-                <View
-                  style={{
-                    marginHorizontal: MARGEM,
-                    marginTop: 14,
-                    backgroundColor: cor.claro,
-                    borderRadius: 16,
-                    padding: 12,
-                    flexDirection: 'row',
-                    gap: 10,
-                    alignItems: 'center',
-                    ...CONTINUO,
-                  }}
-                >
-                  <Icone nome="presente" tamanho={18} cor={cor.sobreClaro} espessura={2.2} />
-                  <T v="forte" style={{ flex: 1, color: cor.sobreClaro }}>
-                    {fraseDesteCorte(ficha.cartao.recompensa, lingua)}
-                  </T>
-                </View>
-              )}
+            {/* Ao 9.º (sem carimbo hoje) este corte é o grátis. */}
+            {!daLinhaDoHoje && carimbos === ficha.cartao.objectivo - 1 && !jaHoje && (
+              <View
+                style={{
+                  marginHorizontal: MARGEM,
+                  marginTop: 14,
+                  backgroundColor: cor.claro,
+                  borderRadius: 16,
+                  padding: 12,
+                  flexDirection: 'row',
+                  gap: 10,
+                  alignItems: 'center',
+                  ...CONTINUO,
+                }}
+              >
+                <Icone nome="presente" tamanho={18} cor={cor.sobreClaro} espessura={2.2} />
+                <T v="forte" style={{ flex: 1, color: cor.sobreClaro }}>
+                  {fraseDesteCorte(ficha.cartao.recompensa, lingua)}
+                </T>
+              </View>
+            )}
             {!daLinhaDoHoje && (ficha.hoje.carimbos > 0 || aviso || entregueHoje) && (
               <View
                 style={{
@@ -784,7 +683,6 @@ export default function Ficha() {
                           : t.ficha.carimbar}
                     </T>
                   </Pressable>
-                  {comRecusa && <Botao nome={t.ficha.dispensar} secundario onPress={dispensar} />}
                 </>
               )}
               {erro && (

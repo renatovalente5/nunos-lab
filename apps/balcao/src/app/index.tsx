@@ -1,4 +1,4 @@
-import { codigoCurto, dataCurta, diaEmLisboa, type Lingua } from '@nunos-lab/dominio';
+import { dataCurta, diaEmLisboa } from '@nunos-lab/dominio';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
@@ -7,18 +7,13 @@ import {
   ErroDaBalcao,
   GOOGLE_CLIENTE,
   guardarSessao,
-  lerFila,
-  lerRecusas,
   mensagemDe,
-  motivoCurto,
   pedir,
   useCasa,
   useDespejarFila,
   useEu,
-  useFila,
   useHoje,
   useHojeParceiro,
-  useRecusas,
   useTemSessao,
 } from '../sessao';
 import {
@@ -309,33 +304,15 @@ function hora(unix: number): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-/** «15:12» hoje; «3 nov 15:12» quando o toque foi noutro dia. */
-function quandoCurto(ms: number, lingua: Lingua): string {
-  const dia = diaEmLisboa(ms);
-  const h = hora(Math.floor(ms / 1000));
-  return dia === diaEmLisboa() ? h : `${dataCurta(dia, diaEmLisboa(), lingua)} ${h}`;
-}
-
 function Hoje() {
   const t = useTextos();
   const lingua = useLingua();
   const { data: eu } = useEu();
   const casa = useCasa(eu);
   const { data: hoje } = useHoje(casa, !!eu);
-  const fila = useFila();
-  const recusasTexto = useRecusas();
+  // Envia o que ainda estiver na fila de quando se carimbava sem rede (até 9 nov 2026).
   useDespejarFila(eu?.pessoa.id);
   const nomeDaCasa = eu?.lojas.find((l) => l.id === casa)?.nome ?? '';
-  // A fila é desta pessoa (os itens sem pessoa são da fila antiga); o primeiro erro guardado é o motivo.
-  const itensNaFila = fila
-    ? lerFila().filter((p) => p.pessoaId === undefined || p.pessoaId === eu?.pessoa.id)
-    : [];
-  const naFila = itensNaFila.length;
-  const motivo = itensNaFila.find((p) => p.erro)?.erro;
-  // Os carimbos da fila que a API recusou de vez: ficam à vista até esta pessoa decidir.
-  const recusas = recusasTexto
-    ? lerRecusas().filter((r) => r.pessoaId === undefined || r.pessoaId === eu?.pessoa.id)
-    : [];
   return (
     <Ecra comBarra={false}>
       <View
@@ -442,53 +419,6 @@ function Hoje() {
           />
         )}
       </View>
-
-      {naFila > 0 && (
-        <T v="legenda" style={{ color: cor.texto2, textAlign: 'center', marginTop: 16 }}>
-          {motivo ? t.inicio.porEnviar(naFila, motivoCurto(motivo)) : t.inicio.aEnviar(naFila)}
-        </T>
-      )}
-
-      {recusas.length > 0 && (
-        <>
-          <Rotulo>{t.inicio.naoEntraram}</Rotulo>
-          <Grupo>
-            {recusas.map((r, i) => (
-              <View key={r.chave}>
-                {i > 0 && <Separador />}
-                {/* Um toque abre a ficha, e é lá que se decide: «Carimbar na mesma» ou «Dispensar». */}
-                <Pressable
-                  onPress={() =>
-                    router.push({
-                      pathname: '/ficha/[codigo]',
-                      params: { codigo: r.codigo, semLeitura: '1', recusa: r.chave },
-                    })
-                  }
-                  role="link"
-                  style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 12,
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    backgroundColor: pressed ? cor.superficieAlta : 'transparent',
-                  })}
-                >
-                  <View style={{ flex: 1 }}>
-                    <T v="forte" numberOfLines={1}>
-                      {r.nome || codigoCurto(r.codigo)}
-                    </T>
-                    <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }} numberOfLines={1}>
-                      {quandoCurto(r.quando, lingua)} · {motivoCurto(r.motivo)}
-                    </T>
-                  </View>
-                  <Icone nome="seguinte" tamanho={18} cor={cor.texto3} espessura={2.4} />
-                </Pressable>
-              </View>
-            ))}
-          </Grupo>
-        </>
-      )}
 
       {hoje && hoje.ultimos.length > 0 && (
         <>

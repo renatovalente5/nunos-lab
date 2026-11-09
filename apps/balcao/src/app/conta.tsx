@@ -41,19 +41,11 @@ export default function Conta() {
   const [confirmar, folhaDeConfirmacao] = useConfirmacao();
   const [aEscolherLingua, setAEscolherLingua] = useState(false);
   const sair = async () => {
-    // Sair ao primeiro toque custava: quem entra por ligação precisa de outra, e os carimbos
-    // guardados sem rede ficam presos até esta pessoa voltar a entrar aqui.
-    const porEnviar = lerFila().filter(
-      (p) => p.pessoaId === undefined || p.pessoaId === eu?.pessoa.id,
-    ).length;
-    const sim = await confirmar({
-      titulo: t.conta.sairPergunta,
-      detalhe: porEnviar ? t.conta.porEnviar(porEnviar) : undefined,
-      accao: t.conta.sair,
-    });
+    // Sair ao primeiro toque custava: quem sai tem de voltar a entrar com a Apple ou o Google.
+    const sim = await confirmar({ titulo: t.conta.sairPergunta, accao: t.conta.sair });
     if (!sim) return;
     try {
-      // Os carimbos guardados sem rede vão antes; os que ficarem esperam que esta pessoa volte a entrar.
+      // O que ainda estiver na fila de quando se carimbava sem rede vai antes de sair.
       if (lerFila().length) await despejarFila(eu?.pessoa.id);
       await pedir('/sair', { metodo: 'POST' });
     } catch {
