@@ -5,8 +5,10 @@ import {
   type Loja,
   type PontoNoMapa,
 } from '@nunos-lab/dominio';
+import { cor } from '@nunos-lab/ui';
+import { useIsFocused } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { Animated, Platform, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import {
   ALTURA_DO_BALAO,
@@ -38,8 +40,37 @@ export type PropsDoMapaVivo = {
   falhou: () => void;
 };
 
+/**
+ * O mapa da Apple nasce claro e só meio segundo depois de aparecer passa ao escuro da app, mesmo com
+ * o telemóvel em modo escuro (visto no simulador, 9 nov). Uma capa da cor da moldura tapa-o até lá e
+ * depois sai devagar: só se vê o mapa escuro.
+ */
+function useCapa() {
+  // Os separadores montam-se todos ao abrir a app: o mapa só começa a desenhar quando aparece.
+  const aFrente = useIsFocused();
+  const [comecou, setComecou] = useState(false);
+  const [tapado, setTapado] = useState(true);
+  const opacidade = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!tapado || !aFrente) return;
+    // 0,8 s depois de o mapa começar a desenhar; se ele nunca avisar, 3 s depois de o separador abrir.
+    const t = setTimeout(
+      () =>
+        Animated.timing(opacidade, { toValue: 0, duration: 250, useNativeDriver: true }).start(
+          ({ finished }) => {
+            if (finished) setTapado(false);
+          },
+        ),
+      comecou ? 800 : 3000,
+    );
+    return () => clearTimeout(t);
+  }, [aFrente, comecou, tapado, opacidade]);
+  return { tapado, opacidade, comecou: () => setComecou(true) };
+}
+
 export function MapaVivo({ lojas, largura, altura, aberta, escolher, aoIr }: PropsDoMapaVivo) {
   const mapa = useRef<MapView>(null);
+  const capa = useCapa();
   // Abre com o enquadramento da imagem; depois é do cliente (arrastar, aproximar).
   const regiao = useMemo(() => {
     const e = enquadrar(lojas as PontoNoMapa[], largura, altura, FOLGAS_DO_MAPA_VIVO);
@@ -91,6 +122,7 @@ export function MapaVivo({ lojas, largura, altura, aberta, escolher, aoIr }: Pro
         ref={mapa}
         style={{ width: largura, height: altura }}
         initialRegion={regiao}
+        onMapReady={capa.comecou}
         onRegionChangeComplete={(r) => {
           if (!regiao) return;
           setMexido(
@@ -149,6 +181,20 @@ export function MapaVivo({ lojas, largura, altura, aberta, escolher, aoIr }: Pro
           </Marker>
         )}
       </MapView>
+      {capa.tapado && (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: largura,
+            height: altura,
+            backgroundColor: cor.superficie,
+            opacity: capa.opacidade,
+          }}
+        />
+      )}
       <BotaoDeRecentrar
         visivel={mexido}
         onPress={() => {
