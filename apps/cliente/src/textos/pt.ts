@@ -17,8 +17,8 @@ export const pt = {
   vantagens: {
     emDestaque: 'Em destaque',
     parceiros: 'Parceiros',
-    semCorteHaUmAno: 'Visita uma barbearia para teres acesso aos descontos de novo',
-    aindaSemCorte: 'Visita uma barbearia para teres acesso aos descontos',
+    semCorteHaUmAno: 'Os descontos voltam com o teu próximo corte',
+    aindaSemCorte: 'Os descontos começam com o teu primeiro corte',
     categorias: 'Categorias',
     tudo: 'Tudo',
     emBreve: 'Novas vantagens em breve',

@@ -67,28 +67,56 @@ function EsqueletoDasVantagens() {
 }
 
 /** Uma faixa no topo das Vantagens: o aviso do Nuno, ou o de quem não corta o cabelo há mais de um ano. */
-function Faixa({ icone, texto, topo }: { icone: NomeDoIcone; texto: string; topo: number }) {
-  return (
-    <View
-      style={{
-        marginHorizontal: MARGEM,
-        marginTop: topo,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        backgroundColor: cor.superficie,
-        borderRadius: raio.grupo,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        ...CONTINUO,
-      }}
-      role="status"
-    >
+function Faixa({
+  icone,
+  texto,
+  topo,
+  aoTocar,
+}: {
+  icone: NomeDoIcone;
+  texto: string;
+  topo: number;
+  /** Com um destino, a faixa leva lá (o aviso do corte leva às Barbearias). */
+  aoTocar?: () => void;
+}) {
+  const caixa = {
+    marginHorizontal: MARGEM,
+    marginTop: topo,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: raio.grupo,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    ...CONTINUO,
+  } as const;
+  const dentro = (
+    <>
       <Icone nome={icone} tamanho={20} espessura={2} />
       <T v="forte" style={{ flex: 1, fontSize: 15 }}>
         {texto}
       </T>
-    </View>
+      {aoTocar && <Icone nome="seguinte" tamanho={16} cor={cor.texto3} espessura={2} />}
+    </>
+  );
+  if (!aoTocar)
+    return (
+      <View style={{ ...caixa, backgroundColor: cor.superficie }} role="status">
+        {dentro}
+      </View>
+    );
+  return (
+    <Pressable
+      onPress={aoTocar}
+      role="link"
+      aria-label={texto}
+      style={({ pressed }) => ({
+        ...caixa,
+        backgroundColor: pressed ? cor.superficieAlta : cor.superficie,
+      })}
+    >
+      {dentro}
+    </Pressable>
   );
 }
 
@@ -140,7 +168,7 @@ export default function Vantagens() {
       params: { id: String(p.id), ...(pr ? { p: String(pr.id) } : {}) },
     });
   // Sem corte no último ano as vantagens não valem (são todas só para clientes activos): o aviso diz
-  // como as ter (o Renato, 8 nov) — «de novo» a quem já cortou. Só com vantagens na app.
+  // que um corte as dá, e leva às Barbearias (o Renato, 8 e 9 nov). Só com vantagens na app.
   const avisoDoCorte =
     temSessao && !!eu && !eu.activo && (data?.parceiros.length ?? 0) > 0
       ? eu.cortes > 0
@@ -168,7 +196,12 @@ export default function Vantagens() {
 
       {!!data?.aviso && <Faixa icone="aviso" texto={data.aviso} topo={18} />}
       {avisoDoCorte && (
-        <Faixa icone="tesoura" texto={avisoDoCorte} topo={data?.aviso ? 10 : 18} />
+        <Faixa
+          icone="tesoura"
+          texto={avisoDoCorte}
+          topo={data?.aviso ? 10 : 18}
+          aoTocar={() => router.navigate('/barbearia')}
+        />
       )}
 
       {!data && isPending && <EsqueletoDasVantagens />}

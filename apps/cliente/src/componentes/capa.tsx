@@ -30,27 +30,25 @@ export function Capa({
   raioBaixo?: number;
   /** O véu de cima e de baixo; «lado», da esquerda para a direita (o destaque baixo das Vantagens). */
   veu?: boolean | 'lado';
-  /** Um fio claro à volta, para o cartão se destacar do preto. */
+  /**
+   * Um fio claro à volta, para o cartão se destacar do preto. Vai por cima da cor e do véu: clareia o
+   * que lá está e fica da cor do cartão. Por baixo era um traço cinzento à volta (o Renato, 9 nov).
+   */
   borda?: boolean;
   children?: ReactNode;
 }) {
   const id = `v${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const base = corParaBranco(parceiro.cor);
   const escura = misturar(base, '#000000', 0.45);
+  const cantos = {
+    borderTopLeftRadius: raio,
+    borderTopRightRadius: raio,
+    borderBottomLeftRadius: raioBaixo ?? raio,
+    borderBottomRightRadius: raioBaixo ?? raio,
+    ...CONTINUO,
+  };
   return (
-    <View
-      style={{
-        height: altura,
-        borderTopLeftRadius: raio,
-        borderTopRightRadius: raio,
-        borderBottomLeftRadius: raioBaixo ?? raio,
-        borderBottomRightRadius: raioBaixo ?? raio,
-        overflow: 'hidden',
-        backgroundColor: base,
-        ...CONTINUO,
-        ...(borda ? { borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' } : null),
-      }}
-    >
+    <View style={{ height: altura, ...cantos, overflow: 'hidden', backgroundColor: base }}>
       {parceiro.capa ? (
         <Image
           source={{ uri: urlDaImagem(parceiro.capa) }}
@@ -123,6 +121,21 @@ export function Capa({
           </Defs>
           <Rect x="0" y="0" width="1" height="1" fill={`url(#${id}v)`} />
         </Svg>
+      )}
+      {borda && (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            ...cantos,
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.1)',
+          }}
+        />
       )}
       {children}
     </View>

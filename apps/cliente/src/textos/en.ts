@@ -20,8 +20,8 @@ export const en: Textos = {
   vantagens: {
     emDestaque: 'Featured',
     parceiros: 'Partners',
-    semCorteHaUmAno: 'Visit one of our barbershops to get your perks back',
-    aindaSemCorte: 'Visit one of our barbershops to get your perks',
+    semCorteHaUmAno: 'Your perks come back with your next cut',
+    aindaSemCorte: 'Your perks start with your first cut',
     categorias: 'Categories',
     tudo: 'All',
     emBreve: 'New perks coming soon',
