@@ -284,7 +284,8 @@ export function CartaoDaPromocao({
   const t = useTextos();
   const lingua = useLingua();
   const [aberta, setAberta] = useState(false);
-  const inactivo = promocao.soClientesActivos && !activo;
+  // Todas as vantagens são só para clientes activos.
+  const inactivo = !activo;
   const esgotada = promocao.limitePorCliente !== null && usadas >= promocao.limitePorCliente;
   const usada = !inactivo && (esgotada || !!usadaHoje);
   const validade = validadeEmTexto(promocao, hoje, lingua);

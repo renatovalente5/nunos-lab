@@ -22,6 +22,7 @@ import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
 import {
   AreaDeTexto,
   Campo,
+  Contador,
   Esqueleto,
   Etiqueta,
   Folha,
@@ -307,7 +308,6 @@ type FormularioDaPromocao = {
   limitePorCliente: string;
   periodoDoLimite: PeriodoDoLimite;
   limiteTotal: string;
-  soClientesActivos: boolean;
 };
 
 /** Um limite escrito no campo: vazio é «sem limite» (null); fora do intervalo ou partido, NaN. */
@@ -355,7 +355,6 @@ export function EditorDePromocao({
             promocao.limitePorCliente === null ? '' : String(promocao.limitePorCliente),
           periodoDoLimite: promocao.periodoDoLimite,
           limiteTotal: promocao.limiteTotal === null ? '' : String(promocao.limiteTotal),
-          soClientesActivos: promocao.soClientesActivos,
         }
       : {
           parceiroId: parceiroFixo?.id ?? parceiroInicial,
@@ -372,7 +371,6 @@ export function EditorDePromocao({
           limitePorCliente: '',
           periodoDoLimite: 'dia',
           limiteTotal: '',
-          soClientesActivos: true,
         },
   );
   const [f, setF] = useState(inicial);
@@ -615,17 +613,17 @@ export function EditorDePromocao({
             <div className="campo">
               <span className="rotulo-campo">{t.promocoes.aoLerOCartao}</span>
             </div>
-            <div className="duas-colunas">
-              <Campo
+            {/* As regras numa linha (o Renato, 8 nov): todas as vantagens são só para clientes
+                activos, por isso esse interruptor saiu; sem limite por cliente, o período não conta. */}
+            <div className="tres-colunas">
+              <Contador
                 rotulo={t.promocoes.porCliente}
-                tipo="number"
                 valor={f.limitePorCliente}
                 mudar={mudar('limitePorCliente')}
                 minimo={LIMITES_DOS_VALES.porCliente.min}
                 maximo={LIMITES_DOS_VALES.porCliente.max}
-                modoDeTeclado="numeric"
+                vazio={t.promocoes.semLimite}
                 erro={erros.includes('limitePorCliente')}
-                ajuda={t.promocoes.semLimite}
               />
               <Seletor<PeriodoDoLimite>
                 rotulo={t.promocoes.periodo}
@@ -635,27 +633,18 @@ export function EditorDePromocao({
                   valor: p,
                   nome: nomeDoPeriodo(p, lingua),
                 }))}
+                desligado={!f.limitePorCliente.trim()}
               />
-            </div>
-            <div className="duas-colunas">
-              <Campo
+              <Contador
                 rotulo={t.promocoes.noTotal}
-                tipo="number"
                 valor={f.limiteTotal}
                 mudar={mudar('limiteTotal')}
                 minimo={LIMITES_DOS_VALES.total.min}
                 maximo={LIMITES_DOS_VALES.total.max}
-                modoDeTeclado="numeric"
+                vazio={t.promocoes.semLimite}
                 erro={erros.includes('limiteTotal')}
-                ajuda={t.promocoes.semLimite}
               />
             </div>
-            <Interruptor
-              ligado={f.soClientesActivos}
-              mudar={mudar('soClientesActivos')}
-              rotulo={t.promocoes.soActivos}
-              ajuda={t.promocoes.soActivosAjuda}
-            />
           </div>
           <PrevisaoDaPromocao
             parceiro={parceiro}

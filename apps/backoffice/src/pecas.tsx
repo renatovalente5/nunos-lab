@@ -65,6 +65,7 @@ const DESENHOS = {
   ],
   descarregar: ['M12 4v11', 'M7.5 10.5L12 15l4.5-4.5', 'M5 19h14'],
   mais: ['M12 5v14', 'M5 12h14'],
+  menos: ['M5 12h14'],
   voltar: ['M15 5l-7 7 7 7'],
   fechar: ['M6 6l12 12', 'M18 6L6 18'],
   subir: ['M12 19V5', 'M6 11l6-6 6 6'],
@@ -280,6 +281,75 @@ export function AreaDeTexto({
   );
 }
 
+/**
+ * Um número pequeno com − e +, como nos Ajustes do iPhone; vazio é «sem limite» (o texto de
+ * `vazio`), e o − abaixo do mínimo volta a vazio. Também se escreve à mão (um total grande).
+ * O valor é o texto do campo: quem o usa confere-o ao gravar.
+ */
+export function Contador({
+  rotulo,
+  valor,
+  mudar,
+  minimo,
+  maximo,
+  vazio,
+  erro,
+}: {
+  rotulo: string;
+  valor: string;
+  mudar: (v: string) => void;
+  minimo: number;
+  maximo: number;
+  vazio: string;
+  erro?: boolean;
+}) {
+  const id = useId();
+  const t = useTextos();
+  const n = valor.trim() ? Number(valor) : null;
+  const menos = () =>
+    mudar(n === null || Number.isNaN(n) || n <= minimo ? '' : String(Math.min(n - 1, maximo)));
+  const mais = () =>
+    mudar(
+      n === null || Number.isNaN(n)
+        ? String(minimo)
+        : String(Math.min(Math.max(n + 1, minimo), maximo)),
+    );
+  return (
+    <div className={`campo${erro ? ' erro' : ''}`}>
+      <label htmlFor={id}>{rotulo}</label>
+      <div className="contador">
+        <button
+          type="button"
+          onClick={menos}
+          disabled={n === null}
+          aria-label={`${t.geral.menos} · ${rotulo}`}
+        >
+          <Icone nome="menos" tamanho={18} espessura={2.2} />
+        </button>
+        <input
+          id={id}
+          value={valor}
+          placeholder={vazio}
+          inputMode="numeric"
+          aria-invalid={erro || undefined}
+          onChange={(e) =>
+            mudar(e.target.value.replace(/\D/g, '').slice(0, String(maximo).length))
+          }
+        />
+        <button
+          type="button"
+          onClick={mais}
+          disabled={n !== null && n >= maximo}
+          aria-label={`${t.geral.mais} · ${rotulo}`}
+        >
+          <Icone nome="mais" tamanho={18} espessura={2.2} />
+        </button>
+      </div>
+      {erro && <div className="mensagem-erro">{t.geral.reveEsteCampo}</div>}
+    </div>
+  );
+}
+
 export function Seletor<T extends string | number>({
   rotulo,
   valor,
@@ -288,6 +358,7 @@ export function Seletor<T extends string | number>({
   vazio,
   erro,
   ajuda,
+  desligado,
 }: {
   rotulo: string;
   valor: T | null;
@@ -296,6 +367,8 @@ export function Seletor<T extends string | number>({
   vazio?: string;
   erro?: boolean;
   ajuda?: ReactNode;
+  /** Sem efeito agora (fica à vista, mais claro, para a linha não saltar). */
+  desligado?: boolean;
 }) {
   const id = useId();
   return (
@@ -304,6 +377,7 @@ export function Seletor<T extends string | number>({
       <select
         id={id}
         className="entrada"
+        disabled={desligado}
         value={valor === null ? '' : String(valor)}
         onChange={(e) => {
           const escolhida = opcoes.find((o) => String(o.valor) === e.target.value);

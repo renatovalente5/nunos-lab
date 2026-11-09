@@ -964,7 +964,6 @@ async function fichaDoParceiro(
           limitePorCliente: p.limite_por_cliente,
           periodoDoLimite: p.periodo_do_limite,
           limiteTotal: p.limite_total,
-          soClientesActivos: p.so_clientes_activos === 1,
         },
         { usadasNoPeriodo: usadas, usadasTotal: total, activo },
       ),

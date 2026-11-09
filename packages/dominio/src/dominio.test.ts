@@ -243,7 +243,6 @@ test('o motivo de uma vantagem, por ordem', () => {
     limitePorCliente: 1,
     periodoDoLimite: 'dia' as const,
     limiteTotal: 10,
-    soClientesActivos: true,
   };
   assert.equal(
     motivoDaVantagem(regras, { usadasNoPeriodo: 0, usadasTotal: 0, activo: true }),
@@ -270,10 +269,18 @@ test('o motivo de uma vantagem, por ordem', () => {
   );
   assert.equal(
     motivoDaVantagem(
-      { ...regras, limitePorCliente: null, limiteTotal: null, soClientesActivos: false },
-      { usadasNoPeriodo: 99, usadasTotal: 99, activo: false },
+      { ...regras, limitePorCliente: null, limiteTotal: null },
+      { usadasNoPeriodo: 99, usadasTotal: 99, activo: true },
     ),
     'ok',
+  );
+  assert.equal(
+    motivoDaVantagem(
+      { ...regras, limitePorCliente: null, limiteTotal: null },
+      { usadasNoPeriodo: 0, usadasTotal: 0, activo: false },
+    ),
+    'cliente_inactivo',
+    'sem limites, continua só para clientes activos',
   );
   assert.equal(limiteEmTexto({ limitePorCliente: 1, periodoDoLimite: 'dia' }), '1 vez por dia');
   assert.equal(

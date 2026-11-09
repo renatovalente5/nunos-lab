@@ -26,6 +26,8 @@ export const pt = {
   lingua: 'Língua',
   // Os campos, as folhas e as peças.
   reveEsteCampo: 'Revê este campo.',
+  menos: 'Menos',
+  mais: 'Mais',
   fechar: 'Fechar',
   cancelar: 'Cancelar',
   fecharSemGuardar: 'Há alterações por guardar. Fechar sem guardar?',
@@ -173,6 +175,8 @@ export const en: typeof pt = {
   entrasteComo: 'Signed in as',
   lingua: 'Language',
   reveEsteCampo: 'Check this field.',
+  menos: 'Fewer',
+  mais: 'More',
   fechar: 'Close',
   cancelar: 'Cancel',
   fecharSemGuardar: 'There are unsaved changes. Close without saving?',

@@ -139,13 +139,10 @@ export default function Vantagens() {
       pathname: '/parceiro/[id]',
       params: { id: String(p.id), ...(pr ? { p: String(pr.id) } : {}) },
     });
-  // Sem corte no último ano, as vantagens só para activos não valem: o aviso diz como as ter (o
-  // Renato, 8 nov) — «de novo» a quem já cortou. Só se alguma promoção pedir cliente activo.
+  // Sem corte no último ano as vantagens não valem (são todas só para clientes activos): o aviso diz
+  // como as ter (o Renato, 8 nov) — «de novo» a quem já cortou. Só com vantagens na app.
   const avisoDoCorte =
-    temSessao &&
-    !!eu &&
-    !eu.activo &&
-    (data?.parceiros ?? []).some((p) => p.promocoes.some((pr) => pr.soClientesActivos))
+    temSessao && !!eu && !eu.activo && (data?.parceiros.length ?? 0) > 0
       ? eu.cortes > 0
         ? t.vantagens.semCorteHaUmAno
         : t.vantagens.aindaSemCorte

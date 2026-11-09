@@ -1026,7 +1026,6 @@ await passo(
         limitePorCliente: 1,
         periodoDoLimite: 'dia',
         limiteTotal: 2,
-        soClientesActivos: true,
       }),
     });
     assert.equal(r.status, 201);
@@ -1038,7 +1037,7 @@ await passo(
     assert.equal(pr.validar, true, 'sempre: as apps de antes de 8 nov lêem-no');
     assert.equal(pr.limitePorCliente, 1);
     assert.equal(pr.periodoDoLimite, 'dia');
-    assert.equal(pr.soClientesActivos, true);
+    assert.equal(pr.soClientesActivos, true, 'todas são só para clientes activos');
     assert.equal('limiteTotal' in pr, false, 'o limite total não vai para a app');
     const equipa = await pedir('/api/bo/equipa', {
       method: 'POST',
@@ -2202,6 +2201,7 @@ async function promocaoQueSeValida(parceiroId, titulo) {
       fim: null,
       emDestaque: false,
       activa: true,
+      // Um backoffice de antes de 8 nov ainda podia mandar «para todos»: ignora-se.
       soClientesActivos: false,
     }),
   });
@@ -2268,6 +2268,10 @@ await passo(
     ).sessao;
     codigoDeQuemUsa = (await euDe(cliente)).eu.codigo;
     const ana = await entrarNaBalcao('ana.qv@exemplo.pt');
+    // Todas as vantagens são só para clientes activos: sem um corte, nenhuma vale.
+    const semCorte = await validarVantagem(ana, codigoDeQuemUsa, promocaoDoA);
+    assert.equal((await semCorte.json()).erro, 'cliente_inactivo', 'sem corte no último ano');
+    await carimbarVezes(codigoDeQuemUsa, 1);
     const bruno = await entrarNaBalcao('bruno.qv@exemplo.pt');
     assert.equal(
       (await (await pedir('/api/balcao/eu', { token: ana })).json()).parceiro.nome,

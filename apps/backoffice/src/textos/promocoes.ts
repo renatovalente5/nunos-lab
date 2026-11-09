@@ -74,11 +74,9 @@ export const pt = {
   emDestaqueAjuda: 'Aparece na faixa de cor no topo das Vantagens. Melhor com 1 a 3 de cada vez.',
   aoLerOCartao: 'Ao ler o cartão',
   porCliente: 'Por cliente',
-  semLimite: 'Vazio: sem limite.',
+  semLimite: 'Sem limite',
   periodo: 'Período',
   noTotal: 'No total',
-  soActivos: 'Só clientes activos',
-  soActivosAjuda: 'Corte no último ano.',
 };
 
 export const en: typeof pt = {
@@ -148,9 +146,7 @@ export const en: typeof pt = {
   emDestaqueAjuda: 'Shows in the colour banner at the top of Perks. Best with 1 to 3 at a time.',
   aoLerOCartao: 'When the card is scanned',
   porCliente: 'Per client',
-  semLimite: 'Leave blank for no limit.',
+  semLimite: 'No limit',
   periodo: 'Period',
   noTotal: 'In total',
-  soActivos: 'Active clients only',
-  soActivosAjuda: 'Had a haircut in the last year.',
 };

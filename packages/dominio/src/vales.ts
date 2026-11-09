@@ -3,8 +3,8 @@ import type { Lingua } from './lingua.ts';
 
 /**
  * As vantagens que o parceiro valida ao ler o cartão: quantas vezes cada
- * cliente pode usar uma (por dia, semana, mês, ou no total), quantas no total
- * para toda a gente, e se só valem para clientes activos (corte no último ano).
+ * cliente pode usar uma (por dia, semana, mês, ou no total) e quantas no total
+ * para toda a gente. Todas são só para clientes activos (corte no último ano).
  */
 export const PERIODOS_DO_LIMITE = ['dia', 'semana', 'mes', 'sempre'] as const;
 export type PeriodoDoLimite = (typeof PERIODOS_DO_LIMITE)[number];
@@ -43,7 +43,6 @@ export type RegrasDaVantagem = {
   limitePorCliente: number | null;
   periodoDoLimite: PeriodoDoLimite;
   limiteTotal: number | null;
-  soClientesActivos: boolean;
 };
 
 /** Pode este cliente usar a vantagem agora? E, se não, porquê (por esta ordem). */
@@ -51,7 +50,8 @@ export function motivoDaVantagem(
   regras: RegrasDaVantagem,
   estado: { usadasNoPeriodo: number; usadasTotal: number; activo: boolean },
 ): MotivoDaVantagem {
-  if (regras.soClientesActivos && !estado.activo) return 'cliente_inactivo';
+  // Todas as vantagens são só para clientes activos (o Renato, 8 nov 2026).
+  if (!estado.activo) return 'cliente_inactivo';
   if (regras.limiteTotal !== null && estado.usadasTotal >= regras.limiteTotal)
     return 'limite_total';
   if (regras.limitePorCliente !== null && estado.usadasNoPeriodo >= regras.limitePorCliente)

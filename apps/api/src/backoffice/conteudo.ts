@@ -393,8 +393,8 @@ rotasDoConteudo.post('/promocoes', async (c) => {
       .prepare(
         `INSERT INTO promocoes (parceiro_id, destaque, titulo, detalhe, destaque_en, titulo_en, detalhe_en,
            inicio, fim, em_destaque, activa,
-           limite_por_cliente, periodo_do_limite, limite_total, so_clientes_activos, ordem)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM promocoes WHERE parceiro_id = ?))
+           limite_por_cliente, periodo_do_limite, limite_total, ordem)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM promocoes WHERE parceiro_id = ?))
          RETURNING id`,
       )
       .bind(
@@ -412,7 +412,6 @@ rotasDoConteudo.post('/promocoes', async (c) => {
         p.limitePorCliente ?? null,
         p.periodoDoLimite ?? 'dia',
         p.limiteTotal ?? null,
-        (p.soClientesActivos ?? true) ? 1 : 0,
         p.parceiroId,
       ),
     registar(c, 'promocao.criada', `${parceiro.nome}: ${p.destaque} ${p.titulo}`),

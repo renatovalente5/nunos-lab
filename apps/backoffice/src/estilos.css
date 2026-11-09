@@ -514,6 +514,80 @@ textarea.entrada {
     grid-template-columns: 1fr;
   }
 }
+/* Três campos numa linha (as regras ao ler o cartão); no telemóvel, dois e um. */
+.tres-colunas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .tres-colunas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* Abaixo disto, «Sem limite» já não cabe ao lado dos − e +: um por linha. */
+@media (max-width: 370px) {
+  .tres-colunas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+select.entrada:disabled {
+  color: var(--tinta-3);
+  background: var(--superficie-2);
+  cursor: default;
+}
+/* Um número com − e +: o aspecto de um campo, com os botões dentro. */
+.contador {
+  display: flex;
+  align-items: stretch;
+  min-height: 44px;
+  border-radius: var(--raio-campo);
+  border: 1px solid var(--linha-forte);
+  background: var(--superficie);
+  overflow: hidden;
+}
+.contador:focus-within {
+  outline: 2px solid var(--foco);
+  border-color: transparent;
+}
+.campo.erro .contador {
+  border-color: var(--mau);
+  background: #fffafa;
+}
+.contador input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+/* «Sem limite» no tamanho das ajudas: cabe nos 139 px de uma caixa no telemóvel. */
+.contador input::placeholder {
+  color: var(--tinta-3);
+  font-size: 13px;
+  font-weight: 500;
+}
+.contador button {
+  flex: none;
+  width: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--tinta);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.contador button:hover:not(:disabled) {
+  background: var(--superficie-2);
+}
+.contador button:disabled {
+  color: var(--linha-forte);
+  cursor: default;
+}
 
 .interruptor-linha {
   display: flex;

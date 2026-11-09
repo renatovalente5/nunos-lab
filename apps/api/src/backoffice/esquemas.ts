@@ -108,7 +108,6 @@ export const Promocao = z.object({
     .max(LIMITES_DOS_VALES.total.max)
     .nullable()
     .optional(),
-  soClientesActivos: z.boolean().optional(),
 });
 
 export const COLUNAS_DA_PROMOCAO = {
@@ -126,7 +125,6 @@ export const COLUNAS_DA_PROMOCAO = {
   limitePorCliente: 'limite_por_cliente',
   periodoDoLimite: 'periodo_do_limite',
   limiteTotal: 'limite_total',
-  soClientesActivos: 'so_clientes_activos',
 } as const satisfies Record<keyof z.output<typeof Promocao>, string>;
 
 export const Categoria = z.object({

@@ -48,11 +48,11 @@ export type LinhaPromocao = {
   fim: string | null;
   em_destaque: number;
   activa: number;
-  // As colunas validar e surpresa* (e a tabela cupoes) ficam na base, sem uso, desde 8 nov 2026.
+  // As colunas validar, surpresa* e so_clientes_activos (e a tabela cupoes) ficam na base, sem uso,
+  // desde 8 nov 2026.
   limite_por_cliente: number | null;
   periodo_do_limite: PeriodoDoLimite;
   limite_total: number | null;
-  so_clientes_activos: number;
   ordem: number;
   criada_em: number;
   alterada_em: number;
@@ -108,7 +108,7 @@ export function promocaoPublica(l: LinhaPromocao, lingua: Lingua = 'pt'): Promoc
     validar: true,
     limitePorCliente: l.limite_por_cliente,
     periodoDoLimite: l.periodo_do_limite,
-    soClientesActivos: l.so_clientes_activos === 1,
+    soClientesActivos: true,
     surpresa: false,
   };
 }

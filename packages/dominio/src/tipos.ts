@@ -36,8 +36,11 @@ export type PromocaoPublica = {
   /** Quantas vezes cada cliente pode usar (null: sem limite), no período: conta ao ler o cartão. */
   limitePorCliente: number | null;
   periodoDoLimite: PeriodoDoLimite;
-  /** Só para quem cortou o cabelo no último ano. */
-  soClientesActivos: boolean;
+  /**
+   * Sempre true: todas as vantagens são só para quem cortou o cabelo no último ano (o Renato,
+   * 8 nov 2026). Fica pelas apps instaladas antes disso, que o lêem.
+   */
+  soClientesActivos: true;
   /** Sempre false: o saco das surpresas saiu (8 nov 2026). Fica pelas apps instaladas antes disso. */
   surpresa: false;
 };
