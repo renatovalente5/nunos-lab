@@ -19,6 +19,7 @@ export const en: Textos = {
   },
   vantagens: {
     emDestaque: 'Featured',
+    bloqueada: 'locked',
     parceiros: 'Partners',
     semCorteHaUmAno: 'Your perks come back with your next cut',
     aindaSemCorte: 'Your perks start with your first cut',

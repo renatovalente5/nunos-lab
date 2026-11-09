@@ -16,6 +16,8 @@ export const pt = {
   },
   vantagens: {
     emDestaque: 'Em destaque',
+    /** Para o leitor de ecrã, a seguir à vantagem com o cadeado. */
+    bloqueada: 'bloqueada',
     parceiros: 'Parceiros',
     semCorteHaUmAno: 'Os descontos voltam com o teu próximo corte',
     aindaSemCorte: 'Os descontos começam com o teu primeiro corte',

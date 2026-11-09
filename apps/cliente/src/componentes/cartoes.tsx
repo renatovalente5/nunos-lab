@@ -75,6 +75,7 @@ export function CartaoDestaque({
   altura,
   noCarrossel,
   onPress,
+  bloqueada = false,
 }: {
   parceiro: ParceiroPublico;
   promocao: PromocaoPublica;
@@ -82,6 +83,8 @@ export function CartaoDestaque({
   hoje: string;
   largura: number;
   altura: number;
+  /** Sem corte no último ano: um cadeado ao lado do desconto, que fica com a cor (é a montra). */
+  bloqueada?: boolean;
   /** Com mais de um destaque, rolam de lado e encaixam no início. */
   noCarrossel: boolean;
   onPress: () => void;
@@ -92,7 +95,7 @@ export function CartaoDestaque({
     <Pressable
       onPress={onPress}
       role="link"
-      aria-label={`${t.vantagens.emDestaque}: ${promocao.destaque} ${promocao.titulo}, ${parceiro.nome}${validade ? `, ${validade}` : ''}`}
+      aria-label={`${t.vantagens.emDestaque}: ${promocao.destaque} ${promocao.titulo}, ${parceiro.nome}${validade ? `, ${validade}` : ''}${bloqueada ? `, ${t.vantagens.bloqueada}` : ''}`}
       style={({ pressed }) => [
         { width: largura, transform: [{ scale: pressed ? 0.98 : 1 }] },
         noCarrossel && Platform.OS === 'web' ? ({ scrollSnapAlign: 'start' } as object) : null,
@@ -144,6 +147,21 @@ export function CartaoDestaque({
             >
               {semPartir(promocao.destaque)}
             </T>
+            {bloqueada && (
+              <View
+                style={{
+                  marginLeft: 'auto',
+                  width: 30,
+                  height: 30,
+                  borderRadius: 15,
+                  backgroundColor: 'rgba(0,0,0,0.42)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icone nome="cadeado" tamanho={15} cor="#FFFFFF" espessura={2.2} />
+              </View>
+            )}
             {validade && (
               <View
                 style={{
@@ -183,18 +201,27 @@ export function LinhaDoParceiro({
   parceiro,
   categorias,
   onPress,
+  bloqueada = false,
 }: {
   parceiro: ParceiroPublico;
   categorias: Categoria[];
   onPress: () => void;
+  /** Sem corte no último ano: a vantagem com o cadeado, como na página do parceiro (9 nov). */
+  bloqueada?: boolean;
 }) {
+  const t = useTextos();
   const primeira = parceiro.promocoes[0];
   const onde = categoriaELocal(parceiro, categorias);
   return (
     <Pressable
       onPress={onPress}
       role="link"
-      aria-label={[parceiro.nome, onde, primeira && `${primeira.destaque} ${primeira.titulo}`]
+      aria-label={[
+        parceiro.nome,
+        onde,
+        primeira && `${primeira.destaque} ${primeira.titulo}`,
+        primeira && bloqueada && t.vantagens.bloqueada,
+      ]
         .filter(Boolean)
         .join(', ')}
       style={({ pressed }) => ({
@@ -237,9 +264,17 @@ export function LinhaDoParceiro({
             paddingHorizontal: 11,
             paddingVertical: 6,
             maxWidth: 128,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
           }}
         >
-          <T v="forte" style={{ fontSize: 14, lineHeight: 18 }} numberOfLines={1}>
+          {bloqueada && <Icone nome="cadeado" tamanho={12} cor={cor.texto2} espessura={2.2} />}
+          <T
+            v="forte"
+            style={{ fontSize: 14, lineHeight: 18, ...(bloqueada ? { color: cor.texto2 } : null) }}
+            numberOfLines={1}
+          >
             {semPartir(primeira.destaque)}
           </T>
         </View>

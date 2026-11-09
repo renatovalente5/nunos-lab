@@ -175,6 +175,8 @@ export default function Vantagens() {
         ? t.vantagens.semCorteHaUmAno
         : t.vantagens.aindaSemCorte
       : null;
+  // Com o aviso do corte, os descontos levam o cadeado (o Renato escolheu-o, 9 nov).
+  const bloqueadas = !!avisoDoCorte;
   // O primeiro bloco fica a 18 do cabeçalho, como nos outros separadores; depois de um aviso, a 14.
   const primeiro = data?.aviso || avisoDoCorte ? 14 : 18;
 
@@ -234,6 +236,7 @@ export default function Vantagens() {
                 largura={larguraDoDestaque}
                 altura={altura}
                 noCarrossel
+                bloqueada={bloqueadas}
                 onPress={() => abrir(parceiro, promocao)}
               />
             ))}
@@ -248,6 +251,7 @@ export default function Vantagens() {
               largura={larguraDoDestaque}
               altura={altura}
               noCarrossel={false}
+              bloqueada={bloqueadas}
               onPress={() => abrir(destaques[0]!.parceiro, destaques[0]!.promocao)}
             />
           </View>
@@ -320,6 +324,7 @@ export default function Vantagens() {
                   <LinhaDoParceiro
                     parceiro={p}
                     categorias={data.categorias}
+                    bloqueada={bloqueadas}
                     onPress={() => abrir(p)}
                   />
                 </View>
