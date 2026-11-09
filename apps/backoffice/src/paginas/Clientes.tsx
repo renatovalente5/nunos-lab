@@ -178,7 +178,14 @@ export function Clientes() {
                       {c.nome}
                     </a>
                   </td>
-                  <td className="email">{c.email ?? '—'}</td>
+                  <td className="email">
+                    {c.email ??
+                      (c.emailOculto ? (
+                        <span className="email-oculto">{t.clientes.emailOculto}</span>
+                      ) : (
+                        '—'
+                      ))}
+                  </td>
                   <td className="num cortes" data-sufixo={t.clientes.sufixoDosCortes(c.cortes)}>
                     {numero(c.cortes)}
                   </td>

@@ -221,7 +221,14 @@ export function Cliente({ id }: { id: string }) {
         <dl className="detalhes">
           <div className="largo">
             <dt>{t.cliente.email}</dt>
-            <dd>{c.email ?? '—'}</dd>
+            <dd>
+              {c.email ??
+                (c.emailOculto ? (
+                  <span className="email-oculto">{t.clientes.emailOculto}</span>
+                ) : (
+                  '—'
+                ))}
+            </dd>
           </div>
           <div>
             <dt>{t.cliente.aniversario}</dt>

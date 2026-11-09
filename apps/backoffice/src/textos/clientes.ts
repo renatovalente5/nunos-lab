@@ -19,6 +19,7 @@ export const pt = {
   procurarClientes: 'Procurar clientes',
   semClientes: 'Ainda sem clientes',
   nenhumAqui: 'Nenhum cliente aqui',
+  emailOculto: 'Email oculto (Apple)',
   colunas: {
     nome: 'Nome',
     email: 'Email',
@@ -53,6 +54,7 @@ export const en: typeof pt = {
   procurarClientes: 'Search clients',
   semClientes: 'No clients yet',
   nenhumAqui: 'No matching clients',
+  emailOculto: 'Email hidden (Apple)',
   colunas: {
     nome: 'Name',
     email: 'Email',

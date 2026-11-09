@@ -42,6 +42,7 @@ type Linha = {
   objectivo: number | null;
   por_usar: number;
   formas: string | null;
+  email_oculto: number;
 };
 
 const LISTA = `SELECT k.id, k.codigo, k.nome, k.email, k.aniversario, k.loja_id, k.criado_em, k.exemplo, k.apagado_em,
@@ -52,7 +53,9 @@ const LISTA = `SELECT k.id, k.codigo, k.nome, k.email, k.aniversario, k.loja_id,
        AND x.cartao_id = (SELECT id FROM cartoes c WHERE c.cliente_id = k.id ORDER BY numero DESC LIMIT 1)) AS carimbos,
     (SELECT objectivo FROM cartoes c WHERE c.cliente_id = k.id ORDER BY numero DESC LIMIT 1) AS objectivo,
     (SELECT count(*) FROM cartoes c WHERE c.cliente_id = k.id AND c.completo_em IS NOT NULL AND c.usado_em IS NULL) AS por_usar,
-    (SELECT group_concat(DISTINCT tipo) FROM identidades i WHERE i.cliente_id = k.id) AS formas
+    (SELECT group_concat(DISTINCT tipo) FROM identidades i WHERE i.cliente_id = k.id) AS formas,
+    (SELECT count(*) > 0 FROM identidades i
+       WHERE i.cliente_id = k.id AND i.email LIKE '%@privaterelay.appleid.com') AS email_oculto
   FROM clientes k`;
 
 function publico(l: Linha): ClienteDoBackoffice {
@@ -72,6 +75,7 @@ function publico(l: Linha): ClienteDoBackoffice {
     exemplo: l.exemplo === 1,
     apagado: l.apagado_em !== null,
     formas: (l.formas ? l.formas.split(',') : []) as TipoDeEntrada[],
+    emailOculto: l.email === null && l.email_oculto === 1,
   };
 }
 

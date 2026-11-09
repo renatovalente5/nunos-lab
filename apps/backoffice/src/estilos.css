@@ -1568,6 +1568,10 @@ table.quadro {
 .ligacao-nome:hover {
   text-decoration: underline;
 }
+/* Escondeu o email ao entrar com a Apple: diz-se, em vez do traço. */
+.email-oculto {
+  color: var(--tinta-3);
+}
 .quadro.clientes td.email {
   color: var(--tinta-2);
   max-width: 240px;

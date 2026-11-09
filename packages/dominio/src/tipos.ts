@@ -492,6 +492,11 @@ export type ClienteDoBackoffice = {
   exemplo: boolean;
   apagado: boolean;
   formas: TipoDeEntrada[];
+  /**
+   * Sem email porque, ao entrar com a Apple, escolheu «Ocultar o meu email»: o endereço de
+   * retransmissão não diz quem é, e não se guarda como o email dele (o Renato, 9 nov).
+   */
+  emailOculto: boolean;
 };
 
 export type FichaDoCliente = ClienteDoBackoffice & {
