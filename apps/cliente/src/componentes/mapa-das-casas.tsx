@@ -21,9 +21,10 @@ import { useTextos } from '../textos';
 
 /**
  * O mapa é ao alto: as casas estendem-se de norte a sul, e assim o mapa aproxima-se mais. Era
- * 1,05; passou a 1,25 para o balão de uma casa caber sem tapar a de cima (7 nov).
+ * 1,05; passou a 1,25 para o balão de uma casa caber sem tapar a de cima (7 nov); e a 1,2 para o
+ * «Mais» por baixo não encostar ao menu num iPhone de 844 pontos (ficavam a 3; o Renato, 9 nov).
  */
-const ALTO = 1.25;
+const ALTO = 1.2;
 
 /** A moldura dos dois mapas: cantos redondos, à largura da coluna. */
 const MOLDURA = {
