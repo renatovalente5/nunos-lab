@@ -1982,3 +1982,264 @@ details.gaveta[open] > summary > .resumo {
   flex: 1;
   min-width: 0;
 }
+
+/* ——— o Resumo: o que falta fazer, os carimbos ao longo do período, quem e onde ——— */
+.por-fazer {
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.por-fazer h2,
+.lista-do-resumo h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 16px 20px 6px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.por-fazer .quantos {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--atencao-fundo);
+  color: var(--atencao);
+  font-size: 12.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.por-fazer ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 6px;
+}
+.por-fazer li + li {
+  border-top: 1px solid var(--linha);
+}
+.por-fazer a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 20px;
+  color: var(--tinta);
+  text-decoration: none;
+  transition: background-color 0.15s;
+}
+.por-fazer a:hover {
+  background: var(--fundo);
+}
+.por-fazer a:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: -2px;
+}
+.por-fazer .circulo {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--atencao-fundo);
+  color: var(--atencao);
+}
+.por-fazer .frase {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  line-height: 1.35;
+}
+.por-fazer a > svg:last-child {
+  flex: none;
+  color: var(--tinta-3);
+}
+.em-dia {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 20px;
+  color: var(--tinta-2);
+  font-size: 14px;
+  font-weight: 600;
+}
+.em-dia .circulo {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--bom-fundo);
+  color: var(--bom);
+}
+.numero.heroi .rotulo {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.numero.heroi .intervalo {
+  color: var(--tinta-3);
+  font-size: 13px;
+  font-weight: 500;
+}
+.painel-resumo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: opacity 0.2s;
+}
+.painel-resumo.a-actualizar {
+  opacity: 0.55;
+}
+.numero.heroi {
+  padding: 20px 22px 18px;
+}
+.numero.heroi .valor {
+  font-size: 48px;
+}
+/* O gráfico: colunas finas (até 24 px, cantos redondos em cima), a escala e a base a um traço. */
+.grafico {
+  margin-top: 26px;
+}
+.grafico .area {
+  position: relative;
+  height: 120px;
+  border-top: 1px solid var(--linha);
+  border-bottom: 1px solid var(--linha-forte);
+  outline: none;
+}
+.grafico .area:focus-visible {
+  box-shadow: 0 0 0 2px var(--foco);
+  border-radius: 4px;
+}
+.grafico .topo {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: 3px;
+  color: var(--tinta-3);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.grafico .colunas {
+  display: grid;
+  height: 100%;
+  align-items: end;
+}
+.grafico .coluna {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 100%;
+  padding: 0 1px;
+}
+.grafico .barra {
+  width: min(24px, 100%);
+  border-radius: 4px 4px 0 0;
+  background: var(--tinta);
+  transition: background-color 0.12s;
+}
+.grafico .coluna.activa .barra {
+  background: var(--tinta-2);
+}
+.grafico .dica {
+  position: absolute;
+  top: -8px;
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--marca);
+  color: var(--sobre-marca);
+  font-size: 12.5px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--sombra);
+}
+.grafico .dica.esquerda {
+  transform: translate(-14px, -100%);
+}
+.grafico .dica.direita {
+  transform: translate(calc(-100% + 14px), -100%);
+}
+.grafico .dica strong {
+  font-size: 13px;
+}
+.grafico .dica span {
+  opacity: 0.75;
+}
+.grafico .eixo {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  color: var(--tinta-3);
+  font-size: 12px;
+}
+.ordem {
+  list-style: none;
+  margin: 0;
+  padding: 2px 20px 10px;
+}
+.ordem li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 11px 0;
+}
+.ordem li + li {
+  border-top: 1px solid var(--linha);
+}
+.ordem .iniciais {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--superficie-2);
+  color: var(--tinta);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.ordem .meio {
+  flex: 1;
+  min-width: 0;
+}
+.ordem .cima {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ordem .nome {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ordem .valor {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.ordem .detalhe {
+  margin-top: 1px;
+  color: var(--tinta-2);
+  font-size: 13px;
+}
+.ordem .pista {
+  height: 6px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--superficie-2);
+}
+.ordem .cheio {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--tinta);
+}

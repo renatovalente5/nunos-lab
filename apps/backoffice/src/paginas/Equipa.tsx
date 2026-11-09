@@ -24,7 +24,7 @@ import {
   Vazio,
 } from '../pecas';
 import { useTextos } from '../textos';
-import { haQuanto, nomeDoAparelho } from '../util';
+import { haQuanto, nomeDoAparelho, parametro } from '../util';
 import { GavetaDosAcessos } from './Acessos';
 
 /**
@@ -145,6 +145,7 @@ export function GavetaDeQuemValida({ parceiroId }: { parceiroId: number }) {
     <>
       <Gaveta
         id="parceiro.pessoas"
+        chegarAqui={parametro('abrir') === 'quem-valida'}
         titulo={t.equipa.quemValida}
         resumo={equipa.data && (pessoas.map((p) => p.nome).join(' · ') || t.equipa.aindaNinguem)}
         lista

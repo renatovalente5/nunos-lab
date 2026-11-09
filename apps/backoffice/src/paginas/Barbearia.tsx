@@ -21,7 +21,7 @@ import {
   useConfirmar,
 } from '../pecas';
 import { useTextos } from '../textos';
-import { useAvisoAoSair, useRota } from '../util';
+import { parametro, useAvisoAoSair, useRota } from '../util';
 import { CamposDoPrograma, resumoDoPrograma, usePrograma } from './Fidelidade';
 
 type LojaNoFormulario = {
@@ -298,6 +298,8 @@ export function Barbearia() {
 
         <Gaveta
           id="barbearia.lojas"
+          // Do Resumo («falta o telefone…»): «#/barbearia?abrir=loja-3» abre essa barbearia.
+          abertaDeInicio={!!parametro('abrir')?.startsWith('loja-')}
           titulo={t.barbearia.lojas}
           resumo={f.lojas.map((l) => l.nome || t.barbearia.lojaNova).join(' · ')}
           erro={erros.some((e) => e.startsWith('lojas.'))}
@@ -322,6 +324,7 @@ export function Barbearia() {
                       resumo={l.morada || t.barbearia.semMorada}
                       erro={erros.some((e) => e.startsWith(`lojas.${i}.`))}
                       abertaDeInicio={!l.id}
+                      chegarAqui={!!l.id && parametro('abrir') === `loja-${l.id}`}
                     >
                       <div className="formulario">
                         <div className="duas-colunas">

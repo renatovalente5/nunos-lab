@@ -66,6 +66,8 @@ const DESENHOS = {
   descarregar: ['M12 4v11', 'M7.5 10.5L12 15l4.5-4.5', 'M5 19h14'],
   mais: ['M12 5v14', 'M5 12h14'],
   menos: ['M5 12h14'],
+  seguinte: ['M9 5l7 7-7 7'],
+  certo: ['M5 12.5l4.5 4.5L19 7.5'],
   voltar: ['M15 5l-7 7 7 7'],
   fechar: ['M6 6l12 12', 'M18 6L6 18'],
   subir: ['M12 19V5', 'M6 11l6-6 6 6'],
@@ -626,6 +628,7 @@ export function Gaveta({
   interior = false,
   abertaDeInicio = false,
   lista = false,
+  chegarAqui = false,
   children,
 }: {
   /** Para ficar aberta da próxima vez: «barbearia.lojas». */
@@ -639,11 +642,23 @@ export function Gaveta({
   abertaDeInicio?: boolean;
   /** O que tem dentro é uma lista: encosta às margens (como num cartão), com o botão no `.pe-gaveta`. */
   lista?: boolean;
+  /** Quem chega por um aviso do Resumo («#/parceiros/5?abrir=quem-valida»): abre e mostra-se. */
+  chegarAqui?: boolean;
   children: ReactNode;
 }) {
   const [aberta, setAberta] = useState(
-    () => abertaDeInicio || (id ? gavetasAbertas().has(id) : false),
+    () => abertaDeInicio || chegarAqui || (id ? gavetasAbertas().has(id) : false),
   );
+  const ref = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    if (!chegarAqui) return;
+    // Logo a seguir, depois de a casca voltar ao topo ao mudar de página; sem animação (uma
+    // rolagem suave interrompida, ou num separador que não pinta, ficava no topo).
+    const espera = setTimeout(() => ref.current?.scrollIntoView({ block: 'start' }), 50);
+    return () => clearTimeout(espera);
+    // Só ao chegar: depois, abre e fecha como as outras.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     if (erro) setAberta(true);
   }, [erro]);
@@ -662,6 +677,7 @@ export function Gaveta({
   const Titulo = interior ? 'h3' : 'h2';
   return (
     <details
+      ref={ref}
       className={interior ? 'gaveta interior' : 'gaveta'}
       open={aberta}
       onToggle={(e) => {
