@@ -26,7 +26,7 @@ import {
   type ReactNode,
 } from 'react';
 import { API, mensagemDe, pedir } from './api';
-import { carregarImagem, corDoLogotipo, sugerirAjuste } from './imagens';
+import { carregarImagem, carregarLogotipo, corDoLogotipo } from './imagens';
 import { useLingua } from './lingua';
 import { textos, useTextos } from './textos';
 import { numero } from './util';
@@ -989,7 +989,7 @@ export function CampoDeImagem({
             if (!ficheiro) return;
             setACarregar(true);
             try {
-              mudar(await carregarImagem(ficheiro, modo));
+              mudar(await carregarImagem(ficheiro));
             } catch (erro) {
               avisar(mensagemDe(erro), true);
             } finally {
@@ -1190,10 +1190,7 @@ export function CampoDoLogotipo({
             if (!ficheiro) return;
             setACarregar(true);
             try {
-              const [id, sugestao] = await Promise.all([
-                carregarImagem(ficheiro, 'logotipo'),
-                sugerirAjuste(ficheiro).catch(() => AJUSTE_DE_ORIGEM),
-              ]);
+              const { id, ajuste: sugestao } = await carregarLogotipo(ficheiro);
               mudar(id, sugestao);
             } catch (erro) {
               avisar(mensagemDe(erro), true);
