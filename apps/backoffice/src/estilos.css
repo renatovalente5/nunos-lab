@@ -46,6 +46,21 @@ textarea {
   font: inherit;
   color: inherit;
 }
+/* No iPhone, tocar num campo com letra abaixo de 16 px faz o Safari aproximar a página, e ela fica
+   assim depois: os cartões e os botões aparecem cortados dos lados (o Renato, 10 nov). Nos ecrãs de
+   toque, os campos têm 16 px. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+html {
+  /* Sem a letra a crescer sozinha com o telemóvel deitado. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 a {
   color: inherit;
 }
@@ -174,6 +189,32 @@ img {
   }
   .navegacao::-webkit-scrollbar {
     display: none;
+  }
+  /* As pontas esbatem-se quando há mais secções desse lado (o App marca-o ao rolar): sem isto, a
+     última parecia cortada (o Renato, 10 nov). */
+  .navegacao[data-mais-a-direita] {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent);
+  }
+  .navegacao[data-mais-a-esquerda] {
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 44px), transparent);
+    mask-image: linear-gradient(to left, #000 calc(100% - 44px), transparent);
+  }
+  .navegacao[data-mais-a-esquerda][data-mais-a-direita] {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 44px,
+      #000 calc(100% - 44px),
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 44px,
+      #000 calc(100% - 44px),
+      transparent
+    );
   }
   .navegacao a {
     flex: none;
@@ -907,6 +948,8 @@ select.entrada.hora-do-horario {
   z-index: 10;
   margin: 26px -8px 0;
   padding: 14px 8px;
+  /* No iPhone com o backoffice no ecrã principal, os botões não ficam por cima da barra de casa. */
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
   background: linear-gradient(to top, var(--fundo) 70%, transparent);
   display: flex;
   gap: 10px;
@@ -1532,6 +1575,13 @@ body.a-arrastar-algo * {
     min-width: 62px;
     font-size: 16px;
   }
+  /* No telemóvel os filtros que não cabem descem para uma segunda linha: a rolar de lado, o último
+     ficava cortado na borda (o Renato, 10 nov). O canto de 19 px é o redondo de uma linha só. */
+  .segmentado:not(.cheio) {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    border-radius: 19px;
+  }
 }
 
 /* ——— os dropdowns: a seta do browser encosta à borda; esta fica a 16 px dela ——— */
@@ -1696,6 +1746,13 @@ select.entrada {
 /* ——— tabelas (a equipa, as coortes, os clientes) ——— */
 .rola {
   overflow-x: auto;
+}
+/* Entre o telemóvel (onde a tabela dos clientes se empilha) e um ecrã largo, ela rola dentro do cartão
+   em vez de alargar a página: num iPad ou numa janela de 1000 px passava 116 px para a direita. */
+@media (min-width: 641px) {
+  .rola-no-largo {
+    overflow-x: auto;
+  }
 }
 /* Numa tabela que rola de lado, as células não partem: lê-se a rolar. */
 .rola .quadro td {

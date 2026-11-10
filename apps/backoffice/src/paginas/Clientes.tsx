@@ -148,7 +148,7 @@ export function Clientes() {
           />
         </div>
       ) : (
-        <div className="cartao">
+        <div className="cartao rola-no-largo">
           <table className="quadro clientes">
             <thead>
               <tr>

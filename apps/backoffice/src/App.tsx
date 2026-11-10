@@ -147,11 +147,40 @@ function Casca() {
   const rota = useRota();
   const eu = useQuery({ queryKey: ['eu'], queryFn: () => pedir<Eu>('/api/bo/eu') });
   const principal = useRef<HTMLElement>(null);
+  const navegacao = useRef<HTMLElement>(null);
   const actual = MORADAS_ANTIGAS[rota[0] ?? ''] ?? rota[0] ?? '';
   useEffect(() => {
     principal.current?.scrollTo?.(0, 0);
     window.scrollTo(0, 0);
   }, [actual, rota[1]]);
+  // No telemóvel o menu rola de lado: a secção aberta vem para o meio (na Barbearia, na Equipa e no
+  // Histórico ficava cortada ou fora do ecrã), e as pontas esbatem-se quando há mais desse lado.
+  useEffect(() => {
+    const nav = navegacao.current;
+    if (!nav) return;
+    const marcar = () => {
+      nav.toggleAttribute('data-mais-a-esquerda', nav.scrollLeft > 4);
+      nav.toggleAttribute(
+        'data-mais-a-direita',
+        nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 4,
+      );
+    };
+    const aberta = nav.querySelector<HTMLElement>('[aria-current="page"]');
+    if (aberta && nav.scrollWidth > nav.clientWidth) {
+      const desvio = aberta.getBoundingClientRect().left - nav.getBoundingClientRect().left;
+      nav.scrollTo({
+        left: nav.scrollLeft + desvio - (nav.clientWidth - aberta.offsetWidth) / 2,
+        behavior: 'smooth',
+      });
+    }
+    marcar();
+    nav.addEventListener('scroll', marcar, { passive: true });
+    window.addEventListener('resize', marcar);
+    return () => {
+      nav.removeEventListener('scroll', marcar);
+      window.removeEventListener('resize', marcar);
+    };
+  }, [actual, t]);
   // O título da página também muda com a língua (sem voltar ao topo).
   useEffect(() => {
     const s = SECCOES.find((x) => x.caminho === actual);
@@ -184,7 +213,7 @@ function Casca() {
       <aside className="lateral">
         <img className="palavra" src={PALAVRA} alt="Nuno's Lab" />
         <div className="sobre-palavra">{t.geral.backoffice}</div>
-        <nav className="navegacao" aria-label={t.geral.seccoesRotulo}>
+        <nav ref={navegacao} className="navegacao" aria-label={t.geral.seccoesRotulo}>
           {SECCOES.map((s) => (
             <a
               key={s.caminho}
