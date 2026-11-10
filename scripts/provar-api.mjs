@@ -386,6 +386,38 @@ await passo('com uma promoção, aparece; com datas trocadas, é recusada', asyn
   assert.equal(en.horario, 'Mon to Sat · 9:00–12:30 and 14:30–19:00');
 });
 
+await passo('uma ordem só: arrastar as vantagens muda os destaques e a lista da app', async () => {
+  // A vantagem nova vai para o fim da ordem, e o parceiro dela também (o Renato, 10 nov 2026).
+  let d = await (await pedir('/api/app')).json();
+  assert.equal(d.parceiros.at(-1).id, parceiro, 'a nova fica no fim');
+  // Arrastá-la para cima da 1.ª da app, com a lista filtrada (só as duas): trocam de lugar.
+  const primeira = d.parceiros[0].promocoes[0].id;
+  const ids = async () =>
+    (await (await pedir('/api/bo/promocoes', { token })).json()).map((p) => p.id);
+  const antes = await ids();
+  const r = await pedir('/api/bo/promocoes/ordem', {
+    method: 'POST',
+    token,
+    body: json({ ids: [promocao, primeira] }),
+  });
+  assert.equal(r.status, 204);
+  d = await (await pedir('/api/app')).json();
+  assert.equal(d.parceiros[0].id, parceiro, 'o parceiro sobe ao lugar da vantagem');
+  const destaques = d.parceiros
+    .flatMap((p) => p.promocoes.filter((x) => x.emDestaque))
+    .sort((a, b) => a.ordem - b.ordem);
+  assert.equal(destaques[0].id, promocao, 'e o destaque dela passa a ser o primeiro');
+  // As que não estavam na lista filtrada ficaram onde estavam.
+  const troca = (id) => (id === primeira ? promocao : id === promocao ? primeira : id);
+  assert.deepEqual(await ids(), antes.map(troca));
+  const mau = await pedir('/api/bo/promocoes/ordem', {
+    method: 'POST',
+    token,
+    body: json({ ids: [promocao, 999999] }),
+  });
+  assert.equal(mau.status, 400, 'uma vantagem que não existe é recusada');
+});
+
 await passo('pausar a promoção tira o parceiro da app', async () => {
   const r = await pedir(`/api/bo/promocoes/${promocao}`, {
     method: 'PATCH',

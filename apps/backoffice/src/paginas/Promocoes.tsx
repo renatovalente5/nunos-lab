@@ -19,6 +19,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
+import { ListaArrastavel } from '../arrastar';
 import {
   AreaDeTexto,
   Campo,
@@ -165,6 +166,16 @@ export function Promocoes() {
           : t.promocoes.emDestaque,
     );
 
+  // A ordem das vantagens é uma só (o Renato, 10 nov): a app segue-a nos destaques, na lista dos parceiros
+  // e na página de cada um. Também se arrasta com a lista filtrada: as que se vêem trocam entre si os
+  // lugares, e as outras ficam onde estavam.
+  const reordenar = async (novas: Promocao[]) => {
+    await correr(() =>
+      pedir('/api/bo/promocoes/ordem', { metodo: 'POST', corpo: { ids: novas.map((p) => p.id) } }),
+    );
+    await refrescar();
+  };
+
   return (
     <>
       <div className="cabecalho">
@@ -229,9 +240,14 @@ export function Promocoes() {
         </div>
       ) : (
         <div className="cartao">
-          <ul className="lista">
-            {lista.map((p) => (
-              <li key={p.id} style={{ display: 'flex', alignItems: 'center' }}>
+          <ListaArrastavel
+            itens={lista}
+            chave={(p) => p.id}
+            nome={(p) => `${p.destaque} ${p.titulo}`}
+            aoReordenar={reordenar}
+            desenhar={(p, pega) => (
+              <>
+                {lista.length > 1 && pega}
                 <button
                   type="button"
                   className="linha"
@@ -273,9 +289,9 @@ export function Promocoes() {
                     onClick={() => alternar(p, 'activa')}
                   />
                 </div>
-              </li>
-            ))}
-          </ul>
+              </>
+            )}
+          />
         </div>
       )}
 

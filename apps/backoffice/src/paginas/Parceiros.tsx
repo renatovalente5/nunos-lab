@@ -1,8 +1,7 @@
 import { naLingua, type CategoriaComContagem, type Parceiro } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { mensagemDe, pedir, refrescar } from '../api';
-import { ListaArrastavel } from '../arrastar';
+import { pedir, refrescar } from '../api';
 import {
   Esqueleto,
   Etiqueta,
@@ -10,7 +9,6 @@ import {
   Logotipo,
   Segmentado,
   useAccao,
-  useAvisar,
   useConfirmar,
   Vazio,
 } from '../pecas';
@@ -34,7 +32,6 @@ export function Parceiros() {
   const [filtro, setFiltro] = useState<Filtro>('todos');
   const [procura, setProcura] = useState('');
   const { correr } = useAccao();
-  const avisar = useAvisar();
   const { confirmar, dialogo } = useConfirmar();
 
   const lista = useMemo(() => {
@@ -56,21 +53,8 @@ export function Parceiros() {
   };
   const naApp = (parceiros.data ?? []).filter((p) => p.activo && p.promocoesNaApp > 0).length;
   const exemplos = (parceiros.data ?? []).filter((p) => p.exemplo).length;
-  // A ordem é a da lista inteira: só se arrasta com tudo à vista (sem filtro nem procura).
-  const ordenavel = filtro === 'todos' && !procura.trim() && lista.length > 1;
-
-  const reordenar = async (novos: Parceiro[]) => {
-    try {
-      await pedir('/api/bo/parceiros/ordem', {
-        metodo: 'POST',
-        corpo: { ids: novos.map((p) => p.id) },
-      });
-      await refrescar();
-    } catch (e) {
-      avisar(mensagemDe(e), true);
-      await refrescar();
-    }
-  };
+  // A lista vem pela ordem da app, a das vantagens: muda-se a arrastar na página Vantagens (uma ordem
+  // só, o Renato, 10 nov).
 
   const linha = (p: Parceiro) => (
     <a className="linha" href={`#/parceiros/${p.id}`}>
@@ -184,21 +168,6 @@ export function Parceiros() {
               </p>
             )}
           </Vazio>
-        </div>
-      ) : ordenavel ? (
-        <div className="cartao">
-          <ListaArrastavel
-            itens={lista}
-            chave={(p) => p.id}
-            nome={(p) => p.nome}
-            aoReordenar={reordenar}
-            desenhar={(p, pega) => (
-              <>
-                {pega}
-                {linha(p)}
-              </>
-            )}
-          />
         </div>
       ) : (
         <div className="cartao">

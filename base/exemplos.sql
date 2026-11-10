@@ -51,7 +51,7 @@ INSERT INTO parceiros (id, nome, categoria_id, localidade, morada, horario_seman
    '[{"dias":[1,2,3,4,5,6,7],"horas":[["13:00","23:00"]]}]', 'Gelado artesanal feito todos os dias.', '#9D2B6B', 1, 8);
 
 INSERT INTO promocoes (parceiro_id, destaque, titulo, detalhe, inicio, fim, em_destaque, activa, ordem) VALUES
-  (1, '−10%', 'Na refeição', 'Ao almoço e ao jantar, de segunda a sexta. Não junta com outras promoções.', NULL, NULL, 1, 1, 1),
+  (1, '−10%', 'Na refeição', 'Ao almoço e ao jantar, de segunda a sexta. Não junta com outras vantagens.', NULL, NULL, 1, 1, 1),
   (1, 'Grátis', 'Sobremesa da casa', 'Com qualquer prato do dia.', NULL, NULL, 0, 1, 2),
   (2, '−300 €', 'Na compra de um usado', 'Mostra a app antes de fechar negócio. Um desconto por carro.', NULL, date('now', '+60 days'), 1, 1, 1),
   (2, '−15%', 'Na revisão', 'Na mão de obra, em qualquer marca.', NULL, NULL, 0, 1, 2),
@@ -66,6 +66,15 @@ INSERT INTO promocoes (parceiro_id, destaque, titulo, detalhe, inicio, fim, em_d
   (7, '−30%', 'Em lentes progressivas', 'Com o exame de visão incluído.', date('now', '+20 days'), date('now', '+80 days'), 0, 1, 2),
   (8, '−10%', 'Em todos os gelados', 'No copo, no cone ou para levar.', NULL, NULL, 0, 1, 1),
   (8, '2×1', 'Ao domingo', 'Na segunda bola.', NULL, NULL, 0, 0, 2);
+
+-- Uma ordem só para as vantagens, como na migração 0018: a dos parceiros e, dentro de cada um, a deles.
+UPDATE promocoes SET ordem = (
+  SELECT r.n FROM (
+    SELECT p.id, ROW_NUMBER() OVER (ORDER BY pa.ordem, pa.nome, p.ordem, p.id) AS n
+      FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
+  ) AS r
+  WHERE r.id = promocoes.id
+);
 
 -- A casa de cada parceiro de exemplo, pela zona.
 UPDATE parceiros SET loja_id = 1 WHERE exemplo = 1 AND localidade IN ('Nogueira do Cravo', 'Oliveira de Azeméis');

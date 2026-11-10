@@ -137,11 +137,15 @@ export default function Vantagens() {
   }, [parceiro]);
 
   // Os parceiros são de todas as barbearias: quem corta em qualquer uma tem as vantagens (o Renato, 8 nov).
+  // Os destaques pela ordem das vantagens, a que o Nuno arrasta no backoffice (o Renato, 10 nov); sem ela
+  // (dados guardados de antes), ficam pela ordem dos parceiros.
   const destaques = useMemo(
     () =>
-      (data?.parceiros ?? []).flatMap((p) =>
-        p.promocoes.filter((pr) => pr.emDestaque).map((pr) => ({ parceiro: p, promocao: pr })),
-      ),
+      (data?.parceiros ?? [])
+        .flatMap((p) =>
+          p.promocoes.filter((pr) => pr.emDestaque).map((pr) => ({ parceiro: p, promocao: pr })),
+        )
+        .sort((a, b) => (a.promocao.ordem ?? 0) - (b.promocao.ordem ?? 0)),
     [data],
   );
   // Os destaques num lugar só, baixo, e a lista logo a seguir (o Renato, 8 nov: a lista ficava muito
@@ -216,6 +220,9 @@ export default function Vantagens() {
         destaques.length > 0 &&
         (varios ? (
           <ScrollView
+            // Outra ordem (o Nuno arrastou-as e a app tinha a de antes guardada) volta ao primeiro: na
+            // web, o «scroll-snap» ia atrás do destaque que estava à vista até ao lugar novo dele.
+            key={destaques.map((d) => d.promocao.id).join(',')}
             horizontal
             showsHorizontalScrollIndicator={false}
             decelerationRate="fast"

@@ -41,7 +41,6 @@ import {
   useConfirmar,
   Vazio,
 } from '../pecas';
-import { ListaArrastavel } from '../arrastar';
 import { CampoDoHorario } from '../horario';
 import { useLingua } from '../lingua';
 import { useTextos } from '../textos';
@@ -219,18 +218,6 @@ export function Parceiro({ id }: { id: string }) {
   const promocoes = dados.data?.promocoes ?? [];
   const naApp = !novo && f.activo && (dados.data?.parceiro.promocoesNaApp ?? 0) > 0;
 
-  const reordenarPromocoes = async (novas: Promocao[]) => {
-    try {
-      await pedir('/api/bo/promocoes/ordem', {
-        metodo: 'POST',
-        corpo: { ids: novas.map((p) => p.id) },
-      });
-      await refrescar();
-    } catch (e) {
-      avisar(mensagemDe(e), true);
-      await refrescar();
-    }
-  };
   const ligarPromocao = (p: Promocao) =>
     correr(
       async () => {
@@ -446,19 +433,16 @@ export function Parceiro({ id }: { id: string }) {
                 )}
                 lista
               >
+                {/* Pela ordem das vantagens, que se muda a arrastar na página Vantagens (uma ordem só). */}
                 {promocoes.length ? (
-                  <ListaArrastavel
-                    itens={promocoes}
-                    chave={(p) => p.id}
-                    nome={(p) => `${p.destaque} ${p.titulo}`}
-                    aoReordenar={reordenarPromocoes}
-                    desenhar={(p, pega) => (
-                      <>
-                        {promocoes.length > 1 && pega}
+                  <ul className="lista">
+                    {promocoes.map((p) => (
+                      <li key={p.id} style={{ display: 'flex', alignItems: 'center' }}>
                         <button
                           type="button"
                           className="linha"
                           onClick={() => setEditor({ promocao: p })}
+                          style={{ flex: 1, minWidth: 0 }}
                         >
                           <ConteudoDaPromocao p={p} hoje={hoje} />
                         </button>
@@ -471,9 +455,9 @@ export function Parceiro({ id }: { id: string }) {
                           aria-label={`${p.destaque} ${p.titulo}`}
                           onClick={() => ligarPromocao(p)}
                         />
-                      </>
-                    )}
-                  />
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
                   <Vazio titulo={t.parceiro.aindaSemPromocoes}>
                     {t.parceiro.semPromocaoLigada}

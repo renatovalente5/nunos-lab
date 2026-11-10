@@ -164,7 +164,8 @@ rotasDasMetricas.get('/metricas', async (c) => {
            (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.parceiro_id = pa.id AND v.dia BETWEEN ?1 AND ?2 AND v.anulado_em IS NULL AND k.exemplo = 0 ${lojaId ? 'AND k.loja_id = ?5' : ''}) AS n,
            (SELECT count(DISTINCT v.cliente_id) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.parceiro_id = pa.id AND v.dia BETWEEN ?1 AND ?2 AND v.anulado_em IS NULL AND k.exemplo = 0 ${lojaId ? 'AND k.loja_id = ?5' : ''}) AS clientes,
            (SELECT count(*) FROM vales v JOIN clientes k ON k.id = v.cliente_id WHERE v.parceiro_id = pa.id AND v.dia BETWEEN ?3 AND ?4 AND v.anulado_em IS NULL AND k.exemplo = 0 ${lojaId ? 'AND k.loja_id = ?5' : ''}) AS anterior
-         FROM parceiros pa ORDER BY n DESC, pa.ordem, pa.nome`,
+         FROM parceiros pa
+         ORDER BY n DESC, (SELECT min(ordem) FROM promocoes WHERE parceiro_id = pa.id), pa.nome`,
       )
       .bind(de, ate, antesDe, antesAte, ...l),
     db

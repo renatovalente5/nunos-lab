@@ -32,6 +32,9 @@ export type Loja = {
 
 export type PromocaoPublica = {
   id: number;
+  /** O lugar na ordem das vantagens, a única, que o Nuno arrasta no backoffice (10 nov 2026). As
+   *  respostas de antes não o traziam, e a app guarda-as para abrir sem rede. */
+  ordem?: number;
   destaque: string;
   titulo: string;
   detalhe: string;

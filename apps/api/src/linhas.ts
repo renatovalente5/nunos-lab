@@ -109,6 +109,7 @@ export function loja(l: LinhaLoja): Loja {
 export function promocaoPublica(l: LinhaPromocao, lingua: Lingua = 'pt'): PromocaoPublica {
   return {
     id: l.id,
+    ordem: l.ordem,
     destaque: naLingua(lingua, l.destaque, l.destaque_en),
     titulo: naLingua(lingua, l.titulo, l.titulo_en),
     detalhe: naLingua(lingua, l.detalhe, l.detalhe_en),

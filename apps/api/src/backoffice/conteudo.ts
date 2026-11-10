@@ -83,7 +83,13 @@ const SELECT_PARCEIROS = `
 type LinhaComContagens = LinhaParceiro & { na_app: number; total: number };
 
 rotasDoConteudo.get('/parceiros', async (c) => {
-  const { results } = await c.env.DB.prepare(`${SELECT_PARCEIROS} ORDER BY p.ordem, p.nome`)
+  // Pela ordem da app: cada parceiro no lugar da sua primeira vantagem (uma ordem só, a das vantagens,
+  // o Renato, 10 nov); os que ainda não têm nenhuma vão no fim, pelo nome.
+  const { results } = await c.env.DB.prepare(
+    `${SELECT_PARCEIROS}
+     ORDER BY (SELECT min(ordem) FROM promocoes WHERE parceiro_id = p.id) IS NULL,
+       (SELECT min(ordem) FROM promocoes WHERE parceiro_id = p.id), p.nome`,
+  )
     .bind(diaEmLisboa())
     .all<LinhaComContagens>();
   return c.json(results.map(parceiroDoBackoffice));
@@ -298,18 +304,11 @@ rotasDoConteudo.delete('/parceiros/:id', async (c) => {
   return c.body(null, 204);
 });
 
-function ordenar(c: C, tabela: 'parceiros' | 'promocoes' | 'categorias' | 'lojas', ids: number[]) {
+function ordenar(c: C, tabela: 'categorias' | 'lojas', ids: number[]) {
   return ids.map((id, i) =>
     c.env.DB.prepare(`UPDATE ${tabela} SET ordem = ? WHERE id = ?`).bind(i + 1, id),
   );
 }
-
-rotasDoConteudo.post('/parceiros/ordem', async (c) => {
-  const { ids } = await corpo(c, Ordem);
-  if (ids.length)
-    await c.env.DB.batch([...ordenar(c, 'parceiros', ids), registar(c, 'parceiros.ordenados')]);
-  return c.body(null, 204);
-});
 
 /** Apagar de uma vez os parceiros inventados para a demonstração. */
 rotasDoConteudo.post('/exemplos/apagar', async (c) => {
@@ -363,7 +362,7 @@ rotasDoConteudo.get('/promocoes', async (c) => {
     `SELECT p.*, pa.nome AS parceiro, pa.activo AS parceiro_activo,
        (SELECT count(*) FROM vales v WHERE v.promocao_id = p.id AND v.anulado_em IS NULL) AS validacoes
      FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
-     ORDER BY pa.ordem, pa.nome, p.ordem, p.id`,
+     ORDER BY p.ordem, p.id`,
   ).all<LinhaPromocao & { parceiro: string; parceiro_activo: number }>();
   const hoje = diaEmLisboa();
   return c.json(
@@ -412,7 +411,7 @@ rotasDoConteudo.post('/promocoes', async (c) => {
         `INSERT INTO promocoes (parceiro_id, destaque, titulo, detalhe, destaque_en, titulo_en, detalhe_en,
            inicio, fim, em_destaque, activa,
            limite_por_cliente, periodo_do_limite, limite_total, ordem)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM promocoes WHERE parceiro_id = ?))
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM promocoes))
          RETURNING id`,
       )
       .bind(
@@ -430,7 +429,6 @@ rotasDoConteudo.post('/promocoes', async (c) => {
         p.limitePorCliente ?? null,
         p.periodoDoLimite ?? 'dia',
         p.limiteTotal ?? null,
-        p.parceiroId,
       ),
     registar(c, 'promocao.criada', `${parceiro.nome}: ${p.destaque} ${p.titulo}`),
   ]);
@@ -546,9 +544,27 @@ rotasDoConteudo.delete('/promocoes/:id', async (c) => {
   return c.body(null, 204);
 });
 
+// Uma ordem só para todas as vantagens (o Renato, 10 nov 2026): a app segue-a nos destaques, na lista dos
+// parceiros e na página de cada um. A lista do backoffice pode estar filtrada (um estado, um parceiro, uma
+// procura): as que chegam trocam entre si os lugares que já ocupavam, e as outras ficam onde estavam.
+// Renumera-se tudo a partir de 1, para dois lugares iguais nunca empatarem.
 rotasDoConteudo.post('/promocoes/ordem', async (c) => {
   const { ids } = await corpo(c, Ordem);
-  if (ids.length) await c.env.DB.batch(ordenar(c, 'promocoes', ids));
+  const db = c.env.DB;
+  const { results: todas } = await db
+    .prepare('SELECT id, ordem FROM promocoes ORDER BY ordem, id')
+    .all<{ id: number; ordem: number }>();
+  const lugarAntes = new Map(todas.map((p) => [p.id, p.ordem]));
+  const pedidas = new Set(ids);
+  if (pedidas.size !== ids.length || ids.some((id) => !lugarAntes.has(id))) recusar(400, 'ordem');
+  const novas = [...ids];
+  const mudam = todas.flatMap((p, i) => {
+    const id = pedidas.has(p.id) ? novas.shift()! : p.id;
+    return lugarAntes.get(id) === i + 1
+      ? []
+      : [db.prepare('UPDATE promocoes SET ordem = ? WHERE id = ?').bind(i + 1, id)];
+  });
+  if (mudam.length) await db.batch([...mudam, registar(c, 'promocoes.ordenadas')]);
   return c.body(null, 204);
 });
 

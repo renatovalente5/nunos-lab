@@ -29,8 +29,9 @@ export const rotasPublicas = new Hono<Ambiente>();
 /**
  * Tudo o que a app mostra, num pedido só: a app abre, pede isto, e tem o
  * início e todas as páginas dos parceiros. Só vão os parceiros activos com
- * pelo menos uma promoção na app hoje. As promoções vêm pela ordem que o
- * Nuno arrasta no backoffice (a 1.ª é a que aparece na lista da app).
+ * pelo menos uma vantagem na app hoje. Há uma ordem só, a das vantagens, que o
+ * Nuno arrasta no backoffice (o Renato, 10 nov 2026): cada parceiro vem no lugar
+ * da sua primeira vantagem, e a 1.ª dele é a que aparece na lista da app.
  */
 rotasPublicas.get('/app', async (c) => {
   const db = c.env.DB;
@@ -39,7 +40,7 @@ rotasPublicas.get('/app', async (c) => {
   const lingua = linguaDoPedido(c);
   const [cats, pars, proms, lojas, defs] = await db.batch([
     db.prepare('SELECT id, nome, nome_en, icone, ordem FROM categorias ORDER BY ordem, id'),
-    db.prepare('SELECT * FROM parceiros WHERE activo = 1 ORDER BY ordem, nome'),
+    db.prepare('SELECT * FROM parceiros WHERE activo = 1'),
     db
       .prepare(
         `SELECT p.* FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
@@ -52,6 +53,7 @@ rotasPublicas.get('/app', async (c) => {
     db.prepare('SELECT chave, valor FROM definicoes'),
   ]);
 
+  // As vantagens chegam pela ordem: o Map guarda cada parceiro no lugar da primeira dele.
   const porParceiro = new Map<number, LinhaPromocao[]>();
   for (const p of proms!.results as LinhaPromocao[]) {
     const lista = porParceiro.get(p.parceiro_id) ?? [];
@@ -60,9 +62,10 @@ rotasPublicas.get('/app', async (c) => {
   }
   const limiteDeNovo = agora() - DIAS_DE_NOVO * DIA;
   const parceiros: ParceiroPublico[] = [];
-  for (const l of pars!.results as LinhaParceiro[]) {
-    const lista = porParceiro.get(l.id);
-    if (!lista?.length) continue;
+  const linhas = new Map((pars!.results as LinhaParceiro[]).map((l) => [l.id, l]));
+  for (const [id, lista] of porParceiro) {
+    const l = linhas.get(id);
+    if (!l) continue;
     parceiros.push({
       ...parceiroBase(l, lingua),
       // As apps de antes de 8 nov filtram por isto; null mostra o parceiro em todas as barbearias.
