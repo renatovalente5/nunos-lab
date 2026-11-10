@@ -1,4 +1,9 @@
-import { AJUSTE_DE_ORIGEM, BYTES_DA_IMAGEM, type AjusteDoLogotipo } from '@nunos-lab/dominio';
+import {
+  AJUSTE_DE_ORIGEM,
+  BYTES_DA_IMAGEM,
+  coresPrincipais,
+  type AjusteDoLogotipo,
+} from '@nunos-lab/dominio';
 import { API, ErroDaApi, pedir } from './api';
 
 /**
@@ -174,9 +179,31 @@ export function corDasOrlas(
   return `#${media.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`.toUpperCase();
 }
 
-/** A cor das orlas de um logótipo já guardado (a API deixa o backoffice lê-lo: CORS). */
-export async function corDoLogotipo(id: string): Promise<string | null> {
+/** Um logótipo já guardado, aberto (a API deixa o backoffice lê-lo: CORS). */
+async function abrirLogotipo(id: string): Promise<ImageBitmap | null> {
   const r = await fetch(`${API}/api/imagens/${id}`);
-  if (!r.ok) return null;
-  return corDasOrlas(await createImageBitmap(await r.blob()));
+  return r.ok ? createImageBitmap(await r.blob()) : null;
+}
+
+/** A cor das orlas de um logótipo já guardado. */
+export async function corDoLogotipo(id: string): Promise<string | null> {
+  const imagem = await abrirLogotipo(id);
+  return imagem ? corDasOrlas(imagem) : null;
+}
+
+/**
+ * As cores principais de um logótipo já guardado, para as sugerir na cor do parceiro (o Renato,
+ * 10 nov). Lidas numa cópia pequena sem suavizar: cada píxel é um da imagem, sem tons de mistura.
+ */
+export async function coresDoLogotipo(id: string): Promise<string[]> {
+  const imagem = await abrirLogotipo(id);
+  const lado = 96;
+  const tela = document.createElement('canvas');
+  tela.width = lado;
+  tela.height = lado;
+  const ctx = tela.getContext('2d', { willReadFrequently: true });
+  if (!imagem || !ctx) return [];
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(imagem, 0, 0, lado, lado);
+  return coresPrincipais(ctx.getImageData(0, 0, lado, lado).data);
 }

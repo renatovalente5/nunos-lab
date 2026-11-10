@@ -42,6 +42,7 @@ import {
   Vazio,
 } from '../pecas';
 import { CampoDoHorario } from '../horario';
+import { coresDoLogotipo } from '../imagens';
 import { useLingua } from '../lingua';
 import { useTextos } from '../textos';
 import { ir, parametro, useAvisoAoSair } from '../util';
@@ -127,6 +128,13 @@ export function Parceiro({ id }: { id: string }) {
   const [original, setOriginal] = useState<Formulario | null>(novo ? VAZIO : null);
   const [f, setF] = useState<Formulario | null>(novo ? VAZIO : null);
   const [erros, setErros] = useState<string[]>([]);
+  // As cores principais do logótipo, sugeridas na cor do parceiro (o Renato, 10 nov).
+  const coresDoLogo = useQuery({
+    queryKey: ['cores-do-logotipo', f?.logotipo ?? null],
+    queryFn: () => coresDoLogotipo(f?.logotipo ?? ''),
+    enabled: !!f?.logotipo,
+    staleTime: Infinity,
+  });
   const [editor, setEditor] = useState<{ promocao: Promocao | null } | null>(null);
   const { correr, aCorrer } = useAccao();
   const avisar = useAvisar();
@@ -314,7 +322,7 @@ export function Parceiro({ id }: { id: string }) {
               max={LIMITES.descricao}
               erro={erros.includes('descricao')}
             />
-            <Cores valor={f.cor} mudar={mudar('cor')} />
+            <Cores valor={f.cor} mudar={mudar('cor')} doLogotipo={coresDoLogo.data} />
             <div className="duas-colunas">
               <CampoDoLogotipo
                 rotulo={t.parceiro.logotipo}

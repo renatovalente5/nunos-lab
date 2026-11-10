@@ -38,6 +38,47 @@ export function misturar(a: string, b: string, t: number): string {
 }
 
 /**
+ * As cores principais de uma imagem, pelos píxeis RGBA (os de um `getImageData`): as que ocupam mais,
+ * por ordem, com os tons quase iguais juntos, sem o transparente e sem as que mal se vêem (os tons de
+ * passagem nas bordas das letras). Para sugerir as cores do logótipo (o Renato, 10 nov).
+ */
+export function coresPrincipais(pixeis: ArrayLike<number>, maximo = 4, minimo = 0.03): string[] {
+  // Primeiro em caixas de 16 tons por canal, com a média do que caiu em cada uma.
+  const caixas = new Map<number, { n: number; r: number; g: number; b: number }>();
+  let opacos = 0;
+  for (let i = 0; i + 3 < pixeis.length; i += 4) {
+    if ((pixeis[i + 3] ?? 0) < 200) continue;
+    const [r, g, b] = [pixeis[i] ?? 0, pixeis[i + 1] ?? 0, pixeis[i + 2] ?? 0];
+    const chave = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+    const caixa = caixas.get(chave) ?? { n: 0, r: 0, g: 0, b: 0 };
+    caixa.n++;
+    caixa.r += r;
+    caixa.g += g;
+    caixa.b += b;
+    caixas.set(chave, caixa);
+    opacos++;
+  }
+  if (!opacos) return [];
+  // Depois, da caixa mais cheia para a mais vazia: a que fica perto de um grupo já feito junta-se a ele.
+  const grupos: { n: number; cor: [number, number, number] }[] = [];
+  for (const c of [...caixas.values()].sort((a, b) => b.n - a.n)) {
+    const cor: [number, number, number] = [c.r / c.n, c.g / c.n, c.b / c.n];
+    const perto = grupos.find(
+      (g) => Math.hypot(g.cor[0] - cor[0], g.cor[1] - cor[1], g.cor[2] - cor[2]) < 48,
+    );
+    if (perto) perto.n += c.n;
+    else grupos.push({ n: c.n, cor });
+  }
+  return grupos
+    .filter((g) => g.n / opacos >= minimo)
+    .sort((a, b) => b.n - a.n)
+    .slice(0, maximo)
+    .map((g) =>
+      `#${g.cor.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`.toUpperCase(),
+    );
+}
+
+/**
  * A cor de um parceiro pronta para levar texto branco por cima (capa, cartão em
  * destaque, iniciais): escurece aos poucos até o branco passar `minimo` (WCAG
  * AA, 4,5:1). As cores da lista já passam e ficam iguais; uma «outra cor» clara

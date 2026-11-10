@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   AJUSTE_DE_ORIGEM,
+  ajusteDosDedos,
   caixaDoLogotipo,
+  coresPrincipais,
   lerAjusteDoLogotipo,
   limitarAjuste,
   DESENHOS_DAS_CATEGORIAS,
@@ -557,4 +559,111 @@ test('ajuste do logótipo: limites, leitura da base e a caixa no círculo (9 nov
   assert.deepEqual(lerAjusteDoLogotipo(JSON.stringify(AJUSTE_DE_ORIGEM)), AJUSTE_DE_ORIGEM);
   assert.equal(lerAjusteDoLogotipo('{estragado'), null);
   assert.equal(lerAjusteDoLogotipo(null), null);
+});
+
+test('as cores principais de um logótipo: por ordem, sem tons de passagem nem transparente (10 nov)', () => {
+  // Uma imagem de 100 píxeis: 80 verde-azulado (em dois tons quase iguais), 12 brancos, 5 de passagem
+  // entre os dois (todos diferentes), 3 transparentes.
+  const px: number[] = [];
+  const pinta = (n: number, r: number, g: number, b: number, a = 255) => {
+    for (let i = 0; i < n; i++) px.push(r, g, b, a);
+  };
+  pinta(70, 5, 117, 132);
+  pinta(10, 20, 130, 150);
+  pinta(12, 255, 255, 255);
+  for (let k = 1; k <= 5; k++) pinta(1, 5 + k * 40, 117 + k * 22, 132 + k * 20);
+  pinta(3, 200, 0, 0, 0);
+  const cores = coresPrincipais(px);
+  assert.equal(cores.length, 2, `${cores}`);
+  assert.equal(cores[1], '#FFFFFF');
+  // O verde-azulado é a média do tom mais comum (os dois juntaram-se num grupo só).
+  assert.equal(cores[0], '#057584');
+  // O máximo conta, e uma imagem toda transparente não tem cores.
+  assert.deepEqual(coresPrincipais(px, 1), ['#057584']);
+  assert.deepEqual(coresPrincipais([0, 0, 0, 0, 255, 255, 255, 10]), []);
+});
+
+test('ajuste do logótipo com os dedos: um arrasta, dois aproximam sem a imagem fugir (10 nov)', () => {
+  const inicio = { fundo: '#057584', zoom: 0.9, x: 0, y: 0 };
+  // Um dedo: a imagem anda o mesmo que ele.
+  assert.deepEqual(ajusteDosDedos(inicio, [{ x: 0, y: 0 }], [{ x: 0.1, y: -0.2 }]), {
+    ...inicio,
+    x: 0.1,
+    y: -0.2,
+  });
+  // Dois dedos a afastar para o dobro, à volta do centro: o dobro do tamanho, no mesmo sítio.
+  assert.deepEqual(
+    ajusteDosDedos(
+      inicio,
+      [
+        { x: -0.1, y: 0 },
+        { x: 0.1, y: 0 },
+      ],
+      [
+        { x: -0.2, y: 0 },
+        { x: 0.2, y: 0 },
+      ],
+    ),
+    { ...inicio, zoom: 1.8 },
+  );
+  // Fora do centro, ×1,5: o ponto da imagem entre os dedos (0,2; 0,2) continua entre eles.
+  assert.deepEqual(
+    ajusteDosDedos(
+      inicio,
+      [
+        { x: 0.1, y: 0.2 },
+        { x: 0.3, y: 0.2 },
+      ],
+      [
+        { x: 0.05, y: 0.2 },
+        { x: 0.35, y: 0.2 },
+      ],
+    ),
+    { ...inicio, zoom: 1.35, x: -0.1, y: -0.1 },
+  );
+  // Os dois a andar juntos, sem se afastarem: arrasta.
+  assert.deepEqual(
+    ajusteDosDedos(
+      inicio,
+      [
+        { x: -0.1, y: 0 },
+        { x: 0.1, y: 0 },
+      ],
+      [
+        { x: 0, y: 0.1 },
+        { x: 0.2, y: 0.1 },
+      ],
+    ),
+    { ...inicio, x: 0.1, y: 0.1 },
+  );
+  // Não passa do limite, e o centro fica no centro.
+  assert.deepEqual(
+    ajusteDosDedos(
+      inicio,
+      [
+        { x: -0.05, y: 0 },
+        { x: 0.05, y: 0 },
+      ],
+      [
+        { x: -0.5, y: 0 },
+        { x: 0.5, y: 0 },
+      ],
+    ),
+    { ...inicio, zoom: 3 },
+  );
+  // Dois dedos no mesmo sítio não dividem por zero.
+  assert.deepEqual(
+    ajusteDosDedos(
+      inicio,
+      [
+        { x: 0, y: 0 },
+        { x: 0, y: 0 },
+      ],
+      [
+        { x: 0.1, y: 0 },
+        { x: 0.1, y: 0 },
+      ],
+    ),
+    { ...inicio, x: 0.1 },
+  );
 });

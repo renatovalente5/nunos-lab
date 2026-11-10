@@ -4,10 +4,12 @@ import {
   CORES_DOS_PARCEIROS,
   DESENHOS_DAS_CATEGORIAS,
   ICONES_DAS_CATEGORIAS,
+  ajusteDosDedos,
   caixaDoLogotipo,
   corParaBranco,
   eCor,
   limitarAjuste,
+  luminancia,
   misturar,
   nomeDoDesenho,
   semPartir,
@@ -15,6 +17,7 @@ import {
   type AjusteDoLogotipo,
   type CategoriaComContagem,
   type IconeDaCategoria,
+  type PontoNoCirculo,
 } from '@nunos-lab/dominio';
 import {
   createContext,
@@ -461,14 +464,45 @@ export function Segmentado<T extends string | number>({
   );
 }
 
-export function Cores({ valor, mudar }: { valor: string; mudar: (v: string) => void }) {
+export function Cores({
+  valor,
+  mudar,
+  doLogotipo = [],
+}: {
+  valor: string;
+  mudar: (v: string) => void;
+  /** As cores principais do logótipo, que vão à frente (o Renato, 10 nov). */
+  doLogotipo?: string[];
+}) {
   const t = useTextos();
+  // Só as que servem de fundo à capa, com o texto branco por cima: nem quase brancas nem o preto (a
+  // capa preta some-se no fundo da app; um verde quase preto, como o da Ourivesaria Bastos, serve).
+  // As que já estão na lista não se repetem.
+  const sugeridas = doLogotipo
+    .filter((c) => {
+      const l = luminancia(c);
+      return l >= 0.005 && l <= 0.8 && !(CORES_DOS_PARCEIROS as readonly string[]).includes(c);
+    })
+    .slice(0, 3);
   return (
     <div className="campo">
       <span className="rotulo-campo" id="cor-do-parceiro">
         {t.geral.cor}
       </span>
       <div className="cores" role="group" aria-labelledby="cor-do-parceiro">
+        {sugeridas.map((c) => (
+          <button
+            key={c}
+            type="button"
+            className="cor"
+            style={{ background: c }}
+            aria-pressed={valor.toUpperCase() === c}
+            aria-label={t.geral.corDoLogotipo(c)}
+            title={t.geral.corDoLogotipo(c)}
+            onClick={() => mudar(c)}
+          />
+        ))}
+        {sugeridas.length > 0 && <span className="separador-de-cores" aria-hidden="true" />}
         {CORES_DOS_PARCEIROS.map((c) => (
           <button
             key={c}
@@ -1046,8 +1080,10 @@ export function CampoDeImagem({
 }
 
 /**
- * O logótipo no círculo, para acertar como fica na app: arrastar muda-o de sítio, a roda (ou os
- * dedos no trackpad, que chegam como roda com Ctrl) aproxima, e no teclado as setas e o + e o −.
+ * O logótipo no círculo, para acertar como fica na app: arrastar muda-o de sítio, dois dedos
+ * aproximam ou afastam (o segundo pode assentar fora do círculo, pequeno para dois dedos no
+ * telemóvel), a roda (ou os dedos no trackpad, que chegam como roda com Ctrl) aproxima, e no teclado
+ * as setas e o + e o −.
  */
 function EditorDoLogotipo({
   id,
@@ -1062,7 +1098,6 @@ function EditorDoLogotipo({
   const lado = 112;
   const idDasTeclas = useId();
   const moldura = useRef<HTMLDivElement>(null);
-  const gesto = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
   // Os tratadores lêem daqui o último ajuste e o último «mudar» (a roda é um ouvinte posto uma vez).
   const ultimo = useRef(ajuste);
   const mudarAgora = useRef(mudar);
@@ -1075,6 +1110,35 @@ function EditorDoLogotipo({
     if (!a) return;
     ultimo.current = a;
     mudarAgora.current(a);
+  };
+  // Os dedos (ou o rato) a carregar, pela ordem em que assentaram, onde estão no ecrã; e o ajuste e
+  // os dedos de quando o gesto mudou: as contas fazem-se sempre a partir daí, e um dedo que chega ou
+  // sai recomeça-o, sem a imagem saltar (o Renato, 10 nov: com dois dedos, no telemóvel, ela fugia).
+  const dedos = useRef(new Map<number, { x: number; y: number }>());
+  const partida = useRef<{ ajuste: AjusteDoLogotipo; dedos: PontoNoCirculo[] } | null>(null);
+  // Os dedos que assentaram fora do círculo sem gesto a decorrer: se um assenta no círculo logo a
+  // seguir (os dois quase ao mesmo tempo, como quem afasta os dedos), também contam.
+  const soltos = useRef(new Map<number, { x: number; y: number; quando: number }>());
+  // Só mexem em refs: os ouvintes postos uma vez podem chamá-las.
+  const noCirculo = (): PontoNoCirculo[] => {
+    // O lado medido, não o 112: o CSS pode mudá-lo.
+    const r = moldura.current?.getBoundingClientRect();
+    if (!r?.width) return [];
+    return [...dedos.current.values()].slice(0, 2).map((d) => ({
+      x: (d.x - r.left - r.width / 2) / r.width,
+      y: (d.y - r.top - r.height / 2) / r.height,
+    }));
+  };
+  const recomecar = () => {
+    partida.current = dedos.current.size ? { ajuste: ultimo.current, dedos: noCirculo() } : null;
+  };
+  const assentar = (e: PointerEvent) => {
+    dedos.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (dedos.current.size === 1)
+      for (const [id, d] of soltos.current)
+        if (e.timeStamp - d.quando < 250) dedos.current.set(id, { x: d.x, y: d.y });
+    soltos.current.clear();
+    recomecar();
   };
   // A roda do React é passiva: para a página não rolar enquanto se aproxima, um ouvinte nativo.
   useEffect(() => {
@@ -1094,6 +1158,47 @@ function EditorDoLogotipo({
     el.addEventListener('wheel', roda, { passive: false });
     return () => el.removeEventListener('wheel', roda);
   }, []);
+  // O resto do gesto ouve-se no documento: o dedo que assenta fora do círculo não chega a ele.
+  useEffect(() => {
+    const fora = (e: PointerEvent) => {
+      const el = moldura.current;
+      if (!el || e.pointerType !== 'touch' || el.contains(e.target as Node)) return;
+      if (!dedos.current.size) {
+        soltos.current.set(e.pointerId, { x: e.clientX, y: e.clientY, quando: e.timeStamp });
+        return;
+      }
+      if (dedos.current.size !== 1) return;
+      // Com um dedo já no círculo, este é o segundo: entra no gesto e não toca no que tem por baixo.
+      e.preventDefault();
+      e.stopPropagation();
+      assentar(e);
+    };
+    const mexer = (e: PointerEvent) => {
+      const solto = soltos.current.get(e.pointerId);
+      if (solto) soltos.current.set(e.pointerId, { ...solto, x: e.clientX, y: e.clientY });
+      if (!dedos.current.has(e.pointerId)) return;
+      dedos.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const p = partida.current;
+      const novo = p && ajusteDosDedos(p.ajuste, p.dedos, noCirculo());
+      if (!novo) return;
+      ultimo.current = novo;
+      mudarAgora.current(novo);
+    };
+    const largar = (e: PointerEvent) => {
+      soltos.current.delete(e.pointerId);
+      if (dedos.current.delete(e.pointerId)) recomecar();
+    };
+    document.addEventListener('pointerdown', fora, true);
+    document.addEventListener('pointermove', mexer, true);
+    document.addEventListener('pointerup', largar, true);
+    document.addEventListener('pointercancel', largar, true);
+    return () => {
+      document.removeEventListener('pointerdown', fora, true);
+      document.removeEventListener('pointermove', mexer, true);
+      document.removeEventListener('pointerup', largar, true);
+      document.removeEventListener('pointercancel', largar, true);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div
       ref={moldura}
@@ -1104,15 +1209,14 @@ function EditorDoLogotipo({
       aria-label={t.parceiro.ajustarLogotipo}
       aria-describedby={idDasTeclas}
       onPointerDown={(e) => {
-        e.currentTarget.setPointerCapture(e.pointerId);
-        gesto.current = { px: e.clientX, py: e.clientY, x: ultimo.current.x, y: ultimo.current.y };
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          // Sem a captura, o resto do gesto ouve-se na mesma no documento.
+        }
+        assentar(e.nativeEvent);
       }}
-      onPointerMove={(e) => {
-        const g = gesto.current;
-        if (g) aplicar({ x: g.x + (e.clientX - g.px) / lado, y: g.y + (e.clientY - g.py) / lado });
-      }}
-      onPointerUp={() => (gesto.current = null)}
-      onPointerCancel={() => (gesto.current = null)}
       onKeyDown={(e) => {
         const a = ultimo.current;
         const passo = e.shiftKey ? 0.1 : 0.02;

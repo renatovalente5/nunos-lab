@@ -45,3 +45,41 @@ export function caixaDoLogotipo(a: AjusteDoLogotipo | null | undefined) {
   const { fundo, zoom, x, y } = a ?? AJUSTE_DE_ORIGEM;
   return { fundo, lado: zoom, esquerda: (1 - zoom) / 2 + x, topo: (1 - zoom) / 2 + y };
 }
+
+/** Um dedo no círculo, em fracções do lado, a contar do centro. */
+export type PontoNoCirculo = { x: number; y: number };
+
+/**
+ * O ajuste depois de um gesto, a partir do de quando os dedos assentaram (`antes` e `agora` são os
+ * mesmos dedos, pela mesma ordem). Um dedo leva a imagem com ele; dois aproximam ou afastam pela
+ * distância entre eles, e o ponto da imagem que estava entre os dedos fica entre os dedos, como nas
+ * fotografias do telemóvel (o Renato, 10 nov: com dois dedos a imagem fugia).
+ */
+export function ajusteDosDedos(
+  inicio: AjusteDoLogotipo,
+  antes: PontoNoCirculo[],
+  agora: PontoNoCirculo[],
+): AjusteDoLogotipo | null {
+  const [a0, b0] = antes;
+  const [a1, b1] = agora;
+  if (!a0 || !a1) return limitarAjuste(inicio);
+  if (!b0 || !b1)
+    return limitarAjuste({ ...inicio, x: inicio.x + a1.x - a0.x, y: inicio.y + a1.y - a0.y });
+  const distancia0 = Math.hypot(b0.x - a0.x, b0.y - a0.y);
+  const distancia1 = Math.hypot(b1.x - a1.x, b1.y - a1.y);
+  const { min, max } = LIMITES_DO_AJUSTE.zoom;
+  // Dois dedos quase no mesmo sítio não dão uma escala: só se arrasta.
+  const zoom =
+    distancia0 > 0.01
+      ? Math.min(max, Math.max(min, inicio.zoom * (distancia1 / distancia0)))
+      : inicio.zoom;
+  const escala = zoom / inicio.zoom;
+  const meio0 = { x: (a0.x + b0.x) / 2, y: (a0.y + b0.y) / 2 };
+  const meio1 = { x: (a1.x + b1.x) / 2, y: (a1.y + b1.y) / 2 };
+  return limitarAjuste({
+    ...inicio,
+    zoom,
+    x: meio1.x - (meio0.x - inicio.x) * escala,
+    y: meio1.y - (meio0.y - inicio.y) * escala,
+  });
+}

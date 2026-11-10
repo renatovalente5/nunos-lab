@@ -767,6 +767,13 @@ select.entrada.hora-do-horario {
   outline: 2px solid var(--tinta);
   outline-offset: 2px;
 }
+/* Entre as cores do logótipo (à frente) e as de sempre. */
+.separador-de-cores {
+  width: 1px;
+  height: 24px;
+  margin: 0 2px;
+  background: var(--linha);
+}
 /* Outra cor, com o código à vista: o círculo abre o selector do sistema, o código escreve-se. */
 .outra-cor {
   display: inline-flex;
