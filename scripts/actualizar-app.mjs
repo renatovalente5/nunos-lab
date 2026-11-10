@@ -56,6 +56,10 @@ if (mensagem !== '--conferir') {
       'producao',
       '--environment',
       'production',
+      // Sem a cache do empacotador: a 10 nov, uma actualização do canal «simulador» saiu com o endereço da
+      // API da publicação anterior, porque o Metro reaproveitou o ficheiro já transformado com o
+      // EXPO_PUBLIC_API dessa vez. Ao contrário, a da produção levaria o servidor local aos telemóveis.
+      '--clear-cache',
       '--non-interactive',
       '--message',
       mensagem,
