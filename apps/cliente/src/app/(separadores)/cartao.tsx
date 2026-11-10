@@ -181,6 +181,34 @@ export default function Cartao() {
               </View>
             </View>
           )}
+          {/* O prémio a meio ganho (10 nov 2026): é num produto, por isso espera pelo cliente. */}
+          {(eu.premiosAMeio?.length ?? 0) > 0 && (
+            <View
+              style={{
+                marginHorizontal: MARGEM,
+                marginTop: 14,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                padding: 16,
+                borderRadius: raio.grupo,
+                backgroundColor: cor.claro,
+                ...CONTINUO,
+              }}
+            >
+              <Icone nome="saco" tamanho={24} cor={cor.sobreClaro} espessura={2} />
+              <View style={{ flex: 1 }}>
+                <T v="forte" style={{ color: cor.sobreClaro }}>
+                  {eu.premiosAMeio!.length === 1
+                    ? t.cartao.tensUma(eu.premiosAMeio![0]!.recompensa)
+                    : t.cartao.tensVarias(eu.premiosAMeio!.length)}
+                </T>
+                <T v="legenda" style={{ color: 'rgba(10,10,10,0.6)' }}>
+                  {t.cartao.quandoQuiseres}
+                </T>
+              </View>
+            </View>
+          )}
 
           <Pressable
             onPress={() => setQrAberto(true)}

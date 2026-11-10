@@ -58,6 +58,12 @@ const DESENHOS = {
   escudo: ['M12 21s7-3.2 7-9.5V5.5L12 3 5 5.5v6c0 6.3 7 9.5 7 9.5z'],
   certo: ['M5 12.5l4.5 4.5L19 7'],
   fechar: ['M6 6l12 12', 'M18 6L6 18'],
+  // O prémio a meio, num produto (o Renato escolheu o saco entre três, 10 nov 2026).
+  saco: [
+    'M6 2.5L3.5 6v13.5a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2V6L18 2.5z',
+    'M3.5 6h17',
+    'M15.5 10a3.5 3.5 0 0 1-7 0',
+  ],
   presente: [
     'M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8',
     'M3 7h18v5H3z',

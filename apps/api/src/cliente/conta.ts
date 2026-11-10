@@ -5,6 +5,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import {
+  carimboDoPremioAMeio,
   DIAS_A_EXPERIENCIA,
   DIAS_DE_CLIENTE_ACTIVO,
   LIMITES_DO_PROGRAMA,
@@ -25,8 +26,10 @@ import {
   codigoNovo,
   consultaDasRecompensas,
   consultaDoCartaoActual,
+  consultaDosPremiosAMeio,
   lerPrograma,
   novoCartao,
+  premiosAMeioDe,
   type LinhaCartao,
 } from '../programa.ts';
 import { DIA, agora, corpo, idDaMorada, linguaDoPedido, recusar } from '../util.ts';
@@ -201,6 +204,7 @@ async function lerEu(c: C): Promise<ClienteEu> {
           'SELECT 1 FROM registos_apple r JOIN passes p ON p.serie = r.serie WHERE p.cliente_id = ? LIMIT 1',
         )
         .bind(id),
+      consultaDosPremiosAMeio(db, id),
     ]);
   let r = await consultas();
   if (!r[1]!.results[0]) {
@@ -226,6 +230,7 @@ async function lerEu(c: C): Promise<ClienteEu> {
       ...x,
       recompensa: naLingua(lingua, x.recompensa, recompensa_en),
     })),
+    premiosAMeio: premiosAMeioDe(r[11]!.results, lingua),
     visitas: r[3]!.results as ClienteEu['visitas'],
     formas: (
       r[5]!.results as {
@@ -257,6 +262,12 @@ async function lerEu(c: C): Promise<ClienteEu> {
     programa: {
       objectivo: programa.objectivo,
       recompensa: naLingua(lingua, programa.recompensa, programa.recompensaEn),
+      meio: carimboDoPremioAMeio(programa)
+        ? {
+            carimbos: programa.meio,
+            recompensa: naLingua(lingua, programa.meioRecompensa, programa.meioRecompensaEn),
+          }
+        : null,
     },
     activo: r[8]!.results.length > 0,
     vales: (r[7]!.results as (ClienteEu['vales'][number] & ComIngles)[]).map(

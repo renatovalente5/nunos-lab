@@ -19,6 +19,8 @@ export type CartaoDaGoogle = {
   objectivo: number;
   recompensa: string;
   porUsar: number;
+  /** Os prémios a meio por entregar (10 nov 2026): quantos, e o primeiro. */
+  meiosPorUsar?: { n: number; recompensa: string } | null;
   cortes: number;
   /** A imagem com a grelha dos carimbos, num URL só deste estado (a Google guarda-a por URL). */
   hero: string;
@@ -80,7 +82,17 @@ export function objeto(emissor: string, c: CartaoDaGoogle) {
               string: c.porUsar === 1 ? c.recompensa : `${c.porUsar} × ${c.recompensa}`,
             },
           }
-        : undefined,
+        : c.meiosPorUsar && c.meiosPorUsar.n > 0
+          ? {
+              label: t.porUsarGoogle,
+              balance: {
+                string:
+                  c.meiosPorUsar.n === 1
+                    ? c.meiosPorUsar.recompensa
+                    : `${c.meiosPorUsar.n} × ${c.meiosPorUsar.recompensa}`,
+              },
+            }
+          : undefined,
     barcode: { type: 'QR_CODE', value: c.qr, alternateText: c.codigo },
     heroImage: {
       sourceUri: { uri: c.hero },

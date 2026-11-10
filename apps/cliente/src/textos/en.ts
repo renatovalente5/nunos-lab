@@ -55,6 +55,7 @@ export const en: Textos = {
       `Reward ready: ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`,
     tensVarias: (n) => `${n} rewards ready`,
     mostraOCartao: 'Show your card when you pay.',
+    quandoQuiseres: 'Show your card at the counter whenever you like.',
     verOCodigo: 'Show code full screen',
     mostraAoBalcao: 'Show it when you pay.\nWorks at all our barbershops.',
     parabens: 'Happy birthday!',

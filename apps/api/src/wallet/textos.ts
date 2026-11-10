@@ -30,6 +30,9 @@ const pt = {
     `Tens ${n === 1 ? '' : `${n} × `}${recompensa} por usar`,
   cartaoCompleto: 'Cartão completo',
   aoObjectivo: (recompensa: string, objectivo: number) => `${recompensa} ao ${objectivo}.º`,
+  // O prémio a meio (10 nov 2026): o aviso ao ganhá-lo, e como funciona.
+  ganhaste: (recompensa: string) => `ganhaste ${recompensa}`,
+  comoMeio: (carimbo: number, recompensa: string) => `Ao ${carimbo}.º, ${recompensa}.`,
   cortes: 'Cortes',
   premio: 'Prémio',
   // Na Google Wallet.
@@ -63,6 +66,8 @@ const en: typeof pt = {
   tensPorUsar: (n, recompensa) => `Ready to use: ${n === 1 ? '' : `${n} × `}${recompensa}`,
   cartaoCompleto: 'Card complete',
   aoObjectivo: (recompensa, objectivo) => `${recompensa} at ${objectivo} stamps`,
+  ganhaste: (recompensa) => `you earned ${recompensa}`,
+  comoMeio: (carimbo, recompensa) => `${carimbo} stamps: ${recompensa}.`,
   cortes: 'Haircuts',
   premio: 'Reward',
   carimbosGoogle: 'Stamps',

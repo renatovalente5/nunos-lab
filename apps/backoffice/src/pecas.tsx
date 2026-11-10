@@ -533,7 +533,8 @@ export type CampoDoTexto =
   | 'detalhe'
   | 'aviso'
   | 'recompensa'
-  | 'aniversario';
+  | 'aniversario'
+  | 'meio';
 
 /** O parceiro e a categoria («Azeméis Motor — Carros»), para a tradução escolher as palavras. */
 export function useOnde(

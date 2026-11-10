@@ -57,6 +57,8 @@ export const pt = {
       `Tens ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`,
     tensVarias: (n: number) => `Tens ${n} recompensas`,
     mostraOCartao: 'Mostra o cartão ao balcão.',
+    /** O prémio a meio é num produto: usa-se nesse dia ou noutro. */
+    quandoQuiseres: 'Mostra o cartão ao balcão quando quiseres.',
     verOCodigo: 'Ver o código em grande',
     mostraAoBalcao: 'Mostra ao balcão.\nServe em todas as barbearias.',
     parabens: 'Parabéns!',

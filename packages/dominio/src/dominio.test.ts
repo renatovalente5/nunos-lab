@@ -178,12 +178,14 @@ import {
   textoDoQr,
 } from './cartao.ts';
 import {
+  carimboDoPremioAMeio,
   donaDaCaixa,
   eAniversarioValido,
   estadoDoCartao,
   fraseDesteCorte,
   fraseDoCartao,
   fraseDoCorteOferecido,
+  fraseDoPremioAMeio,
   fraseDoProximo,
 } from './fidelidade.ts';
 
@@ -206,6 +208,23 @@ test('o código do cartão: 8 letras, a última de controlo, e os erros de leitu
   assert.equal(codigoCurto(codigo), `${codigo.slice(0, 4)} ${codigo.slice(4)}`);
   // Bytes diferentes dão códigos diferentes, e 256 é múltiplo de 32.
   assert.notEqual(codigo, gerarCodigo(Uint8Array.from([8, 200, 3, 255, 31, 32, 64])));
+});
+
+test('o prémio a meio: em que carimbo, e a frase do próximo prémio', () => {
+  const p = { objectivo: 10, meio: 5, meioRecompensa: '20% num produto' };
+  assert.equal(carimboDoPremioAMeio(p), 5);
+  assert.equal(carimboDoPremioAMeio({ ...p, meioRecompensa: '  ' }), null, 'sem texto, não há');
+  assert.equal(carimboDoPremioAMeio({ ...p, meio: 10 }), null, 'no último, era o prémio do cartão');
+  assert.equal(fraseDoPremioAMeio(2, '20% num produto'), 'Faltam 2 para 20% num produto');
+  assert.equal(fraseDoPremioAMeio(1, '20% num produto'), 'O próximo corte dá-te 20% num produto');
+  assert.equal(
+    fraseDoPremioAMeio(3, '20% off a product', 'en'),
+    '3 more haircuts for 20% off a product',
+  );
+  assert.equal(
+    fraseDoPremioAMeio(1, '20% off a product', 'en'),
+    'Your next haircut gets you 20% off a product',
+  );
 });
 
 test('o estado do cartão e a frase', () => {

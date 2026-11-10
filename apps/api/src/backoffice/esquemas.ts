@@ -214,6 +214,7 @@ export const Traduzir = z.object({
             'aviso',
             'recompensa',
             'aniversario',
+            'meio',
           ])
           .optional(),
         onde: texto(120).optional(),

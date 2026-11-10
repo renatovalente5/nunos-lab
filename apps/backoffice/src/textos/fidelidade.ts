@@ -15,6 +15,14 @@ export const pt = {
   aniversarioExemplo: 'ex.: Barba grátis',
   aniversarioExemploEn: 'ex.: Free beard trim',
   aniversarioAjuda: 'Vazio: sem prenda de anos.',
+  // O prémio a meio do cartão (o Nuno, 10 nov 2026).
+  meioRecompensa: 'Prémio a meio',
+  meioRecompensaExemplo: 'ex.: 20% num produto',
+  meioRecompensaExemploEn: 'ex.: 20% off a product',
+  meioRecompensaAjuda: 'Vazio: sem prémio a meio. Entrega-se ao balcão, nesse dia ou noutro.',
+  meio: 'Ao carimbo',
+  meioAjuda: 'Antes do último.',
+  meioNoResumo: (recompensa: string, carimbo: number) => `${recompensa} ao ${carimbo}.º`,
 };
 
 export const en: typeof pt = {
@@ -32,4 +40,11 @@ export const en: typeof pt = {
   aniversarioExemplo: 'e.g. Barba grátis',
   aniversarioExemploEn: 'e.g. Free beard trim',
   aniversarioAjuda: 'Leave blank for no birthday gift.',
+  meioRecompensa: 'Halfway reward',
+  meioRecompensaExemplo: 'e.g. 20% num produto',
+  meioRecompensaExemploEn: 'e.g. 20% off a product',
+  meioRecompensaAjuda: 'Leave blank for none. Given at the counter, that day or another.',
+  meio: 'At stamp',
+  meioAjuda: 'Before the last one.',
+  meioNoResumo: (recompensa, carimbo) => `${recompensa} at stamp ${carimbo}`,
 };

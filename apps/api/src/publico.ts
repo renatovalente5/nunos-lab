@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import {
+  carimboDoPremioAMeio,
   categoriaParaAsApps,
   naLingua,
   DIAS_DE_NOVO,
@@ -101,10 +102,16 @@ rotasPublicas.get('/app', async (c) => {
       .map((l) => categoriaParaAsApps(categoria(l, lingua))),
     parceiros,
     // O cartão de quem ainda não entrou promete o programa de agora, e não o que a app traz de origem.
-    programa: (({ objectivo, recompensa, recompensaEn }) => ({
-      objectivo,
-      recompensa: naLingua(lingua, recompensa, recompensaEn),
-    }))(programaDasDefinicoes(def)),
+    programa: ((p) => {
+      const meio = carimboDoPremioAMeio(p);
+      return {
+        objectivo: p.objectivo,
+        recompensa: naLingua(lingua, p.recompensa, p.recompensaEn),
+        meio: meio
+          ? { carimbos: meio, recompensa: naLingua(lingua, p.meioRecompensa, p.meioRecompensaEn) }
+          : null,
+      };
+    })(programaDasDefinicoes(def)),
   };
 
   // Uma etiqueta do conteúdo: se a app já o tem, responde-se 304 sem corpo.

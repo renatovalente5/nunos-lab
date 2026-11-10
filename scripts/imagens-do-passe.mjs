@@ -1,7 +1,7 @@
 /**
  * As imagens fixas do passe da Apple e os glifos dos carimbos, a partir da
  * marca oficial (apps/cliente/assets/marca: o «n» e a palavra) e dos ícones
- * da interface (packages/ui/src/icone.tsx: a tesoura e a prenda). Escreve
+ * da interface (packages/ui/src/icone.tsx: a tesoura, a prenda e o saco). Escreve
  * apps/api/src/wallet/imagens.ts e apps/api/src/wallet/glifos.ts.
  *
  * Corre-se à mão quando a marca ou os ícones mudam:
@@ -118,16 +118,17 @@ ${Object.entries(imagens)
 const glifos = {
   tesoura: await glifo('tesoura', 2.2, LADO_DO_GLIFO),
   presente: await glifo('presente', 2, LADO_DO_GLIFO),
+  saco: await glifo('saco', 2, LADO_DO_GLIFO),
 };
 writeFileSync(
   join(SAIDA, 'glifos.ts'),
   `/**
  * Os glifos das casas do cartão (a tesoura do carimbo dado, a prenda da última
- * casa), os mesmos da interface, como máscaras de ${LADO_DO_GLIFO} × ${LADO_DO_GLIFO} (só o alfa)
+ * casa, o saco do prémio a meio), os mesmos da interface, como máscaras de ${LADO_DO_GLIFO} × ${LADO_DO_GLIFO} (só o alfa)
  * comprimidas em zlib. Feito por scripts/imagens-do-passe.mjs.
  */
 export const LADO_DO_GLIFO = ${LADO_DO_GLIFO};
-export const GLIFOS: Record<'tesoura' | 'presente', string> = {
+export const GLIFOS: Record<'tesoura' | 'presente' | 'saco', string> = {
 ${Object.entries(glifos)
   .map(([nome, alfa]) => `  ${nome}:\n    '${deflateSync(alfa, { level: 9 }).toString('base64')}',`)
   .join('\n')}

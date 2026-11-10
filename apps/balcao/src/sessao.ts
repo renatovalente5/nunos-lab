@@ -281,6 +281,10 @@ export const validar = (corpo: { codigo: string; promocaoId: number; chave: stri
 export const entregarPrenda = (corpo: { codigo: string; lojaId: number }) =>
   pedir<FichaDoBalcao>('/prenda', { metodo: 'POST', corpo });
 
+/** O prémio a meio (10 nov 2026): entrega-se à parte, e a API devolve a ficha já com o «entregue». */
+export const entregarPremioAMeio = (corpo: { codigo: string; cartaoId: number; lojaId: number }) =>
+  pedir<FichaDoBalcao>('/usar-premio-a-meio', { metodo: 'POST', corpo });
+
 export function chaveNova(): string {
   const b = getRandomBytes(12);
   return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');

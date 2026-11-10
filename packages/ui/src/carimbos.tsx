@@ -7,7 +7,8 @@ import { useTextosDaUi } from './textos';
 /**
  * Os círculos do cartão: os carimbos dados a cheio com a tesoura, os que
  * faltam vazios, e o último com a prenda (cheio, fica com a prenda: é o corte
- * da oferta). Em linhas de `porLinha`.
+ * da oferta). O do prémio a meio, quando o cartão o tem, leva o saco (é num
+ * produto). Em linhas de `porLinha`.
  *
  * As casas novas (de `novasDesde` até ao último carimbo) entram uma a uma com
  * uma mola, depois de uma pausa curta; a casa da prenda, quando completa o
@@ -21,9 +22,12 @@ export function Carimbos({
   folga = 12,
   novasDesde = null,
   aoAcabar,
+  meio = null,
 }: {
   carimbos: number;
   objectivo: number;
+  /** O carimbo do prémio a meio (o 5.º, por exemplo); null: o cartão não tem. */
+  meio?: number | null;
   tamanho?: number;
   porLinha?: number;
   folga?: number;
@@ -50,7 +54,7 @@ export function Carimbos({
     const completa = carimbos >= objectivo;
     const molas: Animated.CompositeAnimation[] = [];
     for (let i = novasDesde; i < carimbos; i++) {
-      const prenda = completa && i === objectivo - 1;
+      const prenda = (completa && i === objectivo - 1) || (meio !== null && i === meio - 1);
       molas.push(
         Animated.spring(escala(i), {
           toValue: 1,
@@ -77,6 +81,8 @@ export function Carimbos({
           {linha.map((i) => {
             const cheio = i < carimbos;
             const ultimo = i === objectivo - 1;
+            const doMeio = meio !== null && i === meio - 1;
+            const premio = ultimo || doMeio;
             return (
               <Animated.View key={i} style={{ transform: [{ scale: escala(i) }] }}>
                 <View
@@ -88,22 +94,22 @@ export function Carimbos({
                     justifyContent: 'center',
                     backgroundColor: cheio ? cor.claro : 'transparent',
                     borderWidth: cheio ? 0 : 1.5,
-                    borderColor: ultimo ? '#5A5650' : '#3A3835',
-                    ...(ultimo && !cheio
+                    borderColor: premio ? '#5A5650' : '#3A3835',
+                    ...(premio && !cheio
                       ? { boxShadow: '0 0 0 4px rgba(244,241,236,0.06)' }
                       : null),
                   }}
                 >
                   {cheio ? (
                     <Icone
-                      nome={ultimo ? 'presente' : 'tesoura'}
+                      nome={ultimo ? 'presente' : doMeio ? 'saco' : 'tesoura'}
                       tamanho={tamanho * 0.5}
                       cor={cor.sobreClaro}
                       espessura={2.2}
                     />
-                  ) : ultimo ? (
+                  ) : premio ? (
                     <Icone
-                      nome="presente"
+                      nome={ultimo ? 'presente' : 'saco'}
                       tamanho={tamanho * 0.48}
                       cor={cor.texto3}
                       espessura={2}

@@ -106,6 +106,43 @@ test('o aviso do passe muda com o estado: novo carimbo, cartão completo, nada a
   });
 });
 
+test('o prémio a meio: antes dele o passe fala dele; ganho, avisa e fica por usar', () => {
+  const meio = { carimbos: 5, recompensa: '20% num produto', ganho: false };
+  const antes = passJson({ ...cartao, carimbos: 3, meio }, cfg, LOGO_A_SEGUIR);
+  const faltam = antes.storeCard.secondaryFields.find((f) => f.key === 'faltam')!;
+  assert.deepEqual([faltam.label, faltam.value], ['20% NUM PRODUTO', 'Faltam 2']);
+  assert.equal(antes.posterGeneric.footerFields[0]!.value, 'Faltam 2 para 20% num produto');
+  assert.equal(
+    passJson({ ...cartao, carimbos: 4, meio }, cfg, LOGO_A_SEGUIR).storeCard.headerFields[0]!
+      .changeMessage,
+    'Carimbo novo: %@ · o próximo corte dá-te 20%% num produto',
+  );
+  const ganho = passJson(
+    {
+      ...cartao,
+      carimbos: 5,
+      meio: { ...meio, ganho: true },
+      meiosPorUsar: { n: 1, recompensa: '20% num produto' },
+    },
+    cfg,
+    LOGO_A_SEGUIR,
+  );
+  assert.equal(
+    ganho.storeCard.headerFields[0]!.changeMessage,
+    'Carimbo novo: %@ · ganhaste 20%% num produto',
+  );
+  assert.ok(
+    ganho.storeCard.secondaryFields.some(
+      (f) => f.key === 'meioPorUsar' && f.value === '20% num produto',
+    ),
+  );
+  assert.equal(ganho.posterGeneric.footerFields[0]!.value, 'Tens 20% num produto por usar');
+  assert.equal(
+    ganho.storeCard.backFields.find((f) => f.key === 'como')!.value,
+    'Um carimbo por corte. Ao 10.º, corte grátis. Ao 5.º, 20% num produto.',
+  );
+});
+
 test('sem nome, não há campo do cliente nem título no poster', () => {
   const p = passJson({ ...cartao, nome: '' }, cfg);
   assert.equal(p.storeCard.secondaryFields[0]!.key, 'faltam');

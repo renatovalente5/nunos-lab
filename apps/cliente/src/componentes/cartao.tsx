@@ -2,6 +2,7 @@ import {
   PROGRAMA_PREDEFINIDO,
   fraseDoCartao,
   fraseDoCorteOferecido,
+  fraseDoPremioAMeio,
   type ClienteEu,
 } from '@nunos-lab/dominio';
 import type { ReactNode } from 'react';
@@ -47,7 +48,11 @@ export function CartaoDoCliente({
   espera?: 'a-carregar' | 'sem-ligacao' | null;
   tentar?: () => void;
   /** O programa de agora (do /api/app), para o cartão sem sessão: sem ele valia o de origem da app. */
-  programa?: { objectivo: number; recompensa: string } | null;
+  programa?: {
+    objectivo: number;
+    recompensa: string;
+    meio?: { carimbos: number; recompensa: string } | null;
+  } | null;
 }) {
   const t = useTextos();
   const lingua = useLingua();
@@ -62,8 +67,14 @@ export function CartaoDoCliente({
     eu?.programa.recompensa ??
     programa?.recompensa ??
     PROGRAMA_PREDEFINIDO.recompensa;
+  // O prémio a meio: o do próprio cartão; sem cartão, o do programa (quem ainda não entrou).
+  const meio = eu?.cartao
+    ? (eu.cartao.meio ?? null)
+    : (eu?.programa.meio ?? programa?.meio ?? null);
   // Cheio e sem nada por entregar: o carimbo que o completou já foi o corte da oferta.
   const entregue = carimbos >= objectivo && recompensas === 0;
+  // Só o próximo prémio (o Renato, 10 nov): antes do prémio a meio, a frase fala dele.
+  const antesDoMeio = !!meio && !('ganho' in meio && meio.ganho) && carimbos < meio.carimbos;
   // Antes da primeira medição a largura pode vir a zero: nunca um círculo negativo.
   const tamanho = Math.max(28, Math.floor((largura - 44 - 4 * 12) / 5));
   const aEsperar = espera !== null;
@@ -132,6 +143,7 @@ export function CartaoDoCliente({
         <Carimbos
           carimbos={carimbos}
           objectivo={objectivo}
+          meio={meio?.carimbos ?? null}
           tamanho={tamanho}
           porLinha={5}
           novasDesde={novasDesde}
@@ -190,7 +202,9 @@ export function CartaoDoCliente({
           <T v="legenda" style={{ color: cor.texto2, marginTop: 8 }}>
             {entregue
               ? fraseDoCorteOferecido(recompensa, lingua)
-              : fraseDoCartao(carimbos, { objectivo, recompensa }, lingua)}
+              : antesDoMeio && meio
+                ? fraseDoPremioAMeio(meio.carimbos - carimbos, meio.recompensa, lingua)
+                : fraseDoCartao(carimbos, { objectivo, recompensa }, lingua)}
           </T>
           {entregue && (
             <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>

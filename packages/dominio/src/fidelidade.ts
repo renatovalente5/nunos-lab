@@ -10,9 +10,18 @@ export type Programa = {
   porDia: number;
   /** A prenda de anos (texto livre; vazio: não há). */
   aniversario: string;
+  /**
+   * O prémio a meio do cartão (o Nuno, 10 nov 2026: «uma aos 10 cortes e uma aos 5»), por exemplo
+   * «20% num produto». Ganha-se no carimbo `meio` e entrega-se ao balcão, nesse dia ou noutro: é num
+   * produto, e não o desconto do corte, como o do cartão. Vazio: não há.
+   */
+  meioRecompensa: string;
+  /** Em que carimbo se ganha o prémio a meio (sempre antes do objectivo). */
+  meio: number;
   /** As versões inglesas (vazias: o português). */
   recompensaEn?: string;
   aniversarioEn?: string;
+  meioRecompensaEn?: string;
 };
 
 export const PROGRAMA_PREDEFINIDO: Programa = {
@@ -20,11 +29,14 @@ export const PROGRAMA_PREDEFINIDO: Programa = {
   recompensa: '50% de desconto',
   porDia: 1,
   aniversario: '',
+  meioRecompensa: '',
+  meio: 5,
 };
 
 export const LIMITES_DO_PROGRAMA = {
   objectivo: { min: 1, max: 50 },
   porDia: { min: 1, max: 10 },
+  meio: { min: 1, max: 49 },
   recompensa: 40,
   aniversario: 60,
   nomeDoCliente: 40,
@@ -130,6 +142,31 @@ export function fraseDoCartao(
   if (en)
     return recompensa ? `Reward: ${minuscula(recompensaEmIngles(recompensa))}` : `${faltam} to go`;
   return recompensa ? `Prémio: ${minuscula(recompensa)}` : `Faltam ${faltam}`;
+}
+
+/** Em que carimbo um cartão novo ganha o prémio a meio; null: o programa não tem (sem texto, ou não cabe antes do objectivo). */
+export function carimboDoPremioAMeio(
+  programa: Pick<Programa, 'objectivo' | 'meio' | 'meioRecompensa'>,
+): number | null {
+  return programa.meioRecompensa.trim() && programa.meio >= 1 && programa.meio < programa.objectivo
+    ? programa.meio
+    : null;
+}
+
+/**
+ * Antes do prémio a meio, a frase do cartão fala dele, e só dele (o Renato escolheu «só o próximo prémio»,
+ * 10 nov 2026): «Faltam 2 para 20% num produto», «O próximo corte dá-te 20% num produto». Aqui o número
+ * fica: o «3 de 10» ao lado não diz quantos faltam para o 5.º. O prémio já vem na língua da frase.
+ */
+export function fraseDoPremioAMeio(
+  faltam: number,
+  recompensa: string,
+  lingua: Lingua = 'pt',
+): string {
+  const r = minuscula(recompensa.trim());
+  if (lingua === 'en')
+    return faltam === 1 ? `Your next haircut gets you ${r}` : `${faltam} more haircuts for ${r}`;
+  return faltam === 1 ? `O próximo corte dá-te ${r}` : `Faltam ${faltam} para ${r}`;
 }
 
 /** Quanto tempo vale uma sessão da Balcão parada (um barbeiro não volta a entrar). */

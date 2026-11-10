@@ -1,5 +1,6 @@
 /** O programa de carimbos e as leituras do cartão que a app, a Balcão e o backoffice partilham. */
 import {
+  carimboDoPremioAMeio,
   naLingua,
   type Lingua,
   LIMITES_DO_PROGRAMA,
@@ -33,6 +34,9 @@ export function programaDasDefinicoes(d: Map<string, string>): Programa {
     aniversario: d.get('fid.aniversario') ?? '',
     recompensaEn: d.get('fid.recompensa_en') ?? '',
     aniversarioEn: d.get('fid.aniversario_en') ?? '',
+    meioRecompensa: d.get('fid.meio_recompensa') ?? '',
+    meio: inteiro('fid.meio', LIMITES_DO_PROGRAMA.meio, PROGRAMA_PREDEFINIDO.meio),
+    meioRecompensaEn: d.get('fid.meio_recompensa_en') ?? '',
   };
 }
 
@@ -46,11 +50,16 @@ export type LinhaCartao = {
   iniciado_em: number;
   completo_em: number | null;
   usado_em: number | null;
+  meio: number | null;
+  meio_recompensa: string;
+  meio_recompensa_en: string;
+  meio_ganho_em: number | null;
+  meio_usado_em: number | null;
   carimbos: number;
 };
 
-const COLUNAS_DO_CARTAO = `c.id, c.cliente_id, c.numero, c.objectivo, c.recompensa, c.recompensa_en, c.iniciado_em,
-  c.completo_em, c.usado_em,
+export const COLUNAS_DO_CARTAO = `c.id, c.cliente_id, c.numero, c.objectivo, c.recompensa, c.recompensa_en, c.iniciado_em,
+  c.completo_em, c.usado_em, c.meio, c.meio_recompensa, c.meio_recompensa_en, c.meio_ganho_em, c.meio_usado_em,
   (SELECT count(*) FROM carimbos x WHERE x.cartao_id = c.id AND x.anulado_em IS NULL) AS carimbos`;
 
 /** O cartão em curso: o último de cada cliente (um novo nasce ao completar o anterior). */
@@ -73,6 +82,15 @@ export function cartaoPublico(l: LinhaCartao, lingua: Lingua = 'pt'): CartaoDoCl
     objectivo: l.objectivo,
     recompensa: naLingua(lingua, l.recompensa, l.recompensa_en),
     carimbos: l.carimbos,
+    meio:
+      l.meio === null
+        ? null
+        : {
+            carimbos: l.meio,
+            recompensa: naLingua(lingua, l.meio_recompensa, l.meio_recompensa_en),
+            ganho: l.meio_ganho_em !== null,
+            usado: l.meio_usado_em !== null,
+          },
   };
 }
 
@@ -83,11 +101,54 @@ export function novoCartao(
   numero: number,
   programa: Programa,
 ): D1PreparedStatement {
+  // O prémio a meio, se o programa o tiver, fica no cartão como o objectivo e a recompensa.
+  const meio = carimboDoPremioAMeio(programa);
   return db
     .prepare(
-      'INSERT INTO cartoes (cliente_id, numero, objectivo, recompensa, recompensa_en) VALUES (?, ?, ?, ?, ?)',
+      `INSERT INTO cartoes (cliente_id, numero, objectivo, recompensa, recompensa_en, meio, meio_recompensa, meio_recompensa_en)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(clienteId, numero, programa.objectivo, programa.recompensa, programa.recompensaEn ?? '');
+    .bind(
+      clienteId,
+      numero,
+      programa.objectivo,
+      programa.recompensa,
+      programa.recompensaEn ?? '',
+      meio,
+      meio ? programa.meioRecompensa.trim() : '',
+      meio ? (programa.meioRecompensaEn ?? '').trim() : '',
+    );
+}
+
+/** Os prémios a meio ganhos e por entregar, de qualquer cartão: ficam até o cliente os usar. */
+export function consultaDosPremiosAMeio(db: D1Database, clienteId: number): D1PreparedStatement {
+  return db
+    .prepare(
+      `SELECT id AS cartaoId, meio AS carimbos, meio_recompensa AS recompensa, meio_recompensa_en,
+         meio_ganho_em AS ganhoEm
+       FROM cartoes WHERE cliente_id = ? AND meio_ganho_em IS NOT NULL AND meio_usado_em IS NULL
+       ORDER BY meio_ganho_em`,
+    )
+    .bind(clienteId);
+}
+
+/** As linhas de `consultaDosPremiosAMeio`, com o prémio na língua pedida. */
+export function premiosAMeioDe(
+  linhas: unknown[],
+  lingua: Lingua,
+): { cartaoId: number; carimbos: number; recompensa: string; ganhoEm: number }[] {
+  return (
+    linhas as {
+      cartaoId: number;
+      carimbos: number;
+      recompensa: string;
+      meio_recompensa_en: string;
+      ganhoEm: number;
+    }[]
+  ).map(({ meio_recompensa_en, ...p }) => ({
+    ...p,
+    recompensa: naLingua(lingua, p.recompensa, meio_recompensa_en),
+  }));
 }
 
 /** As recompensas por usar: cartões completos que ninguém entregou. */

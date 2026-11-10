@@ -36,13 +36,16 @@ import {
 import type { Ambiente, C } from '../ambiente.ts';
 import { emailCurto, fazAnosHoje, temPrendaHoje, textoDeBusca } from '@nunos-lab/dominio';
 import {
+  COLUNAS_DO_CARTAO,
   cartaoActual,
   cartaoPublico,
   codigoNovo,
   consultaDasRecompensas,
+  consultaDosPremiosAMeio,
   inicioDoDia,
   lerPrograma,
   novoCartao,
+  premiosAMeioDe,
   type LinhaCartao,
 } from '../programa.ts';
 import { anularCarimbo } from '../carimbos.ts';
@@ -138,35 +141,47 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
     await novoCartao(db, cliente.id, 1, await lerPrograma(db)).run();
     cartao = (await cartaoActual(db, cliente.id))!;
   }
-  const [cortes, recompensas, ultima, deHoje, entregue, prendaDesteAno] = await db.batch([
-    db
-      .prepare('SELECT count(*) AS n FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL')
-      .bind(cliente.id),
-    consultaDasRecompensas(db, cliente.id),
-    db
-      .prepare(
-        `${VISITA} WHERE x.cliente_id = ? AND x.anulado_em IS NULL ORDER BY x.criado_em DESC LIMIT 1`,
-      )
-      .bind(cliente.id),
-    db
-      .prepare(
-        `SELECT x.criado_em AS quando, e.nome AS pessoa FROM carimbos x LEFT JOIN equipa e ON e.id = x.pessoa_id
+  const [cortes, recompensas, ultima, deHoje, entregue, prendaDesteAno, meios, meioDeHoje] =
+    await db.batch([
+      db
+        .prepare('SELECT count(*) AS n FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL')
+        .bind(cliente.id),
+      consultaDasRecompensas(db, cliente.id),
+      db
+        .prepare(
+          `${VISITA} WHERE x.cliente_id = ? AND x.anulado_em IS NULL ORDER BY x.criado_em DESC LIMIT 1`,
+        )
+        .bind(cliente.id),
+      db
+        .prepare(
+          `SELECT x.criado_em AS quando, e.nome AS pessoa FROM carimbos x LEFT JOIN equipa e ON e.id = x.pessoa_id
          WHERE x.cliente_id = ? AND x.dia = ? AND x.anulado_em IS NULL ORDER BY x.criado_em DESC`,
-      )
-      .bind(cliente.id, hoje),
-    db
-      .prepare(
-        `SELECT c.usado_em AS quando, e.nome AS pessoa FROM cartoes c LEFT JOIN equipa e ON e.id = c.usado_por
+        )
+        .bind(cliente.id, hoje),
+      db
+        .prepare(
+          `SELECT c.usado_em AS quando, e.nome AS pessoa FROM cartoes c LEFT JOIN equipa e ON e.id = c.usado_por
          WHERE c.cliente_id = ? AND c.usado_em >= ? AND c.usado_em != c.completo_em ORDER BY c.usado_em DESC LIMIT 1`,
-      )
-      .bind(cliente.id, inicioDoDia(hoje)),
-    db
-      .prepare(
-        `SELECT p.quando, e.nome AS pessoa FROM prendas p LEFT JOIN equipa e ON e.id = p.pessoa_id
+        )
+        .bind(cliente.id, inicioDoDia(hoje)),
+      db
+        .prepare(
+          `SELECT p.quando, e.nome AS pessoa FROM prendas p LEFT JOIN equipa e ON e.id = p.pessoa_id
          WHERE p.cliente_id = ? AND p.ano = ?`,
-      )
-      .bind(cliente.id, Number(hoje.slice(0, 4))),
-  ]);
+        )
+        .bind(cliente.id, Number(hoje.slice(0, 4))),
+      consultaDosPremiosAMeio(db, cliente.id),
+      db
+        .prepare(
+          `SELECT c.meio_recompensa AS recompensa, c.meio_recompensa_en, c.meio_usado_em AS quando, e.nome AS pessoa
+         FROM cartoes c LEFT JOIN equipa e ON e.id = c.meio_usado_por
+         WHERE c.cliente_id = ? AND c.meio_usado_em >= ? ORDER BY c.meio_usado_em DESC LIMIT 1`,
+        )
+        .bind(cliente.id, inicioDoDia(hoje)),
+    ]);
+  const meioEntregue = meioDeHoje!.results[0] as
+    | { recompensa: string; meio_recompensa_en: string; quando: number; pessoa: string | null }
+    | undefined;
   const hojeLinhas = deHoje!.results as { quando: number; pessoa: string | null }[];
   const entregueHoje =
     (entregue!.results[0] as { quando: number; pessoa: string | null } | undefined) ?? null;
@@ -203,6 +218,14 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
     })),
     ultima: (ultima!.results[0] as FichaDoBalcao['ultima']) ?? null,
     hoje: { carimbos: hojeLinhas.length, ultimo: hojeLinhas[0] ?? null, entregue: entregueHoje },
+    premiosAMeio: premiosAMeioDe(meios!.results, lingua),
+    premioAMeioEntregue: meioEntregue
+      ? {
+          recompensa: naLingua(lingua, meioEntregue.recompensa, meioEntregue.meio_recompensa_en),
+          quando: meioEntregue.quando,
+          pessoa: meioEntregue.pessoa,
+        }
+      : null,
   };
 }
 
@@ -320,8 +343,9 @@ async function resultadoDe(c: C, carimboId: number): Promise<ResultadoDoCarimbo>
   const lingua = linguaDoPedido(c);
   const x = await db
     .prepare(
-      `SELECT x.id, x.cartao_id, x.criado_em, c.completo_em, c.usado_em,
-       (SELECT max(y.id) FROM carimbos y WHERE y.cartao_id = x.cartao_id AND y.anulado_em IS NULL) AS ultimo_id
+      `SELECT x.id, x.cartao_id, x.criado_em, x.anulado_em, c.completo_em, c.usado_em, c.meio, c.meio_ganho_em,
+       (SELECT max(y.id) FROM carimbos y WHERE y.cartao_id = x.cartao_id AND y.anulado_em IS NULL) AS ultimo_id,
+       (SELECT count(*) FROM carimbos y WHERE y.cartao_id = x.cartao_id AND y.anulado_em IS NULL AND y.id <= x.id) AS posicao
        FROM carimbos x JOIN cartoes c ON c.id = x.cartao_id WHERE x.id = ?`,
     )
     .bind(carimboId)
@@ -329,18 +353,21 @@ async function resultadoDe(c: C, carimboId: number): Promise<ResultadoDoCarimbo>
       id: number;
       cartao_id: number;
       criado_em: number;
+      anulado_em: number | null;
       completo_em: number | null;
+      meio: number | null;
+      meio_ganho_em: number | null;
       ultimo_id: number | null;
+      posicao: number;
     }>();
   if (!x) recusar(404, 'nao_existe');
   const cartao = await db
-    .prepare(
-      `SELECT c.id, c.cliente_id, c.numero, c.objectivo, c.recompensa, c.recompensa_en, c.iniciado_em, c.completo_em, c.usado_em,
-       (SELECT count(*) FROM carimbos y WHERE y.cartao_id = c.id AND y.anulado_em IS NULL) AS carimbos
-       FROM cartoes c WHERE c.id = ?`,
-    )
+    .prepare(`SELECT ${COLUNAS_DO_CARTAO} FROM cartoes c WHERE c.id = ?`)
     .bind(x.cartao_id)
     .first<LinhaCartao>();
+  // O prémio a meio é deste carimbo se foi o do lugar do prémio, e o prémio está ganho.
+  const ganhouMeio =
+    !x.anulado_em && x.meio !== null && x.meio_ganho_em !== null && x.posicao === x.meio;
   // Só o carimbo que completou o cartão (o último) é «completo»: uma chave antiga reenviada não festeja um prémio.
   const completo = !!x.completo_em && x.id === x.ultimo_id;
   return {
@@ -348,6 +375,9 @@ async function resultadoDe(c: C, carimboId: number): Promise<ResultadoDoCarimbo>
     cartao: cartaoPublico(cartao!, lingua),
     completo,
     recompensa: completo ? naLingua(lingua, cartao!.recompensa, cartao!.recompensa_en) : null,
+    premioAMeio: ganhouMeio
+      ? naLingua(lingua, cartao!.meio_recompensa, cartao!.meio_recompensa_en)
+      : null,
     anulavelAte: x.criado_em + MINUTOS_PARA_ANULAR * 60,
     // O saco das surpresas saiu (8 nov 2026); as for partners de antes lêem o campo.
     cupao: null,
@@ -462,6 +492,15 @@ async function carimbar(
     db
       .prepare('SELECT count(*) AS n FROM carimbos WHERE cartao_id = ? AND anulado_em IS NULL')
       .bind(cartao.id),
+    // O prémio a meio (10 nov 2026) ganha-se aqui, no mesmo batch e pela contagem, como o cartão
+    // completo: dois carimbos ao mesmo tempo não dão dois prémios. Fica por entregar (é num produto).
+    db
+      .prepare(
+        `UPDATE cartoes SET meio_ganho_em = unixepoch()
+         WHERE id = ?1 AND meio IS NOT NULL AND meio_ganho_em IS NULL
+           AND (SELECT count(*) FROM carimbos WHERE cartao_id = ?1 AND anulado_em IS NULL) >= meio`,
+      )
+      .bind(cartao.id),
   ];
   let r: D1Result[];
   try {
@@ -507,13 +546,22 @@ async function carimbar(
   }
   const completa = r[2]!.meta.changes === 1;
   const carimbosAgora = (r[3]!.results[0] as { n: number }).n;
+  const ganhouMeio = r[4]!.meta.changes === 1;
   tocarPasse(c, cliente.id);
   const lingua = linguaDoPedido(c);
+  const publico = cartaoPublico(cartao, lingua);
   return {
     carimboId: novo.id,
-    cartao: { ...cartaoPublico(cartao, lingua), carimbos: carimbosAgora },
+    cartao: {
+      ...publico,
+      carimbos: carimbosAgora,
+      meio: publico.meio && { ...publico.meio, ganho: publico.meio.ganho || ganhouMeio },
+    },
     completo: completa,
     recompensa: completa ? naLingua(lingua, cartao.recompensa, cartao.recompensa_en) : null,
+    premioAMeio: ganhouMeio
+      ? naLingua(lingua, cartao.meio_recompensa, cartao.meio_recompensa_en)
+      : null,
     anulavelAte: novo.criado_em + MINUTOS_PARA_ANULAR * 60,
     cupao: null,
   };
@@ -565,6 +613,32 @@ rotasDaBalcao.post('/usar-recompensa', async (c) => {
   const actual = await cartaoActual(c.env.DB, cliente.id);
   if (actual && actual.id === cartaoId)
     await abrirCartaoSeguinte(c.env.DB, cliente.id, actual, await lerPrograma(c.env.DB));
+  tocarPasse(c, cliente.id);
+  return c.json(await ficha(c, cliente));
+});
+
+// O prémio a meio entrega-se à parte (é num produto, nesse dia ou noutro): uma vez só — o UPDATE só passa
+// com o prémio ganho e por entregar —, e com quem e onde, como a recompensa.
+rotasDaBalcao.post('/usar-premio-a-meio', async (c) => {
+  exigirBarbearia(c);
+  const { codigo, cartaoId, lojaId } = await corpo(
+    c,
+    z.object({
+      codigo: z.string().min(1).max(20),
+      cartaoId: z.number().int().positive(),
+      lojaId: z.number().int().positive(),
+    }),
+  );
+  const cliente = await clientePorCodigo(c, codigo);
+  await exigirCartaoDeOutro(c, cliente.id);
+  const loja = await lojaDe(c, lojaId);
+  const usado = await c.env.DB.prepare(
+    `UPDATE cartoes SET meio_usado_em = unixepoch(), meio_usado_loja_id = ?, meio_usado_por = ?
+     WHERE id = ? AND cliente_id = ? AND meio_ganho_em IS NOT NULL AND meio_usado_em IS NULL RETURNING id`,
+  )
+    .bind(loja, c.get('pessoa').id, cartaoId, cliente.id)
+    .first();
+  if (!usado) recusar(409, 'premio_a_meio_entregue');
   tocarPasse(c, cliente.id);
   return c.json(await ficha(c, cliente));
 });

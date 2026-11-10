@@ -2,7 +2,8 @@
  * Anular um carimbo: a regra é uma só, na Balcão e no backoffice. Quem carimbou
  * anula nos 10 minutos seguintes; o dono (e o backoffice) sempre. Se o carimbo
  * completou um cartão cuja recompensa já foi entregue à parte, já não se anula;
- * e se o cartão seguinte já tem carimbos, também não (ficavam dois abertos).
+ * e se o cartão seguinte já tem carimbos, também não (ficavam dois abertos). O
+ * mesmo com o prémio a meio: entregue, o carimbo que o deu já não se anula.
  */
 import { MINUTOS_PARA_ANULAR } from '@nunos-lab/dominio';
 import { agora, recusar } from './util.ts';
@@ -23,7 +24,7 @@ export async function anularCarimbo(
   const x = await db
     .prepare(
       `SELECT x.id, x.pessoa_id, x.criado_em, x.anulado_em, x.cartao_id, c.cliente_id, c.numero, c.objectivo,
-       c.completo_em, c.usado_em,
+       c.completo_em, c.usado_em, c.meio, c.meio_ganho_em, c.meio_usado_em,
        (SELECT count(*) FROM carimbos y WHERE y.cartao_id = c.id AND y.anulado_em IS NULL) AS carimbos,
        (SELECT max(y.id) FROM carimbos y WHERE y.cartao_id = c.id AND y.anulado_em IS NULL) AS ultimo_id
        FROM carimbos x JOIN cartoes c ON c.id = x.cartao_id WHERE x.id = ?`,
@@ -40,6 +41,9 @@ export async function anularCarimbo(
       objectivo: number;
       completo_em: number | null;
       usado_em: number | null;
+      meio: number | null;
+      meio_ganho_em: number | null;
+      meio_usado_em: number | null;
       carimbos: number;
       ultimo_id: number | null;
     }>();
@@ -57,6 +61,15 @@ export async function anularCarimbo(
       .prepare('UPDATE carimbos SET anulado_em = unixepoch(), anulado_por = ? WHERE id = ?')
       .bind(quem.pessoaId, x.id),
   ];
+  // O prémio a meio (10 nov 2026): se sem este carimbo o cartão fica antes do lugar do prémio, o prémio
+  // sai com ele. Já entregue (um desconto num produto), não se anula: era o prémio dado, e outro no
+  // carimbo seguinte.
+  if (x.meio !== null && x.meio_ganho_em !== null && x.carimbos - 1 < x.meio) {
+    if (x.meio_usado_em !== null) recusar(409, 'premio_a_meio_entregue');
+    instrucoes.push(
+      db.prepare('UPDATE cartoes SET meio_ganho_em = NULL WHERE id = ?').bind(x.cartao_id),
+    );
+  }
   if (x.completo_em && x.carimbos - 1 < x.objectivo) {
     // Entregue à parte («Entregar»), já não se anula; entregue pelo próprio 10.º carimbo, anula-se com ele.
     if (x.usado_em && x.usado_em !== x.completo_em) recusar(409, 'recompensa_usada');

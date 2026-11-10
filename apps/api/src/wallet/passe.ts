@@ -3,6 +3,7 @@ import {
   dataCurta as dataCurtaDoDominio,
   diaEmLisboa,
   fraseDoCartao,
+  fraseDoPremioAMeio,
   fraseDesteCorte,
   fraseDoProximo,
   textoDoQr,
@@ -45,6 +46,10 @@ export type CartaoDoPasse = {
   whatsapp: string;
   /** A língua da conta (a da app); sem ela, o português. */
   lingua?: Lingua;
+  /** O prémio a meio do cartão em curso (10 nov 2026): em que carimbo, o quê, e se já se ganhou. */
+  meio?: { carimbos: number; recompensa: string; ganho: boolean } | null;
+  /** Os prémios a meio ganhos e por entregar: quantos, e o primeiro. */
+  meiosPorUsar?: { n: number; recompensa: string } | null;
 };
 
 export type ConfiguracaoDoPasse = {
@@ -87,6 +92,10 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse, agoraS = Da
   const t = TEXTOS_DO_PASSE[lingua];
   const faltam = Math.max(0, c.objectivo - c.carimbos);
   const recompensa = c.recompensa.trim() || t.premio;
+  // O prémio a meio: antes dele, o passe fala dele (como a app); ganho, fica «por usar» até se entregar.
+  const meio = c.meio ?? null;
+  const antesDoMeio = !!meio && !meio.ganho && c.carimbos < meio.carimbos;
+  const meiosPorUsar = c.meiosPorUsar && c.meiosPorUsar.n > 0 ? c.meiosPorUsar : null;
   // O aviso no ecrã bloqueado: «Carimbo novo: 7 de 10»; no 10.º, que o cartão está completo e que
   // este corte (o que se está a pagar) tem a oferta; a zeros (a entrega do prémio, ou anulado o
   // único) nada — era «Carimbo novo: 0 de 10». Sem carimbo há pouco, também nada (MINUTOS_DO_AVISO).
@@ -103,19 +112,31 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse, agoraS = Da
               semFormato(minuscula(fraseDesteCorte(recompensa, lingua))),
             ),
           }
-        : c.carimbos > 0 && c.carimbos === c.objectivo - 1
+        : meio && meio.ganho && c.carimbos === meio.carimbos
           ? {
               changeMessage: t.avisoNovoEProximo(
-                semFormato(minuscula(fraseDoProximo(recompensa, lingua))),
+                semFormato(t.ganhaste(minuscula(meio.recompensa))),
               ),
             }
-          : c.carimbos > 0
-            ? { changeMessage: t.avisoNovo }
-            : {}),
+          : c.carimbos > 0 && c.carimbos === c.objectivo - 1
+            ? {
+                changeMessage: t.avisoNovoEProximo(
+                  semFormato(minuscula(fraseDoProximo(recompensa, lingua))),
+                ),
+              }
+            : antesDoMeio && meio && c.carimbos > 0 && c.carimbos === meio.carimbos - 1
+              ? {
+                  changeMessage: t.avisoNovoEProximo(
+                    semFormato(minuscula(fraseDoPremioAMeio(1, meio.recompensa, lingua))),
+                  ),
+                }
+              : c.carimbos > 0
+                ? { changeMessage: t.avisoNovo }
+                : {}),
   };
   const cliente = c.nome ? [{ key: 'nome', label: t.cliente, value: c.nome }] : [];
-  const porUsar =
-    c.porUsar > 0
+  const porUsar = [
+    ...(c.porUsar > 0
       ? [
           {
             key: 'porUsar',
@@ -123,7 +144,20 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse, agoraS = Da
             value: c.porUsar === 1 ? recompensa : `${c.porUsar} × ${recompensa}`,
           },
         ]
-      : [];
+      : []),
+    ...(meiosPorUsar
+      ? [
+          {
+            key: 'meioPorUsar',
+            label: t.porUsar,
+            value:
+              meiosPorUsar.n === 1
+                ? meiosPorUsar.recompensa
+                : `${meiosPorUsar.n} × ${meiosPorUsar.recompensa}`,
+          },
+        ]
+      : []),
+  ];
   const contacto = [
     c.whatsapp ? `WhatsApp ${c.whatsapp}` : '',
     ...c.lojas.filter((l) => l.telefone).map((l) => `${l.nome}: ${l.telefone}`),
@@ -145,7 +179,9 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse, agoraS = Da
     {
       key: 'como',
       label: t.comoFunciona,
-      value: t.como(c.objectivo, minuscula(recompensa)),
+      value: meio
+        ? `${t.como(c.objectivo, minuscula(recompensa))} ${t.comoMeio(meio.carimbos, minuscula(meio.recompensa))}`
+        : t.como(c.objectivo, minuscula(recompensa)),
     },
     ...(c.lojas.length
       ? [{ key: 'casas', label: t.asCasas, value: c.lojas.map((l) => l.nome).join(' · ') }]
@@ -196,11 +232,21 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse, agoraS = Da
       headerFields: [carimbos],
       secondaryFields: [
         ...cliente,
-        {
-          key: 'faltam',
-          label: recompensa.toUpperCase(),
-          value: fraseDoCartao(c.carimbos, { objectivo: c.objectivo, recompensa: '' }, lingua),
-        },
+        antesDoMeio && meio
+          ? {
+              key: 'faltam',
+              label: meio.recompensa.toUpperCase(),
+              value: fraseDoCartao(
+                c.carimbos,
+                { objectivo: meio.carimbos, recompensa: '' },
+                lingua,
+              ),
+            }
+          : {
+              key: 'faltam',
+              label: recompensa.toUpperCase(),
+              value: fraseDoCartao(c.carimbos, { objectivo: c.objectivo, recompensa: '' }, lingua),
+            },
         ...porUsar,
       ],
       // Sem «CORTES» na frente: o Renato tirou-o (7 nov, «não faz falta»); fica nas costas do poster.
@@ -225,11 +271,15 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse, agoraS = Da
           value:
             c.porUsar > 0
               ? t.tensPorUsar(c.porUsar, minuscula(recompensa))
-              : faltam === 0
-                ? t.cartaoCompleto
-                : faltam === 1
-                  ? fraseDoProximo(recompensa, lingua)
-                  : t.aoObjectivo(recompensa, c.objectivo),
+              : meiosPorUsar
+                ? t.tensPorUsar(meiosPorUsar.n, minuscula(meiosPorUsar.recompensa))
+                : antesDoMeio && meio
+                  ? fraseDoPremioAMeio(meio.carimbos - c.carimbos, meio.recompensa, lingua)
+                  : faltam === 0
+                    ? t.cartaoCompleto
+                    : faltam === 1
+                      ? fraseDoProximo(recompensa, lingua)
+                      : t.aoObjectivo(recompensa, c.objectivo),
         },
       ],
       backFields: [{ key: 'cortes', label: t.cortes, value: String(c.cortes) }, ...costas],
@@ -248,7 +298,11 @@ export async function pkpass(
   identidade: { certificado: string; chave: string; cadeia: string },
   quando = new Date(),
 ): Promise<Uint8Array> {
-  const geradas = await imagensDoCartao({ carimbos: cartao.carimbos, objectivo: cartao.objectivo });
+  const geradas = await imagensDoCartao({
+    carimbos: cartao.carimbos,
+    objectivo: cartao.objectivo,
+    meio: cartao.meio?.carimbos ?? null,
+  });
   const ficheiros: [string, Uint8Array][] = [
     ['pass.json', utf8(JSON.stringify(passJson(cartao, cfg)))],
     ...Object.entries(IMAGENS_DO_PASSE).map(([nome, b64]): [string, Uint8Array] => [

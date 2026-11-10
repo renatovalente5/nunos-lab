@@ -1978,14 +1978,23 @@ await passo(
 // ——— O pente fino de 30 out: o prémio não se dá duas vezes, cupões, idempotência, a fila ———
 const carimbarVezes = async (codigo, n) => {
   let ultimo;
-  for (let i = 0; i < n; i++)
-    ultimo = await (
-      await pedir('/api/balcao/carimbar', {
+  for (let i = 0; i < n; i++) {
+    const chave = chaveNova();
+    const carimbar = () =>
+      pedir('/api/balcao/carimbar', {
         method: 'POST',
         token: tokenDono,
-        body: json({ codigo, chave: chaveNova(), lojaId: lojaDaProva, confirmar: true }),
-      })
-    ).json();
+        body: json({ codigo, chave, lojaId: lojaDaProva, confirmar: true }),
+      });
+    let r = await carimbar();
+    // O limite de 60 carimbos por minuto por sessão: a prova gasta mais do que isso com o dono e,
+    // quando corre depressa, um carimbo dava 429 e o passo falhava longe dali. Uma sessão nova segue.
+    if (r.status === 429) {
+      tokenDono = await entrarNaBalcao('dono.prova@gmail.com');
+      r = await carimbar();
+    }
+    ultimo = await r.json();
+  }
   return ultimo;
 };
 
@@ -2231,6 +2240,7 @@ await passo('nomes sem o que não se vê, e o programa de agora no /api/app', as
   assert.deepEqual(dadosDaApp.programa, {
     objectivo: programa.objectivo,
     recompensa: programa.recompensa,
+    meio: null,
   });
 });
 
@@ -2554,6 +2564,99 @@ await passo('a chave de outro carimbo não junta um email a um cliente', async (
     0,
   );
 });
+
+await passo(
+  'o prémio a meio: ganha-se no carimbo dele, entrega-se uma vez, e entregue o carimbo já não se anula',
+  async () => {
+    // Uma sessão própria: a do dono já gastou os 60 carimbos por minuto da API nos passos de cima.
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const programa = await (await pedir('/api/bo/programa', { token })).json();
+    const guardar = (extra) =>
+      pedir('/api/bo/programa', { method: 'PUT', token, body: json({ ...programa, ...extra }) });
+    const vinte = { meioRecompensa: '20% num produto', meioRecompensaEn: '20% off a product' };
+    assert.equal(
+      (await guardar({ ...vinte, meio: programa.objectivo })).status,
+      400,
+      'no último, não',
+    );
+    assert.equal((await guardar({ ...vinte, meio: 3 })).status, 200);
+    const app = await (await pedir('/api/app')).json();
+    assert.deepEqual(app.programa.meio, { carimbos: 3, recompensa: '20% num produto' });
+
+    const cliente = async (nome) => {
+      const r = await pedir('/api/balcao/clientes', {
+        method: 'POST',
+        token: dono,
+        body: json({ nome, carimbo: { chave: chaveNova(), lojaId: lojaDaProva } }),
+      });
+      assert.equal(r.status, 200);
+      return (await r.json()).ficha.cliente.codigo;
+    };
+    const carimbar = async (codigo) =>
+      (
+        await pedir('/api/balcao/carimbar', {
+          method: 'POST',
+          token: dono,
+          body: json({ codigo, chave: chaveNova(), lojaId: lojaDaProva, confirmar: true }),
+        })
+      ).json();
+    const ficha = async (codigo) =>
+      (await pedir(`/api/balcao/ficha/${codigo}`, { token: dono })).json();
+    const anular = (carimboId) =>
+      pedir('/api/balcao/anular', { method: 'POST', token: dono, body: json({ carimboId }) });
+
+    // O 1.º carimbo vem com o cliente novo; ao 3.º ganha-se, e fica por entregar.
+    const a = await cliente('Meio Prova A');
+    assert.equal((await carimbar(a)).premioAMeio, null, 'ao 2.º ainda não');
+    const terceiro = await carimbar(a);
+    assert.equal(terceiro.premioAMeio, '20% num produto');
+    let f = await ficha(a);
+    assert.equal(f.cartao.meio.ganho, true);
+    assert.equal(f.premiosAMeio.length, 1);
+    // Três «Entregar» ao mesmo tempo: sai uma vez.
+    const entregas = await Promise.all(
+      [1, 2, 3].map(() =>
+        pedir('/api/balcao/usar-premio-a-meio', {
+          method: 'POST',
+          token: dono,
+          body: json({ codigo: a, cartaoId: f.premiosAMeio[0].cartaoId, lojaId: lojaDaProva }),
+        }),
+      ),
+    );
+    assert.deepEqual(entregas.map((r) => r.status).sort(), [200, 409, 409]);
+    f = await ficha(a);
+    assert.equal(f.premiosAMeio.length, 0);
+    assert.equal(f.premioAMeioEntregue.recompensa, '20% num produto');
+    // Entregue, o carimbo que o deu já não se anula, nem pelo dono: era o prémio dado e outro a seguir.
+    const recusado = await anular(terceiro.carimboId);
+    assert.equal(recusado.status, 409);
+    assert.equal((await recusado.json()).erro, 'premio_a_meio_entregue');
+
+    // Por entregar, anular o carimbo tira o prémio, e o carimbo seguinte volta a dá-lo (um só).
+    const b = await cliente('Meio Prova B');
+    await carimbar(b);
+    const deu = await carimbar(b);
+    assert.equal(deu.premioAMeio, '20% num produto');
+    assert.equal((await anular(deu.carimboId)).status, 204);
+    assert.equal((await ficha(b)).premiosAMeio.length, 0);
+    assert.equal((await carimbar(b)).premioAMeio, '20% num produto');
+    assert.equal((await ficha(b)).premiosAMeio.length, 1);
+
+    // Mudar o prémio vale para os cartões em curso que ainda não chegaram lá; quem o ganhou fica com o seu.
+    const c = await cliente('Meio Prova C');
+    assert.equal(
+      (await guardar({ meioRecompensa: 'Cera grátis', meioRecompensaEn: 'Free wax', meio: 2 }))
+        .status,
+      200,
+    );
+    assert.equal((await ficha(c)).cartao.meio.recompensa, 'Cera grátis');
+    assert.equal((await ficha(a)).cartao.meio.recompensa, '20% num produto');
+    // Sem texto, os cartões em curso que não o ganharam ficam sem prémio a meio.
+    assert.equal((await guardar({ meioRecompensa: '', meioRecompensaEn: '' })).status, 200);
+    assert.equal((await ficha(c)).cartao.meio, null);
+    assert.equal((await (await pedir('/api/app')).json()).programa.meio, null);
+  },
+);
 
 await passo('sair termina a sessão', async () => {
   assert.equal((await pedir('/api/bo/sair', { method: 'POST', token })).status, 204);

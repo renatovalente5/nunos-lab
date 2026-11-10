@@ -131,8 +131,11 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
       .prepare(
         `SELECT c.id, c.numero, c.objectivo, c.recompensa, c.recompensa_en, c.iniciado_em, c.completo_em, c.usado_em,
            l.nome AS usado_loja, e.nome AS usado_por,
+           c.meio, c.meio_recompensa, c.meio_recompensa_en, c.meio_ganho_em, c.meio_usado_em,
+           ml.nome AS meio_usado_loja, me.nome AS meio_usado_por,
            (SELECT count(*) FROM carimbos x WHERE x.cartao_id = c.id AND x.anulado_em IS NULL) AS carimbos
          FROM cartoes c LEFT JOIN lojas l ON l.id = c.usado_loja_id LEFT JOIN equipa e ON e.id = c.usado_por
+         LEFT JOIN lojas ml ON ml.id = c.meio_usado_loja_id LEFT JOIN equipa me ON me.id = c.meio_usado_por
          WHERE c.cliente_id = ? ORDER BY c.numero DESC`,
       )
       .bind(id),
@@ -160,6 +163,13 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
     usado_em: number | null;
     usado_loja: string | null;
     usado_por: string | null;
+    meio: number | null;
+    meio_recompensa: string;
+    meio_recompensa_en: string;
+    meio_ganho_em: number | null;
+    meio_usado_em: number | null;
+    meio_usado_loja: string | null;
+    meio_usado_por: string | null;
     carimbos: number;
   };
   type Carimbo = {
@@ -187,6 +197,18 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
       usadoEm: x.usado_em,
       usadoLoja: x.usado_loja,
       usadoPor: x.usado_por,
+      meio:
+        x.meio === null
+          ? null
+          : {
+              carimbos: x.meio,
+              recompensa: x.meio_recompensa,
+              recompensaEn: x.meio_recompensa_en,
+              ganhoEm: x.meio_ganho_em,
+              usadoEm: x.meio_usado_em,
+              usadoLoja: x.meio_usado_loja,
+              usadoPor: x.meio_usado_por,
+            },
     })),
     historico: (carimbos!.results as Carimbo[]).map((x) => ({
       id: x.id,

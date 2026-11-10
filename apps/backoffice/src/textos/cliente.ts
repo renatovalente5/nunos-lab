@@ -29,6 +29,10 @@ export const pt = {
     porUsar: 'Por usar',
     emCurso: 'Em curso',
     vazio: 'Ainda sem cartão',
+    // O prémio a meio do cartão (10 nov 2026).
+    meio: (recompensa: string, carimbo: number) => `${recompensa}, ao ${carimbo}.º`,
+    meioGanhoA: (dia: string) => `ganho a ${dia}`,
+    meioPorEntregar: 'por entregar',
   },
   historico: {
     titulo: 'Carimbos',
@@ -95,6 +99,9 @@ export const en: typeof pt = {
     porUsar: 'Reward ready',
     emCurso: 'In progress',
     vazio: 'No card yet',
+    meio: (recompensa, carimbo) => `${recompensa}, at stamp ${carimbo}`,
+    meioGanhoA: (dia) => `earned ${dia}`,
+    meioPorEntregar: 'ready',
   },
   historico: {
     titulo: 'Stamp history',

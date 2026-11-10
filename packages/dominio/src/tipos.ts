@@ -111,7 +111,12 @@ export type DadosDaApp = {
   categorias: Categoria[];
   parceiros: ParceiroPublico[];
   /** O programa de agora, para o cartão de quem ainda não entrou (falta em respostas guardadas antigas). */
-  programa?: { objectivo: number; recompensa: string };
+  programa?: {
+    objectivo: number;
+    recompensa: string;
+    /** O prémio a meio dos cartões novos (null: não há; falta nas respostas de antes de 10 nov 2026). */
+    meio?: { carimbos: number; recompensa: string } | null;
+  };
 };
 
 /** Os tipos de toque que a app conta, sem saber quem tocou. */
@@ -266,9 +271,23 @@ export type CartaoDoCliente = {
   objectivo: number;
   recompensa: string;
   carimbos: number;
+  /**
+   * O prémio a meio deste cartão (10 nov 2026): em que carimbo, o quê (na língua pedida), e se já se
+   * ganhou e entregou. null: este cartão não tem. As respostas de antes não o traziam.
+   */
+  meio?: { carimbos: number; recompensa: string; ganho: boolean; usado: boolean } | null;
 };
 
 export type RecompensaPorUsar = { cartaoId: number; recompensa: string; ganhaEm: number };
+
+/** Um prémio a meio ganho e por entregar: é num produto, e espera pelo cliente (nesse dia ou noutro). */
+export type PremioAMeioPorUsar = {
+  cartaoId: number;
+  /** Em que carimbo se ganhou («o prémio dos 5»). */
+  carimbos: number;
+  recompensa: string;
+  ganhoEm: number;
+};
 
 /** O que a app recebe de /api/eu: a pessoa, o cartão, as visitas, a conta. */
 export type ClienteEu = {
@@ -283,12 +302,18 @@ export type ClienteEu = {
   cortes: number;
   cartao: CartaoDoCliente;
   recompensas: RecompensaPorUsar[];
+  /** Os prémios a meio por entregar (10 nov 2026; as respostas de antes não os traziam). */
+  premiosAMeio?: PremioAMeioPorUsar[];
   visitas: VisitaDoCliente[];
   formas: FormaDeEntrar[];
   sessoes: SessaoDoCliente[];
   /** Sempre true: a regra dos 15 minutos saiu a 6 nov 2026. Fica pelas apps antigas, que sem o campo pediam para sair. */
   provaRecente: boolean;
-  programa: { objectivo: number; recompensa: string };
+  programa: {
+    objectivo: number;
+    recompensa: string;
+    meio?: { carimbos: number; recompensa: string } | null;
+  };
   /** Corte no último ano: as vantagens dos parceiros valem. */
   activo: boolean;
   /** As vantagens validadas nos parceiros, da mais recente para a mais antiga. */
@@ -368,6 +393,10 @@ export type FichaDoBalcao = {
   prenda: string | null;
   /** A prenda deste ano já foi entregue: quando e por quem. */
   prendaEntregue: { quando: number; pessoa: string | null } | null;
+  /** Os prémios a meio ganhos e por entregar, o mais antigo primeiro. */
+  premiosAMeio: PremioAMeioPorUsar[];
+  /** O último prémio a meio entregue hoje: o quê, quando e por quem (outro barbeiro vê que já foi). */
+  premioAMeioEntregue: { recompensa: string; quando: number; pessoa: string | null } | null;
 };
 
 export type ResultadoDoCarimbo = {
@@ -376,6 +405,8 @@ export type ResultadoDoCarimbo = {
   /** Este carimbo completou o cartão: foi o corte da oferta (o 10.º), já entregue. */
   completo: boolean;
   recompensa: string | null;
+  /** Este carimbo ganhou o prémio a meio: o prémio, na língua pedida (fica por entregar). */
+  premioAMeio?: string | null;
   anulavelAte: number;
   /** Sempre null: o saco das surpresas saiu (8 nov 2026). Fica pelas for partners de antes disso. */
   cupao: null;
@@ -523,6 +554,16 @@ export type FichaDoCliente = ClienteDoBackoffice & {
     usadoEm: number | null;
     usadoLoja: string | null;
     usadoPor: string | null;
+    /** O prémio a meio deste cartão (null: não tem). */
+    meio: {
+      carimbos: number;
+      recompensa: string;
+      recompensaEn: string;
+      ganhoEm: number | null;
+      usadoEm: number | null;
+      usadoLoja: string | null;
+      usadoPor: string | null;
+    } | null;
   }[];
   historico: (VisitaDoCliente & {
     cartaoNumero: number;

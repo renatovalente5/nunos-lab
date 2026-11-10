@@ -64,6 +64,7 @@ export const CAMPOS = {
     'the loyalty-card reward a client gets at the barbershop when the card is full (a corte is a haircut)',
   aniversario:
     'the gift clients get on their birthday at the barbershop (a corte is a haircut, barba is a beard trim)',
+  meio: 'a loyalty-card reward a client gets halfway through the card, usually a discount on a product sold at the barbershop (num produto → off a product)',
 } as const;
 export type CampoDoTexto = keyof typeof CAMPOS;
 
@@ -151,7 +152,7 @@ export async function completarIngles(
     const enIntocado = f.en === undefined || (f.enAntes !== undefined && f.en === f.enAntes);
     if (en && !(ptMudou && enIntocado)) return f.en;
     if (en) velhos.add(i);
-    if (f.campo === 'recompensa') {
+    if (f.campo === 'recompensa' || f.campo === 'meio') {
       const pelasRegras = recompensaEmIngles(pt);
       if (pelasRegras !== pt) return pelasRegras;
     }

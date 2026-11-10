@@ -17,6 +17,7 @@ import { useConfirmacao } from '../../componentes/confirmar';
 import {
   carimbar,
   chaveNova,
+  entregarPremioAMeio,
   entregarPrenda,
   mensagemDe,
   pedir,
@@ -62,6 +63,8 @@ type Feito = {
   objectivo: number;
   completo: boolean;
   recompensa: string | null;
+  /** Este carimbo ganhou o prémio a meio: o barbeiro di-lo ao cliente (e pode logo entregá-lo). */
+  premioAMeio: string | null;
 };
 
 export default function Ficha() {
@@ -120,6 +123,9 @@ export default function Ficha() {
   // Com o limite do dia já atingido, o botão diz logo «Carimbar na mesma»: antes só o dizia depois de
   // a API recusar, e o barbeiro tinha de carregar duas vezes.
   const jaHoje = !!ficha && ficha.hoje.carimbos >= (eu?.programa.porDia ?? 1);
+  // O prémio a meio por entregar (a API de antes de 10 nov não o mandava).
+  const premioAMeio = ficha?.premiosAMeio?.[0] ?? null;
+  const meioDoCartao = ficha?.cartao.meio ?? null;
   // O prémio entregue hoje: o corte grátis não leva carimbo, e carimbar pede confirmação.
   const entregueHoje = ficha?.hoje.entregue ?? null;
   const precisaConfirmar = jaHoje || !!entregueHoje;
@@ -149,16 +155,17 @@ export default function Ficha() {
         semLeitura: semLeitura === '1',
       });
       setEstado('feito');
-      vibrar(r.completo ? 'festa' : 'feito');
+      vibrar(r.completo || r.premioAMeio ? 'festa' : 'feito');
       setFeito({
         carimbos: r.cartao.carimbos,
         objectivo: r.cartao.objectivo,
         completo: r.completo,
         recompensa: r.recompensa,
+        premioAMeio: r.premioAMeio ?? null,
       });
       Animated.spring(escala, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
       // Com um prémio fica até «Concluir»: o barbeiro tem de o dizer ao cliente.
-      if (!r.completo) concluir();
+      if (!r.completo && !r.premioAMeio) concluir();
     } catch (e) {
       if (
         e instanceof ErroDaBalcao &&
@@ -201,6 +208,28 @@ export default function Ficha() {
     }
   };
 
+  /** O prémio a meio: como a prenda, a API devolve a ficha já com «entregue às…», e o botão desaparece. */
+  const entregarMeio = async (cartaoId: number) => {
+    if (!ficha || !casa || estado === 'a-enviar') return;
+    setEstado('a-enviar');
+    setErro(null);
+    try {
+      const nova = await entregarPremioAMeio({
+        codigo: ficha.cliente.codigo,
+        cartaoId,
+        lojaId: casa,
+      });
+      consultas.setQueryData(['balcao', 'ficha', codigo], nova);
+      vibrar('feito');
+      setEstado('pronto');
+    } catch (e) {
+      setEstado('pronto');
+      setErro(mensagemDe(e));
+      // Outro barbeiro entregou-o entretanto: a ficha fresca já o diz.
+      if (e instanceof ErroDaBalcao && e.codigo === 'premio_a_meio_entregue') refetch();
+    }
+  };
+
   const usar = async (cartaoId: number) => {
     if (!ficha || !casa || estado === 'a-enviar') return;
     setEstado('a-enviar');
@@ -218,6 +247,7 @@ export default function Ficha() {
         recompensa: t.ficha.recompensaEntregue(
           ficha.recompensas[0] && recompensaNaLingua(ficha.recompensas[0].recompensa, lingua),
         ),
+        premioAMeio: null,
       });
       Animated.spring(escala, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
       concluir();
@@ -338,7 +368,13 @@ export default function Ficha() {
             }}
           >
             <Icone
-              nome={feito.completo || feito.recompensa ? 'presente' : 'certo'}
+              nome={
+                feito.completo || feito.recompensa
+                  ? 'presente'
+                  : feito.premioAMeio
+                    ? 'saco'
+                    : 'certo'
+              }
               tamanho={56}
               cor={cor.sobreClaro}
               espessura={2.6}
@@ -349,8 +385,15 @@ export default function Ficha() {
               ? feito.recompensa
               : feito.completo
                 ? t.ficha.cartaoCompleto
-                : t.geral.carimbosDe(feito.carimbos, feito.objectivo)}
+                : feito.premioAMeio
+                  ? feito.premioAMeio
+                  : t.geral.carimbosDe(feito.carimbos, feito.objectivo)}
           </T>
+          {feito.premioAMeio && (
+            <T v="subtitulo" style={{ color: cor.texto2, marginTop: 8, textAlign: 'center' }}>
+              {t.ficha.ganhouPremioAMeio}
+            </T>
+          )}
           {feito.completo && feito.recompensa && (
             <T v="subtitulo" style={{ color: cor.texto2, marginTop: 8, textAlign: 'center' }}>
               {fraseDesteCorte(feito.recompensa, lingua)}
@@ -407,6 +450,7 @@ export default function Ficha() {
               <Carimbos
                 carimbos={carimbos}
                 objectivo={ficha.cartao.objectivo}
+                meio={meioDoCartao?.carimbos ?? null}
                 tamanho={tamanho}
                 porLinha={10}
                 folga={6}
@@ -524,6 +568,89 @@ export default function Ficha() {
                 </T>
               </View>
             )}
+            {/* O prémio a meio ganho (10 nov 2026): é num produto, entrega-se quando o cliente quiser. */}
+            {premioAMeio && !daLinhaDoHoje && (
+              <View
+                style={{
+                  marginHorizontal: MARGEM,
+                  marginTop: 14,
+                  backgroundColor: cor.claro,
+                  borderRadius: 16,
+                  padding: 12,
+                  gap: 10,
+                  ...CONTINUO,
+                }}
+              >
+                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                  <Icone nome="saco" tamanho={18} cor={cor.sobreClaro} espessura={2.2} />
+                  <T v="forte" style={{ flex: 1, color: cor.sobreClaro }}>
+                    {t.ficha.premioAMeio(premioAMeio.carimbos, premioAMeio.recompensa)}
+                  </T>
+                </View>
+                <Pressable
+                  onPress={() => entregarMeio(premioAMeio.cartaoId)}
+                  role="button"
+                  aria-disabled={estado === 'a-enviar'}
+                  style={({ pressed }) => ({
+                    height: 44,
+                    borderRadius: 999,
+                    backgroundColor: pressed ? cor.superficieAlta : cor.sobreClaro,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: estado === 'a-enviar' ? 0.6 : 1,
+                  })}
+                >
+                  <T v="forte" style={{ color: cor.claro, fontSize: 15 }}>
+                    {t.ficha.entregarOPremio}
+                  </T>
+                </Pressable>
+              </View>
+            )}
+            {!premioAMeio && ficha.premioAMeioEntregue && !daLinhaDoHoje && (
+              <View
+                style={{
+                  paddingHorizontal: MARGEM,
+                  marginTop: 14,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <Icone nome="saco" tamanho={16} cor={cor.texto2} espessura={2} />
+                <T v="legenda" style={{ color: cor.texto2, flex: 1 }}>
+                  {t.ficha.premioAMeioEntregue(
+                    ficha.premioAMeioEntregue.recompensa,
+                    hora(ficha.premioAMeioEntregue.quando),
+                    ficha.premioAMeioEntregue.pessoa,
+                  )}
+                </T>
+              </View>
+            )}
+            {/* No corte antes do prémio a meio: este dá-o (o barbeiro pode logo falar do produto). */}
+            {!daLinhaDoHoje &&
+              meioDoCartao &&
+              !meioDoCartao.ganho &&
+              carimbos === meioDoCartao.carimbos - 1 &&
+              !jaHoje && (
+                <View
+                  style={{
+                    marginHorizontal: MARGEM,
+                    marginTop: 14,
+                    backgroundColor: cor.claro,
+                    borderRadius: 16,
+                    padding: 12,
+                    flexDirection: 'row',
+                    gap: 10,
+                    alignItems: 'center',
+                    ...CONTINUO,
+                  }}
+                >
+                  <Icone nome="saco" tamanho={18} cor={cor.sobreClaro} espessura={2.2} />
+                  <T v="forte" style={{ flex: 1, color: cor.sobreClaro }}>
+                    {t.ficha.esteCorteDa(meioDoCartao.recompensa)}
+                  </T>
+                </View>
+              )}
             {/* Ao 9.º (sem carimbo hoje) este corte é o grátis. */}
             {!daLinhaDoHoje && carimbos === ficha.cartao.objectivo - 1 && !jaHoje && (
               <View

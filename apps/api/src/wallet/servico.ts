@@ -3,9 +3,15 @@
  * marcar o passe como mudado (e avisar a Apple e a Google), e os segredos.
  */
 import type { Programa } from '@nunos-lab/dominio';
-import { codigoCurto, eLingua, recompensaNaLingua, textoDoQr } from '@nunos-lab/dominio';
+import {
+  carimboDoPremioAMeio,
+  codigoCurto,
+  eLingua,
+  recompensaNaLingua,
+  textoDoQr,
+} from '@nunos-lab/dominio';
 import type { C } from '../ambiente.ts';
-import { cartaoActual, lerPrograma } from '../programa.ts';
+import { cartaoActual, consultaDosPremiosAMeio, lerPrograma, premiosAMeioDe } from '../programa.ts';
 import { agora, aleatorio, hex, sha256 } from '../util.ts';
 import { assinarBilheteApns, avisarApns, BILHETE_APNS_VALE } from './apns.ts';
 import { buffer } from './bytes.ts';
@@ -102,7 +108,7 @@ export async function cartaoParaOPasse(
   const lingua = eLingua(cliente.lingua) ? cliente.lingua : 'pt';
   const p = programa ?? (await lerPrograma(db));
   const cartao = await cartaoActual(db, clienteId);
-  const [passe, porUsar, cortes, ultima, lojas, defs] = await db.batch([
+  const [passe, porUsar, cortes, ultima, lojas, defs, meios] = await db.batch([
     db.prepare('SELECT serie FROM passes WHERE cliente_id = ?').bind(clienteId),
     db
       .prepare(
@@ -123,6 +129,7 @@ export async function cartaoParaOPasse(
     db.prepare(
       "SELECT chave, valor FROM definicoes WHERE chave IN ('site', 'instagram', 'whatsapp')",
     ),
+    consultaDosPremiosAMeio(db, clienteId),
   ]);
   const serie = (passe!.results[0] as { serie: string } | undefined)?.serie;
   if (!serie) return null;
@@ -139,6 +146,11 @@ export async function cartaoParaOPasse(
   // Em inglês: o prémio escrito no backoffice, ou «Corte grátis» e «50% de desconto» traduzidos.
   const recompensaPt = cartao?.recompensa ?? p.recompensa;
   const recompensaEn = ((cartao ? cartao.recompensa_en : p.recompensaEn) ?? '').trim();
+  // O prémio a meio do cartão em curso; sem cartão, o do programa.
+  const carimboDoMeio = cartao ? cartao.meio : carimboDoPremioAMeio(p);
+  const meioPt = cartao ? cartao.meio_recompensa : p.meioRecompensa;
+  const meioEn = ((cartao ? cartao.meio_recompensa_en : p.meioRecompensaEn) ?? '').trim();
+  const pendentes = premiosAMeioDe(meios!.results, lingua);
   return {
     serie,
     codigo: cliente.codigo,
@@ -156,6 +168,16 @@ export async function cartaoParaOPasse(
     instagram: d.get('instagram') ?? '',
     whatsapp: d.get('whatsapp') ?? '',
     lingua,
+    meio: carimboDoMeio
+      ? {
+          carimbos: carimboDoMeio,
+          recompensa: lingua === 'en' ? meioEn || meioPt : meioPt,
+          ganho: !!cartao && cartao.meio_ganho_em !== null,
+        }
+      : null,
+    meiosPorUsar: pendentes.length
+      ? { n: pendentes.length, recompensa: pendentes[0]!.recompensa }
+      : null,
   };
 }
 
@@ -189,8 +211,9 @@ export function cartaoDaGoogle(env: Env, c: CartaoDoPasse): CartaoDaGoogle {
     objectivo: c.objectivo,
     recompensa: c.recompensa,
     porUsar: c.porUsar,
+    meiosPorUsar: c.meiosPorUsar ?? null,
     cortes: c.cortes,
-    hero: `${env.ORIGEM_DA_API}/api/wallet/imagem/${VERSAO_DO_DESENHO}/${c.objectivo}/${c.carimbos}/hero.png`,
+    hero: `${env.ORIGEM_DA_API}/api/wallet/imagem/${VERSAO_DO_DESENHO}/${c.objectivo}/${c.carimbos}/hero.png${c.meio ? `?meio=${c.meio.carimbos}` : ''}`,
     lingua: c.lingua,
   };
 }

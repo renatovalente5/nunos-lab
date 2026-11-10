@@ -58,6 +58,15 @@ export const pt = {
     primeiraVisita: 'Primeira visita',
     prendaDeAnos: (prenda: string) => `Prenda de anos: ${prenda}`,
     entregarAPrenda: 'Entregar a prenda',
+    // O prémio a meio do cartão (10 nov 2026): num produto, entrega-se nesse dia ou noutro.
+    premioAMeio: (carimbos: number, recompensa: string) =>
+      `Prémio dos ${carimbos}: ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`,
+    entregarOPremio: 'Entregar o prémio',
+    premioAMeioEntregue: (recompensa: string, hora: string, pessoa: string | null) =>
+      `${recompensa} entregue hoje às ${hora}${pessoa ? ` por ${pessoa}` : ''}`,
+    ganhouPremioAMeio: 'Ganhou o prémio. Entrega-o agora ou noutro dia.',
+    esteCorteDa: (recompensa: string) =>
+      `Este corte dá ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`,
     prendaEntregue: (quando: string, hoje: boolean, pessoa: string | null) =>
       `Prenda de anos entregue ${hoje ? 'às' : 'a'} ${quando}${pessoa ? ` por ${pessoa}` : ''}`,
     jaCarimbadoAs: (hora: string, pessoa: string | null) =>
@@ -196,6 +205,7 @@ export const pt = {
     json: 'O pedido chegou malformado. Tenta outra vez.',
     sem_prenda: 'Hoje não há prenda para este cliente.',
     prenda_entregue: 'A prenda deste ano já foi entregue.',
+    premio_a_meio_entregue: 'O prémio a meio deste cartão já foi entregue.',
     invalido: 'Há algo por corrigir.',
     grande: 'O pedido é demasiado grande.',
     referencia: 'Isso já não existe. Recarrega.',

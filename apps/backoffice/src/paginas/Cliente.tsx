@@ -296,6 +296,22 @@ export function Cliente({ id }: { id: string }) {
                           {usado &&
                             ` · ${t.cliente.cartoes.usadoA(diaDe(k.usadoEm!, hoje, lingua), k.usadoLoja, k.usadoPor)}`}
                         </div>
+                        {k.meio && (
+                          <div className="detalhe">
+                            {t.cliente.cartoes.meio(
+                              lingua === 'en' && k.meio.recompensaEn
+                                ? k.meio.recompensaEn
+                                : k.meio.recompensa,
+                              k.meio.carimbos,
+                            )}
+                            {k.meio.ganhoEm !== null &&
+                              ` · ${t.cliente.cartoes.meioGanhoA(diaDe(k.meio.ganhoEm, hoje, lingua))}`}
+                            {k.meio.usadoEm !== null
+                              ? ` · ${t.cliente.cartoes.usadoA(diaDe(k.meio.usadoEm, hoje, lingua), k.meio.usadoLoja, k.meio.usadoPor)}`
+                              : k.meio.ganhoEm !== null &&
+                                ` · ${t.cliente.cartoes.meioPorEntregar}`}
+                          </div>
+                        )}
                       </div>
                       {usado ? (
                         <Etiqueta>{t.cliente.cartoes.usado}</Etiqueta>

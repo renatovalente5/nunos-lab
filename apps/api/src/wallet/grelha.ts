@@ -14,7 +14,8 @@ import { mascara, Tela, type Cor, type Mascara } from './tela.ts';
 /** Muda quando o desenho muda: faz parte da chave da cache e do URL da hero. */
 export const VERSAO_DO_DESENHO = 'v2';
 
-export type Grelha = { carimbos: number; objectivo: number };
+/** O estado de um cartão: `meio`, o carimbo do prémio a meio (o saco), quando o cartão o tem. */
+export type Grelha = { carimbos: number; objectivo: number; meio?: number | null };
 
 const FUNDO: Cor = [10, 10, 10]; // cor.fundo
 const CREME: Cor = [244, 241, 236]; // cor.claro
@@ -47,34 +48,44 @@ export function dispor(n: number, zona: Zona, maximo = CASA, folga = 0.3) {
   return { lado, centros };
 }
 
-let glifos: Promise<Record<'tesoura' | 'presente', Mascara>> | null = null;
+let glifos: Promise<Record<'tesoura' | 'presente' | 'saco', Mascara>> | null = null;
 function osGlifos() {
   return (glifos ??= (async () => ({
     tesoura: mascara(await inflar(deBase64(GLIFOS.tesoura)), LADO_DO_GLIFO),
     presente: mascara(await inflar(deBase64(GLIFOS.presente)), LADO_DO_GLIFO),
+    saco: mascara(await inflar(deBase64(GLIFOS.saco)), LADO_DO_GLIFO),
   }))());
 }
 
 /** As casas, em pixels: `lado` e `centros` já na escala da tela. */
 async function casas(tela: Tela, g: Grelha, lado: number, centros: [number, number][]) {
-  const { tesoura, presente } = await osGlifos();
+  const { tesoura, presente, saco } = await osGlifos();
   const r = lado / 2;
   const traco = lado / CASA;
   for (let i = 0; i < g.objectivo; i++) {
     const [cx, cy] = centros[i]!;
     const ultima = i === g.objectivo - 1;
+    // A casa do prémio a meio leva o saco, como a última leva a prenda (o prémio é num produto).
+    const doMeio = !!g.meio && i === g.meio - 1;
+    const premio = ultima || doMeio;
     if (i < g.carimbos) {
       // A casa dada: disco creme com a tesoura; a última, cheia, fica com a prenda.
       tela.disco(cx, cy, r, CREME);
-      const l = lado * (ultima ? 0.48 : 0.5);
-      tela.glifo(ultima ? presente : tesoura, cx - l / 2, cy - l / 2, l, SOBRE_CREME);
+      const l = lado * (premio ? 0.48 : 0.5);
+      tela.glifo(
+        ultima ? presente : doMeio ? saco : tesoura,
+        cx - l / 2,
+        cy - l / 2,
+        l,
+        SOBRE_CREME,
+      );
       continue;
     }
-    if (ultima) tela.anel(cx, cy, r + 2 * traco, 4 * traco, CREME, 0.06);
-    tela.anel(cx, cy, r - 0.75 * traco, 1.5 * traco, ultima ? ARO_DA_ULTIMA : ARO);
-    if (ultima) {
+    if (premio) tela.anel(cx, cy, r + 2 * traco, 4 * traco, CREME, 0.06);
+    tela.anel(cx, cy, r - 0.75 * traco, 1.5 * traco, premio ? ARO_DA_ULTIMA : ARO);
+    if (premio) {
       const l = lado * 0.48;
-      tela.glifo(presente, cx - l / 2, cy - l / 2, l, PRENDA);
+      tela.glifo(ultima ? presente : saco, cx - l / 2, cy - l / 2, l, PRENDA);
     }
   }
 }
@@ -114,8 +125,16 @@ export async function hero(g: Grelha) {
 
 function sanear(g: Grelha): Grelha {
   const objectivo = Math.min(50, Math.max(1, Math.round(g.objectivo) || 1));
-  return { objectivo, carimbos: Math.min(objectivo, Math.max(0, Math.round(g.carimbos) || 0)) };
+  const meio = Math.round(g.meio ?? 0);
+  return {
+    objectivo,
+    carimbos: Math.min(objectivo, Math.max(0, Math.round(g.carimbos) || 0)),
+    meio: meio >= 1 && meio < objectivo ? meio : null,
+  };
 }
+
+/** A chave de um estado na cache: a de antes do prémio a meio fica igual sem ele. */
+const chaveDe = (g: Grelha) => `${g.objectivo}/${g.carimbos}${g.meio ? `/m${g.meio}` : ''}`;
 
 /** A cache do Worker (não há nenhuma nos testes em Node). */
 const cache = () => (typeof caches === 'undefined' ? null : caches.default);
@@ -151,12 +170,12 @@ export async function imagensDoCartao(estado: Grelha): Promise<Record<string, Ui
   ];
   const saida: Record<string, Uint8Array> = {};
   for (const [nome, desenhar] of pedidos)
-    saida[nome] = await comCache(`${g.objectivo}/${g.carimbos}/${nome}`, desenhar);
+    saida[nome] = await comCache(`${chaveDe(g)}/${nome}`, desenhar);
   return saida;
 }
 
 /** A hero da Google para um estado (servida num URL só dela). */
 export async function heroDoCartao(estado: Grelha): Promise<Uint8Array> {
   const g = sanear(estado);
-  return comCache(`${g.objectivo}/${g.carimbos}/hero.png`, () => hero(g));
+  return comCache(`${chaveDe(g)}/hero.png`, () => hero(g));
 }

@@ -54,6 +54,14 @@ export const en: Textos = {
     primeiraVisita: 'First visit',
     prendaDeAnos: (prenda) => `Birthday gift: ${prenda}`,
     entregarAPrenda: 'Give gift',
+    premioAMeio: (carimbos, recompensa) =>
+      `${carimbos}-stamp reward: ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`,
+    entregarOPremio: 'Give the reward',
+    premioAMeioEntregue: (recompensa, hora, pessoa) =>
+      `${recompensa} given today at ${hora}${pessoa ? ` by ${pessoa}` : ''}`,
+    ganhouPremioAMeio: 'Reward earned. Give it now or another day.',
+    esteCorteDa: (recompensa) =>
+      `This haircut earns ${recompensa.charAt(0).toLowerCase()}${recompensa.slice(1)}`,
     prendaEntregue: (quando, hoje, pessoa) =>
       `Birthday gift given ${hoje ? 'at' : 'on'} ${quando}${pessoa ? ` by ${pessoa}` : ''}`,
     jaCarimbadoAs: (hora, pessoa) =>
@@ -187,6 +195,7 @@ export const en: Textos = {
     json: 'Something went wrong with the request. Try again.',
     sem_prenda: 'There’s no gift for this client today.',
     prenda_entregue: 'This year’s gift has already been given.',
+    premio_a_meio_entregue: 'This card’s halfway reward has already been given.',
     invalido: 'Something isn’t right. Check and try again.',
     grande: 'The request is too large.',
     referencia: 'That no longer exists. Reload.',

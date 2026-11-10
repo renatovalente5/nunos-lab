@@ -72,12 +72,15 @@ export function alvoDoRegisto(accao: string, alvo: string): string {
         (_, papel: keyof typeof t.equipa.papeis) => ` · ${t.equipa.papeis[papel]}`,
       );
     case 'programa.alterado': {
-      const m = /^(\d+) → (.*?)(?: · (\d+) cart(?:ão|ões) em curso)?$/.exec(alvo);
+      // «10 → 50% de desconto · 5 → 20% num produto · 3 cartões em curso» (o prémio a meio desde 10 nov).
+      const m = /^(\d+) → (.*?)(?: · (\d+) → (.*?))?(?: · (\d+) cart(?:ão|ões) em curso)?$/.exec(
+        alvo,
+      );
       if (!m) return alvo;
-      const [, objectivo, recompensa, emCurso] = m;
+      const [, objectivo, recompensa, meio, meioRecompensa, emCurso] = m;
       return `${objectivo} → ${recompensaEmIngles(recompensa ?? '')}${
-        emCurso === undefined ? '' : ` · ${g.cartoesEmCurso(Number(emCurso))}`
-      }`;
+        meio === undefined ? '' : ` · ${meio} → ${recompensaEmIngles(meioRecompensa ?? '')}`
+      }${emCurso === undefined ? '' : ` · ${g.cartoesEmCurso(Number(emCurso))}`}`;
     }
   }
   return alvo;

@@ -221,7 +221,9 @@ rotasDaWallet.get('/imagem/:versao/:objectivo/:carimbos/hero.png', async (c) => 
     carimbos > objectivo
   )
     return c.body(null, 404);
-  return c.body(buffer(await heroDoCartao({ objectivo, carimbos })), 200, {
+  // O prémio a meio (o saco), em «?meio=5»: os URLs de antes, sem ele, desenham-se como antes.
+  const meio = Number(c.req.query('meio')) || null;
+  return c.body(buffer(await heroDoCartao({ objectivo, carimbos, meio })), 200, {
     'Content-Type': 'image/png',
     'Cache-Control': 'public, max-age=31536000, immutable',
   });

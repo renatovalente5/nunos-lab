@@ -1,7 +1,9 @@
 /** O backoffice da fidelidade: o programa e a equipa da Balcão. */
 import { Hono } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 import {
+  carimboDoPremioAMeio,
   LIMITES,
   LIMITES_DO_PROGRAMA,
   normalizarEmail,
@@ -36,15 +38,34 @@ const ProgramaPedido = z.object({
   recompensa: z.string().trim().min(1).max(LIMITES_DO_PROGRAMA.recompensa),
   porDia: z.number().int().min(LIMITES_DO_PROGRAMA.porDia.min).max(LIMITES_DO_PROGRAMA.porDia.max),
   aniversario: z.string().trim().max(LIMITES_DO_PROGRAMA.aniversario),
+  /** O prémio a meio (vazio: não há) e em que carimbo se ganha; sem eles (o backoffice de antes), ficam como estão. */
+  meioRecompensa: z.string().trim().max(LIMITES_DO_PROGRAMA.recompensa).optional(),
+  meio: z
+    .number()
+    .int()
+    .min(LIMITES_DO_PROGRAMA.meio.min)
+    .max(LIMITES_DO_PROGRAMA.meio.max)
+    .optional(),
   /** Em inglês (vazio: a app em inglês traduz os prémios comuns ou mostra o português); sem eles, ficam como estão. */
   recompensaEn: z.string().trim().max(LIMITES_DO_PROGRAMA.recompensa).optional(),
   aniversarioEn: z.string().trim().max(LIMITES_DO_PROGRAMA.aniversario).optional(),
+  meioRecompensaEn: z.string().trim().max(LIMITES_DO_PROGRAMA.recompensa).optional(),
 });
 
 rotasDaFidelidade.put('/programa', async (c) => {
   const p = await corpo(c, ProgramaPedido);
   const db = c.env.DB;
   const antes = await lerPrograma(db);
+  const meioRecompensa = p.meioRecompensa ?? antes.meioRecompensa;
+  const meio = p.meio ?? antes.meio;
+  // O prémio a meio fica antes do fim do cartão: aos 10 de 10 seria o próprio prémio do cartão.
+  if (meioRecompensa && meio >= p.objectivo)
+    throw new HTTPException(400, {
+      res: new Response(JSON.stringify({ erro: 'invalido', campos: ['meio'] }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      }),
+    });
   const por = (chave: string, valor: string) =>
     db
       .prepare(
@@ -56,7 +77,7 @@ rotasDaFidelidade.put('/programa', async (c) => {
   // mesmo que a app. O objectivo não: um cartão a 9 de 10 completa-se a 10.
   // O inglês vazio, ou que ficou para trás de um português novo, traduz-se sozinho; o prémio,
   // primeiro pelas regras («50% de desconto» → «50% off»), porque as frases do cartão dependem delas.
-  const [recompensaEnNova, aniversarioEn] = await completarIngles(c.env.AI, [
+  const [recompensaEnNova, aniversarioEn, meioEnNovo] = await completarIngles(c.env.AI, [
     {
       campo: 'recompensa',
       pt: p.recompensa,
@@ -71,8 +92,23 @@ rotasDaFidelidade.put('/programa', async (c) => {
       ptAntes: antes.aniversario,
       enAntes: antes.aniversarioEn ?? '',
     },
+    {
+      campo: 'meio',
+      pt: meioRecompensa,
+      en: p.meioRecompensaEn,
+      ptAntes: antes.meioRecompensa,
+      enAntes: antes.meioRecompensaEn ?? '',
+    },
   ]);
   const recompensaEn = recompensaEnNova ?? antes.recompensaEn ?? '';
+  const meioRecompensaEn = meioRecompensa ? (meioEnNovo ?? antes.meioRecompensaEn ?? '') : '';
+  // O prémio a meio novo (ou nenhum) vale para os cartões em curso que ainda não o ganharam e ainda não
+  // passaram o lugar dele; quem já passou fica com o que tinha, para ninguém perder um prémio a caminho.
+  const carimboDoMeio = carimboDoPremioAMeio({ objectivo: p.objectivo, meio, meioRecompensa });
+  const mudouMeio =
+    meioRecompensa !== antes.meioRecompensa ||
+    meioRecompensaEn !== (antes.meioRecompensaEn ?? '') ||
+    meio !== antes.meio;
   const mudouRecompensa =
     p.recompensa !== antes.recompensa || recompensaEn !== (antes.recompensaEn ?? '');
   const emCurso = mudouRecompensa
@@ -92,6 +128,26 @@ rotasDaFidelidade.put('/programa', async (c) => {
     por('fid.aniversario', p.aniversario),
     por('fid.recompensa_en', recompensaEn),
     ...(aniversarioEn !== undefined ? [por('fid.aniversario_en', aniversarioEn)] : []),
+    por('fid.meio', String(meio)),
+    por('fid.meio_recompensa', meioRecompensa),
+    por('fid.meio_recompensa_en', meioRecompensaEn),
+    ...(mudouMeio
+      ? [
+          carimboDoMeio
+            ? db
+                .prepare(
+                  `UPDATE cartoes SET meio = ?1, meio_recompensa = ?2, meio_recompensa_en = ?3
+                   WHERE completo_em IS NULL AND meio_ganho_em IS NULL AND ?1 < objectivo
+                     AND (SELECT count(*) FROM carimbos x
+                          WHERE x.cartao_id = cartoes.id AND x.anulado_em IS NULL) < ?1`,
+                )
+                .bind(carimboDoMeio, meioRecompensa, meioRecompensaEn)
+            : db.prepare(
+                `UPDATE cartoes SET meio = NULL, meio_recompensa = '', meio_recompensa_en = ''
+                 WHERE completo_em IS NULL AND meio_ganho_em IS NULL`,
+              ),
+        ]
+      : []),
     ...(mudouRecompensa
       ? [
           db
@@ -104,11 +160,11 @@ rotasDaFidelidade.put('/programa', async (c) => {
     registar(
       c,
       'programa.alterado',
-      `${p.objectivo} → ${p.recompensa}${mudouRecompensa ? ` · ${emCurso} ${emCurso === 1 ? 'cartão' : 'cartões'} em curso` : ''}`,
+      `${p.objectivo} → ${p.recompensa}${carimboDoMeio ? ` · ${carimboDoMeio} → ${meioRecompensa}` : ''}${mudouRecompensa ? ` · ${emCurso} ${emCurso === 1 ? 'cartão' : 'cartões'} em curso` : ''}`,
     ),
   ]);
   // Os passes dizem a recompensa: refazem-se todos (em fundo; são poucos aparelhos).
-  if (mudouRecompensa)
+  if (mudouRecompensa || mudouMeio)
     c.executionCtx.waitUntil(
       refrescarPasses(c.env)
         .then((feito) => console.log('passes refeitos (recompensa)', JSON.stringify(feito)))
