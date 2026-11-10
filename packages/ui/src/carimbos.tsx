@@ -6,7 +6,7 @@ import { useTextosDaUi } from './textos';
 
 /**
  * Os círculos do cartão: os carimbos dados a cheio com a tesoura, os que
- * faltam vazios, e o último com a prenda (cheio, fica com a prenda: é o corte
+ * faltam com a tesoura clara (da cor do aro, o Renato, 10 nov), e o último com a prenda (cheio, fica com a prenda: é o corte
  * da oferta). O do prémio a meio, quando o cartão o tem, leva o saco (é num
  * produto). Em linhas de `porLinha`.
  *
@@ -114,7 +114,9 @@ export function Carimbos({
                       cor={cor.texto3}
                       espessura={2}
                     />
-                  ) : null}
+                  ) : (
+                    <Icone nome="tesoura" tamanho={tamanho * 0.44} cor="#3A3835" espessura={2} />
+                  )}
                 </View>
               </Animated.View>
             );

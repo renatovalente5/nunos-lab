@@ -7,12 +7,13 @@ import { mascara, Tela, type Cor, type Mascara } from './tela.ts';
  * A grelha dos carimbos, desenhada na hora para o estado de um cartão
  * (carimbos de objectivo): a faixa do storeCard, a arte do poster do iOS 27
  * e a hero da Google. As mesmas casas da app: a dada é um disco creme com a
- * tesoura, a por dar é um aro fino, a última leva a prenda. As imagens só
+ * tesoura, a por dar é um aro fino com a tesoura clara, a última leva a prenda. As imagens só
  * dependem do estado, não do cliente, por isso ficam na cache do Worker.
  */
 
 /** Muda quando o desenho muda: faz parte da chave da cache e do URL da hero. */
-export const VERSAO_DO_DESENHO = 'v2';
+// v3: a tesoura clara nos círculos por carimbar (10 nov 2026).
+export const VERSAO_DO_DESENHO = 'v3';
 
 /** O estado de um cartão: `meio`, o carimbo do prémio a meio (o saco), quando o cartão o tem. */
 export type Grelha = { carimbos: number; objectivo: number; meio?: number | null };
@@ -86,6 +87,10 @@ async function casas(tela: Tela, g: Grelha, lado: number, centros: [number, numb
     if (premio) {
       const l = lado * 0.48;
       tela.glifo(ultima ? presente : saco, cx - l / 2, cy - l / 2, l, PRENDA);
+    } else {
+      // A por carimbar com a tesoura clara, da cor do aro, como na app.
+      const l = lado * 0.44;
+      tela.glifo(tesoura, cx - l / 2, cy - l / 2, l, ARO);
     }
   }
 }

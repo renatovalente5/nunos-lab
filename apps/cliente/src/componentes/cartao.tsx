@@ -150,7 +150,9 @@ export function CartaoDoCliente({
           aoAcabar={aoAcabar}
         />
       </View>
-      {/* O «0 de 10» à esquerda e o selo da carteira à direita quando cabe (senão por baixo). */}
+      {/* O «0 de 10» à esquerda e o selo da carteira à direita quando cabe (senão por baixo). O número
+          ocupa só o que mede: com 110 reservados (a pensar no «10 de 10»), o selo da Google, que não desce
+          dos 48 de altura (a regra dela), só cabia ao lado nos telemóveis largos (o Renato, 10 nov). */}
       <View
         style={{
           flexDirection: 'row',
@@ -163,15 +165,14 @@ export function CartaoDoCliente({
       >
         {aEsperar ? (
           // No lugar do «0 de 10»: uma barra sem número, porque ainda não se sabe.
-          <View style={{ flexGrow: 1, flexBasis: 0, minWidth: 110 }} aria-hidden>
+          <View style={{ flexGrow: 1, flexShrink: 0 }} aria-hidden>
             <View style={{ width: 72, height: 28, borderRadius: 8, backgroundColor: ESBATIDO }} />
           </View>
         ) : (
           <View
             style={{
               flexGrow: 1,
-              flexBasis: 0,
-              minWidth: 110,
+              flexShrink: 0,
               flexDirection: 'row',
               alignItems: 'baseline',
               gap: 6,

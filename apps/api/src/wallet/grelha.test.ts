@@ -31,7 +31,7 @@ test('dez casas vão em duas linhas de cinco, a 44, centradas', () => {
   assert.equal(centros[0]![1] + centros[5]![1], 144);
 });
 
-test('a faixa tem as medidas da Apple e pinta a casa dada a creme e a por dar a preto', async () => {
+test('a faixa tem as medidas da Apple e pinta a casa dada a creme e a por dar a preto, com a tesoura clara', async () => {
   const f = lerPng(await faixa({ carimbos: 7, objectivo: 10 }, 2));
   assert.equal(f.largura, 750);
   assert.equal(f.altura, 288);
@@ -40,7 +40,16 @@ test('a faixa tem as medidas da Apple e pinta a casa dada a creme e a por dar a 
   // Entre o centro (a tesoura) e a borda, o disco é creme.
   assert.deepEqual(f.pixel(Math.round((cx - lado * 0.4) * 2), Math.round(cy * 2)), [244, 241, 236]);
   const [vx, vy] = centros[8]!;
-  assert.deepEqual(f.pixel(Math.round(vx * 2), Math.round(vy * 2)), [10, 10, 10]);
+  // Fora da tesoura clara (que ocupa 44% da casa ao centro) e dentro do aro, a casa por dar é preta.
+  assert.deepEqual(f.pixel(Math.round((vx + lado * 0.32) * 2), Math.round(vy * 2)), [10, 10, 10]);
+  // E a tesoura clara está lá: na casa por dar há píxeis mais claros do que o fundo, perto do centro.
+  let claros = 0;
+  for (let dx = -8; dx <= 8; dx++)
+    for (let dy = -8; dy <= 8; dy++) {
+      const [r] = f.pixel(Math.round(vx * 2) + dx, Math.round(vy * 2) + dy);
+      if (r > 20) claros++;
+    }
+  assert.ok(claros > 5, `píxeis da tesoura clara: ${claros}`);
   assert.deepEqual(f.pixel(0, 0), [10, 10, 10]);
 });
 
