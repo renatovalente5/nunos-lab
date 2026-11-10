@@ -249,6 +249,22 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse, agoraS = Da
             },
         ...porUsar,
       ],
+      // Antes do prémio a meio, o do cartão numa linha por baixo, como na app (o Renato, 10 nov).
+      ...(antesDoMeio
+        ? {
+            auxiliaryFields: [
+              {
+                key: 'premio',
+                label: recompensa.toUpperCase(),
+                value: fraseDoCartao(
+                  c.carimbos,
+                  { objectivo: c.objectivo, recompensa: '' },
+                  lingua,
+                ),
+              },
+            ],
+          }
+        : {}),
       // Sem «CORTES» na frente: o Renato tirou-o (7 nov, «não faz falta»); fica nas costas do poster.
       backFields: costas,
     },

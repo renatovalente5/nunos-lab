@@ -111,6 +111,11 @@ test('o prémio a meio: antes dele o passe fala dele; ganho, avisa e fica por us
   const antes = passJson({ ...cartao, carimbos: 3, meio }, cfg, LOGO_A_SEGUIR);
   const faltam = antes.storeCard.secondaryFields.find((f) => f.key === 'faltam')!;
   assert.deepEqual([faltam.label, faltam.value], ['20% NUM PRODUTO', 'Faltam 2']);
+  // E o prémio do cartão por baixo, para não ficar escondido até ao 5.º.
+  assert.deepEqual(
+    antes.storeCard.auxiliaryFields?.map((f) => [f.label, f.value]),
+    [['CORTE GRÁTIS', 'Faltam 7']],
+  );
   assert.equal(antes.posterGeneric.footerFields[0]!.value, 'Faltam 2 para 20% num produto');
   assert.equal(
     passJson({ ...cartao, carimbos: 4, meio }, cfg, LOGO_A_SEGUIR).storeCard.headerFields[0]!

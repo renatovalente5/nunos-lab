@@ -211,6 +211,13 @@ export function CartaoDoCliente({
               {t.cartao.proximoCarimbo}
             </T>
           )}
+          {/* Antes do prémio a meio, o do cartão por baixo e mais claro, com a frase de depois do 5.º
+              (o Renato escolheu-a, 10 nov): o prémio maior não fica escondido quatro cortes. */}
+          {antesDoMeio && (
+            <T v="legenda" style={{ color: cor.texto3, marginTop: 2 }}>
+              {fraseDoCartao(carimbos, { objectivo, recompensa }, lingua)}
+            </T>
+          )}
         </>
       )}
     </View>
