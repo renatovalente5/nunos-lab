@@ -62,6 +62,25 @@ test('a arte do poster e a hero da Google têm as medidas certas', async () => {
   assert.equal(h.altura, 812);
 });
 
+test('o «n» da marca vai no fundo do poster, quase apagado, por baixo das casas; a faixa e a hero não o levam', async () => {
+  const a = lerPng(await arte({ carimbos: 3, objectivo: 10 }, 3));
+  // A perna do «n» (do x 164 ao 208, ao alto), acima das casas: branco a 7 % sobre o fundo (10 + 0,07 × 245 ≈ 27).
+  const [r, g, b] = a.pixel(186 * 3, 20 * 3);
+  assert.ok(r === g && g === b && r >= 22 && r <= 32, `perna do «n»: ${r}`);
+  assert.deepEqual(a.pixel(100 * 3, 20 * 3), [10, 10, 10], 'fora do «n», o fundo');
+  assert.deepEqual(a.pixel(20 * 3, 420 * 3), [10, 10, 10], 'em baixo, à esquerda, o fundo');
+  // A 3.ª casa (dada, a creme) fica por cima da perna do «n», sem mistura.
+  const { centros, lado } = dispor(10, { x: 30, y: 47, largura: 298, altura: 139 });
+  const [cx, cy] = centros[2]!;
+  assert.ok(cx > 164 && cx < 208, 'a 3.ª casa está por cima da perna');
+  assert.deepEqual(a.pixel(Math.round((cx - lado * 0.4) * 3), Math.round(cy * 3)), [244, 241, 236]);
+  // Na faixa (iOS antigos) e na hero da Google, a mesma zona é só fundo.
+  const f = lerPng(await faixa({ carimbos: 3, objectivo: 10 }, 3));
+  assert.deepEqual(f.pixel(186 * 3, 8 * 3), [10, 10, 10]);
+  const h = lerPng(await hero({ carimbos: 3, objectivo: 10 }));
+  assert.deepEqual(h.pixel(1000, 30), [10, 10, 10]);
+});
+
 test('as imagens do cartão são quatro, e um estado impossível é corrigido', async () => {
   const imagens = await imagensDoCartao({ carimbos: 99, objectivo: 999 });
   assert.deepEqual(Object.keys(imagens).sort(), [

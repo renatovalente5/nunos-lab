@@ -89,6 +89,25 @@ async function glifo(nome, espessura, lado) {
 
 const LADO_DO_GLIFO = 256;
 
+/**
+ * O «n» da marca como máscara quadrada de `lado` (o «n» com a altura toda, ao meio na largura), para o
+ * fundo do poster, como no cartão da app (o Renato, 11 nov 2026). Grande o bastante para só se reduzir.
+ */
+async function marca(lado) {
+  const n = await sharp(join(MARCA, 'simbolo.png'))
+    .resize({ height: lado })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const alfa = Buffer.alloc(lado * lado);
+  const x0 = Math.round((lado - n.info.width) / 2);
+  for (let y = 0; y < n.info.height; y++)
+    for (let x = 0; x < n.info.width; x++)
+      alfa[y * lado + x0 + x] = n.data[(y * n.info.width + x) * n.info.channels + 3];
+  return alfa;
+}
+const LADO_DA_MARCA = 768;
+
 const imagens = {
   'icon.png': await icone(38),
   'icon@2x.png': await icone(76),
@@ -120,6 +139,7 @@ const glifos = {
   presente: await glifo('presente', 2, LADO_DO_GLIFO),
   saco: await glifo('saco', 2, LADO_DO_GLIFO),
 };
+const oN = await marca(LADO_DA_MARCA);
 writeFileSync(
   join(SAIDA, 'glifos.ts'),
   `/**
@@ -133,6 +153,14 @@ ${Object.entries(glifos)
   .map(([nome, alfa]) => `  ${nome}:\n    '${deflateSync(alfa, { level: 9 }).toString('base64')}',`)
   .join('\n')}
 };
+
+/**
+ * O «n» da marca, como máscara de ${LADO_DA_MARCA} × ${LADO_DA_MARCA} (o «n» com a altura toda, ao meio na largura), para
+ * o fundo do poster do iOS 27, como no cartão da app.
+ */
+export const LADO_DA_MARCA = ${LADO_DA_MARCA};
+export const MARCA =
+  '${deflateSync(oN, { level: 9 }).toString('base64')}';
 `,
 );
 for (const [nome, bytes] of Object.entries(imagens)) console.log(nome, bytes.length, 'bytes');

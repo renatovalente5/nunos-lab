@@ -212,8 +212,8 @@ rotasDaWallet.get('/imagem/:versao/:objectivo/:carimbos/hero.png', async (c) => 
   const objectivo = Number(c.req.param('objectivo'));
   const carimbos = Number(c.req.param('carimbos'));
   if (
-    // Os objectos da Google de antes (v2) ainda pedem a sua até o passe se refazer: dá-se o desenho de agora.
-    ![VERSAO_DO_DESENHO, 'v2'].includes(c.req.param('versao')) ||
+    // Os objectos da Google de antes (v2, v3) ainda pedem a sua até o passe se refazer: dá-se o desenho de agora.
+    ![VERSAO_DO_DESENHO, 'v3', 'v2'].includes(c.req.param('versao')) ||
     !Number.isInteger(objectivo) ||
     !Number.isInteger(carimbos) ||
     objectivo < 1 ||

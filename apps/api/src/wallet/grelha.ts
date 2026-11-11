@@ -1,5 +1,5 @@
 import { buffer, deBase64 } from './bytes.ts';
-import { GLIFOS, LADO_DO_GLIFO } from './glifos.ts';
+import { GLIFOS, LADO_DA_MARCA, LADO_DO_GLIFO, MARCA } from './glifos.ts';
 import { inflar, png } from './png.ts';
 import { mascara, Tela, type Cor, type Mascara } from './tela.ts';
 
@@ -13,7 +13,8 @@ import { mascara, Tela, type Cor, type Mascara } from './tela.ts';
 
 /** Muda quando o desenho muda: faz parte da chave da cache e do URL da hero. */
 // v3: a tesoura clara nos círculos por carimbar (10 nov 2026).
-export const VERSAO_DO_DESENHO = 'v3';
+// v4: o «n» da marca no fundo do poster, como no cartão da app (11 nov 2026).
+export const VERSAO_DO_DESENHO = 'v4';
 
 /** O estado de um cartão: `meio`, o carimbo do prémio a meio (o saco), quando o cartão o tem. */
 export type Grelha = { carimbos: number; objectivo: number; meio?: number | null };
@@ -95,9 +96,33 @@ async function casas(tela: Tela, g: Grelha, lado: number, centros: [number, numb
   }
 }
 
+let mascaraDaMarca: Promise<Mascara> | null = null;
+const aMarca = () =>
+  (mascaraDaMarca ??= (async () => mascara(await inflar(deBase64(MARCA)), LADO_DA_MARCA))());
+
+/** Onde vai o «n» da marca: o canto de cima do quadrado da máscara e o lado dele, em pontos. */
+export type LugarDaMarca = { x: number; y: number; lado: number };
+
 /** Uma imagem de `largura` × `altura` pontos à `escala`, com a grelha na `zona` (em pontos). */
-async function imagem(g: Grelha, largura: number, altura: number, escala: number, zona: Zona) {
+async function imagem(
+  g: Grelha,
+  largura: number,
+  altura: number,
+  escala: number,
+  zona: Zona,
+  marca?: LugarDaMarca,
+) {
   const tela = new Tela(Math.round(largura * escala), Math.round(altura * escala), FUNDO);
+  // O «n» primeiro, por baixo das casas, branco a 7 % como no cartão da app.
+  if (marca)
+    tela.glifo(
+      await aMarca(),
+      marca.x * escala,
+      marca.y * escala,
+      marca.lado * escala,
+      BRANCO,
+      OPACIDADE_DA_MARCA,
+    );
   const d = dispor(g.objectivo, zona);
   await casas(
     tela,
@@ -118,7 +143,25 @@ export const faixa = (g: Grelha, escala: 2 | 3) =>
  * começa aos ~194. As casas vão ao meio do que fica livre, com 30 pt de margem.
  */
 export const arte = (g: Grelha, escala: 2 | 3) =>
-  imagem(g, 358, 448, escala, { x: 30, y: 47, largura: 298, altura: 139 });
+  imagem(g, 358, 448, escala, { x: 30, y: 47, largura: 298, altura: 139 }, MARCA_NO_POSTER);
+
+/**
+ * O «n» no fundo do poster (o Renato escolheu-o a 11 nov 2026, entre quatro sítios): como no cartão da app,
+ * com 240 pt de alto, 24 pt acima do canto de cima e 36 pt para fora do da direita. As medidas são as do
+ * cartão no ecrã; na arte dividem-se pelo que a Wallet estica. Medido pelas casas numa captura do iPhone dele
+ * (o cartão com 352 × 495 pt): a Wallet enche a altura (×1,11) e corta ~20,4 pt de cada lado da arte. Noutro
+ * tamanho de iPhone o corte muda uns pontos, e o «n», que já sai pelo canto, também.
+ */
+const ESTICA = 1.11;
+const CORTE_DE_CADA_LADO = 20.4;
+const BRANCO: Cor = [255, 255, 255];
+const OPACIDADE_DA_MARCA = 0.07;
+export const MARCA_NO_POSTER: LugarDaMarca = (() => {
+  const lado = 240 / ESTICA;
+  // O «n» ocupa 95 % da largura do quadrado (456 × 480), ao meio: 2,5 % de folga de cada lado.
+  const direitaDoN = 358 - CORTE_DE_CADA_LADO + 36 / ESTICA;
+  return { x: direitaDoN + lado * 0.025 - lado, y: -24 / ESTICA, lado };
+})();
 
 /** A hero da Google: 1032 × 812 px, com 20 dp de folga em cima e em baixo. */
 export async function hero(g: Grelha) {

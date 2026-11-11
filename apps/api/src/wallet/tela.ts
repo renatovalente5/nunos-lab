@@ -92,8 +92,8 @@ export class Tela {
     }
   }
 
-  /** Um glifo (máscara quadrada) pintado de `cor`, com `lado` pixels, com o canto em (x, y). */
-  glifo(m: Mascara, x: number, y: number, lado: number, cor: Cor) {
+  /** Um glifo (máscara quadrada) pintado de `cor`, com `lado` pixels, com o canto em (x, y), a `alfa`. */
+  glifo(m: Mascara, x: number, y: number, lado: number, cor: Cor, alfa = 1) {
     const n = Math.max(1, Math.round(lado));
     const razao = m.lado / n;
     const px = Math.round(x);
@@ -110,7 +110,7 @@ export class Tela {
           m.integral[sy0 * L + sx1]! -
           m.integral[sy1 * L + sx0]! +
           m.integral[sy0 * L + sx0]!;
-        this.pintar(px + dx, py + dy, cor, soma / ((sx1 - sx0) * (sy1 - sy0) * 255));
+        this.pintar(px + dx, py + dy, cor, (soma / ((sx1 - sx0) * (sy1 - sy0) * 255)) * alfa);
       }
     }
   }
