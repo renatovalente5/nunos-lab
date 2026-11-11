@@ -22,8 +22,6 @@ import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
 import {
   AreaDeTexto,
   Campo,
-  CampoDeImagem,
-  CapaSemFotografia,
   CampoDoLogotipo,
   Cores,
   DesenhoDaCapa,
@@ -338,29 +336,19 @@ export function Parceiro({ id }: { id: string }) {
               erro={erros.includes('descricao')}
             />
             <Cores valor={f.cor} mudar={mudar('cor')} doLogotipo={coresDoLogo.data} />
-            <div className="duas-colunas">
-              <CampoDoLogotipo
-                rotulo={t.parceiro.logotipo}
-                valor={f.logotipo}
-                ajuste={f.logotipoAjuste}
-                cor={f.cor}
-                mudar={(id, ajuste) => {
-                  mudar('logotipo')(id);
-                  mudar('logotipoAjuste')(ajuste);
-                }}
-                ajuda={t.parceiro.logotipoAjuda}
-                erro={erros.includes('logotipo')}
-              />
-              <CampoDeImagem
-                rotulo={t.parceiro.capa}
-                valor={f.capa}
-                mudar={mudar('capa')}
-                modo="capa"
-                ajuda={t.parceiro.capaAjuda}
-                erro={erros.includes('capa')}
-                semImagem={<CapaSemFotografia cor={f.cor} icone={desenho} />}
-              />
-            </div>
+            {/* Sem fotografia de capa (o Renato, 11 nov 2026): a app usa só a cor. */}
+            <CampoDoLogotipo
+              rotulo={t.parceiro.logotipo}
+              valor={f.logotipo}
+              ajuste={f.logotipoAjuste}
+              cor={f.cor}
+              mudar={(id, ajuste) => {
+                mudar('logotipo')(id);
+                mudar('logotipoAjuste')(ajuste);
+              }}
+              ajuda={t.parceiro.logotipoAjuda}
+              erro={erros.includes('logotipo')}
+            />
             <Interruptor
               ligado={f.activo}
               mudar={mudar('activo')}

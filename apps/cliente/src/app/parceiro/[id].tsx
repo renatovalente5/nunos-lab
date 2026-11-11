@@ -30,7 +30,6 @@ import {
   Grupo,
   Icone,
   MARGEM,
-  raio,
   Rotulo,
   SemLigacao,
   T,
@@ -41,6 +40,12 @@ function voltar() {
   if (router.canGoBack()) router.back();
   else router.replace('/');
 }
+
+/**
+ * A altura da faixa do parceiro abaixo da barra do telemóvel (a cor a desvanecer para o fundo): os botões
+ * (44) a 12 do topo, e o logótipo a começar 30 abaixo deles, já sobre a parte quase preta.
+ */
+const ALTURA_DA_FAIXA = 150;
 
 function BotaoSobreACapa({
   icone,
@@ -186,7 +191,10 @@ export default function PaginaDoParceiro() {
 
   return (
     <Ecra comBarra={false} semTopo>
-      <Capa parceiro={p} icone={icone} altura={300 + margens.top} raioBaixo={raio.cartao}>
+      {/* O topo do parceiro (o Renato, 11 nov 2026, «diminuir bastante a capa», e escolheu esta entre quatro):
+          uma faixa curta só com a cor, a desvanecer para o fundo, sem borda nem anel; o logótipo por baixo,
+          e o parceiro todo à vista sem rolar. */}
+      <Capa parceiro={p} icone={icone} altura={ALTURA_DA_FAIXA + margens.top} veu={false} esbater>
         <View
           style={{
             position: 'absolute',
@@ -212,8 +220,8 @@ export default function PaginaDoParceiro() {
         </View>
       </Capa>
 
-      <View style={{ paddingHorizontal: MARGEM, marginTop: -42 }}>
-        <Logotipo parceiro={p} tamanho={84} anel />
+      <View style={{ paddingHorizontal: MARGEM, marginTop: -64 }}>
+        <Logotipo parceiro={p} tamanho={84} />
         <T v="titulo" style={{ marginTop: 14 }} role="heading" aria-level={1}>
           {p.nome}
         </T>

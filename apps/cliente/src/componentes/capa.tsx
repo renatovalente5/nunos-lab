@@ -1,16 +1,14 @@
 import type { IconeDaCategoria, ParceiroPublico } from '@nunos-lab/dominio';
 import { corParaBranco, misturar } from '@nunos-lab/dominio';
 import { useId, type ReactNode } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
-import { urlDaImagem } from '../dados';
-import { CONTINUO, Icone } from '@nunos-lab/ui';
+import { CONTINUO, cor, Icone } from '@nunos-lab/ui';
 
 /**
- * A capa de um parceiro: a fotografia dele, ou, sem fotografia, a cor dele em
- * gradiente com o desenho da categoria em grande. Por cima, um véu escuro em
- * cima e em baixo, para o texto branco se ler sobre qualquer fotografia. A cor
- * vem escurecida se for clara, para o branco passar 4,5:1.
+ * A capa de um parceiro: a cor dele em gradiente com o desenho da categoria em grande. Sem fotografias
+ * (o Renato, 11 nov 2026: «não devemos meter fotos de capa, será só a cor»). Por cima, um véu escuro,
+ * para o texto branco se ler. A cor vem escurecida se for clara, para o branco passar 4,5:1.
  */
 export function Capa({
   parceiro,
@@ -20,9 +18,10 @@ export function Capa({
   raioBaixo,
   veu = true,
   borda = false,
+  esbater = false,
   children,
 }: {
-  parceiro: Pick<ParceiroPublico, 'cor' | 'capa'>;
+  parceiro: Pick<ParceiroPublico, 'cor'>;
   icone: IconeDaCategoria;
   altura: number;
   raio?: number;
@@ -35,6 +34,8 @@ export function Capa({
    * que lá está e fica da cor do cartão. Por baixo era um traço cinzento à volta (o Renato, 9 nov).
    */
   borda?: boolean;
+  /** A capa a desvanecer para o fundo da página, em baixo (sem borda). */
+  esbater?: boolean;
   children?: ReactNode;
 }) {
   const id = `v${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
@@ -49,13 +50,7 @@ export function Capa({
   };
   return (
     <View style={{ height: altura, ...cantos, overflow: 'hidden', backgroundColor: base }}>
-      {parceiro.capa ? (
-        <Image
-          source={{ uri: urlDaImagem(parceiro.capa) }}
-          style={StyleSheet.absoluteFill}
-          resizeMode="cover"
-        />
-      ) : (
+      {
         <>
           <Svg
             style={StyleSheet.absoluteFill}
@@ -91,7 +86,7 @@ export function Capa({
             />
           </View>
         </>
-      )}
+      }
       {veu && (
         <Svg
           style={StyleSheet.absoluteFill}
@@ -103,12 +98,11 @@ export function Capa({
         >
           <Defs>
             {veu === 'lado' ? (
-              // O texto fica à esquerda: escurece-se esse lado e o da direita fica vivo. Numa fotografia,
-              // mais escuro, para o branco se ler sobre o que lá estiver.
+              // O texto fica à esquerda: escurece-se esse lado e o da direita fica vivo.
               <LinearGradient id={`${id}v`} x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0" stopColor="#000000" stopOpacity={parceiro.capa ? 0.65 : 0.4} />
-                <Stop offset="0.6" stopColor="#000000" stopOpacity={parceiro.capa ? 0.35 : 0.1} />
-                <Stop offset="1" stopColor="#000000" stopOpacity={parceiro.capa ? 0.15 : 0} />
+                <Stop offset="0" stopColor="#000000" stopOpacity={0.4} />
+                <Stop offset="0.6" stopColor="#000000" stopOpacity={0.1} />
+                <Stop offset="1" stopColor="#000000" stopOpacity={0} />
               </LinearGradient>
             ) : (
               <LinearGradient id={`${id}v`} x1="0" y1="0" x2="0" y2="1">
@@ -120,6 +114,24 @@ export function Capa({
             )}
           </Defs>
           <Rect x="0" y="0" width="1" height="1" fill={`url(#${id}v)`} />
+        </Svg>
+      )}
+      {esbater && (
+        <Svg
+          style={StyleSheet.absoluteFill}
+          width="100%"
+          height="100%"
+          viewBox="0 0 1 1"
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <Defs>
+            <LinearGradient id={`${id}e`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0.25" stopColor={cor.fundo} stopOpacity={0} />
+              <Stop offset="1" stopColor={cor.fundo} stopOpacity={1} />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="1" height="1" fill={`url(#${id}e)`} />
         </Svg>
       )}
       {borda && (

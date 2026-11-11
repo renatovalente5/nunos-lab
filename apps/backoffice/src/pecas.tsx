@@ -998,87 +998,6 @@ export function Logotipo({
   );
 }
 
-export function CampoDeImagem({
-  rotulo,
-  valor,
-  mudar,
-  modo,
-  ajuda,
-  erro,
-  semImagem,
-}: {
-  rotulo: string;
-  valor: string | null;
-  mudar: (id: string | null) => void;
-  modo: 'logotipo' | 'capa';
-  ajuda: string;
-  erro?: boolean;
-  /** O que fica na caixa sem imagem (a capa: a cor e o desenho, como na app); sem isto, um traço. */
-  semImagem?: ReactNode;
-}) {
-  const t = useTextos();
-  const entrada = useRef<HTMLInputElement>(null);
-  const avisar = useAvisar();
-  const [aCarregar, setACarregar] = useState(false);
-  return (
-    <div className={`campo${erro ? ' erro' : ''}`}>
-      <span className="rotulo-campo">{rotulo}</span>
-      <div className="imagem-campo">
-        <div className={`previa${modo === 'capa' ? ' capa' : ''}`}>
-          {valor ? (
-            <img src={urlDaImagem(valor)} alt="" />
-          ) : (
-            (semImagem ?? <span className="ajuda">—</span>)
-          )}
-        </div>
-        <div className="botoes">
-          <button
-            type="button"
-            className="botao secundario pequeno"
-            disabled={aCarregar}
-            onClick={() => entrada.current?.click()}
-          >
-            {aCarregar
-              ? t.geral.imagem.aCarregar
-              : valor
-                ? t.geral.imagem.trocar
-                : t.geral.imagem.escolher}
-          </button>
-          {valor && (
-            <button type="button" className="botao secundario pequeno" onClick={() => mudar(null)}>
-              {t.geral.imagem.tirar}
-            </button>
-          )}
-        </div>
-        <input
-          ref={entrada}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={async (e) => {
-            const ficheiro = e.target.files?.[0];
-            e.target.value = '';
-            if (!ficheiro) return;
-            setACarregar(true);
-            try {
-              mudar(await carregarImagem(ficheiro));
-            } catch (erro) {
-              avisar(mensagemDe(erro), true);
-            } finally {
-              setACarregar(false);
-            }
-          }}
-        />
-      </div>
-      {erro ? (
-        <div className="mensagem-erro">{t.geral.reveEsteCampo}</div>
-      ) : (
-        <div className="ajuda">{ajuda}</div>
-      )}
-    </div>
-  );
-}
-
 /**
  * O logótipo no círculo, para acertar como fica na app: arrastar muda-o de sítio, dois dedos
  * aproximam ou afastam (o segundo pode assentar fora do círculo, pequeno para dois dedos no
@@ -1405,15 +1324,6 @@ export function DesenhoDaCapa({ icone }: { icone: IconeDaCategoria }) {
   );
 }
 
-/** A capa de quem não tem fotografia, em pequeno (a caixa da «Fotografia de capa»). */
-export function CapaSemFotografia({ cor, icone }: { cor: string; icone: IconeDaCategoria }) {
-  return (
-    <span className="capa-sem-fotografia" style={{ background: fundoDaCapa(cor) }}>
-      <DesenhoDaCapa icone={icone} />
-    </span>
-  );
-}
-
 /** O desenho verdadeiro da categoria de um parceiro (o diamante das Joias); sem categoria, os pontos. */
 export function useDesenhoDaCategoria(categoriaId: number | null | undefined): IconeDaCategoria {
   const categorias = useQuery({
@@ -1461,11 +1371,8 @@ export function PrevisaoDaPromocao({
     <div className="previsao" aria-label={t.geral.previsao.rotulo}>
       <div className="rotulo-previsao">{t.geral.previsao.naApp}</div>
       <div className="capa-previsao" style={{ background: fundoDaCapa(cor) }}>
-        {parceiro?.capa ? (
-          <img className="fundo" src={urlDaImagem(parceiro.capa)} alt="" />
-        ) : (
-          parceiro && <DesenhoDaCapa icone={desenho} />
-        )}
+        {/* Só a cor e o desenho, como na app (sem fotografias de capa desde 11 nov 2026). */}
+        {parceiro && <DesenhoDaCapa icone={desenho} />}
         <div className="topo-capa">
           {parceiro && (
             <Logotipo
