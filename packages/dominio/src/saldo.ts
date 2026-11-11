@@ -114,3 +114,33 @@ export function codigoDoConviteEscrito(escrito: string): string {
   }
   return tudo;
 }
+
+/** A app dos clientes na Play Store (o Android). */
+export const PACOTE_DA_APP_ANDROID = 'pt.nunoslab.app';
+
+/**
+ * A morada da app na Play Store com o código de um convite (o Renato, 11 nov 2026): a Play Store guarda o
+ * `referrer` e a app lê-o uma vez, no primeiro arranque (o Install Referrer, a partir da 1.0.4 do Android).
+ */
+export function ligacaoDaPlayStore(codigo: string): string {
+  return `https://play.google.com/store/apps/details?id=${PACOTE_DA_APP_ANDROID}&referrer=${encodeURIComponent(`convite=${codigo}`)}`;
+}
+
+/**
+ * O código de um convite no `referrer` que a Play Store entrega à app: «convite=CODIGO», às vezes com mais
+ * campos («utm_source=…&convite=…») ou ainda codificado («convite%3DCODIGO»). Sem um código válido, null
+ * (quem instalou sem convite traz «utm_source=google-play&utm_medium=organic»).
+ */
+export function codigoDoReferrer(referrer: string | null | undefined): string | null {
+  if (!referrer) return null;
+  let texto = referrer;
+  try {
+    texto = decodeURIComponent(referrer);
+  } catch {
+    // Um «%» solto: fica como veio.
+  }
+  const m = /(?:^|[?&])convite=([0-9A-Za-z -]{1,20})(?:&|$)/i.exec(texto.trim());
+  if (!m) return null;
+  const codigo = normalizarCodigo(m[1]!);
+  return codigoValido(codigo) ? codigo : null;
+}

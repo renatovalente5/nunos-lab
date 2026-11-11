@@ -192,6 +192,8 @@ export const CHAVES_DO_ARMAZEM = [
   // O saldo que o cliente já viu, e o convite que chegou por uma ligação (10 nov 2026).
   'nunoslab:saldo-visto',
   'nunoslab:convite',
+  // Já se leu o código que a Play Store guardou (o Install Referrer, 11 nov 2026).
+  'nunoslab:convite-da-loja',
   CHAVE_DA_LINGUA,
 ];
 export const CHAVES_SECRETAS = ['nunoslab:sessao'];

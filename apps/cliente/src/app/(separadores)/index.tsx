@@ -18,6 +18,7 @@ import {
 } from '../../componentes/cartoes';
 import { PilulaDoSaldo } from '../../componentes/saldo';
 import { conviteGuardado, guardarConvite, useConviteGuardado } from '../../carteira';
+import { playStoreDoConvite } from '../../convite-da-loja';
 import { quemConvida, useEu, useTemSessao } from '../../conta';
 import { definirTitulo, useDados } from '../../dados';
 import { useTextos } from '../../textos';
@@ -276,11 +277,14 @@ export default function Vantagens() {
           icone="presente"
           texto={faixaDoConvite.texto}
           topo={data?.aviso ? 10 : 18}
-          aoTocar={() =>
-            faixaDoConvite.destino === '/carteira'
-              ? router.push('/carteira')
-              : router.navigate('/cartao')
-          }
+          aoTocar={() => {
+            if (faixaDoConvite.destino === '/carteira') return router.push('/carteira');
+            // Na página aberta num Android, a Play Store com o código: instala-se, entra-se, e o 1 € fica
+            // (11 nov 2026). No iPhone e no computador, entra-se aqui (o código fica na conta).
+            const loja = pendente ? playStoreDoConvite(pendente) : null;
+            if (loja) window.location.assign(loja);
+            else router.navigate('/cartao');
+          }}
         />
       )}
       {avisoDoCorte && (

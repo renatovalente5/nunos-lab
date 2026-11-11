@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   codigoDoConviteEscrito,
+  codigoDoReferrer,
   convitesQueFaltam,
   euros,
   eurosComSinal,
   eurosParaUsar,
   gerarCodigo,
+  ligacaoDaPlayStore,
   nomeCurto,
 } from './index.ts';
 
@@ -60,4 +62,35 @@ test('o código de convite colado: a ligação com mais coisas, a frase, à mão
   // O que não é um código fica como está (quem chama recusa-o).
   assert.notEqual(codigoDoConviteEscrito('ABCD'), codigo);
   assert.notEqual(codigoDoConviteEscrito('https://exemplo.pt/?outro=1'), codigo);
+});
+
+test('o código de convite que vem da Play Store (o Install Referrer, 11 nov 2026)', () => {
+  const codigo = gerarCodigo(new Uint8Array([1, 2, 3, 4, 5, 6, 7]));
+  // A página do convite manda o «Instalar» com o código no `referrer`, codificado uma vez.
+  const ligacao = ligacaoDaPlayStore(codigo);
+  assert.equal(
+    ligacao,
+    `https://play.google.com/store/apps/details?id=pt.nunoslab.app&referrer=convite%3D${codigo}`,
+  );
+  // O que a app recebe: a Play Store descodifica-o (às vezes não), e pode juntar campos seus.
+  const referrer = new URL(ligacao).searchParams.get('referrer')!;
+  for (const r of [
+    referrer,
+    `convite%3D${codigo}`,
+    `utm_source=whatsapp&convite=${codigo}`,
+    `convite=${codigo.toLowerCase()}&utm_medium=convite`,
+    `convite=${codigo.slice(0, 4)} ${codigo.slice(4)}`,
+  ])
+    assert.equal(codigoDoReferrer(r), codigo, r);
+  // Sem convite (instalada pela loja, sem ligação), ou com um código que não é um código: nada.
+  for (const r of [
+    'utm_source=google-play&utm_medium=organic',
+    '',
+    null,
+    undefined,
+    'convite=ABCD',
+    `naoconvite=${codigo}`,
+    'convite=%E0%A4%A',
+  ])
+    assert.equal(codigoDoReferrer(r), null, String(r));
 });

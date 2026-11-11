@@ -15,6 +15,7 @@ import { AppState, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AvisoDoSaldo } from '../componentes/saldo';
 import { registarAoPerderSessao } from '../conta';
+import { lerConviteDaLoja } from '../convite-da-loja';
 import { CHAVES_DO_ARMAZEM, CHAVES_SECRETAS, contar } from '../dados';
 import { Botao, T, carregarArmazem, cor, useLangDaPagina, useTextosDaUi } from '@nunos-lab/ui';
 import { useTextos } from '../textos';
@@ -113,6 +114,10 @@ export default function Raiz() {
     carregarArmazem(CHAVES_DO_ARMAZEM, CHAVES_SECRETAS).finally(() => setArmazemPronto(true));
   }, []);
   useEffect(() => contar('abrir'), []);
+  // No Android, o código do convite que veio pela Play Store (uma vez, com o armazém já lido).
+  useEffect(() => {
+    if (armazemPronto) void lerConviteDaLoja();
+  }, [armazemPronto]);
   useLangDaPagina();
   // Com as letras (ou sem elas, se não vierem) e o armazém lido: a app desenha-se e o splash sai.
   const pronta = (prontas || !!erro) && armazemPronto;
