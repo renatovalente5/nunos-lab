@@ -83,7 +83,7 @@ export default function Novo() {
         typeof codigo === 'string' &&
         codigoValido(codigo)
       ) {
-        router.replace({ pathname: '/ficha/[codigo]', params: { codigo, semLeitura: '1' } });
+        router.replace({ pathname: '/ficha/[codigo]', params: { codigo } });
         return;
       }
       setErro({ geral: mensagemDe(x) });

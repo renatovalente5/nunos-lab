@@ -1,4 +1,4 @@
-import { ligacoesDosMapas, semPartir } from '@nunos-lab/dominio';
+import { ligacoesDosMapas, semPartir, type Sitio } from '@nunos-lab/dominio';
 import { CartaoDaFolha, Folha, Icone, Separador, T, cor, type NomeDoIcone } from '@nunos-lab/ui';
 import { Platform, Pressable, View } from 'react-native';
 import { abrir } from '../dados';
@@ -10,6 +10,8 @@ export type DestinoNoMapa = {
   morada: string;
   /** O nome que vai na procura, à frente da morada. */
   procurar: string;
+  /** O sítio exato (as coordenadas do backoffice): os mapas vão ao ponto em vez de procurar. */
+  sitio?: Sitio | null;
 };
 
 /** Uma linha do cartão de uma folha: o desenho, o nome e a seta, como as linhas do «Mais». */
@@ -61,7 +63,7 @@ export function OpcoesDeMapa({
   aoEscolher?: () => void;
 }) {
   const t = useTextos();
-  const ligacoes = ligacoesDosMapas(destino.morada, destino.procurar);
+  const ligacoes = ligacoesDosMapas(destino.morada, destino.procurar, destino.sitio ?? null);
   const mapas: { nome: string; icone: NomeDoIcone; url: string }[] = [
     ...(Platform.OS === 'android'
       ? []

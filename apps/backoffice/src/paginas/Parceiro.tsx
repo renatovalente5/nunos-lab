@@ -10,6 +10,7 @@ import {
   type Promocao,
 } from '@nunos-lab/dominio';
 import {
+  lerCoordenadas,
   naLingua,
   normalizarInstagram,
   normalizarSite,
@@ -57,6 +58,8 @@ type Formulario = {
   categoriaId: number | null;
   localidade: string;
   morada: string;
+  /** O sítio exato, como se cola do Google Maps («40.884, -8.452»); vazio: o «Ir» procura pela morada. */
+  coordenadas: string;
   telefone: string;
   instagram: string;
   site: string;
@@ -77,6 +80,7 @@ const VAZIO: Formulario = {
   categoriaId: null,
   localidade: '',
   morada: '',
+  coordenadas: '',
   telefone: '',
   instagram: '',
   site: '',
@@ -96,6 +100,7 @@ function doParceiro(p: ParceiroDoContrato): Formulario {
     categoriaId: p.categoriaId,
     localidade: p.localidade,
     morada: p.morada,
+    coordenadas: p.lat != null && p.lng != null ? `${p.lat}, ${p.lng}` : '',
     telefone: p.telefone,
     instagram: p.instagram,
     site: p.site,
@@ -110,7 +115,13 @@ function doParceiro(p: ParceiroDoContrato): Formulario {
   };
 }
 
-const DOS_CONTACTOS = ['morada', 'telefone', 'instagram', 'site', 'horarioSemana'];
+const DOS_CONTACTOS = ['morada', 'coordenadas', 'telefone', 'instagram', 'site', 'horarioSemana'];
+
+/** O que vai para a API: as coordenadas escritas passam a lat e lng (as duas, ou as duas a null). */
+function corpoDoParceiro({ coordenadas, ...resto }: Formulario) {
+  const sitio = lerCoordenadas(coordenadas) ?? { lat: null, lng: null };
+  return { ...resto, lat: sitio.lat, lng: sitio.lng };
+}
 
 export function Parceiro({ id }: { id: string }) {
   const t = useTextos();
@@ -181,6 +192,7 @@ export function Parceiro({ id }: { id: string }) {
       normalizarInstagram(f.instagram) === null && 'instagram',
       normalizarTelefone(f.telefone) === null && 'telefone',
       normalizarSite(f.site) === null && 'site',
+      lerCoordenadas(f.coordenadas) === null && 'coordenadas',
       f.horarioSemana !== null && !eHorarioValido(f.horarioSemana) && 'horarioSemana',
     ].filter((x): x is string => typeof x === 'string');
     if (errados.length) {
@@ -190,7 +202,10 @@ export function Parceiro({ id }: { id: string }) {
     }
     try {
       if (novo) {
-        const r = await pedir<{ id: number }>('/api/bo/parceiros', { metodo: 'POST', corpo: f });
+        const r = await pedir<{ id: number }>('/api/bo/parceiros', {
+          metodo: 'POST',
+          corpo: corpoDoParceiro(f),
+        });
         setOriginal(f);
         await refrescar();
         avisar(t.parceiro.criado);
@@ -200,7 +215,7 @@ export function Parceiro({ id }: { id: string }) {
         const enviado = f;
         const guardado = await pedir<ParceiroDoContrato>(`/api/bo/parceiros/${id}`, {
           metodo: 'PATCH',
-          corpo: f,
+          corpo: corpoDoParceiro(f),
         });
         // O formulário fica com o que ficou gravado (o servidor arruma os contactos:
         // «instagram.com/conta/» fica «conta»), menos o que se escreveu entretanto.
@@ -361,6 +376,7 @@ export function Parceiro({ id }: { id: string }) {
               resumo={
                 [
                   f.morada && t.parceiro.morada,
+                  f.coordenadas.trim() && t.parceiro.coordenadas,
                   f.telefone && t.parceiro.telefone,
                   f.instagram && 'Instagram',
                   f.site && t.parceiro.site,
@@ -378,6 +394,17 @@ export function Parceiro({ id }: { id: string }) {
                   mudar={mudar('morada')}
                   max={LIMITES.morada}
                   ajuda={t.parceiro.moradaAjuda}
+                />
+                <Campo
+                  rotulo={t.parceiro.coordenadas}
+                  valor={f.coordenadas}
+                  mudar={mudar('coordenadas')}
+                  // Cabe uma ligação do Google Maps inteira (as do sítio passam das 400 letras).
+                  max={2000}
+                  erro={erros.includes('coordenadas')}
+                  erroTexto={t.parceiro.razoes.coordenadas}
+                  placeholder="40.884, -8.452"
+                  ajuda={t.parceiro.coordenadasAjuda}
                 />
                 <div className="duas-colunas">
                   <Campo

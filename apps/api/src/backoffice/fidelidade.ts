@@ -4,13 +4,17 @@ import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 import {
   carimboDoPremioAMeio,
+  euros,
   LIMITES,
   LIMITES_DO_PROGRAMA,
+  LIMITES_DO_SALDO,
   normalizarEmail,
   type PessoaDaEquipaNoBackoffice,
+  type ProgramaDoBackoffice,
 } from '@nunos-lab/dominio';
 import type { Ambiente } from '../ambiente.ts';
 import { lerPrograma } from '../programa.ts';
+import { lerConvites } from '../saldo.ts';
 import { refrescarPasses } from '../wallet/servico.ts';
 import { nomeLimpo } from '../nomes.ts';
 import {
@@ -27,7 +31,12 @@ export const rotasDaFidelidade = new Hono<Ambiente>();
 
 // ——— o programa ———
 
-rotasDaFidelidade.get('/programa', async (c) => c.json(await lerPrograma(c.env.DB)));
+/** O programa e os convites (10 nov 2026), como o backoffice os lê e grava. */
+async function lerProgramaDoBackoffice(db: D1Database): Promise<ProgramaDoBackoffice> {
+  return { ...(await lerPrograma(db)), convites: await lerConvites(db) };
+}
+
+rotasDaFidelidade.get('/programa', async (c) => c.json(await lerProgramaDoBackoffice(c.env.DB)));
 
 const ProgramaPedido = z.object({
   objectivo: z
@@ -50,12 +59,35 @@ const ProgramaPedido = z.object({
   recompensaEn: z.string().trim().max(LIMITES_DO_PROGRAMA.recompensa).optional(),
   aniversarioEn: z.string().trim().max(LIMITES_DO_PROGRAMA.aniversario).optional(),
   meioRecompensaEn: z.string().trim().max(LIMITES_DO_PROGRAMA.recompensa).optional(),
+  /** Os convites (10 nov 2026), em cêntimos; sem eles (o backoffice de antes), ficam como estão. */
+  convites: z
+    .object({
+      ligado: z.boolean(),
+      valorPadrinho: z
+        .number()
+        .int()
+        .min(LIMITES_DO_SALDO.premio.min)
+        .max(LIMITES_DO_SALDO.premio.max),
+      valorConvidado: z
+        .number()
+        .int()
+        .min(LIMITES_DO_SALDO.premio.min)
+        .max(LIMITES_DO_SALDO.premio.max),
+      limite: z
+        .number()
+        .int()
+        .min(LIMITES_DO_SALDO.convites.min)
+        .max(LIMITES_DO_SALDO.convites.max)
+        .nullable(),
+    })
+    .optional(),
 });
 
 rotasDaFidelidade.put('/programa', async (c) => {
   const p = await corpo(c, ProgramaPedido);
   const db = c.env.DB;
   const antes = await lerPrograma(db);
+  const convitesAntes = await lerConvites(db);
   const meioRecompensa = p.meioRecompensa ?? antes.meioRecompensa;
   const meio = p.meio ?? antes.meio;
   // O prémio a meio fica antes do fim do cartão: aos 10 de 10 seria o próprio prémio do cartão.
@@ -111,6 +143,16 @@ rotasDaFidelidade.put('/programa', async (c) => {
     meio !== antes.meio;
   const mudouRecompensa =
     p.recompensa !== antes.recompensa || recompensaEn !== (antes.recompensaEn ?? '');
+  // Mudar só os convites deixa uma linha no histórico, a deles (o «alterou o programa» era a mais).
+  const mudouConvites =
+    !!p.convites && JSON.stringify(p.convites) !== JSON.stringify(convitesAntes);
+  const mudouPrograma =
+    mudouRecompensa ||
+    mudouMeio ||
+    p.objectivo !== antes.objectivo ||
+    p.porDia !== antes.porDia ||
+    p.aniversario !== antes.aniversario ||
+    (aniversarioEn !== undefined && aniversarioEn !== (antes.aniversarioEn ?? ''));
   const emCurso = mudouRecompensa
     ? ((
         await db
@@ -131,6 +173,23 @@ rotasDaFidelidade.put('/programa', async (c) => {
     por('fid.meio', String(meio)),
     por('fid.meio_recompensa', meioRecompensa),
     por('fid.meio_recompensa_en', meioRecompensaEn),
+    ...(p.convites
+      ? [
+          por('conv.ligado', p.convites.ligado ? '1' : '0'),
+          por('conv.valor_padrinho', String(p.convites.valorPadrinho)),
+          por('conv.valor_convidado', String(p.convites.valorConvidado)),
+          por('conv.limite', p.convites.limite === null ? '' : String(p.convites.limite)),
+        ]
+      : []),
+    ...(p.convites && mudouConvites
+      ? [
+          registar(
+            c,
+            'convites.alterados',
+            `${p.convites.ligado ? 'ligados' : 'desligados'} · ${euros(p.convites.valorPadrinho)} / ${euros(p.convites.valorConvidado)} · ${p.convites.limite ?? 'sem limite'}`,
+          ),
+        ]
+      : []),
     ...(mudouMeio
       ? [
           carimboDoMeio
@@ -157,11 +216,15 @@ rotasDaFidelidade.put('/programa', async (c) => {
             .bind(p.recompensa, recompensaEn, p.recompensa, recompensaEn),
         ]
       : []),
-    registar(
-      c,
-      'programa.alterado',
-      `${p.objectivo} → ${p.recompensa}${carimboDoMeio ? ` · ${carimboDoMeio} → ${meioRecompensa}` : ''}${mudouRecompensa ? ` · ${emCurso} ${emCurso === 1 ? 'cartão' : 'cartões'} em curso` : ''}`,
-    ),
+    ...(mudouPrograma || !mudouConvites
+      ? [
+          registar(
+            c,
+            'programa.alterado',
+            `${p.objectivo} → ${p.recompensa}${carimboDoMeio ? ` · ${carimboDoMeio} → ${meioRecompensa}` : ''}${mudouRecompensa ? ` · ${emCurso} ${emCurso === 1 ? 'cartão' : 'cartões'} em curso` : ''}`,
+          ),
+        ]
+      : []),
   ]);
   // Os passes dizem a recompensa: refazem-se todos (em fundo; são poucos aparelhos).
   if (mudouRecompensa || mudouMeio)
@@ -170,7 +233,7 @@ rotasDaFidelidade.put('/programa', async (c) => {
         .then((feito) => console.log('passes refeitos (recompensa)', JSON.stringify(feito)))
         .catch((e) => console.error('passes', e)),
     );
-  return c.json(await lerPrograma(db));
+  return c.json(await lerProgramaDoBackoffice(db));
 });
 
 // ——— a equipa ———

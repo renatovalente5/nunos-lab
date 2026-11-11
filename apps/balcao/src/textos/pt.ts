@@ -1,4 +1,4 @@
-import type { MotivoDaVantagem } from '@nunos-lab/dominio';
+import { euros, type MotivoDaVantagem } from '@nunos-lab/dominio';
 
 /**
  * As frases da for partners em português: a fonte. O inglês (en.ts) tem de ter as mesmas chaves, e
@@ -88,6 +88,34 @@ export const pt = {
     carimbarNaMesma: 'Carimbar na mesma',
     aCarimbar: 'A carimbar…',
     carimbar: 'Carimbar',
+    // O saldo (o Renato, 10 nov 2026): os valores chegam em cêntimos; ao balcão usam-se euros inteiros.
+    saldo: 'Saldo',
+    usarSaldo: 'Usar saldo',
+    menosUmEuro: 'Menos 1 €',
+    maisUmEuro: 'Mais 1 €',
+    // Só 1 € é singular: «Fica 1 €», «Ficam 2 €», «Ficam 0,50 €».
+    fica: (centimos: number) => `${centimos === 100 ? 'Fica' : 'Ficam'} ${euros(centimos)}`,
+    usar: (centimos: number) => `Usar ${euros(centimos)}`,
+    aUsar: 'A usar…',
+    usados: (centimos: number) => `${centimos === 100 ? 'Usado' : 'Usados'} ${euros(centimos)}`,
+    devolvidos: (centimos: number) =>
+      `${centimos === 100 ? 'Devolvido' : 'Devolvidos'} ${euros(centimos)}`,
+    saldoDe: (centimos: number) => `Saldo ${euros(centimos)}`,
+    // Um prémio de convite anulado depois de usado: o cliente não deve nada ao balcão.
+    saldoNegativo: 'Um prémio de convite foi anulado depois de usado. Nada a cobrar.',
+    // As boas-vindas de um convite usam-se com o primeiro corte (revisão de 11 nov 2026).
+    saldoDepoisDoCorte: 'Usa-se depois de carimbar.',
+    // Sem o cartão lido (código escrito, procura, email), o saldo só o dono o usa (11 nov 2026).
+    lerParaUsar: 'Lê o cartão para usar o saldo.',
+    anularCarimboEUso: (centimos: number, hora: string) =>
+      `Anular o carimbo e devolver ${centimos === 100 ? 'o' : 'os'} ${euros(centimos)} ${centimos === 100 ? 'usado' : 'usados'} às ${hora}?`,
+    usouAs: (centimos: number, hora: string, pessoa: string | null) =>
+      `Usou ${euros(centimos)} às ${hora}${pessoa ? ` · ${pessoa}` : ''}`,
+    devolverOUso: (centimos: number, hora: string) =>
+      `Devolver também ${centimos === 100 ? 'o' : 'os'} ${euros(centimos)} ${centimos === 100 ? 'usado' : 'usados'} às ${hora}?`,
+    devolver: 'Devolver',
+    anularOUso: (centimos: number, hora: string) =>
+      `Anular o uso de ${euros(centimos)} das ${hora}?`,
   },
   vale: {
     motivo: {
@@ -206,6 +234,18 @@ export const pt = {
     sem_prenda: 'Hoje não há prenda para este cliente.',
     prenda_entregue: 'A prenda deste ano já foi entregue.',
     premio_a_meio_entregue: 'O prémio a meio deste cartão já foi entregue.',
+    saldo_insuficiente: 'O saldo já não chega para isto.',
+    saldo_antes_do_corte: 'Este saldo usa-se com o primeiro corte: carimba primeiro.',
+    saldo_sem_corte_hoje: 'O saldo usa-se no dia de um corte: carimba primeiro.',
+    saldo_so_com_cartao: 'Sem o cartão lido, o saldo só o dono o usa.',
+    uso_de_outro_dia: 'Esse uso é de outro dia: acerta-se no backoffice.',
+    saldo_usado_hoje: 'Este cliente usou saldo hoje: anula primeiro o uso (ou pede ao dono).',
+    limite_do_dia_maximo: 'Este cliente já tem dois carimbos hoje: mais, só o dono.',
+    convidado_proprio:
+      'Foste tu que convidaste este cliente: o primeiro corte carimba-o outro barbeiro.',
+    uso_anulado: 'Este uso já foi anulado.',
+    uso_de_outra_pessoa: 'Só quem usou o saldo o pode anular (ou o dono).',
+    tarde_para_anular_uso: 'Já passaram 10 minutos: só o dono pode anular.',
     invalido: 'Há algo por corrigir.',
     grande: 'O pedido é demasiado grande.',
     referencia: 'Isso já não existe. Recarrega.',

@@ -4,7 +4,12 @@
  * rede. A API vive noutra origem: a sessão vai no cabeçalho.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ClienteEu, Lingua } from '@nunos-lab/dominio';
+import type {
+  CarteiraDoCliente,
+  ClienteEu,
+  ConviteParaQuemChega,
+  Lingua,
+} from '@nunos-lab/dominio';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { Linking, Platform } from 'react-native';
 import {
@@ -15,6 +20,7 @@ import {
   useLingua,
 } from '@nunos-lab/ui';
 import { CHAVE_DO_CARTAO_VISTO } from './carimbos-novos';
+import { CHAVE_DO_SALDO_VISTO, guardarConvite } from './carteira';
 import { API, PRAZO_DO_PEDIDO } from './dados';
 import { textos } from './textos';
 
@@ -48,6 +54,9 @@ export function guardarSessao(testemunho: string | null) {
     guardarNoArmazem(CHAVE_DO_EU, null);
     // Senão a conta seguinte neste aparelho via o cartão inteiro a animar.
     guardarNoArmazem(CHAVE_DO_CARTAO_VISTO, null);
+    // E o saldo da anterior a contar, e o convite que a anterior abriu.
+    guardarNoArmazem(CHAVE_DO_SALDO_VISTO, null);
+    guardarConvite(null);
   }
   avisar();
 }
@@ -144,13 +153,7 @@ function lerEuGuardado(): ClienteEu | undefined {
     const texto = lerSincrono(CHAVE_DO_EU);
     if (!texto) return undefined;
     const eu = JSON.parse(texto) as Partial<ClienteEu>;
-    const listas: (keyof ClienteEu)[] = [
-      'recompensas',
-      'visitas',
-      'formas',
-      'sessoes',
-      'vales',
-    ];
+    const listas: (keyof ClienteEu)[] = ['recompensas', 'visitas', 'formas', 'sessoes', 'vales'];
     const inteiro =
       !!eu &&
       typeof eu.codigo === 'string' &&
@@ -180,6 +183,20 @@ async function buscarEu(): Promise<ClienteEu> {
   return eu;
 }
 
+/** O que as consultas do «eu» partilham: a mesma cache, o guardado no aparelho para abrir sem rede. */
+function opcoesDoEu(temSessao: boolean) {
+  return {
+    queryKey: ['eu'],
+    queryFn: buscarEu,
+    initialData: temSessao ? lerEuGuardado : undefined,
+    initialDataUpdatedAt: 0,
+    networkMode: 'always' as const,
+    staleTime: 5_000,
+    // Depois de um 401 não se repete: a sessão já foi, e repetia sem testemunho para mais um 401.
+    retry: (n: number, e: Error) => n < 1 && !(e instanceof ErroDaConta && e.codigo === 'sessao'),
+  };
+}
+
 /**
  * O cliente: o cartão, as visitas, a conta. Com `aoVivo` pede de 15 em 15 s;
  * cada ecrã passa «estou à frente» (os separadores ficam montados quando se
@@ -189,17 +206,10 @@ export function useEu(aoVivo = false) {
   const temSessao = useTemSessao();
   const lingua = useLingua();
   const consulta = useQuery({
-    queryKey: ['eu'],
-    queryFn: buscarEu,
+    ...opcoesDoEu(temSessao),
     enabled: temSessao,
-    initialData: temSessao ? lerEuGuardado : undefined,
-    initialDataUpdatedAt: 0,
-    networkMode: 'always',
-    staleTime: 5_000,
     refetchInterval: aoVivo ? 15_000 : false,
     refetchOnWindowFocus: true,
-    // Depois de um 401 não se repete: a sessão já foi, e repetia sem testemunho para mais um 401.
-    retry: (n, e) => n < 1 && !(e instanceof ErroDaConta && e.codigo === 'sessao'),
   });
   // Ao mudar de língua, a conta pede-se outra vez: o prémio e as vantagens vêm na nova.
   const { refetch } = consulta;
@@ -214,6 +224,51 @@ export function useEu(aoVivo = false) {
   return consulta;
 }
 
+/**
+ * O «eu» que os ecrãs já pediram, sem pedir mais (o aviso do saldo, por cima de todos os ecrãs):
+ * acompanha a cache, e não junta pedidos aos dos separadores.
+ */
+export function useEuDaCache() {
+  const temSessao = useTemSessao();
+  return useQuery({ ...opcoesDoEu(temSessao), enabled: false });
+}
+
+/**
+ * A carteira: o saldo, os movimentos, o código para convidar e os convites feitos. À frente, pede-se de
+ * 15 em 15 s, como o Cartão: o uso feito ao balcão aparece com o cliente ainda lá.
+ */
+export function useCarteira(aoVivo = false) {
+  const temSessao = useTemSessao();
+  return useQuery({
+    queryKey: ['carteira'],
+    queryFn: () => pedir<CarteiraDoCliente>('/carteira'),
+    enabled: temSessao,
+    networkMode: 'always',
+    staleTime: 5_000,
+    refetchInterval: aoVivo ? 15_000 : false,
+    refetchOnWindowFocus: true,
+    retry: (n, e) => n < 1 && !(e instanceof ErroDaConta && e.codigo === 'sessao'),
+  });
+}
+
+/** Usar o código de quem convidou (só antes do primeiro corte): devolve a carteira já com o prémio. */
+export function aceitarConvite(codigo: string): Promise<CarteiraDoCliente> {
+  return pedir<CarteiraDoCliente>('/convite', { metodo: 'POST', corpo: { codigo } });
+}
+
+/** Quem convida, antes de entrar (a ligação de um convite): null se o código não serve. */
+export async function quemConvida(codigo: string): Promise<ConviteParaQuemChega | null> {
+  let r: Response;
+  try {
+    r = await fetch(`${API}/api/convite/${encodeURIComponent(codigo)}`);
+  } catch {
+    throw new ErroDaConta('rede');
+  }
+  if (r.status === 404) return null;
+  if (!r.ok) throw new ErroDaConta('interno');
+  return (await r.json()) as ConviteParaQuemChega;
+}
+
 /** Depois de entrar ou de mudar a conta, o «eu» volta a pedir-se. */
 export function useConta() {
   const consultas = useQueryClient();
@@ -222,6 +277,7 @@ export function useConta() {
   // um invalidateQueries aqui cancelava esse pedido e fazia outro.
   const entrou = (r: { sessao: string }) => {
     consultas.removeQueries({ queryKey: ['eu'] });
+    consultas.removeQueries({ queryKey: ['carteira'] });
     guardarSessao(r.sessao);
   };
   const actualizar = (eu: ClienteEu) => {
@@ -258,12 +314,14 @@ export function useConta() {
       } finally {
         guardarSessao(null);
         consultas.removeQueries({ queryKey: ['eu'] });
+        consultas.removeQueries({ queryKey: ['carteira'] });
       }
     },
     apagar: async () => {
       await pedir('', { metodo: 'DELETE' });
       guardarSessao(null);
       consultas.removeQueries({ queryKey: ['eu'] });
+      consultas.removeQueries({ queryKey: ['carteira'] });
     },
   };
 }

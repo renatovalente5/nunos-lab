@@ -1,3 +1,4 @@
+import { euros } from '@nunos-lab/dominio';
 import type { Textos } from './index';
 
 /** The partners app’s phrases in British English. Every key in pt.ts must be here too. */
@@ -79,6 +80,26 @@ export const en: Textos = {
     carimbarNaMesma: 'Stamp anyway',
     aCarimbar: 'Stamping…',
     carimbar: 'Stamp',
+    saldo: 'Balance',
+    usarSaldo: 'Use balance',
+    menosUmEuro: '€1 less',
+    maisUmEuro: '€1 more',
+    fica: (centimos) => `${euros(centimos, 'en')} left`,
+    usar: (centimos) => `Use ${euros(centimos, 'en')}`,
+    aUsar: 'Using…',
+    usados: (centimos) => `${euros(centimos, 'en')} used`,
+    devolvidos: (centimos) => `${euros(centimos, 'en')} returned`,
+    saldoDe: (centimos) => `Balance ${euros(centimos, 'en')}`,
+    saldoNegativo: 'An invite reward was cancelled after it was used. Nothing to charge.',
+    saldoDepoisDoCorte: 'Can be used after stamping.',
+    lerParaUsar: 'Scan the card to use the balance.',
+    anularCarimboEUso: (centimos, hora) =>
+      `Undo the stamp and return the ${euros(centimos, 'en')} used at ${hora}?`,
+    usouAs: (centimos, hora, pessoa) =>
+      `Used ${euros(centimos, 'en')} at ${hora}${pessoa ? ` · ${pessoa}` : ''}`,
+    devolverOUso: (centimos, hora) => `Also return the ${euros(centimos, 'en')} used at ${hora}?`,
+    devolver: 'Return',
+    anularOUso: (centimos, hora) => `Undo the ${euros(centimos, 'en')} used at ${hora}?`,
   },
   vale: {
     motivo: {
@@ -196,6 +217,17 @@ export const en: Textos = {
     sem_prenda: 'There’s no gift for this client today.',
     prenda_entregue: 'This year’s gift has already been given.',
     premio_a_meio_entregue: 'This card’s halfway reward has already been given.',
+    saldo_insuficiente: 'The balance no longer covers this.',
+    saldo_antes_do_corte: 'This balance is used with the first haircut: stamp first.',
+    saldo_sem_corte_hoje: 'The balance is used on a haircut day: stamp first.',
+    saldo_so_com_cartao: 'Without scanning the card, only the owner can use the balance.',
+    uso_de_outro_dia: 'That use is from another day: adjust it in the backoffice.',
+    saldo_usado_hoje: 'This client used balance today: undo the use first (or ask the owner).',
+    limite_do_dia_maximo: 'This client already has two stamps today: only the owner can add more.',
+    convidado_proprio: 'You invited this client: another barber stamps their first haircut.',
+    uso_anulado: 'This has already been undone.',
+    uso_de_outra_pessoa: 'Only the person who used the balance, or the owner, can undo this.',
+    tarde_para_anular_uso: 'It’s been more than 10 minutes. Only the owner can undo it now.',
     invalido: 'Something isn’t right. Check and try again.',
     grande: 'The request is too large.',
     referencia: 'That no longer exists. Reload.',

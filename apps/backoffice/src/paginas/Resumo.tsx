@@ -319,6 +319,8 @@ function Ordem({
     detalhe?: ReactNode;
     n: number;
     pessoa?: boolean;
+    /** O nome abre esta página (a de uma pessoa da equipa). */
+    href?: string;
   }[];
 }) {
   const maior = Math.max(1, ...linhas.map((l) => l.n));
@@ -333,7 +335,13 @@ function Ordem({
           )}
           <div className="meio">
             <div className="cima">
-              <span className="nome">{l.nome}</span>
+              {l.href ? (
+                <a className="nome ligacao-nome" href={l.href}>
+                  {l.nome}
+                </a>
+              ) : (
+                <span className="nome">{l.nome}</span>
+              )}
               <strong className="valor">{numero(l.n)}</strong>
             </div>
             {l.detalhe && <div className="detalhe">{l.detalhe}</div>}
@@ -467,6 +475,7 @@ export function Resumo() {
                     chave: p.id,
                     nome: p.nome,
                     pessoa: true,
+                    href: `#/equipa/${p.id}`,
                     detalhe:
                       [p.loja, p.recompensas > 0 && t.resumo.entregou(p.recompensas)]
                         .filter(Boolean)

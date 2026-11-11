@@ -34,7 +34,13 @@ import {
   type Lingua,
 } from '@nunos-lab/dominio';
 import type { Ambiente, C } from '../ambiente.ts';
-import { emailCurto, fazAnosHoje, temPrendaHoje, textoDeBusca } from '@nunos-lab/dominio';
+import {
+  LIMITES_DO_SALDO,
+  emailCurto,
+  fazAnosHoje,
+  temPrendaHoje,
+  textoDeBusca,
+} from '@nunos-lab/dominio';
 import {
   COLUNAS_DO_CARTAO,
   cartaoActual,
@@ -49,6 +55,7 @@ import {
   type LinhaCartao,
 } from '../programa.ts';
 import { anularCarimbo } from '../carimbos.ts';
+import { consultaDoSaldo, saldoDe } from '../saldo.ts';
 import { DIA, agora, corpo, linguaDoPedido, recusar, traduzirErroDaBase } from '../util.ts';
 import { nomeLimpo } from '../nomes.ts';
 import { tocarPasse } from '../wallet/servico.ts';
@@ -67,14 +74,47 @@ function exigirBarbearia(c: C) {
  * Renato a 29 out 2026.
  */
 async function exigirCartaoDeOutro(c: C, clienteId: number) {
-  const proprio = await c.env.DB.prepare(
-    `SELECT 1 FROM equipa e WHERE e.id = ? AND e.email IS NOT NULL AND (
-       EXISTS (SELECT 1 FROM identidades i WHERE i.cliente_id = ? AND i.email = e.email)
-       OR EXISTS (SELECT 1 FROM clientes k WHERE k.id = ? AND k.email = e.email))`,
-  )
-    .bind(c.get('pessoa').id, clienteId, clienteId)
+  const proprio = await c.env.DB.prepare(`SELECT 1 WHERE ${eDaPessoa('?2', '?1')}`)
+    .bind(c.get('pessoa').id, clienteId)
     .first();
   if (proprio) recusar(403, 'proprio_cartao');
+}
+
+/**
+ * SQL: o cliente (uma expressão) é a própria pessoa da equipa (um parâmetro) — pelo email, ou pela Apple
+ * ou Google com que ela entra na for partners (o «Ocultar o meu email» da Apple escondia o email; 11 nov).
+ */
+function eDaPessoa(cliente: string, pessoa: string): string {
+  return `(EXISTS (SELECT 1 FROM equipa e WHERE e.id = ${pessoa} AND e.email IS NOT NULL AND (
+             EXISTS (SELECT 1 FROM identidades i WHERE i.cliente_id = ${cliente} AND i.email = e.email)
+             OR EXISTS (SELECT 1 FROM clientes k WHERE k.id = ${cliente} AND k.email = e.email)))
+           OR EXISTS (SELECT 1 FROM identidades i JOIN identidades_da_equipa q
+                      ON q.tipo = i.tipo AND q.sujeito = i.sujeito
+                      WHERE i.cliente_id = ${cliente} AND q.pessoa_id = ${pessoa}))`;
+}
+
+/**
+ * Uma trava por sessão nas acções com valor (como os carimbos): uma sessão roubada não anula nem entrega
+ * em série (revisão de 11 nov 2026).
+ */
+async function travarPorSessao(c: C, accao: string) {
+  if (!(await c.env.CARIMBAR.limit({ key: `${accao}:${c.get('pessoa').sessao}` }))?.success)
+    recusar(429, 'muitas_tentativas');
+}
+
+/**
+ * O primeiro corte de quem um barbeiro convidou (pelo cliente com o email dele) dá-lhe o prémio do
+ * convite: carimba-o outro, como o próprio cartão (revisão de 11 nov 2026: nenhum batoteiro). Depois da
+ * visita, os cortes seguintes carimba-os quem quiser.
+ */
+async function exigirConvidadoDeOutro(c: C, clienteId: number) {
+  const meu = await c.env.DB.prepare(
+    `SELECT 1 FROM convites v
+     WHERE v.convidado_id = ?2 AND v.visitou_em IS NULL AND ${eDaPessoa('v.padrinho_id', '?1')}`,
+  )
+    .bind(c.get('pessoa').id, clienteId)
+    .first();
+  if (meu) recusar(403, 'convidado_proprio');
 }
 
 function exigirDono(c: C) {
@@ -141,44 +181,68 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
     await novoCartao(db, cliente.id, 1, await lerPrograma(db)).run();
     cartao = (await cartaoActual(db, cliente.id))!;
   }
-  const [cortes, recompensas, ultima, deHoje, entregue, prendaDesteAno, meios, meioDeHoje] =
-    await db.batch([
-      db
-        .prepare('SELECT count(*) AS n FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL')
-        .bind(cliente.id),
-      consultaDasRecompensas(db, cliente.id),
-      db
-        .prepare(
-          `${VISITA} WHERE x.cliente_id = ? AND x.anulado_em IS NULL ORDER BY x.criado_em DESC LIMIT 1`,
-        )
-        .bind(cliente.id),
-      db
-        .prepare(
-          `SELECT x.criado_em AS quando, e.nome AS pessoa FROM carimbos x LEFT JOIN equipa e ON e.id = x.pessoa_id
+  const [
+    cortes,
+    recompensas,
+    ultima,
+    deHoje,
+    entregue,
+    prendaDesteAno,
+    meios,
+    meioDeHoje,
+    saldo,
+    usoDeHoje,
+  ] = await db.batch([
+    db
+      .prepare('SELECT count(*) AS n FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL')
+      .bind(cliente.id),
+    consultaDasRecompensas(db, cliente.id),
+    db
+      .prepare(
+        `${VISITA} WHERE x.cliente_id = ? AND x.anulado_em IS NULL ORDER BY x.criado_em DESC LIMIT 1`,
+      )
+      .bind(cliente.id),
+    db
+      .prepare(
+        `SELECT x.criado_em AS quando, e.nome AS pessoa FROM carimbos x LEFT JOIN equipa e ON e.id = x.pessoa_id
          WHERE x.cliente_id = ? AND x.dia = ? AND x.anulado_em IS NULL ORDER BY x.criado_em DESC`,
-        )
-        .bind(cliente.id, hoje),
-      db
-        .prepare(
-          `SELECT c.usado_em AS quando, e.nome AS pessoa FROM cartoes c LEFT JOIN equipa e ON e.id = c.usado_por
+      )
+      .bind(cliente.id, hoje),
+    db
+      .prepare(
+        `SELECT c.usado_em AS quando, e.nome AS pessoa FROM cartoes c LEFT JOIN equipa e ON e.id = c.usado_por
          WHERE c.cliente_id = ? AND c.usado_em >= ? AND c.usado_em != c.completo_em ORDER BY c.usado_em DESC LIMIT 1`,
-        )
-        .bind(cliente.id, inicioDoDia(hoje)),
-      db
-        .prepare(
-          `SELECT p.quando, e.nome AS pessoa FROM prendas p LEFT JOIN equipa e ON e.id = p.pessoa_id
+      )
+      .bind(cliente.id, inicioDoDia(hoje)),
+    db
+      .prepare(
+        `SELECT p.quando, e.nome AS pessoa FROM prendas p LEFT JOIN equipa e ON e.id = p.pessoa_id
          WHERE p.cliente_id = ? AND p.ano = ?`,
-        )
-        .bind(cliente.id, Number(hoje.slice(0, 4))),
-      consultaDosPremiosAMeio(db, cliente.id),
-      db
-        .prepare(
-          `SELECT c.meio_recompensa AS recompensa, c.meio_recompensa_en, c.meio_usado_em AS quando, e.nome AS pessoa
+      )
+      .bind(cliente.id, Number(hoje.slice(0, 4))),
+    consultaDosPremiosAMeio(db, cliente.id),
+    db
+      .prepare(
+        `SELECT c.meio_recompensa AS recompensa, c.meio_recompensa_en, c.meio_usado_em AS quando, e.nome AS pessoa
          FROM cartoes c LEFT JOIN equipa e ON e.id = c.meio_usado_por
          WHERE c.cliente_id = ? AND c.meio_usado_em >= ? ORDER BY c.meio_usado_em DESC LIMIT 1`,
-        )
-        .bind(cliente.id, inicioDoDia(hoje)),
-    ]);
+      )
+      .bind(cliente.id, inicioDoDia(hoje)),
+    // O saldo (10 nov 2026) e o último uso de hoje: para anular, e para outro barbeiro ver que já foi.
+    consultaDoSaldo(db, cliente.id),
+    db
+      .prepare(
+        `SELECT m.id, -m.valor AS valor, m.criado_em AS quando, m.pessoa_id, e.nome AS pessoa
+           FROM movimentos_de_saldo m LEFT JOIN equipa e ON e.id = m.pessoa_id
+           WHERE m.cliente_id = ? AND m.tipo = 'uso' AND m.anulado_em IS NULL AND m.criado_em >= ?
+           ORDER BY m.criado_em DESC, m.id DESC LIMIT 1`,
+      )
+      .bind(cliente.id, inicioDoDia(hoje)),
+  ]);
+  const uso = usoDeHoje!.results[0] as
+    | { id: number; valor: number; quando: number; pessoa_id: number | null; pessoa: string | null }
+    | undefined;
+  const quemPede = c.get('pessoa');
   const meioEntregue = meioDeHoje!.results[0] as
     | { recompensa: string; meio_recompensa_en: string; quando: number; pessoa: string | null }
     | undefined;
@@ -226,6 +290,21 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
           pessoa: meioEntregue.pessoa,
         }
       : null,
+    saldo: {
+      valor: saldoDe(saldo!),
+      usadoHoje: uso
+        ? {
+            movimentoId: uso.id,
+            valor: uso.valor,
+            quando: uso.quando,
+            pessoa: uso.pessoa,
+            // Como o carimbo: quem usou anula nos 10 minutos seguintes; o dono sempre.
+            podeAnular:
+              (quemPede.papel === 'dono' && !quemPede.demo) ||
+              (uso.pessoa_id === quemPede.id && agora() < uso.quando + MINUTOS_PARA_ANULAR * 60),
+          }
+        : null,
+    },
   };
 }
 
@@ -405,6 +484,7 @@ async function carimbar(
     recusar(429, 'muitas_tentativas');
   const lojaId = await lojaDe(c, p.lojaId);
   await exigirCartaoDeOutro(c, cliente.id);
+  await exigirConvidadoDeOutro(c, cliente.id);
   const programa = await lerPrograma(db);
   // O carimbo conta no instante em que chega. A hora que as apps de antes mandavam da fila sem rede
   // já não conta: com ela, quem tivesse uma sessão da equipa dava um carimbo por cada um dos 7 dias de
@@ -444,6 +524,10 @@ async function carimbar(
     .bind(cliente.id, hoje)
     .all<{ quando: number; pessoa: string | null }>();
   const repetido = deHoje.results.length >= programa.porDia;
+  // «Carimbar na mesma» é um a mais, não dez: sem isto, um barbeiro enchia um cartão num minuto e o 10.º
+  // entregava o corte grátis (revisão de 11 nov 2026). O dono, sem limite.
+  const dono = pessoa.papel === 'dono' && !pessoa.demo;
+  if (!dono && deHoje.results.length >= programa.porDia + 1) recusar(409, 'limite_do_dia_maximo');
   if (repetido && !p.confirmar)
     throw new HTTPException(409, {
       res: new Response(JSON.stringify({ erro: 'limite_do_dia', ultimo: deHoje.results[0] }), {
@@ -463,6 +547,7 @@ async function carimbar(
          SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, coalesce(?9, unixepoch())
          WHERE (SELECT completo_em FROM cartoes WHERE id = ?1) IS NULL
            AND (?10 = 1 OR (SELECT count(*) FROM carimbos WHERE cliente_id = ?2 AND dia = ?6 AND anulado_em IS NULL) < ?11)
+           AND (?12 = 1 OR (SELECT count(*) FROM carimbos WHERE cliente_id = ?2 AND dia = ?6 AND anulado_em IS NULL) < ?11 + 1)
          RETURNING id, criado_em`,
       )
       .bind(
@@ -477,6 +562,7 @@ async function carimbar(
         quando,
         p.confirmar ? 1 : 0,
         programa.porDia,
+        dono ? 1 : 0,
       ),
     db.prepare('UPDATE clientes SET visto_em = unixepoch() WHERE id = ?').bind(cliente.id),
     // O 10.º corte é a oferta: o carimbo que completa o cartão entrega o prémio nesse
@@ -501,6 +587,30 @@ async function carimbar(
            AND (SELECT count(*) FROM carimbos WHERE cartao_id = ?1 AND anulado_em IS NULL) >= meio`,
       )
       .bind(cartao.id),
+    // O convite (10 nov 2026): o primeiro carimbo de quem foi convidado dá o prémio a quem o convidou,
+    // no mesmo batch — só se este carimbo entrou e é o único válido do cliente (anular desfaz os dois,
+    // ou passa o convite para outro carimbo válido: carimbos.ts). Quem convidou e apagou a conta já não
+    // recebe; a visita fica marcada na mesma.
+    db
+      .prepare(
+        `UPDATE convites SET visitou_em = unixepoch(), carimbo_id = (SELECT id FROM carimbos WHERE chave = ?2)
+         WHERE convidado_id = ?1 AND visitou_em IS NULL
+           AND EXISTS (SELECT 1 FROM carimbos WHERE chave = ?2 AND cliente_id = ?1)
+           AND (SELECT count(*) FROM carimbos WHERE cliente_id = ?1 AND anulado_em IS NULL) = 1
+           AND NOT ${eDaPessoa('convites.padrinho_id', '?3')}`,
+      )
+      .bind(cliente.id, p.chave, pessoa.id),
+    db
+      .prepare(
+        `INSERT INTO movimentos_de_saldo (cliente_id, valor, tipo, convite_id)
+         SELECT v.padrinho_id, v.premio_padrinho, 'convite', v.id FROM convites v
+         WHERE v.convidado_id = ?1 AND v.premio_padrinho > 0
+           AND v.carimbo_id = (SELECT id FROM carimbos WHERE chave = ?2)
+           AND NOT EXISTS (SELECT 1 FROM movimentos_de_saldo m
+                           WHERE m.convite_id = v.id AND m.tipo = 'convite' AND m.anulado_em IS NULL)
+           AND EXISTS (SELECT 1 FROM clientes k WHERE k.id = v.padrinho_id AND k.apagado_em IS NULL)`,
+      )
+      .bind(cliente.id, p.chave),
   ];
   let r: D1Result[];
   try {
@@ -580,9 +690,27 @@ rotasDaBalcao.post('/anular', async (c) => {
   const { carimboId } = await corpo(c, z.object({ carimboId: z.number().int().positive() }));
   const pessoa = c.get('pessoa');
   const db = c.env.DB;
+  const dono = pessoa.papel === 'dono' && !pessoa.demo;
+  await travarPorSessao(c, 'anular');
+  if (!dono) {
+    // Carimbar, usar o saldo e anular o carimbo deixava o saldo gasto sem visita: se este é o único
+    // carimbo de hoje do cliente e há um uso de hoje por anular, anula-se primeiro o uso (11 nov 2026).
+    const hoje = diaEmLisboa();
+    const x = await db
+      .prepare(
+        `SELECT x.dia,
+           (SELECT count(*) FROM carimbos y WHERE y.cliente_id = x.cliente_id AND y.dia = x.dia AND y.anulado_em IS NULL) AS deste_dia,
+           EXISTS (SELECT 1 FROM movimentos_de_saldo m WHERE m.cliente_id = x.cliente_id AND m.tipo = 'uso'
+                   AND m.anulado_em IS NULL AND m.criado_em >= ?2) AS usou
+         FROM carimbos x WHERE x.id = ?1 AND x.anulado_em IS NULL`,
+      )
+      .bind(carimboId, inicioDoDia(hoje))
+      .first<{ dia: string; deste_dia: number; usou: number }>();
+    if (x && x.dia === hoje && x.deste_dia <= 1 && x.usou === 1) recusar(409, 'saldo_usado_hoje');
+  }
   const { clienteId, instrucoes } = await anularCarimbo(db, carimboId, {
     pessoaId: pessoa.id,
-    dono: pessoa.papel === 'dono' && !pessoa.demo,
+    dono,
   });
   await db.batch(instrucoes);
   tocarPasse(c, clienteId);
@@ -601,6 +729,7 @@ rotasDaBalcao.post('/usar-recompensa', async (c) => {
   );
   const cliente = await clientePorCodigo(c, codigo);
   await exigirCartaoDeOutro(c, cliente.id);
+  await travarPorSessao(c, 'recompensa');
   const loja = await lojaDe(c, lojaId);
   const usado = await c.env.DB.prepare(
     `UPDATE cartoes SET usado_em = unixepoch(), usado_loja_id = ?, usado_por = ?
@@ -619,6 +748,154 @@ rotasDaBalcao.post('/usar-recompensa', async (c) => {
 
 // O prémio a meio entrega-se à parte (é num produto, nesse dia ou noutro): uma vez só — o UPDATE só passa
 // com o prémio ganho e por entregar —, e com quem e onde, como a recompensa.
+/**
+ * Usar o saldo do cliente ao balcão (o Renato, 10 nov 2026): só a equipa das barbearias, em cêntimos
+ * (a app manda euros inteiros), nunca mais do que o saldo — decidido no próprio INSERT, para dois usos
+ * ao mesmo tempo não o porem negativo. A mesma chave (o pedido a chegar duas vezes) é o mesmo uso.
+ * Responde com a ficha, já com o saldo novo e o uso de hoje (para anular).
+ */
+rotasDaBalcao.post('/usar-saldo', async (c) => {
+  exigirBarbearia(c);
+  const { codigo, valor, chave, lojaId, semLeitura } = await corpo(
+    c,
+    z.object({
+      codigo: z.string().min(1).max(20),
+      valor: z.number().int().positive().max(LIMITES_DO_SALDO.movimento.max),
+      chave: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
+      lojaId: z.number().int().positive(),
+      /** O cartão não foi lido (escrito à mão, ou procurado): fica dito no backoffice, como nos carimbos. */
+      semLeitura: z.boolean().optional(),
+    }),
+  );
+  const cliente = await clientePorCodigo(c, codigo);
+  await exigirCartaoDeOutro(c, cliente.id);
+  const pessoa = c.get('pessoa');
+  const dono = pessoa.papel === 'dono' && !pessoa.demo;
+  // Sem o cartão lido (o código escrito à mão, o cliente procurado, ou «tenho cartão» com um email), o
+  // saldo só o dono o usa: quem diz o nome ou o email de outro não lhe gasta o saldo (11 nov 2026).
+  if (semLeitura && !dono) recusar(403, 'saldo_so_com_cartao');
+  const loja = await lojaDe(c, lojaId);
+  const db = c.env.DB;
+  // A trava própria do saldo (mais curta do que a dos carimbos): uma sessão perdida não esvazia saldos.
+  if (!(await c.env.USAR_SALDO.limit({ key: `saldo:${pessoa.sessao}` }))?.success)
+    recusar(429, 'muitas_tentativas');
+  const repetido = await db
+    .prepare('SELECT cliente_id, anulado_em FROM movimentos_de_saldo WHERE chave = ?')
+    .bind(chave)
+    .first<{ cliente_id: number; anulado_em: number | null }>();
+  if (repetido) {
+    // A mesma chave noutro cliente é um erro da app: nunca o saldo do outro.
+    if (repetido.cliente_id !== cliente.id) recusar(409, 'repetido');
+    // A chave de um uso que já se anulou não o devolve como feito: a folha dizia «Usado» sem descontar.
+    if (repetido.anulado_em !== null) recusar(409, 'uso_anulado');
+  } else {
+    try {
+      const r = await db
+        .prepare(
+          `INSERT INTO movimentos_de_saldo (cliente_id, valor, tipo, loja_id, pessoa_id, chave, sem_leitura)
+         SELECT ?1, -?2, 'uso', ?3, ?4, ?5, ?6
+         WHERE (SELECT coalesce(sum(valor), 0) FROM movimentos_de_saldo
+                WHERE cliente_id = ?1 AND anulado_em IS NULL) >= ?2
+           AND EXISTS (SELECT 1 FROM carimbos WHERE cliente_id = ?1 AND anulado_em IS NULL
+                       AND (?7 = 1 OR dia = ?8))`,
+        )
+        .bind(
+          cliente.id,
+          valor,
+          loja,
+          pessoa.id,
+          chave,
+          semLeitura ? 1 : 0,
+          dono ? 1 : 0,
+          diaEmLisboa(),
+        )
+        .run();
+      if (!r.meta.changes) {
+        // O saldo usa-se com um corte: o de quem nunca cortou (as boas-vindas) com o primeiro; e, para a
+        // equipa, num dia com carimbo — sem isso, gastava-se o saldo de um cliente ausente (11 nov 2026).
+        const [algum, deHoje] = await db.batch([
+          db
+            .prepare('SELECT 1 FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL LIMIT 1')
+            .bind(cliente.id),
+          db
+            .prepare(
+              'SELECT 1 FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL AND dia = ? LIMIT 1',
+            )
+            .bind(cliente.id, diaEmLisboa()),
+        ]);
+        recusar(
+          409,
+          !algum!.results.length
+            ? 'saldo_antes_do_corte'
+            : !dono && !deHoje!.results.length
+              ? 'saldo_sem_corte_hoje'
+              : 'saldo_insuficiente',
+        );
+      }
+    } catch (e) {
+      if (e instanceof HTTPException) throw e;
+      // A mesma chave ao mesmo tempo por dois caminhos: conta uma — se for deste cliente. A de outro (ao
+      // mesmo instante) não é «feito»: o saldo deste não se mexeu.
+      if (!String(e).includes('UNIQUE constraint failed')) throw e;
+      const dona = await db
+        .prepare('SELECT cliente_id FROM movimentos_de_saldo WHERE chave = ?')
+        .bind(chave)
+        .first<{ cliente_id: number }>();
+      if (dona?.cliente_id !== cliente.id) recusar(409, 'repetido');
+    }
+  }
+  // O uso desta chave (o que a folha mostra e anula): o último de hoje podia ser outro, de outro
+  // barbeiro ao mesmo instante.
+  const feito = await db
+    .prepare(
+      'SELECT id AS movimentoId, -valor AS valor, criado_em AS quando FROM movimentos_de_saldo WHERE chave = ?',
+    )
+    .bind(chave)
+    .first<{ movimentoId: number; valor: number; quando: number }>();
+  return c.json({ ...(await ficha(c, cliente)), usoFeito: feito ?? null });
+});
+
+/** Anular um uso do saldo: como o carimbo — quem usou, nos 10 minutos seguintes; o dono sempre. */
+rotasDaBalcao.post('/anular-saldo', async (c) => {
+  exigirBarbearia(c);
+  const { movimentoId } = await corpo(c, z.object({ movimentoId: z.number().int().positive() }));
+  const pessoa = c.get('pessoa');
+  const db = c.env.DB;
+  const m = await db
+    .prepare(
+      `SELECT m.id, m.cliente_id, m.pessoa_id, m.criado_em, m.anulado_em, k.exemplo
+       FROM movimentos_de_saldo m JOIN clientes k ON k.id = m.cliente_id
+       WHERE m.id = ? AND m.tipo = 'uso'`,
+    )
+    .bind(movimentoId)
+    .first<{
+      id: number;
+      cliente_id: number;
+      pessoa_id: number | null;
+      criado_em: number;
+      anulado_em: number | null;
+      exemplo: number;
+    }>();
+  // A demonstração só mexe nos clientes de exemplo, e o negócio só nos a sério.
+  if (!m || (m.exemplo === 1) !== pessoa.demo) recusar(404, 'nao_existe');
+  if (m.anulado_em) recusar(409, 'uso_anulado');
+  await travarPorSessao(c, 'anular-saldo');
+  // Ao balcão anulam-se os usos de hoje; os de outros dias acertam-se no backoffice, com nota e histórico
+  // (uma sessão roubada do dono devolvia todos os usos de sempre; 11 nov 2026).
+  if (m.criado_em < inicioDoDia(diaEmLisboa())) recusar(409, 'uso_de_outro_dia');
+  if (!(pessoa.papel === 'dono' && !pessoa.demo)) {
+    if (m.pessoa_id !== pessoa.id) recusar(403, 'uso_de_outra_pessoa');
+    if (agora() > m.criado_em + MINUTOS_PARA_ANULAR * 60) recusar(409, 'tarde_para_anular_uso');
+  }
+  await db
+    .prepare(
+      'UPDATE movimentos_de_saldo SET anulado_em = unixepoch(), anulado_por = ? WHERE id = ? AND anulado_em IS NULL',
+    )
+    .bind(pessoa.id, m.id)
+    .run();
+  return c.body(null, 204);
+});
+
 rotasDaBalcao.post('/usar-premio-a-meio', async (c) => {
   exigirBarbearia(c);
   const { codigo, cartaoId, lojaId } = await corpo(
@@ -631,6 +908,7 @@ rotasDaBalcao.post('/usar-premio-a-meio', async (c) => {
   );
   const cliente = await clientePorCodigo(c, codigo);
   await exigirCartaoDeOutro(c, cliente.id);
+  await travarPorSessao(c, 'meio');
   const loja = await lojaDe(c, lojaId);
   const usado = await c.env.DB.prepare(
     `UPDATE cartoes SET meio_usado_em = unixepoch(), meio_usado_loja_id = ?, meio_usado_por = ?

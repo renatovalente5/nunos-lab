@@ -25,6 +25,9 @@ export type LinhaParceiro = {
   loja_id: number | null;
   localidade: string;
   morada: string;
+  /** O sítio exato (0020): o «Ir» vai ao ponto; null procura pelo nome e pela morada. */
+  lat: number | null;
+  lng: number | null;
   telefone: string;
   instagram: string;
   site: string;
@@ -56,6 +59,8 @@ export type LinhaPromocao = {
   titulo_en: string;
   detalhe: string;
   detalhe_en: string;
+  /** O código de cupão (0020; vazio: sem código). Nunca sai na lista pública: só no «eu» activo. */
+  cupao: string;
   inicio: string | null;
   fim: string | null;
   em_destaque: number;
@@ -123,6 +128,8 @@ export function promocaoPublica(l: LinhaPromocao, lingua: Lingua = 'pt'): Promoc
     periodoDoLimite: l.periodo_do_limite,
     soClientesActivos: true,
     surpresa: false,
+    // Só se diz que há código: o código vai no «eu» de quem tem a vantagem desbloqueada (0020).
+    temCupao: !!l.cupao,
   };
 }
 
@@ -134,6 +141,8 @@ export function parceiroBase(l: LinhaParceiro, lingua: Lingua = 'pt') {
     categoriaId: l.categoria_id,
     localidade: l.localidade,
     morada: l.morada,
+    lat: l.lat ?? null,
+    lng: l.lng ?? null,
     telefone: l.telefone,
     instagram: l.instagram,
     site: l.site,

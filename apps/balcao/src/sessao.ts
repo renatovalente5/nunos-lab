@@ -8,6 +8,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   EuDaBalcao,
+  FichaDepoisDoUso,
   FichaDoBalcao,
   FichaDoParceiro,
   HojeDaBalcao,
@@ -284,6 +285,22 @@ export const entregarPrenda = (corpo: { codigo: string; lojaId: number }) =>
 /** O prémio a meio (10 nov 2026): entrega-se à parte, e a API devolve a ficha já com o «entregue». */
 export const entregarPremioAMeio = (corpo: { codigo: string; cartaoId: number; lojaId: number }) =>
   pedir<FichaDoBalcao>('/usar-premio-a-meio', { metodo: 'POST', corpo });
+
+/**
+ * Usar o saldo do cliente (10 nov 2026): `valor` em cêntimos (ao balcão, euros inteiros × 100). A
+ * mesma chave nunca conta duas vezes; a API devolve a ficha já com o saldo novo e o uso de hoje.
+ */
+export const usarSaldo = (corpo: {
+  codigo: string;
+  valor: number;
+  chave: string;
+  lojaId: number;
+  semLeitura: boolean;
+}) => pedir<FichaDepoisDoUso>('/usar-saldo', { metodo: 'POST', corpo });
+
+/** Anular um uso do saldo: quem usou, nos 10 minutos seguintes; o dono sempre. */
+export const anularSaldo = (movimentoId: number) =>
+  pedir('/anular-saldo', { metodo: 'POST', corpo: { movimentoId } });
 
 export function chaveNova(): string {
   const b = getRandomBytes(12);

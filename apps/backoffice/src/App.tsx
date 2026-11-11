@@ -9,6 +9,7 @@ import { Clientes } from './paginas/Clientes';
 import { Equipa } from './paginas/Equipa';
 import { Parceiro } from './paginas/Parceiro';
 import { Parceiros } from './paginas/Parceiros';
+import { Pessoa } from './paginas/Pessoa';
 import { Promocoes } from './paginas/Promocoes';
 import { Historico } from './paginas/Historico';
 import { Resumo } from './paginas/Resumo';
@@ -200,6 +201,7 @@ function Casca() {
   let pagina;
   if (actual === 'clientes' && rota[1]) pagina = <Cliente key={rota[1]} id={rota[1]} />;
   else if (actual === 'clientes') pagina = <Clientes />;
+  else if (actual === 'equipa' && rota[1]) pagina = <Pessoa key={rota[1]} id={rota[1]} />;
   else if (actual === 'equipa') pagina = <Equipa />;
   else if (actual === 'parceiros' && rota[1]) pagina = <Parceiro key={rota[1]} id={rota[1]} />;
   else if (actual === 'parceiros') pagina = <Parceiros />;

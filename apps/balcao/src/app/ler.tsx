@@ -21,14 +21,22 @@ export default function Ler() {
   const [lanterna, setLanterna] = useState(false);
   const [podeLanterna, setPodeLanterna] = useState(false);
   const { data: eu } = useEu();
-  const abrir = (lido: string) => {
+  // Só o leitor marca o cartão como lido. O código escrito à mão não prova que o cliente está ali (um
+  // código visto noutro sítio): a ficha abre «sem leitura», como a procura, uma morada escrita no browser
+  // ou a página recarregada — fica dito, e o saldo só o dono o usa (revisão de 11 nov 2026).
+  const abrir = (lido: string, escrito = false) => {
     const codigo = codigoLido(lido);
     if (!codigo) {
       setErro(t.ler.naoECartao);
       return;
     }
     setActivo(false);
-    router.replace(eu?.pessoa.papel === 'parceiro' ? `/vale/${codigo}` : `/ficha/${codigo}`);
+    if (eu?.pessoa.papel === 'parceiro') router.replace(`/vale/${codigo}`);
+    else
+      router.replace({
+        pathname: '/ficha/[codigo]',
+        params: escrito ? { codigo } : { codigo, lida: '1' },
+      });
   };
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -147,12 +155,12 @@ export default function Ler() {
               autoCapitalize="characters"
               autoCorrect={false}
               maxLength={12}
-              onSubmitEditing={() => abrir(texto)}
+              onSubmitEditing={() => abrir(texto, true)}
               style={{ letterSpacing: 2, fontSize: 18 }}
               erro={erro}
             />
           </View>
-          <Botao nome={t.ler.abrir} onPress={() => abrir(texto)} />
+          <Botao nome={t.ler.abrir} onPress={() => abrir(texto, true)} />
         </View>
       </View>
     </View>

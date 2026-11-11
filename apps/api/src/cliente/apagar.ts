@@ -5,6 +5,7 @@
  */
 import type { C } from '../ambiente.ts';
 import { codigoNovo } from '../programa.ts';
+import { consultaDeJaFoiCliente, guardarMarcas, marcasDoCliente } from '../saldo.ts';
 import { desactivarPasseDaGoogle } from '../wallet/servico.ts';
 
 export async function apagarConta(c: C, id: number): Promise<void> {
@@ -14,7 +15,12 @@ export async function apagarConta(c: C, id: number): Promise<void> {
     .prepare('SELECT serie, google_em FROM passes WHERE cliente_id = ?')
     .bind(id)
     .first<{ serie: string; google_em: number | null }>();
+  // Quem já cortou ou foi convidado deixa uma marca irreversível das formas de entrar e dos emails: ao
+  // voltar com a mesma Apple ou Google, já não aceita um convite como se fosse novo (11 nov 2026).
+  const foi = (await consultaDeJaFoiCliente(db, id).first<{ foi: number }>())?.foi === 1;
+  const marcas = foi ? await marcasDoCliente(db, c.env.WALLET_SEGREDO, id) : [];
   await db.batch([
+    ...guardarMarcas(db, marcas),
     db.prepare('DELETE FROM identidades WHERE cliente_id = ?').bind(id),
     // O passe sai também (e os registos da Apple com ele): a Wallet deixa de o actualizar.
     db.prepare('DELETE FROM passes WHERE cliente_id = ?').bind(id),
@@ -26,7 +32,7 @@ export async function apagarConta(c: C, id: number): Promise<void> {
     db
       .prepare(
         `UPDATE clientes SET nome = '', busca = '', email = NULL, aniversario = NULL, aniversario_desde = NULL, loja_id = NULL,
-         codigo = ?, codigo_versao = codigo_versao + 1, apagado_em = unixepoch() WHERE id = ?`,
+         codigo = ?, codigo_versao = codigo_versao + 1, codigo_convite = NULL, apagado_em = unixepoch() WHERE id = ?`,
       )
       .bind(codigo, id),
   ]);

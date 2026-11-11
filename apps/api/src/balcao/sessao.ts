@@ -89,6 +89,25 @@ async function abrirSessao(c: C, pessoaId: number, dias = DIAS_DA_SESSAO_DA_EQUI
   return c.json({ sessao: testemunho });
 }
 
+/**
+ * A Apple ou a Google com que a pessoa entrou fica com ela: a regra do próprio cartão compara-a com as do
+ * cliente, e o «Ocultar o meu email» da Apple já não a contorna (o «sub» da Apple é o mesmo nas apps da
+ * mesma equipa; o da Google, o mesmo em todas; revisão de 11 nov 2026).
+ */
+async function guardarIdentidade(
+  c: C,
+  pessoaId: number,
+  tipo: 'apple' | 'google',
+  sujeito: string,
+) {
+  await c.env.DB.prepare(
+    `INSERT INTO identidades_da_equipa (pessoa_id, tipo, sujeito) VALUES (?, ?, ?)
+     ON CONFLICT (tipo, sujeito) DO UPDATE SET pessoa_id = excluded.pessoa_id`,
+  )
+    .bind(pessoaId, tipo, sujeito)
+    .run();
+}
+
 async function pessoaDoEmail(c: C, email: string | null): Promise<number> {
   if (!email) recusar(403, 'sem_acesso');
   const p = await c.env.DB.prepare(
@@ -107,7 +126,9 @@ rotasDeEntradaDaBalcao.post('/entrar/google', async (c) => {
   const { credencial } = await corpo(c, z.object({ credencial: z.string().min(20).max(4096) }));
   const id = await conferirCredencialGoogle(credencial, c.env.GOOGLE_CLIENTE);
   if (!id) recusar(401, 'google_invalido');
-  return abrirSessao(c, await pessoaDoEmail(c, id.email));
+  const pessoa = await pessoaDoEmail(c, id.email);
+  await guardarIdentidade(c, pessoa, 'google', id.sub);
+  return abrirSessao(c, pessoa);
 });
 
 /**
@@ -117,9 +138,19 @@ rotasDeEntradaDaBalcao.post('/entrar/google', async (c) => {
  */
 rotasDeEntradaDaBalcao.post('/entrar/teste', async (c) => {
   if ((c.env as { MODO?: string }).MODO !== 'desenvolvimento') recusar(404, 'nao_existe');
-  const { email } = await corpo(c, z.object({ email: z.string().trim().max(254).nullable() }));
+  const { email, tipo, sujeito } = await corpo(
+    c,
+    z.object({
+      email: z.string().trim().max(254).nullable(),
+      // Para a prova: a Apple ou a Google com que entra (como nas portas a sério).
+      tipo: z.enum(['apple', 'google']).optional(),
+      sujeito: z.string().min(1).max(255).optional(),
+    }),
+  );
   if (!email) recusar(403, 'email_escondido');
-  return abrirSessao(c, await pessoaDoEmail(c, email.toLowerCase()));
+  const pessoa = await pessoaDoEmail(c, email.toLowerCase());
+  if (tipo && sujeito) await guardarIdentidade(c, pessoa, tipo, sujeito);
+  return abrirSessao(c, pessoa);
 });
 
 rotasDeEntradaDaBalcao.post('/entrar/apple', async (c) => {
@@ -137,5 +168,7 @@ rotasDeEntradaDaBalcao.post('/entrar/apple', async (c) => {
   // Sem o email partilhado (ou um de retransmissão), a Apple não diz quem é: a app
   // pede para entrar outra vez e escolher «Partilhar o meu email», ou usar o Google.
   if (!id.email || !id.emailVerificado || eEmailDeRelay(id.email)) recusar(403, 'email_escondido');
-  return abrirSessao(c, await pessoaDoEmail(c, id.email));
+  const pessoa = await pessoaDoEmail(c, id.email);
+  await guardarIdentidade(c, pessoa, 'apple', id.sub);
+  return abrirSessao(c, pessoa);
 });

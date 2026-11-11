@@ -142,9 +142,9 @@ rotasDoConteudo.post('/parceiros', async (c) => {
     const [novo] = await db.batch([
       db
         .prepare(
-          `INSERT INTO parceiros (nome, categoria_id, localidade, morada, telefone, instagram, site, horario, horario_semana,
-             descricao, horario_en, descricao_en, cor, logotipo_id, logotipo_ajuste, capa_id, activo, ordem)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM parceiros))
+          `INSERT INTO parceiros (nome, categoria_id, localidade, morada, lat, lng, telefone, instagram, site, horario,
+             horario_semana, descricao, horario_en, descricao_en, cor, logotipo_id, logotipo_ajuste, capa_id, activo, ordem)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM parceiros))
            RETURNING id`,
         )
         .bind(
@@ -152,6 +152,8 @@ rotasDoConteudo.post('/parceiros', async (c) => {
           p.categoriaId,
           p.localidade,
           p.morada,
+          p.lat ?? null,
+          p.lng ?? null,
           p.telefone,
           p.instagram,
           p.site,
@@ -341,6 +343,7 @@ function promocaoDoBackoffice(
     destaqueEn: l.destaque_en,
     tituloEn: l.titulo_en,
     detalheEn: l.detalhe_en,
+    cupao: l.cupao ?? '',
     limiteTotal: l.limite_total,
     validacoes: l.validacoes ?? 0,
     parceiroId: l.parceiro_id,
@@ -408,10 +411,10 @@ rotasDoConteudo.post('/promocoes', async (c) => {
   const [nova] = await db.batch([
     db
       .prepare(
-        `INSERT INTO promocoes (parceiro_id, destaque, titulo, detalhe, destaque_en, titulo_en, detalhe_en,
+        `INSERT INTO promocoes (parceiro_id, destaque, titulo, detalhe, destaque_en, titulo_en, detalhe_en, cupao,
            inicio, fim, em_destaque, activa,
            limite_por_cliente, periodo_do_limite, limite_total, ordem)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM promocoes))
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT coalesce(max(ordem), 0) + 1 FROM promocoes))
          RETURNING id`,
       )
       .bind(
@@ -422,6 +425,7 @@ rotasDoConteudo.post('/promocoes', async (c) => {
         destaqueEn ?? '',
         tituloEn ?? '',
         detalheEn ?? '',
+        p.cupao ?? '',
         p.inicio,
         p.fim,
         p.emDestaque ? 1 : 0,

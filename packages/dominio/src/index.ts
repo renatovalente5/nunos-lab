@@ -18,3 +18,4 @@ export * from './vales.ts';
 export * from './por-fazer.ts';
 export * from './tipos.ts';
 export * from './mapa.ts';
+export * from './saldo.ts';

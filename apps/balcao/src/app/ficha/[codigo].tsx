@@ -3,6 +3,7 @@ import {
   dataCurta,
   diaEmLisboa,
   diasEntre,
+  eurosParaUsar,
   fraseDesteCorte,
   fraseDoCartao,
   recompensaNaLingua,
@@ -14,7 +15,9 @@ import { Animated, Pressable, ScrollView, View, useWindowDimensions } from 'reac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConfirmacao } from '../../componentes/confirmar';
+import { SaldoDaFicha } from '../../componentes/saldo';
 import {
+  anularSaldo,
   carimbar,
   chaveNova,
   entregarPremioAMeio,
@@ -68,12 +71,15 @@ type Feito = {
 };
 
 export default function Ficha() {
-  const { codigo, semLeitura, carimbo } = useLocalSearchParams<{
+  const { codigo, lida, carimbo } = useLocalSearchParams<{
     codigo: string;
-    semLeitura?: string;
+    /** Só o leitor a põe. Sem ela (código escrito, procura, email, uma morada escrita no browser, a página
+     * recarregada), a ficha é «sem leitura»: falha fechada (11 nov 2026). */
+    lida?: string;
     /** Aberta de uma linha do «Hoje»: o id desse carimbo. */
     carimbo?: string;
   }>();
+  const semLeitura = lida !== '1';
   const t = useTextos();
   const ui = useTextosDaUi();
   const lingua = useLingua();
@@ -81,6 +87,8 @@ export default function Ficha() {
   const { width } = useWindowDimensions();
   const consultas = useQueryClient();
   const { data: eu } = useEu();
+  // O dono: o saldo e os carimbos sem as regras da equipa (a demonstração tem o papel, mas a API recusa).
+  const souDono = eu?.pessoa.papel === 'dono';
   const casa = useCasa(eu);
   const { data: ficha, error, refetch, isPending } = useFicha(codigo ?? '');
   // Aberta de uma linha do «Hoje», a ficha mostra esse carimbo e só deixa anulá-lo: o «Carimbar na
@@ -110,6 +118,8 @@ export default function Ficha() {
   } | null>(null);
   const escala = useRef(new Animated.Value(0.6)).current;
   const chave = useRef(chaveNova());
+  // A chave do próximo uso do saldo: da ficha inteira, para o ecrã do carimbo usar a mesma (saldo.tsx).
+  const chaveDoSaldo = useRef(chaveNova());
   // O «Concluir» automático: limpa-se ao sair e ao desmontar, para não fechar o ecrã seguinte.
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => clearTimeout(temporizador.current ?? undefined), []);
@@ -129,6 +139,10 @@ export default function Ficha() {
   // O prémio entregue hoje: o corte grátis não leva carimbo, e carimbar pede confirmação.
   const entregueHoje = ficha?.hoje.entregue ?? null;
   const precisaConfirmar = jaHoje || !!entregueHoje;
+  // O cliente tem saldo para usar (1 € ou mais), ou usou hoje (o «Anular» fica à mão): depois de
+  // carimbar ou de entregar o prémio, a ficha não fecha sozinha por baixo da folha.
+  const temSaldoParaUsar =
+    !daLinhaDoHoje && (eurosParaUsar(ficha?.saldo?.valor ?? 0) >= 1 || !!ficha?.saldo?.usadoHoje);
   // A caixa do aviso: o 409 traz a hora e a pessoa mais frescas do que a ficha.
   const ultimoDeHoje = aviso?.quando && !aviso.entregue ? aviso : (ficha?.hoje.ultimo ?? null);
   const entregue = aviso?.quando && aviso.entregue ? aviso : entregueHoje;
@@ -152,9 +166,11 @@ export default function Ficha() {
         chave: chave.current,
         lojaId: casa,
         confirmar,
-        semLeitura: semLeitura === '1',
+        semLeitura,
       });
       setEstado('feito');
+      // A ficha fresca (com este corte): o saldo de quem acabou de fazer o primeiro passa a usar-se aqui.
+      consultas.invalidateQueries({ queryKey: ['balcao', 'ficha', codigo] });
       vibrar(r.completo || r.premioAMeio ? 'festa' : 'feito');
       setFeito({
         carimbos: r.cartao.carimbos,
@@ -164,8 +180,10 @@ export default function Ficha() {
         premioAMeio: r.premioAMeio ?? null,
       });
       Animated.spring(escala, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
-      // Com um prémio fica até «Concluir»: o barbeiro tem de o dizer ao cliente.
-      if (!r.completo && !r.premioAMeio) concluir();
+      // Com um prémio fica até «Concluir»: o barbeiro tem de o dizer ao cliente. Com saldo também: o
+      // «Usar saldo» fica à mão depois de carimbar (10 nov 2026).
+      if (!r.completo && !r.premioAMeio && !temSaldoParaUsar) concluir();
+      else consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
     } catch (e) {
       if (
         e instanceof ErroDaBalcao &&
@@ -250,7 +268,9 @@ export default function Ficha() {
         premioAMeio: null,
       });
       Animated.spring(escala, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
-      concluir();
+      // Com saldo à mão (ou um uso de hoje para anular), o ecrã espera pelo «Concluir».
+      if (!temSaldoParaUsar) concluir();
+      else consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
     } catch (e) {
       setEstado('erro');
       setErro(mensagemDe(e));
@@ -264,15 +284,57 @@ export default function Ficha() {
 
   const anular = async () => {
     if (!doHoje || estado === 'a-enviar') return;
+    const usoDeHoje = ficha?.saldo?.usadoHoje ?? null;
+    // A equipa não deixa um uso de hoje sem o carimbo que o justifica (a API recusa): com um só carimbo
+    // hoje, anulam-se os dois, o uso primeiro (11 nov 2026). O dono decide à parte (um carimbo a mais).
+    const osDois = !souDono && !!usoDeHoje && (ficha?.hoje.carimbos ?? 0) <= 1;
+    if (osDois && !usoDeHoje.podeAnular) {
+      setErro(t.erros.saldo_usado_hoje ?? t.erros.interno);
+      return;
+    }
     const sim = await confirmar({
-      titulo: t.ficha.anularOCarimbo(doHoje.cliente || '', hora(doHoje.quando)),
+      titulo: osDois
+        ? t.ficha.anularCarimboEUso(usoDeHoje.valor, hora(usoDeHoje.quando))
+        : t.ficha.anularOCarimbo(doHoje.cliente || '', hora(doHoje.quando)),
       accao: t.geral.anular,
     });
     if (!sim) return;
     setEstado('a-enviar');
     setErro(null);
     try {
+      if (osDois) {
+        await anularSaldo(usoDeHoje.movimentoId);
+        chaveDoSaldo.current = chaveNova();
+        await pedir('/anular', { metodo: 'POST', corpo: { carimboId: doHoje.id } });
+        consultas.invalidateQueries({ queryKey: ['balcao', 'ficha', codigo] });
+        await consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
+        sair();
+        return;
+      }
       await pedir('/anular', { metodo: 'POST', corpo: { carimboId: doHoje.id } });
+      // O saldo usado hoje não se anula sozinho com o carimbo (um carimbo a mais anula-se e o uso
+      // fica): pergunta-se, quando quem anula ainda o pode devolver (o Renato, 11 nov 2026).
+      const uso = ficha?.saldo?.usadoHoje;
+      if (uso?.podeAnular) {
+        // A folha da pergunta anterior desce primeiro.
+        await new Promise((r) => setTimeout(r, 350));
+        const devolver = await confirmar({
+          titulo: t.ficha.devolverOUso(uso.valor, hora(uso.quando)),
+          accao: t.ficha.devolver,
+        });
+        if (devolver) {
+          try {
+            await anularSaldo(uso.movimentoId);
+            chaveDoSaldo.current = chaveNova();
+          } catch (e) {
+            // Já anulado por outro lado, ou passou o prazo: a ficha fica aberta com o erro.
+            consultas.invalidateQueries({ queryKey: ['balcao', 'ficha', codigo] });
+            setEstado('pronto');
+            setErro(mensagemDe(e));
+            return;
+          }
+        }
+      }
       consultas.invalidateQueries({ queryKey: ['balcao', 'ficha', codigo] });
       // Fecha com a lista nova: a linha chega ao «Hoje» já riscada.
       await consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
@@ -398,6 +460,19 @@ export default function Ficha() {
             <T v="subtitulo" style={{ color: cor.texto2, marginTop: 8, textAlign: 'center' }}>
               {fraseDesteCorte(feito.recompensa, lingua)}
             </T>
+          )}
+          {ficha?.saldo && (ficha.saldo.valor !== 0 || ficha.saldo.usadoHoje) && (
+            <View style={{ alignSelf: 'stretch', marginHorizontal: -MARGEM, marginTop: 14 }}>
+              <SaldoDaFicha
+                ficha={ficha}
+                codigo={codigo ?? ''}
+                lojaId={casa}
+                soLeitura={daLinhaDoHoje}
+                chave={chaveDoSaldo}
+                semLeitura={semLeitura}
+                dono={souDono}
+              />
+            </View>
           )}
           <View style={{ marginTop: 28 }}>
             <Botao nome={t.geral.concluir} onPress={sair} />
@@ -672,6 +747,17 @@ export default function Ficha() {
                 </T>
               </View>
             )}
+            {/* O saldo (o Renato, 10 nov 2026): usa-se aqui, em euros inteiros; vinda do «Hoje», só se
+                vê. Fica por cima do aviso do carimbo, que é o do botão de baixo. */}
+            <SaldoDaFicha
+              ficha={ficha}
+              codigo={codigo ?? ''}
+              lojaId={casa}
+              soLeitura={daLinhaDoHoje}
+              chave={chaveDoSaldo}
+              semLeitura={semLeitura}
+              dono={souDono}
+            />
             {!daLinhaDoHoje && (ficha.hoje.carimbos > 0 || aviso || entregueHoje) && (
               <View
                 style={{

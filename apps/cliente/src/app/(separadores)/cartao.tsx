@@ -2,15 +2,18 @@ import {
   codigoCurto,
   dataCurta,
   diaEmLisboa,
+  euros,
   recompensaNaLingua,
   textoDoQr,
   type Lingua,
 } from '@nunos-lab/dominio';
+import { useQuery } from '@tanstack/react-query';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, Modal, Pressable, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCarimbosNovos } from '../../carimbos-novos';
+import { definirQrAberto, useConviteGuardado } from '../../carteira';
 import { CartaoDoCliente } from '../../componentes/cartao';
 import { CabecalhoDoSeparador } from '../../componentes/cabecalho';
 import { horaDe } from '../../componentes/cartoes';
@@ -21,6 +24,7 @@ import {
   carteirasDaqui,
   mensagemDe,
   moradaDeRetornoDaApple,
+  quemConvida,
   useConta,
   useEu,
   useTemSessao,
@@ -93,6 +97,11 @@ export default function Cartao() {
   const { width } = useWindowDimensions();
   const largura = Math.min(width, LARGURA_MAXIMA) - MARGEM * 2;
   const [qrAberto, setQrAberto] = useState(false);
+  // O aviso do saldo espera que o QR em grande feche (o Modal tapa-o): o uso feito ao balcão vê-se.
+  useEffect(() => {
+    definirQrAberto(qrAberto);
+    return () => definirQrAberto(false);
+  }, [qrAberto]);
   useEffect(() => contar('cartao'), []);
   useEffect(() => definirTitulo(t.titulos.cartao), [t]);
   const { novasDesde, aoAcabar } = useCarimbosNovos(temSessao ? eu?.cartao : null, focado);
@@ -451,7 +460,18 @@ function Selo({
 /** Sem conta: um toque na Apple ou no Google e o cartão nasce. */
 function Entrar() {
   const t = useTextos();
+  const lingua = useLingua();
   const { entrarComGoogle, entrarComApple } = useConta();
+  // Chegou pela ligação de um convite: entrar aqui põe o código na conta (não no telemóvel), e a app
+  // instalada depois, com a mesma conta, já o tem (o Renato, 11 nov 2026).
+  const pendente = useConviteGuardado();
+  const { data: quemChama } = useQuery({
+    queryKey: ['convite', pendente],
+    queryFn: () => quemConvida(pendente!),
+    enabled: !!pendente,
+    staleTime: Infinity,
+    retry: 1,
+  });
   const [erro, setErro] = useState<string | null>(null);
   const [aEntrar, setAEntrar] = useState(false);
   const correr = async (f: () => Promise<void>) => {
@@ -467,8 +487,16 @@ function Entrar() {
   };
   return (
     <View style={{ paddingHorizontal: MARGEM, marginTop: 26, gap: 12, alignItems: 'center' }}>
-      <T v="corpo" style={{ color: cor.texto2, textAlign: 'center', marginBottom: 6 }}>
-        {t.cartao.entraParaTer}
+      <T
+        v="corpo"
+        style={{ color: quemChama ? cor.texto : cor.texto2, textAlign: 'center', marginBottom: 6 }}
+      >
+        {quemChama
+          ? t.cartao.entraParaOConvite(
+              quemChama.nome,
+              quemChama.valorConvidado > 0 ? euros(quemChama.valorConvidado, lingua) : null,
+            )
+          : t.cartao.entraParaTer}
       </T>
       {APPLE_CLIENTE ? (
         <BotaoDaApple

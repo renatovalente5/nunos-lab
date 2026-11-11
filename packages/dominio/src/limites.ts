@@ -15,6 +15,8 @@ export const LIMITES = {
   destaque: 12,
   titulo: 70,
   detalhe: 400,
+  /** O código de cupão de uma vantagem (10 nov 2026). */
+  cupao: 40,
   categoria: 30,
   loja: 50,
   aviso: 140,

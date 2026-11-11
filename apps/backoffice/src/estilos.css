@@ -1907,6 +1907,13 @@ table.quadro {
   padding: 2px 8px;
   border-radius: 7px;
 }
+/* O título pequeno de um cartão («Últimos 30 dias», na página de uma pessoa da equipa). */
+.titulo-do-cartao {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tinta-2);
+  margin-bottom: 12px;
+}
 .detalhes {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -1926,9 +1933,85 @@ table.quadro {
 .detalhes .largo {
   grid-column: span 2;
 }
+/* Quatro números lado a lado (a página de uma pessoa da equipa); no telemóvel, dois a dois. */
+.detalhes.quatro {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 640px) {
+  .detalhes.quatro {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 @media (max-width: 640px) {
   .detalhes .largo {
     grid-column: 1 / -1;
+  }
+}
+
+/* ——— o saldo e os convites na ficha do cliente (o Renato, 10 nov 2026) ——— */
+/* O saldo em grande, com o código e quem o convidou por baixo, e o «Acertar saldo» ao lado. */
+.saldo-da-ficha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  padding: 18px;
+}
+.saldo-da-ficha .valor {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.saldo-da-ficha .detalhe {
+  margin-top: 6px;
+  color: var(--tinta-2);
+  font-size: 13.5px;
+}
+/* Os movimentos e quem convidou: cada lista com o seu título, separadas por um traço. */
+.seccao-da-gaveta {
+  border-top: 1px solid var(--linha);
+}
+.seccao-da-gaveta > h3 {
+  margin: 0;
+  padding: 16px 18px 2px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.valor-do-movimento {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.valor-do-movimento.entra {
+  color: var(--bom);
+}
+/* Anulado: riscado (é um <s>) e apagado, não conta para o saldo. */
+.valor-do-movimento.anulado {
+  color: var(--tinta-3);
+  font-weight: 600;
+}
+/* O histórico do cliente (11 nov 2026): um título por dia; o que foi anulado riscado e apagado, com
+   quem o anulou e quando a vermelho por baixo. O primeiro dia encosta ao topo da gaveta. */
+.dia-do-historico:first-child {
+  border-top: 0;
+}
+.linha.anulada .titulo-linha {
+  color: var(--tinta-3);
+  text-decoration: line-through;
+}
+.linha .detalhe.quem-anulou {
+  color: var(--mau);
+}
+@media (max-width: 640px) {
+  .saldo-da-ficha {
+    padding: 14px;
+  }
+  .seccao-da-gaveta > h3 {
+    padding: 14px 14px 2px;
   }
 }
 

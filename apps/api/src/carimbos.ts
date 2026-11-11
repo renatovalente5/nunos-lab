@@ -93,5 +93,30 @@ export async function anularCarimbo(
     );
     if (seguinte) instrucoes.push(db.prepare('DELETE FROM cartoes WHERE id = ?').bind(seguinte.id));
   }
+  // O convite (10 nov 2026): se este carimbo foi a visita que deu o prémio a quem convidou e o convidado
+  // tem outro carimbo válido, a visita continua feita: o convite passa para o mais antigo desses e o
+  // prémio fica (anular o primeiro de dois tirava-o para sempre, porque o seguinte já não é o primeiro).
+  // Sem nenhum, o prémio sai e o convite volta a «ainda não foi» (o carimbo seguinte volta a dá-lo). Se
+  // quem convidou já o gastou, o saldo dele fica negativo até ao próximo — raro, e à vista.
+  // Vai sempre, decidido no SQL do mesmo batch (o carimbo já vem anulado pela primeira instrução): uma
+  // leitura de antes perdia a corrida de dois «Anular» ao mesmo tempo, e o prémio ficava (11 nov 2026).
+  const outro = `SELECT %s FROM carimbos WHERE cliente_id = ?1 AND anulado_em IS NULL AND id != ?2
+                 ORDER BY criado_em, id LIMIT 1`;
+  instrucoes.push(
+    db
+      .prepare(
+        `UPDATE convites SET carimbo_id = (${outro.replace('%s', 'id')}),
+                             visitou_em = (${outro.replace('%s', 'criado_em')})
+         WHERE carimbo_id = ?2`,
+      )
+      .bind(x.cliente_id, x.id),
+    db
+      .prepare(
+        `UPDATE movimentos_de_saldo SET anulado_em = unixepoch(), anulado_por = ?1
+         WHERE tipo = 'convite' AND anulado_em IS NULL
+           AND convite_id IN (SELECT id FROM convites WHERE convidado_id = ?2 AND carimbo_id IS NULL)`,
+      )
+      .bind(quem.pessoaId, x.cliente_id),
+  );
   return { clienteId: x.cliente_id, criadoEm: x.criado_em, instrucoes };
 }

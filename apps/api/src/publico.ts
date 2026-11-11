@@ -2,11 +2,15 @@ import { Hono } from 'hono';
 import {
   carimboDoPremioAMeio,
   categoriaParaAsApps,
+  codigoValido,
   naLingua,
+  nomeCurto,
+  normalizarCodigo,
   DIAS_DE_NOVO,
   TIPOS_DE_CONTAGEM,
   diaEmLisboa,
   ordemDasRedes,
+  type ConviteParaQuemChega,
   type DadosDaApp,
   type ParceiroPublico,
   type TipoDeContagem,
@@ -22,7 +26,8 @@ import {
   type LinhaParceiro,
   type LinhaPromocao,
 } from './linhas.ts';
-import { DIA, agora, hex, linguaDoPedido, paraBytes, sha256 } from './util.ts';
+import { DIA, agora, hex, linguaDoPedido, paraBytes, recusar, sha256 } from './util.ts';
+import { lerConvites } from './saldo.ts';
 import { programaDasDefinicoes } from './programa.ts';
 
 export const rotasPublicas = new Hono<Ambiente>();
@@ -126,6 +131,39 @@ rotasPublicas.get('/app', async (c) => {
 });
 
 /** As imagens: o id é o resumo do conteúdo, por isso ficam em cache um ano. */
+/**
+ * A página de um convite, antes de entrar (o Renato, 10 nov 2026): quem convida (só o nome curto) e
+ * quanto ganha quem aceita. Um código que não existe, de exemplo, de uma conta apagada, ou com os
+ * convites desligados, é 404. Com trava por IP, contra quem experimenta códigos ao calhas.
+ */
+rotasPublicas.get('/convite/:codigo', async (c) => {
+  const codigo = normalizarCodigo(c.req.param('codigo'));
+  if (!codigoValido(codigo)) recusar(404, 'convite_desconhecido');
+  const ip = c.req.header('CF-Connecting-IP') ?? 'local';
+  if (!(await c.env.CONTAR.limit({ key: `convite:${ip}` }))?.success)
+    recusar(429, 'muitas_tentativas');
+  const db = c.env.DB;
+  const convites = await lerConvites(db);
+  if (!convites.ligado) recusar(404, 'convite_desconhecido');
+  // Quem convida, e quantos convites já tem: no limite, a página não promete o que o código já não dá.
+  const quem = await db
+    .prepare(
+      `SELECT k.nome, (SELECT count(*) FROM convites v WHERE v.padrinho_id = k.id) AS aceites
+       FROM clientes k WHERE k.codigo_convite = ? AND k.apagado_em IS NULL AND k.exemplo = 0`,
+    )
+    .bind(codigo)
+    .first<{ nome: string; aceites: number }>();
+  if (!quem) recusar(404, 'convite_desconhecido');
+  if (convites.limite !== null && quem.aceites >= convites.limite)
+    recusar(404, 'convite_desconhecido');
+  c.header('Cache-Control', 'no-store');
+  const resposta: ConviteParaQuemChega = {
+    nome: nomeCurto(quem.nome),
+    valorConvidado: convites.valorConvidado,
+  };
+  return c.json(resposta);
+});
+
 rotasPublicas.get('/imagens/:id', async (c) => {
   const id = c.req.param('id');
   if (!/^[0-9a-f]{32}$/.test(id)) return c.body(null, 404);

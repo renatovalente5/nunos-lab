@@ -24,6 +24,10 @@ const naBaseLocal = (...args) =>
 naBaseLocal(
   '--command',
   [
+    'movimentos_de_saldo',
+    'convites',
+    'marcas_de_contas_apagadas',
+    'identidades_da_equipa',
     'promocoes',
     'parceiros',
     'lojas',
@@ -87,6 +91,12 @@ const pedir = (caminho, { token, ...o } = {}) =>
     },
   });
 const json = (o) => JSON.stringify(o);
+let enderecos = 0;
+/** Um endereço de ensaio por pedido de convite: a trava (30 por minuto) é por endereço. */
+const ipNovo = () => {
+  enderecos += 1;
+  return `10.9.${(enderecos >> 8) & 255}.${enderecos & 255}`;
+};
 /** Dá acesso ao backoffice na base local, com o email da conta Google (scripts/acesso.mjs). */
 function darAcesso(nome, email) {
   execFileSync('node', ['scripts/acesso.mjs', '--nome', nome, '--email', email], {
@@ -784,6 +794,18 @@ await passo(
 await passo(
   'o 10.º carimbo completa o cartão e é ele a oferta: nada fica por usar, e o cartão segue cheio',
   async () => {
+    // Dez visitas num dia só são da prova: a equipa só carimba um a mais por dia (revisão de batota,
+    // 11 nov 2026), e aqui o limite do dia sobe para 10 (o máximo) durante o passo.
+    const programa = async (porDia) =>
+      pedir('/api/bo/programa', {
+        method: 'PUT',
+        token,
+        body: json({
+          ...(await (await pedir('/api/bo/programa', { token })).json()),
+          porDia,
+        }),
+      });
+    assert.equal((await programa(10)).status, 200);
     let ultimo;
     for (let i = 3; i <= 11; i++) {
       const r = await pedir('/api/balcao/carimbar', {
@@ -816,6 +838,7 @@ await passo(
       body: json({ codigo: codigoDoCliente, cartaoId: ficha.cartao.id, lojaId: 3 }),
     });
     assert.equal(usar.status, 409, 'não há nada para entregar à parte');
+    assert.equal((await programa(1)).status, 200);
   },
 );
 
@@ -1050,9 +1073,10 @@ await passo(
     );
     // Um carimbo toca o passe: a etiqueta sobe e o passe volta a vir.
     await new Promise((r) => setTimeout(r, 1100));
+    // O cliente já leva os 10 de hoje: o barbeiro passa do limite do dia (11 nov 2026), o dono não.
     const c = await pedir('/api/balcao/carimbar', {
       method: 'POST',
-      token: tokenBalcao,
+      token: tokenDono,
       body: json({ codigo: codigoDoCliente, chave: 'prova-wallet-01', lojaId: 3, confirmar: true }),
     });
     assert.equal(c.status, 200);
@@ -1369,9 +1393,10 @@ await passo(
     assert.equal((await validar('vale-sem-regras-01')).status, 200);
     assert.equal((await validar('vale-sem-regras-02')).status, 200, 'sem limite');
     for (const chave of ['prova-cupao-01', 'prova-cupao-02']) {
+      // Pelo dono: o cliente já passou o limite do dia do barbeiro.
       const c = await pedir('/api/balcao/carimbar', {
         method: 'POST',
-        token: tokenBalcao,
+        token: tokenDono,
         body: json({ codigo: codigoDoCliente, chave, lojaId: 3, confirmar: true }),
       });
       assert.equal(c.status, 200);
@@ -1554,11 +1579,14 @@ await passo('o backoffice vê os clientes, a ficha, o CSV e as métricas', async
   assert.equal(m.coortes.length, 12);
   assert.ok(m.totais.carimbos >= 10);
   assert.equal(m.totais.recompensasUsadas >= 1, true);
+  // Os 10 do barbeiro; o da Wallet e os 2 do saco já são do dono (o barbeiro passava do limite do dia).
   assert.ok(
     m.porPessoa.some(
-      (p) => p.nome === 'Prova Barbeiro' && p.n === 13 && p.anulados === 1 && p.recompensas === 1,
+      (p) => p.nome === 'Prova Barbeiro' && p.n === 10 && p.anulados === 1 && p.recompensas === 1,
     ),
+    JSON.stringify(m.porPessoa),
   );
+  assert.ok(m.porPessoa.some((p) => p.nome === 'Prova Dono' && p.n === 3));
   // Os clientes de exemplo ficam fora das métricas (Fase 1): só os da prova.
   assert.ok(m.clientes.total >= 2 && m.clientes.total < 60, `clientes: ${m.clientes.total}`);
   assert.ok(m.clientes.distribuicao.length === 4);
@@ -2657,6 +2685,1348 @@ await passo(
     assert.equal((await (await pedir('/api/app')).json()).programa.meio, null);
   },
 );
+
+// O Renato, 10 nov 2026: o «Ir» de um parceiro sem perfil no Google ia a outro sítio (agora vai às
+// coordenadas, se o Nuno as puser), e um código de cupão numa vantagem só para quem não tem o cadeado.
+await passo(
+  'o sítio exato do parceiro, e o código de cupão só para quem não tem o cadeado',
+  async () => {
+    const novo = await pedir('/api/bo/parceiros', {
+      method: 'POST',
+      token,
+      body: json({
+        nome: 'Parceiro do Cupão',
+        categoriaId: 1,
+        localidade: 'Aveiro',
+        morada: '',
+        lat: 40.6457766,
+        lng: -8.6408181,
+        telefone: '',
+        instagram: '',
+        site: '',
+        descricao: '',
+        cor: '#2456B8',
+        logotipo: null,
+        capa: null,
+        activo: true,
+      }),
+    });
+    assert.equal(novo.status, 201);
+    const pid = (await novo.json()).id;
+    const lido = (await (await pedir(`/api/bo/parceiros/${pid}`, { token })).json()).parceiro;
+    assert.deepEqual([lido.lat, lido.lng], [40.6457766, -8.6408181]);
+    const vantagem = await pedir('/api/bo/promocoes', {
+      method: 'POST',
+      token,
+      body: json({
+        parceiroId: pid,
+        destaque: '−15%',
+        titulo: 'Na loja online',
+        detalhe: '',
+        cupao: '  PROVA15 ',
+        inicio: null,
+        fim: null,
+        emDestaque: false,
+        activa: true,
+      }),
+    });
+    assert.equal(vantagem.status, 201);
+    const vid = (await vantagem.json()).id;
+    const noBackoffice = await (await pedir(`/api/bo/promocoes/${vid}`, { token })).json();
+    assert.equal(noBackoffice.cupao, 'PROVA15', 'sem os espaços à volta');
+
+    // Na lista de toda a gente só se diz que há código; o sítio vai, para o «Ir».
+    const textoDaApp = await (await pedir('/api/app')).text();
+    assert.ok(!textoDaApp.includes('PROVA15'), 'o código não vai na lista pública');
+    const naApp = JSON.parse(textoDaApp).parceiros.find((p) => p.id === pid);
+    assert.deepEqual([naApp.lat, naApp.lng], [40.6457766, -8.6408181]);
+    assert.equal(naApp.promocoes.find((v) => v.id === vid).temCupao, true);
+
+    // Quem cortou agora (o 1.º carimbo ao balcão, com o email) vê o código no «eu».
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const aoBalcao = await pedir('/api/balcao/clientes', {
+      method: 'POST',
+      token: dono,
+      body: json({
+        nome: 'Cupão Activo',
+        email: 'cupao.activo@gmail.com',
+        carimbo: { chave: chaveNova(), lojaId: lojaDaProva },
+      }),
+    });
+    assert.equal(aoBalcao.status, 200);
+    const activo = await euDe(
+      (await (await entrarTeste('google', 'prova-cupao-1', 'cupao.activo@gmail.com')).json())
+        .sessao,
+    );
+    assert.equal(activo.eu.activo, true);
+    assert.equal(activo.eu.codigosDasVantagens[String(vid)], 'PROVA15');
+
+    // Quem nunca cortou tem o cadeado: o código nem chega ao telemóvel.
+    const semCorte = (
+      await (await entrarTeste('google', 'prova-cupao-2', 'cupao.novo@gmail.com')).json()
+    ).sessao;
+    const r = await pedir('/api/eu', { token: semCorte });
+    const texto = await r.text();
+    assert.equal(JSON.parse(texto).activo, false);
+    assert.deepEqual(JSON.parse(texto).codigosDasVantagens, {});
+    assert.ok(!texto.includes('PROVA15'));
+
+    // Sem coordenadas, o «Ir» volta a procurar pela morada; fora do mundo é recusado.
+    const tirar = await pedir(`/api/bo/parceiros/${pid}`, {
+      method: 'PATCH',
+      token,
+      body: json({ lat: null, lng: null }),
+    });
+    assert.equal(tirar.status, 200);
+    const semSitio = await tirar.json();
+    assert.deepEqual([semSitio.lat, semSitio.lng], [null, null]);
+    const fora = await pedir(`/api/bo/parceiros/${pid}`, {
+      method: 'PATCH',
+      token,
+      body: json({ lat: 91, lng: 0 }),
+    });
+    assert.equal(fora.status, 400);
+    assert.equal(
+      (await pedir(`/api/bo/parceiros/${pid}`, { method: 'DELETE', token })).status,
+      204,
+    );
+  },
+);
+
+// O Renato, 10 nov 2026: quem convida ganha quando o convidado vai à barbearia; o convidado ganha logo;
+// a carteira mostra tudo; o barbeiro usa o saldo em euros inteiros; o Nuno define os valores e o limite.
+await passo(
+  'saldo e convites: aceitar, a visita, anular, o balcão, o acerto, o limite e desligar',
+  async () => {
+    const sessaoDe = async (sujeito, email, nome) => {
+      const r = await entrarTeste('google', sujeito, email, { nome });
+      assert.equal(r.status, 200, `entrar como ${email}`);
+      return (await r.json()).sessao;
+    };
+    const carteira = async (s) => {
+      const r = await pedir('/api/eu/carteira', { token: s });
+      assert.equal(r.status, 200);
+      return r.json();
+    };
+    const aceitar = (s, codigo) =>
+      pedir('/api/eu/convite', {
+        method: 'POST',
+        token: s,
+        body: json({ codigo }),
+        headers: { 'CF-Connecting-IP': ipNovo() },
+      });
+    const programa = async (convites) =>
+      pedir('/api/bo/programa', {
+        method: 'PUT',
+        token,
+        body: json({ ...(await (await pedir('/api/bo/programa', { token })).json()), convites }),
+      });
+
+    // As predefinições (desligados até o Nuno os ligar), e o Nuno liga-os com o limite em 2 para a prova.
+    const antes = await (await pedir('/api/bo/programa', { token })).json();
+    assert.deepEqual(antes.convites, {
+      ligado: false,
+      valorPadrinho: 100,
+      valorConvidado: 100,
+      limite: 10,
+    });
+    assert.equal(
+      (await programa({ ligado: true, valorPadrinho: 100, valorConvidado: 100, limite: 2 })).status,
+      200,
+    );
+
+    // Quem convida: a carteira dá-lhe o código (o mesmo de cada vez), sem saldo nem convites.
+    const padrinho = await sessaoDe(
+      'prova-conv-padrinho',
+      'padrinho.conv@gmail.com',
+      'Padrinho Prova',
+    );
+    const c0 = await carteira(padrinho);
+    assert.match(c0.convites.codigo, /^[0-9A-HJKMNP-TV-Z]{8}$/);
+    assert.equal((await carteira(padrinho)).convites.codigo, c0.convites.codigo);
+    assert.equal(c0.saldo, 0);
+    assert.equal(c0.convites.aceites, 0);
+    assert.equal(c0.podeUsarCodigo, true);
+    const codigo = c0.convites.codigo;
+
+    // A página do convite, antes de entrar: só o nome curto e o que se ganha.
+    const pagina = await pedir(`/api/convite/${codigo}`);
+    assert.equal(pagina.status, 200);
+    assert.deepEqual(await pagina.json(), { nome: 'Padrinho P.', valorConvidado: 100 });
+    assert.equal((await pedir('/api/convite/AAAAAAAA')).status, 404);
+
+    // O convidado aceita (a ligação inteira colada também serve) e ganha logo 1 €.
+    const convidado = await sessaoDe('prova-conv-1', 'convidado1.conv@gmail.com', 'Convidado Um');
+    const aceite = await aceitar(convidado, `https://exemplo.pt/?convite=${codigo}`);
+    assert.equal(aceite.status, 200);
+    const cc = await aceite.json();
+    assert.equal(cc.saldo, 100);
+    assert.deepEqual(cc.convidadoPor.nome, 'Padrinho P.');
+    assert.equal(cc.podeUsarCodigo, false);
+    assert.equal(cc.movimentos[0].tipo, 'convidado');
+    assert.equal(cc.movimentos[0].quem, 'Padrinho P.');
+    const euConvidado = (await euDe(convidado)).eu;
+    assert.equal(euConvidado.saldo.saldo, 100);
+    assert.equal(euConvidado.saldo.ultimo.tipo, 'convidado');
+    assert.equal(euConvidado.saldo.convites, true);
+
+    // Outra vez, o próprio, ou um código que não existe: recusados.
+    assert.equal((await aceitar(convidado, codigo)).status, 409, 'já convidado');
+    assert.equal((await aceitar(padrinho, codigo)).status, 409, 'o próprio');
+    assert.equal((await aceitar(convidado, 'AAAAAAAA')).status, 404);
+
+    // Quem convida vê o convite, ainda sem visita e ainda sem prémio.
+    let cp = await carteira(padrinho);
+    assert.equal(cp.convites.aceites, 1);
+    assert.equal(cp.convites.visitaram, 0);
+    assert.equal(cp.convites.lista[0].nome, 'Convidado U.');
+    assert.equal(cp.convites.lista[0].visitouEm, null);
+    assert.equal(cp.saldo, 0);
+
+    // O convidado vai à barbearia: o primeiro carimbo dá 1 € a quem convidou.
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const carimbar = (codigoDoCartao) =>
+      pedir('/api/balcao/carimbar', {
+        method: 'POST',
+        token: dono,
+        body: json({ codigo: codigoDoCartao, chave: chaveNova(), lojaId: lojaDaProva }),
+      });
+    const primeiro = await carimbar(euConvidado.codigo);
+    assert.equal(primeiro.status, 200);
+    const { carimboId } = await primeiro.json();
+    cp = await carteira(padrinho);
+    assert.equal(cp.saldo, 100);
+    assert.equal(cp.convites.visitaram, 1);
+    assert.ok(cp.convites.lista[0].visitouEm > 0);
+    const euPadrinho = (await euDe(padrinho)).eu;
+    assert.equal(euPadrinho.saldo.ultimo.tipo, 'convite');
+    assert.equal(euPadrinho.saldo.ultimo.quem, 'Convidado U.');
+
+    // Anular esse carimbo desfaz o prémio (fica na lista, anulado); o carimbo seguinte volta a dá-lo.
+    assert.equal(
+      (
+        await pedir('/api/balcao/anular', {
+          method: 'POST',
+          token: dono,
+          body: json({ carimboId }),
+        })
+      ).status,
+      204,
+    );
+    cp = await carteira(padrinho);
+    assert.equal(cp.saldo, 0);
+    assert.equal(cp.convites.visitaram, 0);
+    assert.equal(cp.movimentos[0].anulado, true);
+    assert.equal((await carimbar(euConvidado.codigo)).status, 200);
+    assert.equal((await carteira(padrinho)).saldo, 100);
+
+    // Depois do primeiro corte, já não se aceita um código.
+    const comCorte = await pedir('/api/balcao/clientes', {
+      method: 'POST',
+      token: dono,
+      body: json({
+        nome: 'Com Corte Prova',
+        email: 'comcorte.conv@gmail.com',
+        carimbo: { chave: chaveNova(), lojaId: lojaDaProva },
+      }),
+    });
+    assert.equal(comCorte.status, 200);
+    const jaCortou = await sessaoDe('prova-conv-2', 'comcorte.conv@gmail.com', 'Com Corte Prova');
+    assert.equal((await carteira(jaCortou)).podeUsarCodigo, false);
+    const r2 = await aceitar(jaCortou, codigo);
+    assert.equal(r2.status, 409);
+    assert.equal((await r2.json()).erro, 'ja_cortou');
+
+    // O limite (2): o segundo convidado cabe, o terceiro já não.
+    const segundo = await sessaoDe('prova-conv-3', 'convidado3.conv@gmail.com', 'Convidado Tres');
+    assert.equal((await aceitar(segundo, codigo)).status, 200);
+    const terceiro = await sessaoDe(
+      'prova-conv-4',
+      'convidado4.conv@gmail.com',
+      'Convidado Quatro',
+    );
+    const r4 = await aceitar(terceiro, codigo);
+    assert.equal(r4.status, 409);
+    assert.equal((await r4.json()).erro, 'convites_esgotados');
+
+    // Ao balcão: o barbeiro vê o saldo do convidado (1 €) e usa-o; mais do que o saldo é recusado, e a
+    // mesma chave conta uma vez só.
+    const ficha = async () =>
+      (await pedir(`/api/balcao/ficha/${euConvidado.codigo}`, { token: dono })).json();
+    assert.equal((await ficha()).saldo.valor, 100);
+    const usar = (valor, chave) =>
+      pedir('/api/balcao/usar-saldo', {
+        method: 'POST',
+        token: dono,
+        body: json({ codigo: euConvidado.codigo, valor, chave, lojaId: lojaDaProva }),
+      });
+    const demais = await usar(200, chaveNova());
+    assert.equal(demais.status, 409);
+    assert.equal((await demais.json()).erro, 'saldo_insuficiente');
+    const chave = chaveNova();
+    const usado = await usar(100, chave);
+    assert.equal(usado.status, 200);
+    const depois = await usado.json();
+    assert.equal(depois.saldo.valor, 0);
+    assert.equal(depois.saldo.usadoHoje.valor, 100);
+    assert.equal(depois.saldo.usadoHoje.podeAnular, true);
+    assert.equal((await (await usar(100, chave)).json()).saldo.valor, 0, 'a mesma chave conta uma');
+    const euDepois = (await euDe(convidado)).eu;
+    assert.equal(euDepois.saldo.saldo, 0);
+    assert.equal(euDepois.saldo.ultimo.tipo, 'uso');
+    assert.ok(euDepois.saldo.ultimo.loja);
+
+    // Anular o uso devolve o saldo; outra vez é recusado.
+    const anular = (movimentoId) =>
+      pedir('/api/balcao/anular-saldo', {
+        method: 'POST',
+        token: dono,
+        body: json({ movimentoId }),
+      });
+    assert.equal((await anular(depois.saldo.usadoHoje.movimentoId)).status, 204);
+    assert.equal((await ficha()).saldo.valor, 100);
+    assert.equal((await anular(depois.saldo.usadoHoje.movimentoId)).status, 409);
+
+    // O backoffice: a ficha do cliente com o saldo, os movimentos e quem o convidou; e um acerto.
+    const lista = await (
+      await pedir(`/api/bo/clientes?q=${encodeURIComponent('Convidado Um')}`, { token })
+    ).json();
+    const idDoConvidado = lista.find((k) => k.nome === 'Convidado Um').id;
+    const fichaBo = await (await pedir(`/api/bo/clientes/${idDoConvidado}`, { token })).json();
+    assert.equal(fichaBo.saldo.valor, 100);
+    assert.equal(fichaBo.saldo.convidadoPor.nome, 'Padrinho Prova');
+    assert.ok(fichaBo.saldo.movimentos.some((m) => m.tipo === 'uso' && m.anulado));
+    const acertar = (valor, nota) =>
+      pedir(`/api/bo/clientes/${idDoConvidado}/saldo`, {
+        method: 'POST',
+        token,
+        body: json({ valor, nota }),
+      });
+    const dado = await acertar(500, 'Oferta de prova');
+    assert.equal(dado.status, 200);
+    assert.equal((await dado.json()).saldo.valor, 600);
+    const tirarDemais = await acertar(-1000, 'Demais');
+    assert.equal(tirarDemais.status, 409);
+    assert.equal((await acertar(0, 'Nada')).status, 400);
+    assert.equal((await acertar(100, '')).status, 400, 'a nota é precisa');
+    const acerto = (await carteira(convidado)).movimentos[0];
+    assert.equal(acerto.tipo, 'acerto');
+    assert.equal(acerto.nota, 'Oferta de prova');
+
+    // Desligados: a carteira não dá código e nenhum código se aceita.
+    assert.equal(
+      (await programa({ ligado: false, valorPadrinho: 100, valorConvidado: 100, limite: 2 }))
+        .status,
+      200,
+    );
+    assert.equal((await carteira(padrinho)).convites.codigo, null);
+    assert.equal((await euDe(padrinho)).eu.saldo.convites, false);
+    const novo = await sessaoDe('prova-conv-5', 'convidado5.conv@gmail.com', 'Convidado Cinco');
+    const r5 = await aceitar(novo, codigo);
+    assert.equal(r5.status, 409);
+    assert.equal((await r5.json()).erro, 'convites_desligados');
+    assert.equal((await pedir(`/api/convite/${codigo}`)).status, 404);
+    // As predefinições outra vez.
+    assert.equal((await programa(antes.convites)).status, 200);
+  },
+);
+
+// ——— Saldo e convites: os casos-limite (o Renato, 11 nov 2026: «é dinheiro: imagina todos os casos
+// possíveis e estuda tudo muito bem») ———
+const saldoProva = {
+  /** Um cliente novo pela porta de teste (sem cortes), com a sessão, o código do cartão e o id. */
+  async cliente(nome) {
+    const sujeito = `prova-saldo-${nome
+      .normalize('NFD')
+      .replace(/[^\w]+/g, '-')
+      .toLowerCase()}`;
+    const r = await entrarTeste('google', sujeito, `${sujeito}@gmail.com`, { nome });
+    assert.equal(r.status, 200, `entrar como ${nome}`);
+    const sessao = (await r.json()).sessao;
+    const eu = (await euDe(sessao)).eu;
+    const lista = await (
+      await pedir(`/api/bo/clientes?q=${encodeURIComponent(nome)}`, { token })
+    ).json();
+    const id = lista.find((k) => k.nome === nome)?.id;
+    assert.ok(id, `o backoffice encontra ${nome}`);
+    return { nome, sessao, codigo: eu.codigo, id };
+  },
+  async carteira(k) {
+    const r = await pedir('/api/eu/carteira', { token: k.sessao });
+    assert.equal(r.status, 200, `a carteira de ${k.nome}`);
+    return r.json();
+  },
+  async saldo(k) {
+    return (await saldoProva.carteira(k)).saldo;
+  },
+  async codigo(k) {
+    return (await saldoProva.carteira(k)).convites.codigo;
+  },
+  aceitar: (k, codigo) =>
+    pedir('/api/eu/convite', {
+      method: 'POST',
+      token: k.sessao,
+      body: json({ codigo }),
+      headers: { 'CF-Connecting-IP': ipNovo() },
+    }),
+  async carimbar(k, sessao, lojaId = lojaDaProva) {
+    const r = await pedir('/api/balcao/carimbar', {
+      method: 'POST',
+      token: sessao,
+      body: json({ codigo: k.codigo, chave: chaveNova(), lojaId, confirmar: true }),
+    });
+    assert.equal(r.status, 200, `carimbar ${k.nome}`);
+    return (await r.json()).carimboId;
+  },
+  usar: (k, valor, sessao, { chave = chaveNova(), lojaId = lojaDaProva, semLeitura } = {}) =>
+    pedir('/api/balcao/usar-saldo', {
+      method: 'POST',
+      token: sessao,
+      body: json({ codigo: k.codigo, valor, chave, lojaId, semLeitura }),
+    }),
+  anularUso: (movimentoId, sessao) =>
+    pedir('/api/balcao/anular-saldo', {
+      method: 'POST',
+      token: sessao,
+      body: json({ movimentoId }),
+    }),
+  anularCarimbo: (carimboId, sessao) =>
+    pedir('/api/balcao/anular', { method: 'POST', token: sessao, body: json({ carimboId }) }),
+  anularCarimboNoBackoffice: (carimboId) =>
+    pedir(`/api/bo/carimbos/${carimboId}/anular`, { method: 'POST', token }),
+  acertar: (k, valor, nota = 'Prova') =>
+    pedir(`/api/bo/clientes/${k.id}/saldo`, {
+      method: 'POST',
+      token,
+      body: json({ valor, nota }),
+    }),
+  async convites(convites) {
+    const p = await (await pedir('/api/bo/programa', { token })).json();
+    const r = await pedir('/api/bo/programa', {
+      method: 'PUT',
+      token,
+      body: json({ ...p, convites: { ...p.convites, ...convites } }),
+    });
+    assert.equal(r.status, 200, 'mudar os convites');
+  },
+  apagar: (k) => pedir('/api/eu', { method: 'DELETE', token: k.sessao }),
+  /** A ficha da for partners (o saldo que o barbeiro vê). */
+  async ficha(k, sessao) {
+    const r = await pedir(`/api/balcao/ficha/${k.codigo}`, { token: sessao });
+    assert.equal(r.status, 200, `a ficha de ${k.nome}`);
+    return r.json();
+  },
+};
+const PREDEFINIDOS = { ligado: true, valorPadrinho: 100, valorConvidado: 100, limite: 10 };
+// Os convites nascem desligados: os casos-limite correm com eles ligados (e desligam-se no fim).
+await saldoProva.convites(PREDEFINIDOS);
+
+await passo(
+  'convites: anular o 1.º corte do convidado com outro válido mantém o prémio; sem nenhum, tira-o',
+  async () => {
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const a = await saldoProva.cliente('Padrinho Repoe');
+    const b = await saldoProva.cliente('Convidado Repoe');
+    assert.equal((await saldoProva.aceitar(b, await saldoProva.codigo(a))).status, 200);
+    const c1 = await saldoProva.carimbar(b, dono);
+    assert.equal(await saldoProva.saldo(a), 100);
+    const c2 = await saldoProva.carimbar(b, dono);
+    assert.equal(await saldoProva.saldo(a), 100, 'o 2.º corte não dá outro prémio');
+    // Anular o 1.º (no backoffice: um engano de outro dia): o 2.º continua a ser a visita.
+    assert.equal((await saldoProva.anularCarimboNoBackoffice(c1)).status, 200);
+    assert.equal(await saldoProva.saldo(a), 100, 'o prémio fica com o corte que resta');
+    const ca = await saldoProva.carteira(a);
+    assert.equal(ca.convites.visitaram, 1);
+    assert.equal(
+      daBaseLocal(`SELECT carimbo_id FROM convites WHERE convidado_id = ${b.id}`)[0].carimbo_id,
+      c2,
+    );
+    // Sem nenhum corte válido, o prémio sai e o convite volta a «ainda não foi».
+    assert.equal((await saldoProva.anularCarimbo(c2, dono)).status, 204);
+    assert.equal(await saldoProva.saldo(a), 0);
+    assert.equal((await saldoProva.carteira(a)).convites.visitaram, 0);
+    // O corte seguinte volta a dá-lo, uma vez.
+    await saldoProva.carimbar(b, dono);
+    assert.equal(await saldoProva.saldo(a), 100);
+    const premios = daBaseLocal(
+      `SELECT count(*) AS n, sum(anulado_em IS NULL) AS activos FROM movimentos_de_saldo
+       WHERE cliente_id = ${a.id} AND tipo = 'convite'`,
+    )[0];
+    assert.deepEqual([premios.n, premios.activos], [2, 1]);
+  },
+);
+
+await passo(
+  'saldo: o prémio gasto e o corte anulado deixam o saldo negativo; não se usa abaixo de zero; o acerto repõe',
+  async () => {
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const a = await saldoProva.cliente('Padrinho Gasta');
+    const b = await saldoProva.cliente('Convidado Gasta');
+    assert.equal((await saldoProva.aceitar(b, await saldoProva.codigo(a))).status, 200);
+    const c1 = await saldoProva.carimbar(b, dono);
+    await saldoProva.carimbar(a, dono);
+    assert.equal((await saldoProva.usar(a, 100, dono)).status, 200);
+    assert.equal(await saldoProva.saldo(a), 0);
+    assert.equal((await saldoProva.anularCarimbo(c1, dono)).status, 204);
+    // A visita não contou: o prémio sai, e quem já o gastou fica a dever 1 € (à vista nos três lados).
+    assert.equal(await saldoProva.saldo(a), -100);
+    assert.equal((await euDe(a.sessao)).eu.saldo.saldo, -100);
+    assert.equal((await saldoProva.ficha(a, dono)).saldo.valor, -100);
+    const bo = await (await pedir(`/api/bo/clientes/${a.id}`, { token })).json();
+    assert.equal(bo.saldo.valor, -100);
+    const r = await saldoProva.usar(a, 100, dono);
+    assert.equal(r.status, 409);
+    assert.equal((await r.json()).erro, 'saldo_insuficiente');
+    assert.equal((await saldoProva.acertar(a, -100)).status, 409, 'tirar mais não');
+    assert.equal((await saldoProva.acertar(a, 100, 'Acerto da prova')).status, 200);
+    assert.equal(await saldoProva.saldo(a), 0);
+  },
+);
+
+await passo(
+  'saldo: anular o corte não devolve o uso sozinho; anular o uso devolve-o; só quem usou (ou o dono)',
+  async () => {
+    const r = await pedir('/api/bo/equipa', {
+      method: 'POST',
+      token,
+      body: json({
+        nome: 'Barbeiro Saldo',
+        email: 'barbeiro.saldo@exemplo.pt',
+        papel: 'barbeiro',
+        lojaId: 3,
+        parceiroId: null,
+      }),
+    });
+    assert.equal(r.status, 201);
+    const barbeiro = await entrarNaBalcao('barbeiro.saldo@exemplo.pt');
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const a = await saldoProva.cliente('Padrinho Anula');
+    const b = await saldoProva.cliente('Convidado Anula');
+    assert.equal((await saldoProva.aceitar(b, await saldoProva.codigo(a))).status, 200);
+    assert.equal(await saldoProva.saldo(b), 100, 'as boas-vindas');
+    // As boas-vindas usam-se com o primeiro corte: antes, nada (contas feitas só para aceitar convites).
+    const cedo = await saldoProva.usar(b, 100, barbeiro, { lojaId: 3 });
+    assert.equal(cedo.status, 409);
+    assert.equal((await cedo.json()).erro, 'saldo_antes_do_corte');
+    // Ao balcão: carimba e usa o saldo; depois anula o carimbo (um engano).
+    const c1 = await saldoProva.carimbar(b, barbeiro, 3);
+    assert.equal(await saldoProva.saldo(a), 100);
+    const usado = await saldoProva.usar(b, 100, barbeiro, { lojaId: 3 });
+    assert.equal(usado.status, 200);
+    const uso = (await usado.json()).saldo.usadoHoje;
+    assert.equal(uso.podeAnular, true);
+    // O barbeiro não deixa o uso sem o corte: com um só carimbo hoje, anula primeiro o uso (a app faz os
+    // dois pela ordem); o dono decide à parte, e aí o uso fica até se anular.
+    const comUso = await saldoProva.anularCarimbo(c1, barbeiro);
+    assert.equal(comUso.status, 409);
+    assert.equal((await comUso.json()).erro, 'saldo_usado_hoje');
+    assert.equal((await saldoProva.anularCarimbo(c1, dono)).status, 204);
+    assert.equal(await saldoProva.saldo(a), 0, 'o prémio de quem convidou sai');
+    assert.equal(await saldoProva.saldo(b), 0, 'o uso fica até se anular');
+    // Outro corte (os usos seguintes precisam dele): o prémio volta a quem convidou.
+    await saldoProva.carimbar(b, dono);
+    assert.equal(await saldoProva.saldo(a), 100);
+    // Outro barbeiro (aqui: o dono a usar, o barbeiro a anular) não anula o uso de outra pessoa.
+    assert.equal((await saldoProva.acertar(b, 200)).status, 200);
+    const doDono = await (await saldoProva.usar(b, 100, dono)).json();
+    const r403 = await saldoProva.anularUso(doDono.saldo.usadoHoje.movimentoId, barbeiro);
+    assert.equal(r403.status, 403);
+    assert.equal((await r403.json()).erro, 'uso_de_outra_pessoa');
+    // Quem usou anula; o dono anula qualquer um; duas vezes não.
+    assert.equal((await saldoProva.anularUso(uso.movimentoId, barbeiro)).status, 204);
+    assert.equal(
+      (await saldoProva.anularUso(doDono.saldo.usadoHoje.movimentoId, dono)).status,
+      204,
+    );
+    assert.equal((await saldoProva.anularUso(uso.movimentoId, dono)).status, 409);
+    assert.equal(await saldoProva.saldo(b), 300);
+    // Passados 10 minutos, quem usou já não anula (o dono sim): o uso «envelhece» na base local.
+    const tarde = await (await saldoProva.usar(b, 100, barbeiro, { lojaId: 3 })).json();
+    const id = tarde.saldo.usadoHoje.movimentoId;
+    daBaseLocal(`UPDATE movimentos_de_saldo SET criado_em = criado_em - 660 WHERE id = ${id}`);
+    assert.equal((await saldoProva.ficha(b, barbeiro)).saldo.usadoHoje.podeAnular, false);
+    assert.equal((await saldoProva.ficha(b, dono)).saldo.usadoHoje.podeAnular, true);
+    const r409 = await saldoProva.anularUso(id, barbeiro);
+    assert.equal(r409.status, 409);
+    assert.equal((await r409.json()).erro, 'tarde_para_anular_uso');
+    assert.equal((await saldoProva.anularUso(id, dono)).status, 204);
+    assert.equal(await saldoProva.saldo(b), 300);
+    // Um acerto ou um prémio não se anulam como um uso.
+    const acerto = (await saldoProva.carteira(b)).movimentos.find((m) => m.tipo === 'acerto');
+    assert.equal((await saldoProva.anularUso(acerto.id, dono)).status, 404);
+  },
+);
+
+await passo(
+  'convites: contas apagadas — quem convidou e apagou não recebe; o convidado apagado fica sem nome',
+  async () => {
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const a = await saldoProva.cliente('Padrinho Apaga');
+    const b = await saldoProva.cliente('Convidado Fica');
+    const codigoA = await saldoProva.codigo(a);
+    assert.equal((await saldoProva.aceitar(b, codigoA)).status, 200);
+    assert.equal((await saldoProva.apagar(a)).status, 204);
+    await saldoProva.carimbar(b, dono);
+    const visita = daBaseLocal(
+      `SELECT v.visitou_em, (SELECT count(*) FROM movimentos_de_saldo m WHERE m.convite_id = v.id AND m.tipo = 'convite') AS premios
+       FROM convites v WHERE v.convidado_id = ${b.id}`,
+    )[0];
+    assert.ok(visita.visitou_em, 'a visita fica marcada');
+    assert.equal(visita.premios, 0, 'a conta apagada não recebe');
+    // O código de quem apagou já não vale, nem na página do convite.
+    const c = await saldoProva.cliente('Chega Tarde');
+    assert.equal((await saldoProva.aceitar(c, codigoA)).status, 404);
+    assert.equal((await pedir(`/api/convite/${codigoA}`)).status, 404);
+    // O convidado que apaga: quem convidou vê o convite sem nome; não há acerto nem uso numa conta apagada.
+    const d = await saldoProva.cliente('Padrinho Fica');
+    const e = await saldoProva.cliente('Convidado Apaga');
+    assert.equal((await saldoProva.aceitar(e, await saldoProva.codigo(d))).status, 200);
+    assert.equal((await saldoProva.apagar(e)).status, 204);
+    const cd = await saldoProva.carteira(d);
+    assert.equal(cd.convites.aceites, 1);
+    assert.equal(cd.convites.lista[0].nome, '');
+    assert.equal((await saldoProva.acertar(e, 100)).status, 404);
+    assert.equal((await saldoProva.usar(e, 100, dono)).status, 404, 'o cartão apagado já não abre');
+  },
+);
+
+await passo(
+  'backoffice: o histórico diz quem anulou e quando, liga os dois lados do convite e o prémio de cada um',
+  async () => {
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const a = await saldoProva.cliente('Padrinho Historico');
+    const b = await saldoProva.cliente('Convidado Historico');
+    assert.equal((await saldoProva.aceitar(b, await saldoProva.codigo(a))).status, 200);
+    const fichaBo = async (k) => {
+      const r = await pedir(`/api/bo/clientes/${k.id}`, { token });
+      assert.equal(r.status, 200, `a ficha de ${k.nome} no backoffice`);
+      return r.json();
+    };
+    // Antes do 1.º corte: o convite à espera, sem prémio; as boas-vindas ligam a quem convidou.
+    let fa = await fichaBo(a);
+    assert.equal(fa.saldo.convites.length, 1);
+    assert.equal(fa.saldo.convites[0].clienteId, b.id);
+    assert.equal(fa.saldo.convites[0].premioEm, null);
+    assert.equal(fa.saldo.convites[0].visitouEm, null);
+    assert.equal(fa.saldo.convites[0].apagado, false);
+    let fb = await fichaBo(b);
+    const boasVindas = fb.saldo.movimentos.find((m) => m.tipo === 'convidado');
+    assert.equal(boasVindas.quemId, a.id, 'as boas-vindas ligam à ficha de quem convidou');
+    assert.equal(boasVindas.quemApagado, false);
+    assert.equal(fb.saldo.convidadoPor.clienteId, a.id);
+    assert.equal(fb.saldo.convidadoPor.apagado, false);
+    // O 1.º corte paga o convite: quando, e por quem.
+    const carimbo = await saldoProva.carimbar(b, dono);
+    fa = await fichaBo(a);
+    assert.ok(fa.saldo.convites[0].premioEm > 0, 'o prémio recebido, com a data');
+    assert.ok(fa.saldo.convites[0].visitouEm > 0);
+    const premio = fa.saldo.movimentos.find((m) => m.tipo === 'convite');
+    assert.equal(premio.quemId, b.id, 'o prémio liga à ficha de quem foi');
+    assert.equal(premio.anuladoEm, null);
+    // Um uso anulado ao balcão: quem o anulou e a que horas.
+    const u = await saldoProva.usar(b, 100, dono);
+    assert.equal(u.status, 200);
+    const { movimentoId } = (await u.json()).usoFeito;
+    assert.equal((await saldoProva.anularUso(movimentoId, dono)).status, 204);
+    fb = await fichaBo(b);
+    const anulado = fb.saldo.movimentos.find((m) => m.id === movimentoId);
+    assert.equal(anulado.anulado, true);
+    assert.equal(anulado.anuladoPor, 'Prova Dono');
+    assert.ok(
+      Math.abs(anulado.anuladoEm - Math.floor(Date.now() / 1000)) < 120,
+      'a hora em que se anulou',
+    );
+    // O corte anulado no backoffice: o prémio sai (sem nome: foi o backoffice), com a hora.
+    assert.equal((await saldoProva.anularCarimboNoBackoffice(carimbo)).status, 200);
+    fa = await fichaBo(a);
+    assert.equal(fa.saldo.convites[0].premioEm, null, 'o prémio anulado já não conta');
+    assert.equal(fa.saldo.convites[0].visitouEm, null);
+    const premioAnulado = fa.saldo.movimentos.find((m) => m.tipo === 'convite');
+    assert.equal(premioAnulado.anulado, true);
+    assert.equal(premioAnulado.anuladoPor, null);
+    assert.ok(premioAnulado.anuladoEm > 0);
+    fb = await fichaBo(b);
+    const visita = fb.historico.find((x) => x.id === carimbo);
+    assert.ok(visita.anuladoEm > 0);
+    assert.equal(visita.anuladoPor, null);
+    // O convidado apaga a conta: quem convidou vê-o apagado (sem nome), e a ligação fica.
+    assert.equal((await saldoProva.apagar(b)).status, 204);
+    fa = await fichaBo(a);
+    assert.equal(fa.saldo.convites[0].apagado, true);
+    assert.equal(fa.saldo.convites[0].nome, '');
+    assert.equal(fa.saldo.movimentos.find((m) => m.tipo === 'convite').quemApagado, true);
+  },
+);
+
+await passo(
+  'backoffice: a página de cada pessoa da equipa — o que fez, o que lhe anularam, o que anulou e os números',
+  async () => {
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const r = await pedir('/api/bo/equipa', {
+      method: 'POST',
+      token,
+      body: json({
+        nome: 'Barbeiro Historico',
+        email: 'barbeiro.historico@exemplo.pt',
+        papel: 'barbeiro',
+        lojaId: lojaDaProva,
+        parceiroId: null,
+      }),
+    });
+    assert.equal(r.status, 201);
+    const equipa = await (await pedir('/api/bo/equipa', { token })).json();
+    const barbeiroId = equipa.find((p) => p.email === 'barbeiro.historico@exemplo.pt').id;
+    const donoId = equipa.find((p) => p.email === 'dono.prova@gmail.com').id;
+    const barbeiro = await entrarNaBalcao('barbeiro.historico@exemplo.pt');
+    // Um carimbo e um uso (anulado pelo dono), um repetido que ele anulou, e o 1.º anulado no backoffice.
+    const k = await saldoProva.cliente('Cliente Da Pessoa');
+    assert.equal((await saldoProva.acertar(k, 200)).status, 200);
+    const primeiro = await saldoProva.carimbar(k, barbeiro);
+    const u = await saldoProva.usar(k, 100, barbeiro);
+    assert.equal(u.status, 200);
+    const { movimentoId } = (await u.json()).usoFeito;
+    const repetido = await saldoProva.carimbar(k, barbeiro);
+    assert.equal((await saldoProva.anularCarimbo(repetido, barbeiro)).status, 204);
+    assert.equal((await saldoProva.anularUso(movimentoId, dono)).status, 204);
+    assert.equal((await saldoProva.anularCarimboNoBackoffice(primeiro)).status, 200);
+    // O 10.º corte de outro cliente (o prémio, entregue pelo próprio carimbo): os 9 do dono foram ontem.
+    const k2 = await saldoProva.cliente('Cliente Do Premio');
+    for (let i = 0; i < 9; i++) await saldoProva.carimbar(k2, dono);
+    naBaseLocal(
+      '--command',
+      `UPDATE carimbos SET dia = date(dia, '-1 day'), criado_em = criado_em - 86400 WHERE cliente_id = ${k2.id}`,
+    );
+    const decimo = await saldoProva.carimbar(k2, barbeiro);
+    const historicoDe = async (id, antes) => {
+      const x = await pedir(`/api/bo/equipa/${id}/historico${antes ? `?antes=${antes}` : ''}`, {
+        token,
+      });
+      assert.equal(x.status, 200, `o histórico da pessoa ${id}`);
+      return x.json();
+    };
+    const hb = await historicoDe(barbeiroId);
+    const carimbos = hb.acontecimentos.filter((a) => a.tipo === 'carimbo');
+    assert.deepEqual(
+      carimbos.map((a) => a.id).sort((a, b) => a - b),
+      [primeiro, repetido, decimo].sort((a, b) => a - b),
+      'só os carimbos dele',
+    );
+    const rep = carimbos.find((a) => a.id === repetido);
+    assert.equal(rep.repetido, true);
+    assert.equal(rep.anulado.por, 'Barbeiro Historico', 'anulou o seu');
+    assert.equal(rep.cliente.id, k.id);
+    const prim = carimbos.find((a) => a.id === primeiro);
+    assert.equal(prim.anulado.por, null, 'anulado no backoffice');
+    assert.ok(prim.loja);
+    const uso = hb.acontecimentos.find((a) => a.tipo === 'uso');
+    assert.equal(uso.id, movimentoId);
+    assert.equal(uso.valor, -100);
+    assert.equal(uso.anulado.por, 'Prova Dono');
+    const premio = hb.acontecimentos.find((a) => a.tipo === 'premio');
+    assert.equal(premio.cliente.id, k2.id, 'o prémio que entregou');
+    assert.ok(premio.recompensa);
+    assert.deepEqual(
+      hb.numeros,
+      { carimbos: 1, saldoUsado: 0, anulados: 3, semLeitura: 0 },
+      'os números de 30 dias',
+    );
+    const quandos = hb.acontecimentos.map((a) => a.quando);
+    assert.deepEqual(
+      [...quandos].sort((a, b) => b - a),
+      quandos,
+      'do mais recente para trás',
+    );
+    // O dono vê o uso que anulou de outra pessoa, com de quem era; os carimbos do dono são dele.
+    const hd = await historicoDe(donoId);
+    const anulou = hd.acontecimentos.find((a) => a.tipo === 'anulou-uso' && a.id === movimentoId);
+    assert.equal(anulou.de.pessoa, 'Barbeiro Historico');
+    assert.equal(anulou.valor, -100);
+    assert.equal(anulou.cliente.id, k.id);
+    assert.ok(hd.acontecimentos.some((a) => a.tipo === 'carimbo' && a.cliente?.id === k2.id));
+    // A página seguinte começa depois da última linha: sem os números, sem repetir.
+    const c0 = hb.acontecimentos[0];
+    const resto = await historicoDe(barbeiroId, `${c0.quando}.${c0.tipo}.${c0.id}`);
+    assert.equal(resto.numeros, null);
+    assert.equal(resto.acontecimentos.length, hb.acontecimentos.length - 1);
+    assert.equal(resto.seguinte, null);
+    assert.equal(
+      (await pedir(`/api/bo/equipa/${barbeiroId}/historico?antes=xyz`, { token })).status,
+      400,
+    );
+    assert.equal((await pedir('/api/bo/equipa/999999/historico', { token })).status, 404);
+    // Sem sessão do backoffice, nada.
+    assert.equal((await pedir(`/api/bo/equipa/${barbeiroId}/historico`)).status, 401);
+  },
+);
+
+await passo(
+  'convites: desligados, os já aceites pagam na mesma; o saldo usa-se na mesma; nada de novo entra',
+  async () => {
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const a = await saldoProva.cliente('Padrinho Desliga');
+    const b = await saldoProva.cliente('Convidado Desliga');
+    const codigoA = await saldoProva.codigo(a);
+    assert.equal((await saldoProva.aceitar(b, codigoA)).status, 200);
+    await saldoProva.convites({ ligado: false });
+    try {
+      await saldoProva.carimbar(b, dono);
+      assert.equal(await saldoProva.saldo(a), 100, 'a promessa feita cumpre-se');
+      assert.equal((await saldoProva.usar(b, 100, dono)).status, 200, 'o saldo usa-se na mesma');
+      const c = await saldoProva.cliente('Novo Desliga');
+      const r = await saldoProva.aceitar(c, codigoA);
+      assert.equal(r.status, 409);
+      assert.equal((await r.json()).erro, 'convites_desligados');
+      const cc = await saldoProva.carteira(c);
+      assert.equal(cc.convites.codigo, null);
+      assert.equal(cc.podeUsarCodigo, false);
+      assert.equal((await euDe(c.sessao)).eu.saldo.convites, false);
+      assert.equal((await pedir(`/api/convite/${codigoA}`)).status, 404);
+    } finally {
+      await saldoProva.convites(PREDEFINIDOS);
+    }
+    // Ligados outra vez, o mesmo código volta a valer.
+    assert.equal(await saldoProva.codigo(a), codigoA);
+  },
+);
+
+await passo(
+  'convites: os valores novos valem só para os convites novos; a zero não há movimentos',
+  async () => {
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const a = await saldoProva.cliente('Padrinho Valores');
+    const codigoA = await saldoProva.codigo(a);
+    try {
+      await saldoProva.convites({ valorPadrinho: 300, valorConvidado: 200 });
+      const b = await saldoProva.cliente('Convidado Valores');
+      assert.equal((await saldoProva.aceitar(b, codigoA)).status, 200);
+      assert.equal(await saldoProva.saldo(b), 200);
+      await saldoProva.convites({ valorPadrinho: 100, valorConvidado: 100 });
+      await saldoProva.carimbar(b, dono);
+      assert.equal(await saldoProva.saldo(a), 300, 'o prémio do dia em que aceitou');
+      await saldoProva.convites({ valorPadrinho: 0, valorConvidado: 0 });
+      const c = await saldoProva.cliente('Convidado Zero');
+      assert.equal((await saldoProva.aceitar(c, codigoA)).status, 200);
+      assert.equal(await saldoProva.saldo(c), 0);
+      assert.equal((await saldoProva.carteira(c)).movimentos.length, 0);
+      await saldoProva.carimbar(c, dono);
+      assert.equal(await saldoProva.saldo(a), 300, 'um prémio a zero não entra');
+      const ca = await saldoProva.carteira(a);
+      assert.equal(ca.convites.visitaram, 2);
+      assert.equal(ca.convites.lista.find((v) => v.nome === 'Convidado Z.').premio, 0);
+    } finally {
+      await saldoProva.convites(PREDEFINIDOS);
+    }
+  },
+);
+
+await passo(
+  'convites: não se convidam um ao outro; a ligação colada (com mais coisas), a frase e o código escrito à mão',
+  async () => {
+    const a = await saldoProva.cliente('Amigo Um');
+    const b = await saldoProva.cliente('Amigo Dois');
+    const codigoA = await saldoProva.codigo(a);
+    assert.equal((await saldoProva.aceitar(b, codigoA)).status, 200);
+    const r = await saldoProva.aceitar(a, await saldoProva.codigo(b));
+    assert.equal(r.status, 409);
+    assert.equal((await r.json()).erro, 'convite_reciproco');
+    assert.equal(await saldoProva.saldo(a), 0);
+    const ligacao = `https://renatovalente5.github.io/nunos-lab/?convite=${codigoA}&utm_source=whatsapp&fbclid=abc123`;
+    assert.ok(ligacao.length > 60);
+    const c = await saldoProva.cliente('Amigo Tres');
+    assert.equal((await saldoProva.aceitar(c, ligacao)).status, 200, 'a ligação inteira');
+    const d = await saldoProva.cliente('Amigo Quatro');
+    const frase = `Ganha 1 € no Nuno’s Lab com o meu convite. Código: ${codigoA}`;
+    assert.equal((await saldoProva.aceitar(d, frase)).status, 200, 'a frase da partilha');
+    const e = await saldoProva.cliente('Amigo Cinco');
+    const escrito = `${codigoA.slice(0, 4)} ${codigoA.slice(4)}`.toLowerCase();
+    assert.equal((await saldoProva.aceitar(e, escrito)).status, 200, 'à mão, com espaço');
+    const f = await saldoProva.cliente('Amigo Seis');
+    assert.equal((await saldoProva.aceitar(f, 'ABCD')).status, 404);
+    assert.equal((await saldoProva.aceitar(f, 'x'.repeat(501))).status, 400);
+    assert.equal((await saldoProva.carteira(a)).convites.aceites, 4);
+    // Só o código de quem já cá estava: a conta mais antiga não usa o de uma mais recente (sem rodas).
+    const g = await saldoProva.cliente('Amigo Mais Novo');
+    const r2 = await saldoProva.aceitar(f, await saldoProva.codigo(g));
+    assert.equal(r2.status, 409);
+    assert.equal((await r2.json()).erro, 'convite_mais_recente');
+  },
+);
+
+await passo(
+  'saldo: ao mesmo tempo — usos não passam do saldo; a mesma chave conta uma; no limite entra um só convite',
+  async () => {
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const x = await saldoProva.cliente('Cliente Corrida');
+    await saldoProva.carimbar(x, dono);
+    assert.equal((await saldoProva.acertar(x, 200)).status, 200);
+    const tres = await Promise.all([1, 2, 3].map(() => saldoProva.usar(x, 100, dono)));
+    assert.deepEqual(tres.map((r) => r.status).sort(), [200, 200, 409]);
+    assert.equal(await saldoProva.saldo(x), 0);
+    // A API diz o uso que esta chave fez (o que a folha anula), e se o cartão foi lido.
+    assert.equal((await saldoProva.acertar(x, 100)).status, 200);
+    const semLer = await (await saldoProva.usar(x, 100, dono, { semLeitura: true })).json();
+    const naCarteira = (await saldoProva.carteira(x)).movimentos[0];
+    assert.equal(semLer.usoFeito.movimentoId, naCarteira.id);
+    assert.equal(semLer.usoFeito.valor, 100);
+    const noBackoffice = await (await pedir(`/api/bo/clientes/${x.id}`, { token })).json();
+    assert.equal(noBackoffice.saldo.movimentos[0].semLeitura, true);
+    assert.equal(noBackoffice.saldo.movimentos[1].semLeitura, false);
+    // A mesma chave em dois clientes ao mesmo tempo: um uso; o outro é recusado, sem mexer no saldo.
+    const y = await saldoProva.cliente('Cliente Corrida Dois');
+    await saldoProva.carimbar(y, dono);
+    assert.equal((await saldoProva.acertar(x, 100)).status, 200);
+    assert.equal((await saldoProva.acertar(y, 100)).status, 200);
+    const partilhada = chaveNova();
+    const doisClientes = await Promise.all([
+      saldoProva.usar(x, 100, dono, { chave: partilhada }),
+      saldoProva.usar(y, 100, dono, { chave: partilhada }),
+    ]);
+    assert.deepEqual(doisClientes.map((r) => r.status).sort(), [200, 409]);
+    assert.equal((await saldoProva.saldo(x)) + (await saldoProva.saldo(y)), 100);
+    if ((await saldoProva.saldo(x)) > 0)
+      assert.equal((await saldoProva.acertar(x, -100)).status, 200);
+    // A mesma chave três vezes ao mesmo tempo: um uso só.
+    assert.equal((await saldoProva.acertar(x, 100)).status, 200);
+    const chave = chaveNova();
+    const iguais = await Promise.all([1, 2, 3].map(() => saldoProva.usar(x, 100, dono, { chave })));
+    assert.deepEqual(
+      iguais.map((r) => r.status),
+      [200, 200, 200],
+    );
+    assert.equal(await saldoProva.saldo(x), 0);
+    assert.equal(
+      daBaseLocal(`SELECT count(*) AS n FROM movimentos_de_saldo WHERE chave = '${chave}'`)[0].n,
+      1,
+    );
+    // Um acerto a tirar e um uso ao mesmo tempo: só um passa, e o saldo nunca fica negativo.
+    assert.equal((await saldoProva.acertar(x, 100)).status, 200);
+    const [tirar, usar] = await Promise.all([
+      saldoProva.acertar(x, -100),
+      saldoProva.usar(x, 100, dono),
+    ]);
+    assert.deepEqual([tirar.status, usar.status].sort(), [200, 409]);
+    assert.equal(await saldoProva.saldo(x), 0);
+    // O limite: com um lugar, dois convidados ao mesmo tempo, entra um.
+    try {
+      await saldoProva.convites({ limite: 1 });
+      const a = await saldoProva.cliente('Padrinho Corrida');
+      const codigoA = await saldoProva.codigo(a);
+      const b = await saldoProva.cliente('Corrida Um');
+      const c = await saldoProva.cliente('Corrida Dois');
+      const dois = await Promise.all([
+        saldoProva.aceitar(b, codigoA),
+        saldoProva.aceitar(c, codigoA),
+      ]);
+      assert.deepEqual(dois.map((r) => r.status).sort(), [200, 409]);
+      assert.equal((await saldoProva.carteira(a)).convites.aceites, 1);
+      // No limite, a página do convite já não promete nada.
+      assert.equal((await pedir(`/api/convite/${codigoA}`)).status, 404);
+      assert.equal((await saldoProva.saldo(b)) + (await saldoProva.saldo(c)), 100);
+    } finally {
+      await saldoProva.convites(PREDEFINIDOS);
+    }
+  },
+);
+
+await passo(
+  'saldo: quem pode — sem sessão, o parceiro, o cliente, o próprio cartão; e o parceiro não vê o saldo',
+  async () => {
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const daEquipa = await pedir('/api/bo/equipa', {
+      method: 'POST',
+      token,
+      body: json({
+        nome: 'Parceiro Saldo',
+        email: 'parceiro.saldo@exemplo.pt',
+        papel: 'parceiro',
+        lojaId: null,
+        parceiroId: 1,
+      }),
+    });
+    assert.equal(daEquipa.status, 201);
+    const tokenParceiro = await entrarNaBalcao('parceiro.saldo@exemplo.pt');
+    const x = await saldoProva.cliente('Cliente Portas');
+    await saldoProva.carimbar(x, dono);
+    assert.equal((await saldoProva.acertar(x, 300)).status, 200);
+    assert.equal((await pedir('/api/eu/carteira')).status, 401);
+    assert.equal(
+      (await pedir('/api/eu/convite', { method: 'POST', body: json({ codigo: 'ABCD1234' }) }))
+        .status,
+      401,
+    );
+    assert.equal((await saldoProva.usar(x, 100, undefined)).status, 401);
+    assert.equal((await saldoProva.usar(x, 100, x.sessao)).status, 401, 'a sessão de um cliente');
+    const doParceiro = await saldoProva.usar(x, 100, tokenParceiro);
+    assert.equal(doParceiro.status, 403);
+    const usado = await (await saldoProva.usar(x, 100, dono)).json();
+    assert.equal(
+      (await saldoProva.anularUso(usado.saldo.usadoHoje.movimentoId, tokenParceiro)).status,
+      403,
+    );
+    assert.equal(
+      (await pedir(`/api/balcao/ficha/${x.codigo}`, { token: tokenParceiro })).status,
+      403,
+    );
+    const doLadoDoParceiro = await pedir(`/api/balcao/ficha-parceiro/${x.codigo}`, {
+      token: tokenParceiro,
+    });
+    assert.ok(!('saldo' in (await doLadoDoParceiro.json())), 'o parceiro não vê o saldo');
+    assert.equal(
+      (
+        await pedir(`/api/bo/clientes/${x.id}/saldo`, {
+          method: 'POST',
+          body: json({ valor: 100, nota: 'x' }),
+        })
+      ).status,
+      401,
+    );
+    assert.equal(
+      (
+        await pedir(`/api/bo/clientes/${x.id}/saldo`, {
+          method: 'POST',
+          token: dono,
+          body: json({ valor: 100, nota: 'x' }),
+        })
+      ).status,
+      401,
+      'a sessão da for partners não abre o backoffice',
+    );
+    // Um barbeiro que também é cliente não usa o próprio saldo: é outro que o faz.
+    const r = await pedir('/api/bo/equipa', {
+      method: 'POST',
+      token,
+      body: json({
+        nome: 'Barbeiro Cliente',
+        email: 'prova-saldo-barbeiro-cliente@gmail.com',
+        papel: 'barbeiro',
+        lojaId: 3,
+        parceiroId: null,
+      }),
+    });
+    assert.equal(r.status, 201);
+    const proprio = await saldoProva.cliente('Barbeiro Cliente');
+    await saldoProva.carimbar(proprio, dono);
+    assert.equal((await saldoProva.acertar(proprio, 100)).status, 200);
+    const barbeiro = await entrarNaBalcao('prova-saldo-barbeiro-cliente@gmail.com');
+    const r403 = await saldoProva.usar(proprio, 100, barbeiro, { lojaId: 3 });
+    assert.equal(r403.status, 403);
+    assert.equal((await r403.json()).erro, 'proprio_cartao');
+    assert.equal((await saldoProva.usar(proprio, 100, dono)).status, 200, 'outro usa');
+  },
+);
+
+await passo(
+  'saldo: valores errados recusados; os cêntimos contam ao balcão e no backoffice',
+  async () => {
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const x = await saldoProva.cliente('Cliente Valores');
+    for (const valor of [0, -100, 1.5, '100', 50001, null])
+      assert.equal((await saldoProva.usar(x, valor, dono)).status, 400, `usar ${valor}`);
+    assert.equal((await saldoProva.usar(x, 100, dono, { chave: 'curta' })).status, 400);
+    assert.equal((await saldoProva.usar(x, 100, dono, { lojaId: 999 })).status, 400);
+    for (const valor of [0, 50001, -50001, 2.5, '100'])
+      assert.equal((await saldoProva.acertar(x, valor)).status, 400, `acertar ${valor}`);
+    assert.equal((await saldoProva.acertar(x, 100, '   ')).status, 400, 'a nota é precisa');
+    // O acerto com a chave da folha: a resposta perdida e o clique outra vez contam um.
+    const chave = chaveNova();
+    const acertoComChave = () =>
+      pedir(`/api/bo/clientes/${x.id}/saldo`, {
+        method: 'POST',
+        token,
+        body: json({ valor: 200, nota: 'Com chave', chave }),
+      });
+    const duas = await Promise.all([acertoComChave(), acertoComChave()]);
+    assert.deepEqual(
+      duas.map((r) => r.status),
+      [200, 200],
+    );
+    assert.equal((await acertoComChave()).status, 200);
+    assert.equal(await saldoProva.saldo(x), 200, 'três vezes a mesma chave: um acerto');
+    assert.equal((await saldoProva.acertar(x, -200, 'Repor')).status, 200);
+    assert.equal((await saldoProva.acertar(x, 100, 'n'.repeat(141))).status, 400);
+    // A base aceita cêntimos: 1,50 € dá para usar 1 € e depois os 0,50 € (pela API).
+    await saldoProva.carimbar(x, dono);
+    assert.equal((await saldoProva.acertar(x, 150, 'Cêntimos')).status, 200);
+    assert.equal((await saldoProva.usar(x, 100, dono)).status, 200);
+    assert.equal((await saldoProva.usar(x, 100, dono)).status, 409);
+    assert.equal((await saldoProva.usar(x, 50, dono)).status, 200);
+    assert.equal(await saldoProva.saldo(x), 0);
+    const p = await (await pedir('/api/bo/programa', { token })).json();
+    for (const convites of [
+      { ...p.convites, valorPadrinho: 5001 },
+      { ...p.convites, valorConvidado: -1 },
+      { ...p.convites, valorPadrinho: 1.5 },
+      { ...p.convites, limite: 0 },
+      { ...p.convites, limite: 101 },
+      { ...p.convites, ligado: 'sim' },
+    ])
+      assert.equal(
+        (await pedir('/api/bo/programa', { method: 'PUT', token, body: json({ ...p, convites }) }))
+          .status,
+        400,
+        JSON.stringify(convites),
+      );
+  },
+);
+
+await passo(
+  'convites: o barbeiro que convidou não carimba o primeiro corte do convidado (outro carimba)',
+  async () => {
+    const email = 'prova-saldo-barbeiro-padrinho@gmail.com';
+    const r = await pedir('/api/bo/equipa', {
+      method: 'POST',
+      token,
+      body: json({
+        nome: 'Barbeiro Padrinho',
+        email,
+        papel: 'barbeiro',
+        lojaId: 3,
+        parceiroId: null,
+      }),
+    });
+    assert.equal(r.status, 201);
+    const dele = await saldoProva.cliente('Barbeiro Padrinho');
+    const amigo = await saldoProva.cliente('Amigo Do Barbeiro');
+    assert.equal((await saldoProva.aceitar(amigo, await saldoProva.codigo(dele))).status, 200);
+    const barbeiro = await entrarNaBalcao(email);
+    const carimbarComo = (sessao, lojaId) =>
+      pedir('/api/balcao/carimbar', {
+        method: 'POST',
+        token: sessao,
+        body: json({ codigo: amigo.codigo, chave: chaveNova(), lojaId, confirmar: true }),
+      });
+    const proprio = await carimbarComo(barbeiro, 3);
+    assert.equal(proprio.status, 403);
+    assert.equal((await proprio.json()).erro, 'convidado_proprio');
+    assert.equal(await saldoProva.saldo(dele), 0);
+    // Outro barbeiro (aqui o dono) carimba: o prémio entra; depois da visita, o barbeiro já carimba.
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    assert.equal((await carimbarComo(dono, lojaDaProva)).status, 200);
+    assert.equal(await saldoProva.saldo(dele), 100);
+    assert.equal((await carimbarComo(barbeiro, 3)).status, 200);
+  },
+);
+
+await passo(
+  'batota: apagar a conta e voltar não faz de ninguém um «novo»; um carimbo anulado também conta',
+  async () => {
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const a = await saldoProva.cliente('Padrinho Batota');
+    const codigoA = await saldoProva.codigo(a);
+    // Um cliente que cortou apaga a conta e volta com a mesma Google: já não aceita convites.
+    const b = await saldoProva.cliente('Volta Outra Vez');
+    await saldoProva.carimbar(b, dono);
+    assert.equal((await saldoProva.apagar(b)).status, 204);
+    const b2 = await saldoProva.cliente('Volta Outra Vez');
+    assert.notEqual(b2.id, b.id, 'uma conta nova');
+    assert.equal((await saldoProva.carteira(b2)).podeUsarCodigo, false);
+    assert.equal((await euDe(b2.sessao)).eu.saldo.podeUsarCodigo, false);
+    const r1 = await saldoProva.aceitar(b2, codigoA);
+    assert.equal(r1.status, 409);
+    assert.equal((await r1.json()).erro, 'conta_ja_usada');
+    // Quem nunca fez nada e apaga, volta como novo (não há marca de quem não cortou nem foi convidado).
+    const c = await saldoProva.cliente('Nunca Fez Nada');
+    assert.equal((await saldoProva.apagar(c)).status, 204);
+    const c2 = await saldoProva.cliente('Nunca Fez Nada');
+    assert.equal((await saldoProva.aceitar(c2, codigoA)).status, 200);
+    // Carimbar e anular não deixa ninguém «novo»: o código é só para quem nunca teve carimbo nenhum.
+    const d = await saldoProva.cliente('Carimbo Anulado');
+    const x = await saldoProva.carimbar(d, dono);
+    assert.equal((await saldoProva.anularCarimbo(x, dono)).status, 204);
+    assert.equal((await saldoProva.carteira(d)).podeUsarCodigo, false);
+    const r2 = await saldoProva.aceitar(d, codigoA);
+    assert.equal(r2.status, 409);
+    assert.equal((await r2.json()).erro, 'ja_cortou');
+  },
+);
+
+await passo(
+  'batota ao balcão: o saldo só com o cartão lido e um corte de hoje; anular só os usos de hoje; «carimbar na mesma» é um a mais',
+  async () => {
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const barbeiro = await entrarNaBalcao('barbeiro.saldo@exemplo.pt');
+    const x = await saldoProva.cliente('Cliente Ausente');
+    await saldoProva.carimbar(x, dono);
+    assert.equal((await saldoProva.acertar(x, 500)).status, 200);
+    // Um corte noutro dia (o carimbo «envelhece» na base local): hoje, a equipa não usa o saldo dele.
+    daBaseLocal(
+      `UPDATE carimbos SET dia = '2026-01-01', criado_em = criado_em - 86400 * 300 WHERE cliente_id = ${x.id}`,
+    );
+    const semCorte = await saldoProva.usar(x, 100, barbeiro, { lojaId: 3 });
+    assert.equal(semCorte.status, 409);
+    assert.equal((await semCorte.json()).erro, 'saldo_sem_corte_hoje');
+    assert.equal((await saldoProva.usar(x, 100, dono)).status, 200, 'o dono sim');
+    // Sem o cartão lido (escrito, procurado, «tenho cartão»), só o dono.
+    await saldoProva.carimbar(x, barbeiro, 3);
+    const semLer = await saldoProva.usar(x, 100, barbeiro, { lojaId: 3, semLeitura: true });
+    assert.equal(semLer.status, 403);
+    assert.equal((await semLer.json()).erro, 'saldo_so_com_cartao');
+    assert.equal((await saldoProva.usar(x, 100, dono, { semLeitura: true })).status, 200);
+    // Lido e com o corte de hoje: a equipa usa.
+    const usado = await (await saldoProva.usar(x, 100, barbeiro, { lojaId: 3 })).json();
+    // A chave de um uso anulado não o repete como feito.
+    const chave = chaveNova();
+    const comChave = await (await saldoProva.usar(x, 100, barbeiro, { lojaId: 3, chave })).json();
+    assert.equal((await saldoProva.anularUso(comChave.usoFeito.movimentoId, barbeiro)).status, 204);
+    const outraVez = await saldoProva.usar(x, 100, barbeiro, { lojaId: 3, chave });
+    assert.equal(outraVez.status, 409);
+    assert.equal((await outraVez.json()).erro, 'uso_anulado');
+    // Um uso de ontem já não se anula ao balcão, nem pelo dono (acerta-se no backoffice).
+    daBaseLocal(
+      `UPDATE movimentos_de_saldo SET criado_em = criado_em - 86400 * 2 WHERE id = ${usado.usoFeito.movimentoId}`,
+    );
+    const ontem = await saldoProva.anularUso(usado.usoFeito.movimentoId, dono);
+    assert.equal(ontem.status, 409);
+    assert.equal((await ontem.json()).erro, 'uso_de_outro_dia');
+    // «Carimbar na mesma»: a equipa, um a mais por dia (já tem um hoje: o segundo passa, o terceiro não).
+    const y = await saldoProva.cliente('Cliente Cheio');
+    await saldoProva.carimbar(y, barbeiro, 3);
+    await saldoProva.carimbar(y, barbeiro, 3);
+    const terceiro = await pedir('/api/balcao/carimbar', {
+      method: 'POST',
+      token: barbeiro,
+      body: json({ codigo: y.codigo, chave: chaveNova(), lojaId: 3, confirmar: true }),
+    });
+    assert.equal(terceiro.status, 409);
+    assert.equal((await terceiro.json()).erro, 'limite_do_dia_maximo');
+    await saldoProva.carimbar(y, dono);
+  },
+);
+
+await passo(
+  'batota: o «Ocultar o meu email» da Apple não engana a regra do próprio cartão',
+  async () => {
+    const email = 'prova-saldo-barbeiro-escondido@gmail.com';
+    const r = await pedir('/api/bo/equipa', {
+      method: 'POST',
+      token,
+      body: json({
+        nome: 'Barbeiro Escondido',
+        email,
+        papel: 'barbeiro',
+        lojaId: 3,
+        parceiroId: null,
+      }),
+    });
+    assert.equal(r.status, 201);
+    // Entra na for partners com a Apple (o «sub» fica com ele)…
+    const e = await pedir('/api/balcao/entrar/teste', {
+      method: 'POST',
+      body: json({ email, tipo: 'apple', sujeito: 'apple-sub-barbeiro-escondido' }),
+    });
+    assert.equal(e.status, 200);
+    const barbeiro = (await e.json()).sessao;
+    // …e é cliente com a mesma Apple, mas com um email de retransmissão (outro email).
+    const c = await entrarTeste(
+      'apple',
+      'apple-sub-barbeiro-escondido',
+      'xyz123@privaterelay.appleid.com',
+      { nome: 'Cliente Escondido' },
+    );
+    assert.equal(c.status, 200);
+    const codigo = (await euDe((await c.json()).sessao)).eu.codigo;
+    const proprio = await pedir('/api/balcao/carimbar', {
+      method: 'POST',
+      token: barbeiro,
+      body: json({ codigo, chave: chaveNova(), lojaId: 3 }),
+    });
+    assert.equal(proprio.status, 403);
+    assert.equal((await proprio.json()).erro, 'proprio_cartao');
+  },
+);
+
+await passo(
+  'batota: dois «Anular» ao mesmo tempo nos dois cortes do convidado tiram o prémio',
+  async () => {
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    const a = await saldoProva.cliente('Padrinho Corrida Anular');
+    const b = await saldoProva.cliente('Convidado Corrida Anular');
+    assert.equal((await saldoProva.aceitar(b, await saldoProva.codigo(a))).status, 200);
+    const s1 = await saldoProva.carimbar(b, dono);
+    const s2 = await saldoProva.carimbar(b, dono);
+    assert.equal(await saldoProva.saldo(a), 100);
+    const dois = await Promise.all([
+      saldoProva.anularCarimbo(s1, dono),
+      saldoProva.anularCarimbo(s2, dono),
+    ]);
+    assert.deepEqual(
+      dois.map((x) => x.status),
+      [204, 204],
+    );
+    assert.equal(await saldoProva.saldo(a), 0, 'sem cortes válidos, sem prémio');
+    assert.equal((await saldoProva.carteira(a)).convites.visitaram, 0);
+    // A visita de um amigo só com o dia (a carteira de quem convida não sabe a hora).
+    await saldoProva.carimbar(b, dono);
+    const ca = await saldoProva.carteira(a);
+    const v = ca.convites.lista[0].visitouEm;
+    assert.ok([0, 23].includes(new Date(v * 1000).getUTCHours()), 'à meia-noite de Lisboa');
+    assert.equal(ca.movimentos.find((m) => m.tipo === 'convite' && !m.anulado).criadoEm, v);
+  },
+);
+
+await passo('saldo: as contas batem — as regras do dinheiro em toda a base', async () => {
+  const uma = (sql) => daBaseLocal(sql)[0].n;
+  // A visita do convite aponta para um corte válido do próprio convidado; sem visita, nada aponta.
+  assert.equal(
+    uma(`SELECT count(*) AS n FROM convites v LEFT JOIN carimbos x ON x.id = v.carimbo_id
+         WHERE v.visitou_em IS NOT NULL AND (x.id IS NULL OR x.anulado_em IS NOT NULL OR x.cliente_id != v.convidado_id)`),
+    0,
+    'visitas com um corte que não vale',
+  );
+  assert.equal(
+    uma('SELECT count(*) AS n FROM convites WHERE visitou_em IS NULL AND carimbo_id IS NOT NULL'),
+    0,
+  );
+  // O prémio de quem convidou: no máximo um activo, só com a visita feita, com o valor do convite.
+  assert.equal(
+    uma(`SELECT count(*) AS n FROM (SELECT convite_id FROM movimentos_de_saldo
+         WHERE tipo = 'convite' AND anulado_em IS NULL GROUP BY convite_id HAVING count(*) > 1)`),
+    0,
+    'dois prémios activos no mesmo convite',
+  );
+  assert.equal(
+    uma(`SELECT count(*) AS n FROM movimentos_de_saldo m JOIN convites v ON v.id = m.convite_id
+         WHERE m.tipo = 'convite' AND m.anulado_em IS NULL
+           AND (v.visitou_em IS NULL OR m.cliente_id != v.padrinho_id OR m.valor != v.premio_padrinho)`),
+    0,
+    'prémios sem visita, ou na pessoa errada, ou com outro valor',
+  );
+  // As boas-vindas: uma por convite, ao convidado, com o valor do convite.
+  assert.equal(
+    uma(`SELECT count(*) AS n FROM (SELECT convite_id FROM movimentos_de_saldo
+         WHERE tipo = 'convidado' GROUP BY convite_id HAVING count(*) > 1)`),
+    0,
+  );
+  assert.equal(
+    uma(`SELECT count(*) AS n FROM movimentos_de_saldo m JOIN convites v ON v.id = m.convite_id
+         WHERE m.tipo = 'convidado' AND (m.cliente_id != v.convidado_id OR m.valor != v.premio_convidado)`),
+    0,
+  );
+  // Os sinais: entra nos prémios, sai nos usos; nunca zero.
+  assert.equal(
+    uma(`SELECT count(*) AS n FROM movimentos_de_saldo WHERE valor = 0
+         OR (tipo IN ('convite', 'convidado') AND valor < 0) OR (tipo = 'uso' AND valor > 0)`),
+    0,
+  );
+  // Ninguém fica negativo, a não ser por um prémio tirado depois de gasto.
+  assert.equal(
+    uma(`SELECT count(*) AS n FROM (SELECT cliente_id, sum(valor) AS s FROM movimentos_de_saldo
+         WHERE anulado_em IS NULL GROUP BY cliente_id HAVING s < 0) n
+         WHERE NOT EXISTS (SELECT 1 FROM movimentos_de_saldo m WHERE m.cliente_id = n.cliente_id
+                           AND m.tipo = 'convite' AND m.anulado_em IS NOT NULL)`),
+    0,
+    'saldo negativo sem prémio tirado',
+  );
+  // Ninguém convida quem o convidou, nem a si mesmo.
+  assert.equal(
+    uma(`SELECT count(*) AS n FROM convites a JOIN convites b
+         ON a.padrinho_id = b.convidado_id AND a.convidado_id = b.padrinho_id`),
+    0,
+  );
+});
+
+// Os convites voltam a ficar como nascem: desligados.
+await saldoProva.convites({ ligado: false, valorPadrinho: 100, valorConvidado: 100, limite: 10 });
 
 await passo('sair termina a sessão', async () => {
   assert.equal((await pedir('/api/bo/sair', { method: 'POST', token })).status, 204);

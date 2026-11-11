@@ -10,7 +10,7 @@ import {
   type PromocaoPublica,
 } from '@nunos-lab/dominio';
 import { useState } from 'react';
-import { Platform, Pressable, View, type TextStyle } from 'react-native';
+import { Platform, Pressable, Share, View, type TextStyle } from 'react-native';
 import { useTextos } from '../textos';
 import { Capa } from './capa';
 import { Logotipo } from './logotipo';
@@ -312,10 +312,13 @@ export function CartaoDaPromocao({
   bloqueio = null,
   usadas = 0,
   usadaHoje = null,
+  codigo = null,
 }: {
   promocao: PromocaoPublica;
   hoje: string;
   aoAbrir?: () => void;
+  /** O código de cupão (10 nov 2026): só chega a quem não tem o cadeado, e só então se mostra. */
+  codigo?: string | null;
   /** A vantagem não vale: sem conta neste aparelho, nunca cortou, ou o último corte foi há mais de um ano. */
   bloqueio?: BloqueioDaVantagem;
   /** Quantas vezes este cliente a usou no período do limite. */
@@ -331,7 +334,9 @@ export function CartaoDaPromocao({
   const validade = validadeEmTexto(promocao, hoje, lingua);
   const limite = limiteEmTexto(promocao, lingua);
   const longo = promocao.detalhe.length > 90;
-  const conteudo = (
+  // O que abre e fecha com um toque (as condições longas) é só o de cima: o «Copiar» do código fica
+  // fora, ao lado, e não dentro de outro botão (na web, um <button> não pode ter outro dentro).
+  const cima = (
     <>
       <View style={bloqueio ? { opacity: 0.38 } : undefined}>
         <View
@@ -388,6 +393,11 @@ export function CartaoDaPromocao({
           </View>
         )}
       </View>
+    </>
+  );
+  const baixo = (
+    <>
+      {!!codigo && !bloqueio && <CodigoDoCupao codigo={codigo} />}
       <View
         style={{
           flexDirection: 'row',
@@ -425,18 +435,97 @@ export function CartaoDaPromocao({
     marginBottom: 12,
     ...CONTINUO,
   };
-  if (!longo) return <View style={estilo}>{conteudo}</View>;
   return (
-    <Pressable
-      onPress={() => {
-        if (!aberta) aoAbrir?.();
-        setAberta((a) => !a);
-      }}
-      aria-expanded={aberta}
-      role="button"
-      style={({ pressed }) => [estilo, { opacity: pressed ? 0.85 : 1 }]}
-    >
-      {conteudo}
-    </Pressable>
+    <View style={estilo}>
+      {longo ? (
+        <Pressable
+          onPress={() => {
+            if (!aberta) aoAbrir?.();
+            setAberta((a) => !a);
+          }}
+          aria-expanded={aberta}
+          role="button"
+          style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+        >
+          {cima}
+        </Pressable>
+      ) : (
+        cima
+      )}
+      {baixo}
+    </View>
+  );
+}
+
+/**
+ * O código de cupão de uma vantagem, à vista de quem não tem o cadeado (o Renato, 10 nov 2026), com
+ * «Copiar». Na web copia logo. No telemóvel a app ainda não tem acesso direto à área de transferência
+ * (isso pede uma versão nova nas lojas): o botão abre a folha de partilha do sistema, que tem
+ * «Copiar», e o código também se copia carregando nele sem largar.
+ */
+function CodigoDoCupao({ codigo }: { codigo: string }) {
+  const t = useTextos();
+  const [copiado, setCopiado] = useState(false);
+  const copiar = async () => {
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(codigo);
+        setCopiado(true);
+        setTimeout(() => setCopiado(false), 2000);
+        return;
+      } catch {
+        // Sem autorização para copiar: a folha de partilha do browser, se houver.
+      }
+    }
+    Share.share({ message: codigo }).catch(() => {});
+  };
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 }}>
+      <View
+        style={{
+          flex: 1,
+          borderWidth: 1.5,
+          borderStyle: 'dashed',
+          borderColor: cor.texto3,
+          borderRadius: 14,
+          paddingHorizontal: 14,
+          paddingVertical: 8,
+        }}
+      >
+        <T v="legenda" style={{ color: cor.texto2 }}>
+          {t.promocao.codigo}
+        </T>
+        <T
+          selectable
+          style={{ fontFamily: letra.extra, fontSize: 18, letterSpacing: 1.5, marginTop: 1 }}
+        >
+          {codigo}
+        </T>
+      </View>
+      <Pressable
+        onPress={copiar}
+        role="button"
+        aria-label={t.promocao.copiarCodigo(codigo)}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          backgroundColor: pressed ? cor.claroPremido : cor.claro,
+          borderRadius: raio.pilula,
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+        })}
+      >
+        <Icone
+          nome={copiado ? 'certo' : 'copiar'}
+          tamanho={16}
+          cor={cor.sobreClaro}
+          espessura={2.2}
+        />
+        <T v="forte" style={{ color: cor.sobreClaro, fontSize: 15 }}>
+          {copiado ? t.promocao.copiado : t.promocao.copiar}
+        </T>
+      </Pressable>
+    </View>
   );
 }

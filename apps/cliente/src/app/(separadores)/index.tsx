@@ -1,6 +1,13 @@
-import type { ParceiroPublico, PromocaoPublica } from '@nunos-lab/dominio';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState, useRef, type ComponentRef } from 'react';
+import {
+  codigoValido,
+  euros,
+  normalizarCodigo,
+  type ParceiroPublico,
+  type PromocaoPublica,
+} from '@nunos-lab/dominio';
+import { useQuery } from '@tanstack/react-query';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState, useRef, type ComponentRef } from 'react';
 import { Image, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { CabecalhoDoSeparador } from '../../componentes/cabecalho';
 import {
@@ -9,7 +16,9 @@ import {
   iconeDe,
   LinhaDoParceiro,
 } from '../../componentes/cartoes';
-import { useEu, useTemSessao } from '../../conta';
+import { PilulaDoSaldo } from '../../componentes/saldo';
+import { conviteGuardado, guardarConvite, useConviteGuardado } from '../../carteira';
+import { quemConvida, useEu, useTemSessao } from '../../conta';
 import { definirTitulo, useDados } from '../../dados';
 import { useTextos } from '../../textos';
 import {
@@ -25,6 +34,7 @@ import {
   T,
   cor,
   raio,
+  useLingua,
   type NomeDoIcone,
 } from '@nunos-lab/ui';
 /** Um desvanecimento no lado direito de uma fila que rola, a dizer que continua (só na web). */
@@ -122,19 +132,73 @@ function Faixa({
 
 export default function Vantagens() {
   const t = useTextos();
+  const lingua = useLingua();
   const { data, isPending, isError, refetch } = useDados();
   const temSessao = useTemSessao();
   const { data: eu } = useEu();
+  // A pílula do saldo conta só com as Vantagens à frente (os separadores ficam montados).
+  const [focado, setFocado] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setFocado(true);
+      return () => setFocado(false);
+    }, []),
+  );
   const [categoria, setCategoria] = useState<number | null>(null);
   const { width, fontScale } = useWindowDimensions();
   useEffect(() => definirTitulo(t.titulos.vantagens), [t]);
   // Uma ligação partilhada (/?parceiro=N) abre o parceiro; o «Voltar» de lá vem
   // para aqui, já sem o parâmetro.
-  const { parceiro } = useLocalSearchParams<{ parceiro?: string }>();
+  const { parceiro, convite } = useLocalSearchParams<{ parceiro?: string; convite?: string }>();
   useEffect(() => {
     if (parceiro && /^\d+$/.test(parceiro))
       router.replace({ pathname: '/parceiro/[id]', params: { id: parceiro } });
   }, [parceiro]);
+  // A ligação de um convite (/?convite=CODIGO, o Renato, 10 nov 2026): o código fica guardado até a
+  // pessoa entrar, e usa-se então (componentes/saldo.tsx). Sai da morada, para um recarregar não o
+  // trazer outra vez.
+  useEffect(() => {
+    if (!convite) return;
+    const codigo = normalizarCodigo(convite);
+    // A primeira ligação fica: uma segunda (de quem a pôs à vista para apanhar convites) não a troca.
+    if (codigoValido(codigo) && !conviteGuardado()) guardarConvite(codigo);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('convite');
+      window.history.replaceState(window.history.state, '', url.toString());
+    }
+  }, [convite]);
+  // Sem conta: quem convida e quanto se ganha, numa faixa que leva ao Cartão, onde se entra.
+  const pendente = useConviteGuardado();
+  const { data: quemChama } = useQuery({
+    queryKey: ['convite', pendente],
+    queryFn: () => quemConvida(pendente!),
+    enabled: !!pendente && !temSessao,
+    staleTime: Infinity,
+    retry: 1,
+  });
+  useEffect(() => {
+    // Um código que não serve (ou convites parados) não fica à espera.
+    if (quemChama === null) guardarConvite(null);
+  }, [quemChama]);
+  // A faixa do convite: sem conta, quem convidou (leva ao Cartão, onde se entra e o código fica na
+  // conta); com conta e ainda sem corte nem convite, lembra o código (leva à carteira, onde se escreve):
+  // quem instalou a app sem passar pela ligação não fica sem ele (o Renato, 11 nov 2026).
+  const faixaDoConvite: { texto: string; destino: '/cartao' | '/carteira' } | null =
+    !temSessao && pendente && quemChama
+      ? {
+          texto: t.carteira.convidou(
+            quemChama.nome,
+            quemChama.valorConvidado > 0 ? euros(quemChama.valorConvidado, lingua) : null,
+          ),
+          destino: '/cartao',
+        }
+      : temSessao && !pendente && eu?.saldo?.podeUsarCodigo
+        ? { texto: t.carteira.temCodigo, destino: '/carteira' }
+        : null;
+  // O saldo no topo direito (o Renato, 10 nov): com os convites ligados, ou com saldo.
+  const saldo = temSessao && eu?.saldo ? eu.saldo : null;
+  const comPilula = !!saldo && (saldo.convites || saldo.saldo !== 0);
 
   // Os parceiros são de todas as barbearias: quem corta em qualquer uma tem as vantagens (o Renato, 8 nov).
   // Os destaques pela ordem das vantagens, a que o Nuno arrasta no backoffice (o Renato, 10 nov); sem ela
@@ -182,9 +246,10 @@ export default function Vantagens() {
       : null;
   // Com o aviso do corte, as vantagens levam o cadeado (o Renato escolheu-o, 9 nov); sem conta também,
   // como na página do parceiro: as vantagens são só para clientes (revisão de batota, 9 nov).
-  const bloqueadas = !temSessao || !!avisoDoCorte;
+  // Com sessão e sem o «eu» (a chegar, ou bloqueado de propósito), com o cadeado na mesma (11 nov 2026).
+  const bloqueadas = !temSessao || !eu || !!avisoDoCorte;
   // O primeiro bloco fica a 18 do cabeçalho, como nos outros separadores; depois de um aviso, a 14.
-  const primeiro = data?.aviso || avisoDoCorte ? 14 : 18;
+  const primeiro = data?.aviso || avisoDoCorte || faixaDoConvite ? 14 : 18;
 
   return (
     <Ecra>
@@ -194,20 +259,35 @@ export default function Vantagens() {
         titulo={
           <Image
             source={palavra}
-            style={{ width: 200, height: Math.round((200 * 227) / 1200) }}
+            // Encolhe ao lado da pílula do saldo num telemóvel estreito, em vez de a empurrar.
+            style={{ width: 200, height: Math.round((200 * 227) / 1200), flexShrink: 1 }}
             resizeMode="contain"
             accessibilityLabel="Nuno’s Lab"
             role="img"
           />
         }
-      />
+      >
+        {comPilula && <PilulaDoSaldo saldo={saldo.saldo} focado={focado} />}
+      </CabecalhoDoSeparador>
 
       {!!data?.aviso && <Faixa icone="aviso" texto={data.aviso} topo={18} />}
+      {faixaDoConvite && (
+        <Faixa
+          icone="presente"
+          texto={faixaDoConvite.texto}
+          topo={data?.aviso ? 10 : 18}
+          aoTocar={() =>
+            faixaDoConvite.destino === '/carteira'
+              ? router.push('/carteira')
+              : router.navigate('/cartao')
+          }
+        />
+      )}
       {avisoDoCorte && (
         <Faixa
           icone="tesoura"
           texto={avisoDoCorte}
-          topo={data?.aviso ? 10 : 18}
+          topo={data?.aviso || faixaDoConvite ? 10 : 18}
           aoTocar={() => router.navigate('/barbearia')}
         />
       )}

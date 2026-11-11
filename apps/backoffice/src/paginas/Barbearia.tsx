@@ -2,6 +2,7 @@ import {
   LIMITES,
   dataCurta,
   diaEmLisboa,
+  lerCoordenadas,
   type DefinicoesDaBarbearia,
   type Rede,
 } from '@nunos-lab/dominio';
@@ -56,16 +57,9 @@ function formularioDe(d: DefinicoesDaBarbearia): Formulario {
   };
 }
 
-/** «40.884, -8.452» → { lat, lng }; vazio → sem coordenadas; outra coisa → null. */
-function coordenadasDe(texto: string): { lat: number | null; lng: number | null } | null {
-  const t = texto.trim();
-  if (!t) return { lat: null, lng: null };
-  const m = /^(-?\d{1,2}(?:\.\d+)?)[\s,;]+(-?\d{1,3}(?:\.\d+)?)$/.exec(t);
-  if (!m) return null;
-  const lat = Number(m[1]);
-  const lng = Number(m[2]);
-  return Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null;
-}
+/** «40.884, -8.452» (ou uma ligação do Google Maps que as traga) → { lat, lng }; vazio → sem
+ *  coordenadas; outra coisa → null. O mesmo leitor das coordenadas dos parceiros. */
+const coordenadasDe = lerCoordenadas;
 
 const DO_AVISO = ['aviso', 'avisoEn', 'avisoAte'];
 const DAS_REDES = ['instagram', 'tiktok', 'whatsapp', 'site'];

@@ -13,6 +13,7 @@ import * as Updates from 'expo-updates';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AvisoDoSaldo } from '../componentes/saldo';
 import { registarAoPerderSessao } from '../conta';
 import { CHAVES_DO_ARMAZEM, CHAVES_SECRETAS, contar } from '../dados';
 import { Botao, T, carregarArmazem, cor, useLangDaPagina, useTextosDaUi } from '@nunos-lab/ui';
@@ -28,7 +29,10 @@ try {
 
 const cliente = new QueryClient();
 // Quando a sessão cai num pedido (401), o «eu» de quem saiu não fica à espera da conta seguinte.
-registarAoPerderSessao(() => cliente.removeQueries({ queryKey: ['eu'] }));
+registarAoPerderSessao(() => {
+  cliente.removeQueries({ queryKey: ['eu'] });
+  cliente.removeQueries({ queryKey: ['carteira'] });
+});
 
 // No telemóvel o TanStack não sabe quando a app volta ao primeiro plano (só
 // ouve a janela do browser): diz-se-lhe pelo AppState, e o refetchOnWindowFocus
@@ -129,6 +133,8 @@ export default function Raiz() {
         <Stack
           screenOptions={{ headerShown: false, contentStyle: { backgroundColor: cor.fundo } }}
         />
+        {/* Por cima de todos os ecrãs: o saldo que mudou (um amigo foi à barbearia, o barbeiro usou-o). */}
+        <AvisoDoSaldo />
       </QueryClientProvider>
     </SafeAreaProvider>
   );

@@ -165,6 +165,19 @@ export function ligacaoParaPartilhar(id: number): string {
   return url.toString();
 }
 
+/**
+ * A ligação de um convite: /?convite=CODIGO, o index da app (como a dos parceiros). Quem a abre fica
+ * com o código guardado até entrar.
+ */
+export function ligacaoDoConvite(codigo: string): string {
+  if (Platform.OS !== 'web') return `${SITIO}/?convite=${codigo}`;
+  const url = new URL(window.location.href);
+  url.pathname = url.pathname.replace(/carteira\/?$/, '');
+  url.search = `?convite=${codigo}`;
+  url.hash = '';
+  return url.toString();
+}
+
 /** O título do separador do browser (no telemóvel não há separador). */
 export function definirTitulo(texto: string) {
   if (Platform.OS === 'web' && typeof document !== 'undefined') document.title = texto;
@@ -176,6 +189,9 @@ export const CHAVES_DO_ARMAZEM = [
   CHAVE,
   'nunoslab:eu:2',
   'nunoslab:cartao-visto',
+  // O saldo que o cliente já viu, e o convite que chegou por uma ligação (10 nov 2026).
+  'nunoslab:saldo-visto',
+  'nunoslab:convite',
   CHAVE_DA_LINGUA,
 ];
 export const CHAVES_SECRETAS = ['nunoslab:sessao'];

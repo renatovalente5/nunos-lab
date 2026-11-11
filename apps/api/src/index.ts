@@ -7,9 +7,11 @@ import { exigirPessoa, rotasDeEntradaDaBalcao } from './balcao/sessao.ts';
 import { rotasDosClientes } from './backoffice/clientes.ts';
 import { rotasDoConteudo } from './backoffice/conteudo.ts';
 import { rotasDaFidelidade } from './backoffice/fidelidade.ts';
+import { rotasDoHistoricoDaEquipa } from './backoffice/historico-da-equipa.ts';
 import { rotasDasMetricas } from './backoffice/metricas.ts';
 import { rotasDosNumeros } from './backoffice/numeros.ts';
 import { exigirSessao, rotasDaSessao, rotasDosAcessos } from './backoffice/sessao.ts';
+import { rotasDaCarteira } from './cliente/carteira.ts';
 import { rotasDaConta, rotasDeEntradaDoCliente } from './cliente/conta.ts';
 import { exigirCliente } from './cliente/sessao.ts';
 import { limpar } from './limpeza.ts';
@@ -54,12 +56,14 @@ app.route('/api/bo', rotasDosNumeros);
 app.route('/api/bo', rotasDaFidelidade);
 app.route('/api/bo', rotasDosClientes);
 app.route('/api/bo', rotasDasMetricas);
+app.route('/api/bo', rotasDoHistoricoDaEquipa);
 
 // A conta do cliente (a app) e a Balcão (a equipa): entrar fica aberto; o resto com sessão.
 app.route('/api/eu', rotasDeEntradaDoCliente);
 app.use('/api/eu', exigirCliente);
 app.use('/api/eu/*', exigirCliente);
 app.route('/api/eu', rotasDaConta);
+app.route('/api/eu', rotasDaCarteira);
 app.route('/api/eu', rotasDaWalletDoCliente);
 // A Wallet: o serviço web da Apple e a ligação temporária do passe (sem CORS: é o iPhone a falar).
 app.route('/api/wallet', rotasDaWallet);

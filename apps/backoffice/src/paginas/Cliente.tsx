@@ -1,16 +1,20 @@
 import {
   LIMITES_DO_PROGRAMA,
-  dataCurta,
+  LIMITES_DO_SALDO,
   diaEmLisboa,
+  euros,
+  eurosComSinal,
   recompensaNaLingua,
   type DefinicoesDaBarbearia,
   type FichaDoCliente,
   type Lingua,
+  type SaldoDoBackoffice,
 } from '@nunos-lab/dominio';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
-import { etiquetaDaLingua, useLingua } from '../lingua';
+import { DiasDoHistorico, NomeDeCliente, diaDe, horaDe, type Acontecimento } from '../historico';
+import { useLingua } from '../lingua';
 import {
   Campo,
   Esqueleto,
@@ -18,29 +22,16 @@ import {
   Folha,
   Gaveta,
   Icone,
+  Segmentado,
   Seletor,
   Vazio,
   useAccao,
   useAvisar,
   useConfirmar,
 } from '../pecas';
-import { useTextos } from '../textos';
+import { useTextos, type Textos } from '../textos';
 import { numero } from '../util';
 import { Formas } from './Clientes';
-
-/** «12 out» («12 Oct») de um instante. */
-function diaDe(segundos: number, hoje: string, lingua: Lingua): string {
-  return dataCurta(diaEmLisboa(segundos * 1000), hoje, lingua);
-}
-
-/** «15:30» de um instante, em Lisboa. */
-function horaDe(segundos: number): string {
-  return new Date(segundos * 1000).toLocaleTimeString(etiquetaDaLingua(), {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Europe/Lisbon',
-  });
-}
 
 /** A data escreve-se como se diz («25/06»); a API guarda «MM-DD». */
 const aniversarioEmTexto = (a: string | null) => (a ? `${a.slice(3, 5)}/${a.slice(0, 2)}` : '');
@@ -74,6 +65,7 @@ export function Cliente({ id }: { id: string }) {
   const { confirmar, dialogo } = useConfirmar();
   const [edicao, setEdicao] = useState<Edicao | null>(null);
   const [erros, setErros] = useState<string[]>([]);
+  const [aAcertar, setAAcertar] = useState(false);
   const voltar = (
     <a className="voltar" href="#/clientes">
       <Icone nome="voltar" tamanho={16} /> {t.geral.seccoes.clientes}
@@ -330,62 +322,28 @@ export function Cliente({ id }: { id: string }) {
           )}
         </Gaveta>
 
-        <Gaveta
-          id="cliente.historico"
-          titulo={t.cliente.historico.titulo}
-          resumo={
-            c.historico.length
-              ? t.cliente.historico.resumo(
-                  c.historico.length,
-                  diaDe(Math.max(...c.historico.map((h) => h.quando)), hoje, lingua),
-                )
-              : t.cliente.historico.vazio
-          }
-          lista
-        >
-          {c.historico.length ? (
-            <ul className="lista">
-              {c.historico.map((h) => (
-                <li key={h.id}>
-                  <div className="linha">
-                    <div className="meio">
-                      <div className="titulo-linha">
-                        {diaDe(h.quando, hoje, lingua)} · {horaDe(h.quando)}
-                      </div>
-                      <div className="detalhe">
-                        {[h.loja, h.pessoa, t.cliente.cartoes.cartao(h.cartaoNumero)]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </div>
-                    </div>
-                    <div className="lado">
-                      {h.anuladoEm !== null && (
-                        <Etiqueta tom="mau">{t.cliente.historico.anulado(h.anuladoPor)}</Etiqueta>
-                      )}
-                      {h.repetido && (
-                        <Etiqueta tom="atencao">{t.cliente.historico.repetido}</Etiqueta>
-                      )}
-                      {h.semLeitura && <Etiqueta>{t.cliente.historico.semLeitura}</Etiqueta>}
-                      {h.anuladoEm === null && !c.apagado && (
-                        <button
-                          type="button"
-                          className="botao secundario pequeno"
-                          disabled={aCorrer}
-                          onClick={() => anular(h)}
-                        >
-                          {t.cliente.historico.anular}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Vazio titulo={t.cliente.historico.vazio} />
-          )}
-        </Gaveta>
+        {/* Falta nas respostas da API de antes do saldo (10 nov 2026). */}
+        {c.saldo && (
+          <GavetaDoSaldo saldo={c.saldo} acertar={c.apagado ? null : () => setAAcertar(true)} />
+        )}
+
+        <GavetaDoHistorico
+          ficha={c}
+          anular={c.apagado ? null : (h) => anular(h)}
+          aCorrer={aCorrer}
+        />
       </div>
+
+      {/* Fora das gavetas, como a folha do «Editar»: lá dentro, a margem entre gavetas
+          (`.gavetas > * + *`) apanhava também o diálogo. */}
+      {aAcertar && c.saldo && (
+        <FolhaDoAcerto
+          id={id}
+          saldo={c.saldo.valor}
+          guardarFicha={guardarFicha}
+          fechar={() => setAAcertar(false)}
+        />
+      )}
 
       <Folha
         aberta={!!edicao}
@@ -446,5 +404,461 @@ export function Cliente({ id }: { id: string }) {
       </Folha>
       {dialogo}
     </>
+  );
+}
+
+// ——— o saldo e os convites (o Renato, 10 nov 2026) ———
+
+/**
+ * O saldo e os convites de um cliente: o saldo em grande (com o código dele e quem o convidou) e quem
+ * ele convidou, com o estado de cada um (o prémio recebido, já foi, ainda não foi). Os movimentos estão
+ * no histórico, com o resto.
+ */
+function GavetaDoSaldo({
+  saldo,
+  acertar,
+}: {
+  saldo: SaldoDoBackoffice;
+  /** Abre a folha do acerto; null numa conta apagada (a API já não a acerta). */
+  acertar: (() => void) | null;
+}) {
+  const t = useTextos();
+  const lingua = useLingua();
+  const hoje = diaEmLisboa();
+  const s = t.cliente.saldo;
+  return (
+    <Gaveta
+      id="cliente.saldo"
+      titulo={s.titulo}
+      resumo={s.resumo(euros(saldo.valor, lingua), saldo.convites.length)}
+      lista
+    >
+      <div className="saldo-da-ficha">
+        <div>
+          <div className="valor">{euros(saldo.valor, lingua)}</div>
+          {saldo.codigoDoConvite && (
+            <div className="detalhe">
+              {s.codigo} <code className="codigo">{saldo.codigoDoConvite}</code>
+            </div>
+          )}
+          {saldo.convidadoPor && (
+            <div className="detalhe">
+              {s.convidadoPor}{' '}
+              <NomeDeCliente
+                id={saldo.convidadoPor.clienteId}
+                nome={saldo.convidadoPor.nome}
+                apagado={saldo.convidadoPor.apagado}
+              />{' '}
+              · {diaDe(saldo.convidadoPor.criadoEm, hoje, lingua)}
+            </div>
+          )}
+        </div>
+        {acertar && (
+          <button type="button" className="botao secundario" onClick={acertar}>
+            {s.acertar}
+          </button>
+        )}
+      </div>
+
+      {saldo.convites.length > 0 && (
+        <section className="seccao-da-gaveta">
+          <h3>{s.convidou}</h3>
+          <ul className="lista">
+            {saldo.convites.map((v) => (
+              <li key={v.clienteId}>
+                <a className="linha" href={`#/clientes/${v.clienteId}`}>
+                  <div className="meio">
+                    <div className="titulo-linha">
+                      {v.apagado ? t.cliente.contaApagada : v.nome || t.cliente.semNome}
+                    </div>
+                    <div className="detalhe">
+                      {s.conviteDe(diaDe(v.criadoEm, hoje, lingua))}
+                      {v.visitouEm !== null && ` · ${s.foiA(diaDe(v.visitouEm, hoje, lingua))}`}
+                    </div>
+                  </div>
+                  <div className="lado">
+                    {/* O prémio recebido pela visita (o que vale); sem ele, se já foi ou não. */}
+                    {v.premioEm ? (
+                      <span className="valor-do-movimento entra">
+                        {eurosComSinal(v.premio, lingua)}
+                      </span>
+                    ) : v.visitouEm !== null ? (
+                      <Etiqueta tom="bom">{s.jaFoi}</Etiqueta>
+                    ) : (
+                      <Etiqueta semPonto>{s.aindaNaoFoi}</Etiqueta>
+                    )}
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </Gaveta>
+  );
+}
+
+// ——— o histórico (o Renato, 11 nov 2026): tudo o que aconteceu a este cliente, por dias ———
+
+type CarimboDaFicha = FichaDoCliente['historico'][number];
+
+/** Uma linha do histórico do cliente: com o carimbo, para o «Anular». */
+type AcontecimentoDoCliente = Acontecimento & { carimbo?: CarimboDaFicha };
+
+/** Tudo o que aconteceu a um cliente, do mais recente para o mais antigo. */
+function acontecimentosDe(c: FichaDoCliente, t: Textos, lingua: Lingua): AcontecimentoDoCliente[] {
+  const h = t.cliente.historico;
+  const lista: AcontecimentoDoCliente[] = [];
+  for (const x of c.historico)
+    lista.push({
+      chave: `carimbo-${x.id}`,
+      quando: x.quando,
+      ordem: 2,
+      titulo: h.carimbo,
+      onde: [x.loja, x.pessoa],
+      semLeitura: x.semLeitura,
+      repetido: x.repetido,
+      anulado: x.anuladoEm !== null ? { em: x.anuladoEm, por: x.anuladoPor } : undefined,
+      carimbo: x,
+    });
+  // Os prémios entregues: os do cartão e os a meio, com onde e quem os deu.
+  for (const k of c.cartoes) {
+    if (k.usadoEm !== null)
+      lista.push({
+        chave: `premio-${k.id}`,
+        quando: k.usadoEm,
+        ordem: 3,
+        titulo: h.premioEntregue(
+          lingua === 'en' && k.recompensaEn
+            ? k.recompensaEn
+            : recompensaNaLingua(k.recompensa, lingua),
+        ),
+        onde: [k.usadoLoja, k.usadoPor],
+      });
+    if (k.meio && k.meio.usadoEm !== null)
+      lista.push({
+        chave: `meio-${k.id}`,
+        quando: k.meio.usadoEm,
+        ordem: 3,
+        titulo: h.meioEntregue(
+          lingua === 'en' && k.meio.recompensaEn ? k.meio.recompensaEn : k.meio.recompensa,
+        ),
+        onde: [k.meio.usadoLoja, k.meio.usadoPor],
+      });
+  }
+  const saldo = c.saldo;
+  if (saldo) {
+    for (const m of saldo.movimentos) {
+      const base = {
+        chave: `saldo-${m.id}`,
+        quando: m.criadoEm,
+        ordem: m.tipo === 'convidado' ? 1 : m.tipo === 'convite' ? 3 : 4,
+        valor: m.valor,
+        anulado: m.anulado ? { em: m.anuladoEm ?? null, por: m.anuladoPor ?? null } : undefined,
+      };
+      const outro = <NomeDeCliente id={m.quemId} nome={m.quem} apagado={m.quemApagado} />;
+      switch (m.tipo) {
+        case 'uso':
+          lista.push({ ...base, titulo: h.usou, onde: [m.loja, m.por], semLeitura: m.semLeitura });
+          break;
+        case 'acerto':
+          lista.push({ ...base, titulo: h.acerto(m.nota), onde: [m.por] });
+          break;
+        case 'convidado':
+          lista.push({
+            ...base,
+            titulo: (
+              <>
+                {h.boasVindasDe}
+                {outro}
+              </>
+            ),
+          });
+          break;
+        case 'convite':
+          lista.push({
+            ...base,
+            titulo: (
+              <>
+                {outro}
+                {h.foiABarbearia}
+              </>
+            ),
+          });
+          break;
+      }
+    }
+    for (const v of saldo.convites)
+      lista.push({
+        chave: `aceitou-${v.clienteId}`,
+        quando: v.criadoEm,
+        ordem: 0,
+        titulo: (
+          <>
+            <NomeDeCliente id={v.clienteId} nome={v.nome} apagado={v.apagado} />
+            {h.aceitouOConvite}
+          </>
+        ),
+      });
+    // Aceitou um convite sem boas-vindas (a zero euros): o convite fica dito na mesma.
+    const por = saldo.convidadoPor;
+    if (por && !saldo.movimentos.some((m) => m.tipo === 'convidado'))
+      lista.push({
+        chave: 'aceitou',
+        quando: por.criadoEm,
+        ordem: 0,
+        titulo: (
+          <>
+            {h.aceitouDe}
+            <NomeDeCliente id={por.clienteId} nome={por.nome} apagado={por.apagado} />
+          </>
+        ),
+      });
+  }
+  return lista.sort((a, b) => b.quando - a.quando || b.ordem - a.ordem);
+}
+
+/** Quantas linhas o histórico mostra de cada vez. */
+const LINHAS_DO_HISTORICO = 40;
+
+/**
+ * O histórico de um cliente, por dias: os carimbos, o saldo (boas-vindas, prémios, usos e acertos), os
+ * convites aceites e os prémios entregues; cada linha com a hora, a casa e quem fez, «Sem leitura» e
+ * «Repetido» como nos carimbos, e o que foi anulado riscado, com quem o anulou e quando.
+ */
+function GavetaDoHistorico({
+  ficha: c,
+  anular,
+  aCorrer,
+}: {
+  ficha: FichaDoCliente;
+  /** Anula um carimbo; null numa conta apagada. */
+  anular: ((carimbo: CarimboDaFicha) => void) | null;
+  aCorrer: boolean;
+}) {
+  const t = useTextos();
+  const lingua = useLingua();
+  const hoje = diaEmLisboa();
+  const [quantas, setQuantas] = useState(LINHAS_DO_HISTORICO);
+  const h = t.cliente.historico;
+  const todos = acontecimentosDe(c, t, lingua);
+  const anulados = todos.filter((a) => a.anulado).length;
+  const visiveis: Acontecimento[] = todos.slice(0, quantas).map((a) =>
+    a.carimbo && !a.anulado && anular
+      ? {
+          ...a,
+          accao: (
+            <button
+              type="button"
+              className="botao secundario pequeno"
+              disabled={aCorrer}
+              onClick={() => anular(a.carimbo!)}
+            >
+              {h.anular}
+            </button>
+          ),
+        }
+      : a,
+  );
+  return (
+    <Gaveta
+      id="cliente.historico"
+      titulo={h.titulo}
+      resumo={todos.length ? h.resumo(diaDe(todos[0]!.quando, hoje, lingua), anulados) : h.vazio}
+      lista
+    >
+      {todos.length ? (
+        <>
+          <DiasDoHistorico acontecimentos={visiveis} />
+          {todos.length > quantas && (
+            <div className="pe-gaveta">
+              <button
+                type="button"
+                className="botao secundario"
+                onClick={() => setQuantas((n) => n + LINHAS_DO_HISTORICO)}
+              >
+                {h.verMais}
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <Vazio titulo={h.vazio} />
+      )}
+    </Gaveta>
+  );
+}
+
+/** Um acerto vai de 1 € a 500 €, em euros inteiros (os limites do domínio estão em cêntimos). */
+const MAXIMO_DO_ACERTO = LIMITES_DO_SALDO.movimento.max / 100;
+
+function eurosDoAcerto(texto: string): number | null {
+  const n = Number(texto.trim());
+  return texto.trim() && Number.isInteger(n) && n >= 1 && n <= MAXIMO_DO_ACERTO ? n : null;
+}
+
+/**
+ * O que está mal no acerto: o valor, a nota ou o pedido (a rede, uma conta que entretanto se apagou).
+ * Guarda-se a falha e não a frase, para mudar de língua mudar também o erro à vista.
+ */
+type ErroDoAcerto = { campo: 'valor' | 'nota' | null; falha?: unknown };
+
+/**
+ * Acertar o saldo: dar ou tirar euros inteiros, com uma nota que o cliente vê na carteira. Tirar mais
+ * do que há diz-se logo; se a ficha estiver para trás (um uso ao balcão entretanto), a API recusa
+ * (`saldo_insuficiente`) e a ficha relê-se.
+ */
+function FolhaDoAcerto({
+  id,
+  saldo,
+  guardarFicha,
+  fechar,
+}: {
+  id: string;
+  /** O saldo de agora, em cêntimos. */
+  saldo: number;
+  guardarFicha: (f: FichaDoCliente) => void;
+  fechar: () => void;
+}) {
+  const t = useTextos();
+  const lingua = useLingua();
+  const consultas = useQueryClient();
+  const avisar = useAvisar();
+  const { correr, aCorrer } = useAccao();
+  const [sentido, setSentido] = useState<'dar' | 'tirar'>('dar');
+  const [escrito, setEscrito] = useState('');
+  const [nota, setNota] = useState('');
+  const [erro, setErro] = useState<ErroDoAcerto | null>(null);
+  // Uma chave por folha aberta: se a resposta se perder e o Nuno carregar outra vez, o acerto conta uma.
+  const [chave] = useState(() => crypto.randomUUID().replace(/-/g, ''));
+  // O saldo de agora (a ficha pode estar aberta há muito): o «Fica X €» e o «não chega» contam com ele.
+  useEffect(() => {
+    void consultas.invalidateQueries({ queryKey: ['cliente', id] });
+  }, [consultas, id]);
+  const s = t.cliente.saldo;
+
+  const inteiros = eurosDoAcerto(escrito);
+  // Em cêntimos, negativo para tirar; null enquanto o valor escrito não servir.
+  const valor = inteiros === null ? null : (sentido === 'tirar' ? -100 : 100) * inteiros;
+  const depois = valor === null ? null : saldo + valor;
+  // Só o tirar tem de caber no saldo (dar pode sempre, como na API).
+  const naoChega = sentido === 'tirar' && depois !== null && depois < 0;
+  const quanto = inteiros === null ? null : euros(inteiros * 100, lingua);
+  const rotuloDoBotao =
+    sentido === 'tirar'
+      ? quanto
+        ? s.tirarValor(quanto)
+        : s.tirar
+      : quanto
+        ? s.darValor(quanto)
+        : s.dar;
+  const textoDoValor = naoChega
+    ? t.geral.erros.saldo_insuficiente
+    : erro?.falha !== undefined
+      ? mensagemDe(erro.falha)
+      : s.valorErrado(euros(LIMITES_DO_SALDO.movimento.max, lingua));
+
+  async function acertar() {
+    if (valor === null) {
+      setErro({ campo: 'valor' });
+      return;
+    }
+    if (!nota.trim()) {
+      setErro({ campo: 'nota' });
+      return;
+    }
+    try {
+      guardarFicha(
+        await pedir<FichaDoCliente>(`/api/bo/clientes/${id}/saldo`, {
+          metodo: 'POST',
+          corpo: { valor, nota: nota.trim(), chave },
+        }),
+      );
+      fechar();
+      await refrescar();
+      avisar(s.acertado);
+    } catch (e) {
+      const campos = e instanceof ErroDaApi ? e.campos : [];
+      if (e instanceof ErroDaApi && e.codigo === 'saldo_insuficiente') {
+        setErro({ campo: 'valor', falha: e });
+        void consultas.invalidateQueries({ queryKey: ['cliente', id] });
+      } else if (campos.includes('valor')) setErro({ campo: 'valor' });
+      else if (campos.includes('nota')) setErro({ campo: 'nota' });
+      else setErro({ campo: null, falha: e });
+    }
+  }
+
+  return (
+    <Folha
+      aberta
+      fechar={fechar}
+      titulo={s.acertar}
+      sujo={!!(escrito.trim() || nota.trim())}
+      pe={
+        <>
+          <button
+            type="button"
+            className="botao"
+            disabled={aCorrer || naoChega || !escrito.trim() || !nota.trim()}
+            onClick={() => correr(acertar)}
+          >
+            {rotuloDoBotao}
+          </button>
+          {depois !== null && !naoChega && (
+            <span className="estado">{s.fica(euros(depois, lingua))}</span>
+          )}
+        </>
+      }
+    >
+      <div className="formulario">
+        <Segmentado<'dar' | 'tirar'>
+          cheio
+          rotulo={s.darOuTirar}
+          valor={sentido}
+          mudar={(v) => {
+            setSentido(v);
+            setErro(null);
+          }}
+          opcoes={[
+            { valor: 'dar', nome: s.dar },
+            { valor: 'tirar', nome: s.tirar },
+          ]}
+        />
+        <Campo
+          rotulo={s.valor}
+          tipo="number"
+          modoDeTeclado="numeric"
+          minimo={1}
+          maximo={MAXIMO_DO_ACERTO}
+          passo={1}
+          valor={escrito}
+          mudar={(v) => {
+            setEscrito(v);
+            setErro(null);
+          }}
+          erro={naoChega || erro?.campo === 'valor'}
+          erroTexto={textoDoValor}
+          obrigatorio
+          autoFocus
+        />
+        <Campo
+          rotulo={s.nota}
+          valor={nota}
+          mudar={(v) => {
+            setNota(v);
+            setErro(null);
+          }}
+          max={LIMITES_DO_SALDO.nota}
+          erro={erro?.campo === 'nota'}
+          ajuda={s.notaAjuda}
+          obrigatorio
+        />
+        {erro && erro.campo === null && (
+          <div className="caixa-aviso mau" role="alert">
+            {mensagemDe(erro.falha)}
+          </div>
+        )}
+      </div>
+    </Folha>
   );
 }

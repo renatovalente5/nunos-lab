@@ -84,13 +84,17 @@ export default function PaginaDoParceiro() {
   // Sem corte no último ano as vantagens não valem: apagadas, com o cadeado (o Renato, 9 nov). Sem
   // conta também (desbloqueadas, chegava mostrar o ecrã a um parceiro que não lê o cartão), com a
   // frase de quem nunca cortou: as vantagens começam no primeiro corte.
+  // Com sessão e sem o «eu» (ainda a chegar, ou o pedido bloqueado de propósito), fica com o cadeado:
+  // abrir sem ele dava as vantagens a quem nunca cortou (revisão de batota, 11 nov 2026).
   const bloqueio: BloqueioDaVantagem = !temSessao
     ? 'nunca'
-    : eu && !eu.activo
-      ? eu.cortes > 0
-        ? 'expirou'
-        : 'nunca'
-      : null;
+    : !eu
+      ? 'nunca'
+      : !eu.activo
+        ? eu.cortes > 0
+          ? 'expirou'
+          : 'nunca'
+        : null;
   const margens = useSafeAreaInsets();
   const [aEscolherMapa, setAEscolherMapa] = useState(false);
   const parceiro = data?.parceiros.find((p) => String(p.id) === id);
@@ -145,12 +149,14 @@ export default function PaginaDoParceiro() {
           );
     r.catch(() => {});
   };
+  // O sítio exato que o Nuno pôs no backoffice (10 nov): o «Ir» vai ao ponto, mesmo sem morada.
+  const sitio = p.lat != null && p.lng != null ? { lat: p.lat, lng: p.lng } : null;
   const accoes = [
-    p.morada && {
+    (p.morada || sitio) && {
       icone: 'mapa' as const,
       nome: t.mapa.ir,
       // A morada só aparece na folha que o «Ir» abre: o leitor de ecrã ouve-a já aqui.
-      rotulo: `${t.mapa.irA(p.nome)}, ${p.morada}`,
+      rotulo: p.morada ? `${t.mapa.irA(p.nome)}, ${p.morada}` : t.mapa.irA(p.nome),
       tipo: 'mapa' as const,
       // O «Ir» abre a folha para escolher o mapa: a contagem fica para quando se escolhe.
       url: '',
@@ -259,6 +265,8 @@ export default function PaginaDoParceiro() {
             hoje={data.hoje}
             aoAbrir={() => contar('promocao', pr.id)}
             bloqueio={bloqueio}
+            // O código de cupão só vem no «eu» de quem não tem o cadeado (10 nov).
+            codigo={bloqueio ? null : (eu?.codigosDasVantagens?.[String(pr.id)] ?? null)}
             usadas={vales.filter((v) => diaEmLisboa(v.quando * 1000) >= inicio).length}
             usadaHoje={
               vales.find((v) => diaEmLisboa(v.quando * 1000) === data.hoje)?.quando ?? null
@@ -272,8 +280,8 @@ export default function PaginaDoParceiro() {
 
       <EscolherMapa
         destino={
-          aEscolherMapa && p.morada
-            ? { nome: p.nome, morada: p.morada, procurar: p.exemplo ? '' : p.nome }
+          aEscolherMapa && (p.morada || sitio)
+            ? { nome: p.nome, morada: p.morada, procurar: p.exemplo ? '' : p.nome, sitio }
             : null
         }
         fechar={() => setAEscolherMapa(false)}

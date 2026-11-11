@@ -70,7 +70,7 @@ export default function Clientes() {
                   onPress={() =>
                     router.push({
                       pathname: '/ficha/[codigo]',
-                      params: { codigo: k.codigo, semLeitura: '1' },
+                      params: { codigo: k.codigo },
                     })
                   }
                   role="link"

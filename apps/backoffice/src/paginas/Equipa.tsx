@@ -44,7 +44,7 @@ type Formulario = {
 /** A pessoa aberta na folha; `null` é uma nova. */
 type Aberta = { pessoa: PessoaDaEquipaNoBackoffice | null } | null;
 
-const useEquipa = () =>
+export const useEquipa = () =>
   useQuery({
     queryKey: ['equipa'],
     queryFn: () => pedir<PessoaDaEquipaNoBackoffice[]>('/api/bo/equipa'),
@@ -117,7 +117,8 @@ export function Equipa() {
               resumo={g.pessoas.map((p) => p.nome).join(' · ')}
               lista
             >
-              <ListaDePessoas pessoas={g.pessoas} abrir={(pessoa) => setAberta({ pessoa })} />
+              {/* Cada pessoa abre a página dela: os números e tudo o que fez (11 nov 2026). */}
+              <ListaDePessoas pessoas={g.pessoas} />
             </Gaveta>
           ))
         )}
@@ -179,36 +180,50 @@ export function GavetaDeQuemValida({ parceiroId }: { parceiroId: number }) {
   );
 }
 
-/** As linhas de uma lista de pessoas: o nome, o email (e a casa de um barbeiro), e o «Editar». */
+/**
+ * As linhas de uma lista de pessoas: o nome, o email (e a casa de um barbeiro). Na Equipa cada linha abre
+ * a página da pessoa (com o «Editar» lá dentro); em quem valida num parceiro, o «Editar» está na linha.
+ */
 function ListaDePessoas({
   pessoas,
   abrir,
 }: {
   pessoas: PessoaDaEquipaNoBackoffice[];
-  abrir: (p: PessoaDaEquipaNoBackoffice) => void;
+  /** O «Editar» na linha; sem ele, a linha abre a página da pessoa. */
+  abrir?: (p: PessoaDaEquipaNoBackoffice) => void;
 }) {
   const t = useTextos();
+  const meio = (p: PessoaDaEquipaNoBackoffice) => (
+    <div className="meio">
+      <div className="titulo-linha">
+        {p.nome} {!p.activo && <Etiqueta>{t.equipa.desligado}</Etiqueta>}
+      </div>
+      <div className="detalhe" style={{ overflowWrap: 'anywhere' }}>
+        {[p.email, p.papel === 'barbeiro' && (p.loja ?? t.equipa.todasAsCasas)]
+          .filter(Boolean)
+          .join(' · ')}
+      </div>
+    </div>
+  );
   return (
     <ul className="lista">
       {pessoas.map((p) => (
         <li key={p.id}>
-          <div className="linha">
-            <div className="meio">
-              <div className="titulo-linha">
-                {p.nome} {!p.activo && <Etiqueta>{t.equipa.desligado}</Etiqueta>}
-              </div>
-              <div className="detalhe" style={{ overflowWrap: 'anywhere' }}>
-                {[p.email, p.papel === 'barbeiro' && (p.loja ?? t.equipa.todasAsCasas)]
-                  .filter(Boolean)
-                  .join(' · ')}
+          {abrir ? (
+            <div className="linha">
+              {meio(p)}
+              <div className="lado">
+                <button type="button" className="botao secundario pequeno" onClick={() => abrir(p)}>
+                  {t.equipa.editar}
+                </button>
               </div>
             </div>
-            <div className="lado">
-              <button type="button" className="botao secundario pequeno" onClick={() => abrir(p)}>
-                {t.equipa.editar}
-              </button>
-            </div>
-          </div>
+          ) : (
+            <a className="linha" href={`#/equipa/${p.id}`}>
+              {meio(p)}
+              <Icone nome="seguinte" tamanho={18} />
+            </a>
+          )}
         </li>
       ))}
     </ul>
@@ -220,7 +235,7 @@ function ListaDePessoas({
  * barbeiro de uma casa ou de todas); com ele, valida as promoções desse parceiro, e não há papel
  * nem casa a escolher.
  */
-function FolhaDaPessoa({
+export function FolhaDaPessoa({
   pessoa,
   parceiroId,
   fechar,

@@ -316,6 +316,8 @@ type FormularioDaPromocao = {
   destaqueEn: string;
   tituloEn: string;
   detalheEn: string;
+  /** O código de cupão (10 nov): vazio, sem código. A app só o mostra a quem não tem o cadeado. */
+  cupao: string;
   inicio: string;
   fim: string;
   emDestaque: boolean;
@@ -363,6 +365,7 @@ export function EditorDePromocao({
           destaqueEn: promocao.destaqueEn ?? '',
           tituloEn: promocao.tituloEn ?? '',
           detalheEn: promocao.detalheEn ?? '',
+          cupao: promocao.cupao ?? '',
           inicio: promocao.inicio ?? '',
           fim: promocao.fim ?? '',
           emDestaque: promocao.emDestaque,
@@ -380,6 +383,7 @@ export function EditorDePromocao({
           destaqueEn: '',
           tituloEn: '',
           detalheEn: '',
+          cupao: '',
           inicio: '',
           fim: '',
           emDestaque: false,
@@ -438,6 +442,7 @@ export function EditorDePromocao({
       ...f,
       destaque: normalizarDestaque(f.destaque),
       destaqueEn: normalizarDestaque(f.destaqueEn),
+      cupao: f.cupao.trim(),
       inicio: f.inicio || null,
       fim: f.fim || null,
       limitePorCliente,
@@ -579,6 +584,15 @@ export function EditorDePromocao({
               erro={erros.includes('detalheEn')}
             />
           </GrupoEmIngles>
+          <Campo
+            rotulo={t.promocoes.cupao}
+            valor={f.cupao}
+            mudar={mudar('cupao')}
+            max={LIMITES.cupao}
+            erro={erros.includes('cupao')}
+            placeholder={t.promocoes.cupaoExemplo}
+            ajuda={t.promocoes.cupaoAjuda}
+          />
           <div className="duas-colunas">
             <Campo
               rotulo={t.promocoes.comeca}

@@ -23,6 +23,18 @@ export const pt = {
   meio: 'Ao carimbo',
   meioAjuda: 'Antes do último.',
   meioNoResumo: (recompensa: string, carimbo: number) => `${recompensa} ao ${carimbo}.º`,
+  // Os convites (o Renato, 10 nov 2026): os prémios em euros inteiros.
+  convitesLigados: 'Convites ligados',
+  // Os convites já aceites guardam os prémios do dia em que se aceitaram, e pagam mesmo desligados.
+  convitesAjuda:
+    'Quem convida ganha quando o amigo for à barbearia; o amigo ganha logo. Mudar ou desligar não mexe nos convites já aceites.',
+  valorPadrinho: 'Quem convida ganha (€)',
+  valorConvidado: 'O convidado ganha (€)',
+  eurosErrados: (maximo: string) => `De 0 a ${maximo}, só euros inteiros.`,
+  limiteDeConvites: 'Convites por cliente',
+  semLimite: 'Sem limite',
+  convitesNoResumo: (padrinho: string, convidado: string) => `convites ${padrinho} / ${convidado}`,
+  semConvites: 'sem convites',
 };
 
 export const en: typeof pt = {
@@ -47,4 +59,14 @@ export const en: typeof pt = {
   meio: 'At stamp',
   meioAjuda: 'Before the last one.',
   meioNoResumo: (recompensa, carimbo) => `${recompensa} at stamp ${carimbo}`,
+  convitesLigados: 'Invites on',
+  convitesAjuda:
+    'The inviter earns once their friend visits the barbershop; the friend earns straight away. Changing or switching off doesn’t affect invites already accepted.',
+  valorPadrinho: 'Inviter earns (€)',
+  valorConvidado: 'Invited friend earns (€)',
+  eurosErrados: (maximo) => `From €0 to ${maximo}, whole euros only.`,
+  limiteDeConvites: 'Invites per client',
+  semLimite: 'No limit',
+  convitesNoResumo: (padrinho, convidado) => `invites ${padrinho} / ${convidado}`,
+  semConvites: 'no invites',
 };

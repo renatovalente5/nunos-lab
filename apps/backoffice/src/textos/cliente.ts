@@ -34,15 +34,33 @@ export const pt = {
     meioGanhoA: (dia: string) => `ganho a ${dia}`,
     meioPorEntregar: 'por entregar',
   },
+  // Tudo o que aconteceu a este cliente, por dias (o Renato, 11 nov 2026): carimbos, saldo, convites e
+  // prémios, cada um com quem, onde e quando.
   historico: {
-    titulo: 'Carimbos',
+    titulo: 'Histórico',
     anulado: (pessoa: string | null) => `Anulado${pessoa ? ` por ${pessoa}` : ''}`,
+    /** Quem anulou e quando: «às 14:05» no mesmo dia, «a 13 nov» noutro. */
+    anuladoA: (pessoa: string | null, quando: string) =>
+      pessoa ? `Anulado por ${pessoa} ${quando}` : `Anulado no backoffice ${quando}`,
+    aHora: (hora: string) => `às ${hora}`,
+    aDia: (dia: string) => `a ${dia}`,
     repetido: 'Repetido',
     semLeitura: 'Sem leitura',
     anular: 'Anular',
-    vazio: 'Ainda sem carimbos',
-    resumo: (n: number, ultimo: string) =>
-      `${n} ${n === 1 ? 'carimbo' : 'carimbos'} · último ${ultimo}`,
+    vazio: 'Ainda sem histórico',
+    resumo: (ultimo: string, anulados: number) =>
+      `último ${ultimo}${anulados ? ` · ${anulados} ${anulados === 1 ? 'anulado' : 'anulados'}` : ''}`,
+    verMais: 'Ver mais antigos',
+    // As linhas. Os nomes de outros clientes são ligações: vêm antes ou depois destes pedaços.
+    carimbo: 'Carimbo',
+    usou: 'Saldo usado',
+    acerto: (nota: string) => (nota ? `Acerto · ${nota}` : 'Acerto'),
+    boasVindasDe: 'Boas-vindas · convite de ',
+    aceitouDe: 'Aceitou o convite de ',
+    aceitouOConvite: ' aceitou o convite',
+    foiABarbearia: ' foi à barbearia',
+    premioEntregue: (recompensa: string) => `Prémio entregue · ${recompensa}`,
+    meioEntregue: (recompensa: string) => `Prémio a meio entregue · ${recompensa}`,
   },
   apagar: {
     pergunta: (nome: string) =>
@@ -68,6 +86,34 @@ export const pt = {
     aniversarioErrado: 'Aniversário: dia e mês, como «25/06».',
     diaEMes: 'Dia e mês, como «25/06».',
     ajudaDoAniversario: 'Vazio: sem prenda de anos.',
+  },
+  // O saldo e os convites (o Renato, 10 nov 2026).
+  saldo: {
+    titulo: 'Saldo e convites',
+    resumo: (saldo: string, convidou: number) =>
+      convidou ? `${saldo} · convidou ${convidou}` : saldo,
+    acertar: 'Acertar saldo',
+    codigo: 'Código do convite',
+    convidadoPor: 'Convidado por',
+    convidou: 'Convidou',
+    conviteDe: (dia: string) => `convite de ${dia}`,
+    foiA: (dia: string) => `foi a ${dia}`,
+    jaFoi: 'Já foi',
+    aindaNaoFoi: 'Ainda não foi',
+    /** Para o leitor de ecrã, a seguir ao valor riscado. */
+    anulado: 'Anulado',
+    // A folha de acertar.
+    dar: 'Dar',
+    tirar: 'Tirar',
+    darOuTirar: 'Dar ou tirar',
+    darValor: (valor: string) => `Dar ${valor}`,
+    tirarValor: (valor: string) => `Tirar ${valor}`,
+    valor: 'Valor (€)',
+    valorErrado: (maximo: string) => `De 1 a ${maximo}, só euros inteiros.`,
+    nota: 'Nota',
+    notaAjuda: 'O cliente vê-a na carteira.',
+    fica: (saldo: string) => `Fica ${saldo}`,
+    acertado: 'Saldo acertado',
   },
 };
 
@@ -104,13 +150,27 @@ export const en: typeof pt = {
     meioPorEntregar: 'ready',
   },
   historico: {
-    titulo: 'Stamp history',
+    titulo: 'History',
     anulado: (pessoa) => `Undone${pessoa ? ` by ${pessoa}` : ''}`,
+    anuladoA: (pessoa, quando) =>
+      pessoa ? `Undone by ${pessoa} ${quando}` : `Undone in the backoffice ${quando}`,
+    aHora: (hora) => `at ${hora}`,
+    aDia: (dia) => `on ${dia}`,
     repetido: 'Repeat',
     semLeitura: 'Not scanned',
     anular: 'Undo',
-    vazio: 'No stamps yet',
-    resumo: (n, ultimo) => `${n} ${n === 1 ? 'stamp' : 'stamps'} · last ${ultimo}`,
+    vazio: 'No history yet',
+    resumo: (ultimo, anulados) => `last ${ultimo}${anulados ? ` · ${anulados} undone` : ''}`,
+    verMais: 'Show older',
+    carimbo: 'Stamp',
+    usou: 'Balance used',
+    acerto: (nota) => (nota ? `Adjustment · ${nota}` : 'Adjustment'),
+    boasVindasDe: 'Welcome · invite from ',
+    aceitouDe: 'Accepted the invite from ',
+    aceitouOConvite: ' accepted the invite',
+    foiABarbearia: ' visited the barbershop',
+    premioEntregue: (recompensa) => `Reward redeemed · ${recompensa}`,
+    meioEntregue: (recompensa) => `Mid-card reward redeemed · ${recompensa}`,
   },
   apagar: {
     pergunta: (nome) => (nome ? `Delete ${nome}'s account?` : 'Delete this client’s account?'),
@@ -135,5 +195,29 @@ export const en: typeof pt = {
     aniversarioErrado: 'Birthday: day and month, like “25/06”.',
     diaEMes: 'Day and month, like “25/06”.',
     ajudaDoAniversario: 'Leave blank for no birthday gift.',
+  },
+  saldo: {
+    titulo: 'Balance and invites',
+    resumo: (saldo, convidou) => (convidou ? `${saldo} · invited ${convidou}` : saldo),
+    acertar: 'Adjust balance',
+    codigo: 'Invite code',
+    convidadoPor: 'Invited by',
+    convidou: 'Invited friends',
+    conviteDe: (dia) => `invited ${dia}`,
+    foiA: (dia) => `visited ${dia}`,
+    jaFoi: 'Visited',
+    aindaNaoFoi: 'Not visited yet',
+    anulado: 'Undone',
+    dar: 'Add',
+    tirar: 'Deduct',
+    darOuTirar: 'Add or deduct',
+    darValor: (valor) => `Add ${valor}`,
+    tirarValor: (valor) => `Deduct ${valor}`,
+    valor: 'Amount (€)',
+    valorErrado: (maximo) => `From €1 to ${maximo}, whole euros only.`,
+    nota: 'Note',
+    notaAjuda: 'The client sees it in their wallet.',
+    fica: (saldo) => `New balance: ${saldo}`,
+    acertado: 'Balance adjusted',
   },
 };

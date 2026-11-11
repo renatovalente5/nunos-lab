@@ -19,6 +19,20 @@ import {
   type TipoDeEntrada,
 } from '@nunos-lab/dominio';
 import type { Ambiente, C } from '../ambiente.ts';
+import {
+  consultaDeJaFoiCliente,
+  consultaDoSaldo,
+  consultaDosMovimentos,
+  convitesDasDefinicoes,
+  guardarMarcas,
+  marcaDe,
+  marcasDoCliente,
+  movimentoPublico,
+  saldoDe,
+  temMarcaApagada,
+  textosDaIdentidade,
+  type LinhaDoMovimento,
+} from '../saldo.ts';
 import { conferirCredencialGoogle } from '../backoffice/google.ts';
 import { conferirTokenDaApple } from '../entrada/apple.ts';
 import {
@@ -205,6 +219,22 @@ async function lerEu(c: C): Promise<ClienteEu> {
         )
         .bind(id),
       consultaDosPremiosAMeio(db, id),
+      // Os códigos de cupão das vantagens que estão na app hoje (0020): só saem se for activo.
+      db
+        .prepare(
+          `SELECT p.id, p.cupao FROM promocoes p JOIN parceiros pa ON pa.id = p.parceiro_id
+           WHERE p.cupao != '' AND p.activa = 1 AND pa.activo = 1
+             AND (p.inicio IS NULL OR p.inicio <= ?1) AND (p.fim IS NULL OR p.fim >= ?1)`,
+        )
+        .bind(diaEmLisboa()),
+      // O saldo (10 nov 2026): o número do topo da app e o último movimento, para a animação.
+      consultaDoSaldo(db, id),
+      consultaDosMovimentos(db, id, 1),
+      db.prepare("SELECT chave, valor FROM definicoes WHERE chave LIKE 'conv.%'"),
+      // Já foi convidado? (a app lembra o código de convite a quem ainda o pode usar).
+      db.prepare('SELECT 1 FROM convites WHERE convidado_id = ?').bind(id),
+      // Algum carimbo, mesmo anulado: o código de convite é só para quem nunca teve nenhum.
+      db.prepare('SELECT 1 FROM carimbos WHERE cliente_id = ? LIMIT 1').bind(id),
     ]);
   let r = await consultas();
   if (!r[1]!.results[0]) {
@@ -215,6 +245,16 @@ async function lerEu(c: C): Promise<ClienteEu> {
   const cliente = r[0]!.results[0] as LinhaCliente;
   const cartao = r[1]!.results[0] as LinhaCartao;
   const limite = agora() - DIAS_A_EXPERIENCIA * DIA;
+  const convites = convitesDasDefinicoes(
+    new Map((r[15]!.results as { chave: string; valor: string }[]).map((x) => [x.chave, x.valor])),
+  );
+  // Ainda pode usar um código: convites ligados, sem convite, sem carimbo nenhum, e sem ser alguém que
+  // apagou a conta e voltou (as marcas; só se calculam quando o resto já deixa).
+  const podeUsarCodigo =
+    convites.ligado &&
+    r[16]!.results.length === 0 &&
+    r[17]!.results.length === 0 &&
+    !(await temMarcaApagada(db, await marcasDoCliente(db, c.env.WALLET_SEGREDO, id)));
   return {
     id: cliente.id,
     codigo: cliente.codigo,
@@ -284,6 +324,20 @@ async function lerEu(c: C): Promise<ClienteEu> {
     },
     // O saco das surpresas saiu (8 nov 2026); as apps de antes lêem a lista, vazia.
     cupoes: [],
+    saldo: {
+      saldo: saldoDe(r[13]!),
+      ultimo: r[14]!.results[0] ? movimentoPublico(r[14]!.results[0] as LinhaDoMovimento) : null,
+      convites: convites.ligado,
+      // Como na carteira: convites ligados, ainda sem convite e sem nenhum corte (11 nov 2026).
+      podeUsarCodigo,
+    },
+    // Com o cadeado (sem corte no último ano), o código nem chega ao telemóvel (o Renato, 10 nov 2026).
+    codigosDasVantagens:
+      r[8]!.results.length > 0
+        ? Object.fromEntries(
+            (r[12]!.results as { id: number; cupao: string }[]).map((x) => [String(x.id), x.cupao]),
+          )
+        : {},
     // A prenda só com a data dada há 30 dias ou mais (senão mudava-se na véspera), uma vez por ano, e
     // a quem teve um corte no último ano (como na for partners, que é quem a entrega).
     prenda:
@@ -419,11 +473,23 @@ rotasDaConta.delete('/formas/:id', async (c) => {
   const formaId = idDaMorada(c);
   const { id, identidadeId } = c.get('cliente');
   const db = c.env.DB;
-  const [formas, cliente] = await db.batch([
-    db.prepare('SELECT id, email, dona, criada_em FROM identidades WHERE cliente_id = ?').bind(id),
+  const [formas, cliente, foi] = await db.batch([
+    db
+      .prepare(
+        'SELECT id, tipo, sujeito, email, dona, criada_em FROM identidades WHERE cliente_id = ?',
+      )
+      .bind(id),
     db.prepare('SELECT criado_em, email FROM clientes WHERE id = ?').bind(id),
+    consultaDeJaFoiCliente(db, id),
   ]);
-  type F = { id: number; email: string | null; dona: number; criada_em: number };
+  type F = {
+    id: number;
+    tipo: string;
+    sujeito: string;
+    email: string | null;
+    dona: number;
+    criada_em: number;
+  };
   const todas = formas!.results as F[];
   const sai = todas.find((f) => f.id === formaId);
   if (!sai) recusar(404, 'nao_existe');
@@ -439,7 +505,14 @@ rotasDaConta.delete('/formas/:id', async (c) => {
   // A conta nunca fica sem forma nenhuma (dois aparelhos a tirar cada um a do
   // outro ao mesmo tempo): a condição vai nas duas instruções, na mesma transacção.
   const ficaAlguma = '(SELECT count(*) FROM identidades WHERE cliente_id = ?) > 1';
+  // A forma que sai deixa a marca, se a conta já cortou ou foi convidada: entrar com ela numa conta nova
+  // não faz de ninguém um «novo» para os convites (11 nov 2026).
+  const marcas =
+    (foi!.results[0] as { foi: number } | undefined)?.foi === 1
+      ? await Promise.all(textosDaIdentidade(sai).map((t) => marcaDe(c.env.WALLET_SEGREDO, t)))
+      : [];
   const r = await db.batch([
+    ...guardarMarcas(db, marcas),
     db
       .prepare(
         `UPDATE sessoes_de_cliente SET revogada_em = unixepoch() WHERE identidade_id = ? AND revogada_em IS NULL AND ${ficaAlguma}`,
@@ -452,7 +525,7 @@ rotasDaConta.delete('/formas/:id', async (c) => {
       ? [db.prepare('UPDATE clientes SET email = ? WHERE id = ?').bind(outra, id)]
       : []),
   ]);
-  if (!r[1]!.meta.changes) recusar(409, 'ultima_forma');
+  if (!r[marcas.length + 1]!.meta.changes) recusar(409, 'ultima_forma');
   return c.json(await lerEu(c));
 });
 

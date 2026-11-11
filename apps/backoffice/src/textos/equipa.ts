@@ -56,6 +56,28 @@ export const pt = {
   sessaoTerminada: 'Sessão terminada',
   semAparelhos: 'Ainda não entrou.',
   aparelhosTitulo: 'Aparelhos',
+  // A página de cada pessoa (o Renato, 11 nov 2026): os números dos últimos 30 dias e tudo o que fez.
+  pessoa: {
+    naoEsta: 'Esta pessoa já não está na equipa.',
+    ultimos30: 'Últimos 30 dias',
+    carimbos: 'Carimbos',
+    saldoUsado: 'Saldo usado',
+    anulados: 'Anulados',
+    semLeitura: 'Sem leitura',
+    historico: 'Histórico',
+    resumo: (ultimo: string) => `último ${ultimo}`,
+    vazio: 'Ainda sem histórico',
+    verMais: 'Ver mais antigos',
+    // As linhas: o nome do cliente (uma ligação) vem a seguir.
+    carimbo: 'Carimbo · ',
+    usou: 'Saldo usado · ',
+    premio: (recompensa: string) => `Prémio entregue · ${recompensa} · `,
+    meio: (recompensa: string) => `Prémio a meio entregue · ${recompensa} · `,
+    anulouCarimbo: 'Anulou um carimbo · ',
+    anulouUso: (valor: string) => `Anulou um uso de ${valor} · `,
+    /** De quem era o que anulou: «de Bruno Costa às 10:28». */
+    de: (pessoa: string | null, quando: string) => (pessoa ? `de ${pessoa} ${quando}` : quando),
+  },
 };
 
 export const en: typeof pt = {
@@ -108,4 +130,23 @@ export const en: typeof pt = {
   sessaoTerminada: 'Signed out',
   semAparelhos: 'Hasn’t signed in yet.',
   aparelhosTitulo: 'Devices',
+  pessoa: {
+    naoEsta: 'This person is no longer on the team.',
+    ultimos30: 'Last 30 days',
+    carimbos: 'Stamps',
+    saldoUsado: 'Balance used',
+    anulados: 'Undone',
+    semLeitura: 'Not scanned',
+    historico: 'History',
+    resumo: (ultimo) => `last ${ultimo}`,
+    vazio: 'No history yet',
+    verMais: 'Show older',
+    carimbo: 'Stamp · ',
+    usou: 'Balance used · ',
+    premio: (recompensa) => `Reward redeemed · ${recompensa} · `,
+    meio: (recompensa) => `Mid-card reward redeemed · ${recompensa} · `,
+    anulouCarimbo: 'Undid a stamp · ',
+    anulouUso: (valor) => `Undid a ${valor} balance use · `,
+    de: (pessoa, quando) => (pessoa ? `by ${pessoa} ${quando}` : quando),
+  },
 };

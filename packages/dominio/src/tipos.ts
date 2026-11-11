@@ -3,6 +3,7 @@ import type { Rede } from './ligacoes.ts';
 import type { IconeDaCategoria } from './limites.ts';
 import type { AjusteDoLogotipo } from './logotipo.ts';
 import type { EstadoDaPromocao } from './promocoes.ts';
+import type { DefinicoesDosConvites, TipoDeMovimento } from './saldo.ts';
 import type { PeriodoDoLimite } from './vales.ts';
 
 /** O contrato da API: o que a app e o backoffice recebem. A API acrescenta, nunca renomeia. */
@@ -56,11 +57,22 @@ export type PromocaoPublica = {
   soClientesActivos: true;
   /** Sempre false: o saco das surpresas saiu (8 nov 2026). Fica pelas apps instaladas antes disso. */
   surpresa: false;
+  /**
+   * Tem um código de cupão (10 nov 2026). O código não vem aqui, na lista que toda a gente vê: só
+   * no «eu» de quem tem a vantagem desbloqueada (`ClienteEu.codigosDasVantagens`).
+   */
+  temCupao?: boolean;
 };
 
 export type ContactosDoParceiro = {
   localidade: string;
   morada: string;
+  /**
+   * O sítio exato (10 nov 2026): com ele, o «Ir» vai ao ponto em vez de procurar pelo nome e pela
+   * morada. Null, ou ausente nas respostas de antes, é procurar como antes.
+   */
+  lat?: number | null;
+  lng?: number | null;
   telefone: string;
   instagram: string;
   site: string;
@@ -164,6 +176,8 @@ export type Promocao = PromocaoPublica & {
   destaqueEn: string;
   tituloEn: string;
   detalheEn: string;
+  /** O código de cupão (vazio: sem código); a app só o mostra a quem não tem o cadeado. */
+  cupao: string;
   parceiroId: number;
   parceiro: string;
   /** Para toda a gente (null: sem limite), e quantas já foram usadas. */
@@ -325,6 +339,13 @@ export type ClienteEu = {
   wallet: { apple: boolean; google: boolean; appleNaCarteira: boolean };
   /** Sempre vazia: o saco das surpresas saiu (8 nov 2026). Fica pelas apps instaladas antes disso. */
   cupoes: never[];
+  /**
+   * Os códigos de cupão das vantagens, por id da vantagem (10 nov 2026). Só a quem tem um corte no
+   * último ano (sem o cadeado); aos outros vem vazio, para o código nem chegar ao telemóvel.
+   */
+  codigosDasVantagens?: Record<string, string>;
+  /** O saldo (10 nov 2026): o número do topo da app e o último movimento, para a animação quando muda. */
+  saldo?: SaldoNoEu;
   /** A prenda de anos do programa: faz anos hoje, deu a data há 30 dias ou mais, e ainda não a levou este ano. */
   prenda: string | null;
 };
@@ -397,6 +418,22 @@ export type FichaDoBalcao = {
   premiosAMeio: PremioAMeioPorUsar[];
   /** O último prémio a meio entregue hoje: o quê, quando e por quem (outro barbeiro vê que já foi). */
   premioAMeioEntregue: { recompensa: string; quando: number; pessoa: string | null } | null;
+  /**
+   * O saldo do cliente (10 nov 2026), em cêntimos, e o último uso de hoje (para o anular, e para outro
+   * barbeiro ver que já foi usado). Falta nas respostas de antes do saldo.
+   */
+  saldo?: {
+    valor: number;
+    usadoHoje: {
+      movimentoId: number;
+      /** O valor usado, positivo, em cêntimos. */
+      valor: number;
+      quando: number;
+      pessoa: string | null;
+      /** Quem usou anula nos 10 minutos seguintes; o dono sempre. */
+      podeAnular: boolean;
+    } | null;
+  };
 };
 
 export type ResultadoDoCarimbo = {
@@ -517,6 +554,47 @@ export type PessoaDaEquipaNoBackoffice = PessoaDaEquipa & {
   sessoes: SessaoDoBackoffice[];
 };
 
+/**
+ * Uma coisa que uma pessoa da equipa fez (o histórico da pessoa no backoffice, 11 nov 2026): um carimbo,
+ * um uso do saldo, um prémio entregue, ou um carimbo ou um uso de outra pessoa que anulou.
+ */
+export type AcontecimentoDaPessoa = {
+  tipo: 'carimbo' | 'uso' | 'premio' | 'meio' | 'anulou-carimbo' | 'anulou-uso';
+  id: number;
+  quando: number;
+  /** O cliente (null: já não existe). */
+  cliente: { id: number; nome: string; apagado: boolean } | null;
+  loja: string | null;
+  /** Em cêntimos: o uso (negativo), também no uso que anulou. */
+  valor: number | null;
+  /** O prémio entregue (no «premio» e no «meio»); o inglês vazio nos cartões de antes do inglês. */
+  recompensa: string | null;
+  recompensaEn: string | null;
+  semLeitura: boolean;
+  repetido: boolean;
+  /** O que fez e foi anulado: quando e por quem (null: no backoffice). */
+  anulado: { em: number; por: string | null } | null;
+  /** O que anulou: quem o tinha feito e quando. */
+  de: { pessoa: string | null; quando: number } | null;
+};
+
+/** O histórico de uma pessoa da equipa, do mais recente para trás, às páginas. */
+export type HistoricoDaPessoa = {
+  /** Os últimos 30 dias (só na primeira página). */
+  numeros: {
+    carimbos: number;
+    /** Em cêntimos, o que usou do saldo dos clientes (sem os usos anulados). */
+    saldoUsado: number;
+    /** Carimbos e usos dela que foram anulados. */
+    anulados: number;
+    /** Carimbos e usos sem ler o cartão. */
+    semLeitura: number;
+  } | null;
+  acontecimentos: AcontecimentoDaPessoa[];
+  /** A página seguinte (mais antiga), ou null se não houver. */
+  seguinte: string | null;
+};
+
 export type ClienteDoBackoffice = {
   id: number;
   codigo: string;
@@ -572,6 +650,49 @@ export type FichaDoCliente = ClienteDoBackoffice & {
     repetido: boolean;
     semLeitura: boolean;
   })[];
+  /** O saldo e os convites (10 nov 2026); falta nas respostas de antes. */
+  saldo?: SaldoDoBackoffice;
+};
+
+/** A resposta de usar o saldo ao balcão: a ficha nova e o uso feito por esta chave (11 nov 2026). */
+export type FichaDepoisDoUso = FichaDoBalcao & {
+  usoFeito?: { movimentoId: number; valor: number; quando: number } | null;
+};
+
+/** Na ficha do cliente do backoffice: o saldo, os movimentos (com quem os fez) e os convites. */
+export type SaldoDoBackoffice = {
+  /** Em cêntimos. */
+  valor: number;
+  movimentos: (MovimentoDoSaldo & {
+    /** Quem da equipa usou, ou quem do backoffice acertou. */
+    por: string | null;
+    /** Um uso sem ler o cartão (escrito à mão, ou procurado): como nos carimbos (11 nov 2026). */
+    semLeitura?: boolean;
+    /** Quem da equipa o anulou (null: o backoffice, ou desconhecido). */
+    anuladoPor?: string | null;
+    /** Quando foi anulado (o histórico do backoffice, 11 nov 2026; falta nas respostas de antes). */
+    anuladoEm?: number | null;
+    /** O outro lado de um convite (no «convite» e no «convidado»): para abrir a ficha dele. */
+    quemId?: number | null;
+    /** O outro lado apagou a conta (o nome já não existe). */
+    quemApagado?: boolean;
+  })[];
+  /** Os convites deste cliente: quem aceitou (nome inteiro, é o backoffice) e se já foi. */
+  convites: (ConviteFeito & {
+    clienteId: number;
+    /** Quando este cliente recebeu o prémio pela visita deste (null: ainda não, ou anulado). */
+    premioEm?: number | null;
+    /** O convidado apagou a conta. */
+    apagado?: boolean;
+  })[];
+  convidadoPor: {
+    clienteId: number;
+    nome: string;
+    criadoEm: number;
+    /** Quem convidou apagou a conta. */
+    apagado?: boolean;
+  } | null;
+  codigoDoConvite: string | null;
 };
 
 export type Metricas = {
@@ -644,4 +765,81 @@ export type Metricas = {
     /** Pela casa do cliente. */
     porCasa: { id: number; nome: string; n: number }[];
   };
+};
+
+// ——— saldo e convites (o Renato, 10 nov 2026) ———
+
+/** Um movimento do saldo, como a carteira o mostra: a app escreve a frase na língua dela. */
+export type MovimentoDoSaldo = {
+  id: number;
+  /** Em cêntimos: positivo entrou, negativo saiu. */
+  valor: number;
+  tipo: TipoDeMovimento;
+  /**
+   * O outro lado de um convite, em nome curto («Pedro S.»): no «convite», o convidado que foi à
+   * barbearia; no «convidado», quem convidou. Null nos outros.
+   */
+  quem: string | null;
+  /** Onde se usou (no «uso»). */
+  loja: string | null;
+  /** A nota de um acerto do Nuno (no «acerto»). */
+  nota: string;
+  criadoEm: number;
+  /** Anulado: aparece riscado e não conta para o saldo. */
+  anulado: boolean;
+};
+
+/** No «eu»: o saldo, o último movimento (a animação compara-o com o último visto) e se há convites. */
+export type SaldoNoEu = {
+  /** Em cêntimos. */
+  saldo: number;
+  ultimo: MovimentoDoSaldo | null;
+  /** Os convites estão ligados no backoffice (a pílula aparece mesmo com o saldo a zero). */
+  convites: boolean;
+  /**
+   * Ainda pode escrever o código de quem o convidou (convites ligados, sem convite, sem nenhum corte): a
+   * app lembra-o no topo (11 nov 2026). Opcional: a API de antes não o manda.
+   */
+  podeUsarCodigo?: boolean;
+};
+
+/** Um convite feito por este cliente: quem aceitou (nome curto) e se já foi à barbearia. */
+export type ConviteFeito = {
+  nome: string;
+  criadoEm: number;
+  visitouEm: number | null;
+  /** Em cêntimos: o que ganha (ou ganhou) quem convidou com a visita deste. */
+  premio: number;
+};
+
+/** A carteira do cliente (GET /api/eu/carteira). */
+export type CarteiraDoCliente = {
+  /** Em cêntimos. */
+  saldo: number;
+  convites: DefinicoesDosConvites & {
+    /**
+     * O código para partilhar (null com os convites desligados). A ligação faz-se na app, como a dos
+     * parceiros: `${SITIO}/?convite=CODIGO`.
+     */
+    codigo: string | null;
+    /** Convites aceites, e destes quantos já foram à barbearia. */
+    aceites: number;
+    visitaram: number;
+    /** Do mais recente para o mais antigo. */
+    lista: ConviteFeito[];
+  };
+  /** Quem convidou este cliente, e o que ganhou ao aceitar (null: ninguém). */
+  convidadoPor: { nome: string; premio: number; criadoEm: number } | null;
+  /** Ainda pode escrever o código de quem o convidou: convites ligados, sem convite e sem nenhum corte. */
+  podeUsarCodigo: boolean;
+  /** Do mais recente para o mais antigo (até 100). */
+  movimentos: MovimentoDoSaldo[];
+};
+
+/** O que a página de um convite mostra antes de entrar (GET /api/convite/:codigo). */
+export type ConviteParaQuemChega = {
+  /** Quem convida, em nome curto. */
+  nome: string;
+  /** Em cêntimos: o que o convidado ganha ao aceitar. */
+  valorConvidado: number;
 };

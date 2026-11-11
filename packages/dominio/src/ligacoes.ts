@@ -69,13 +69,74 @@ export function ligacaoDoTelefone(telefone: string): string {
 export function ligacoesDosMapas(
   morada: string,
   nome = '',
+  sitio: Sitio | null = null,
 ): Record<'apple' | 'google' | 'waze', string> {
+  // Com o sítio exato (as coordenadas do backoffice), as três vão ao ponto: procurar pelo nome levava
+  // a outro sítio quando o parceiro não tem perfil no Google (o Renato, 10 nov 2026). Os Mapas da
+  // Apple põem o nome no pino; o Google Maps e o Waze mostram o ponto.
+  if (sitio) {
+    const ponto = `${sitio.lat},${sitio.lng}`;
+    const rotulo = encodeURIComponent(nome || morada);
+    return {
+      apple: `https://maps.apple.com/?ll=${ponto}${rotulo ? `&q=${rotulo}` : ''}`,
+      google: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ponto)}`,
+      waze: `https://waze.com/ul?ll=${ponto}&navigate=yes`,
+    };
+  }
   const q = encodeURIComponent([nome, morada].filter(Boolean).join(', '));
   return {
     apple: `https://maps.apple.com/?q=${q}`,
     google: `https://www.google.com/maps/search/?api=1&query=${q}`,
     waze: `https://waze.com/ul?q=${q}`,
   };
+}
+
+/** Um ponto no mapa, em graus decimais. */
+export type Sitio = { lat: number; lng: number };
+
+const seisCasas = (x: number) => Math.round(x * 1e6) / 1e6;
+
+/**
+ * As coordenadas de um sítio, coladas como o Google Maps as dá: «40.884, -8.452» (o que aparece ao
+ * carregar sem largar no mapa), em graus, minutos e segundos («40°53'02.6"N 8°27'06.1"W»), ou numa
+ * ligação do Google Maps que as traga (o pino «!3d…!4d…», «?q=40.884,-8.452», ou o centro «@…»). As
+ * ligações curtas («maps.app.goo.gl/…») não as trazem: recusam-se. Vazio: sem coordenadas
+ * ({ lat: null, lng: null }); outra coisa, ou fora do mundo: null.
+ */
+export function lerCoordenadas(entrada: string): { lat: number | null; lng: number | null } | null {
+  const t = entrada.trim();
+  if (!t) return { lat: null, lng: null };
+  const ponto = (lat: number, lng: number) =>
+    Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180
+      ? { lat, lng }
+      : null;
+  const decimal = /^(-?\d{1,3}(?:\.\d+)?)\s*[,;\s]\s*(-?\d{1,3}(?:\.\d+)?)$/.exec(t);
+  if (decimal) return ponto(Number(decimal[1]), Number(decimal[2]));
+  const graus =
+    /^(\d{1,2})°\s*(\d{1,2})['′]\s*(\d+(?:\.\d+)?)["″]?\s*([NS])[\s,]+(\d{1,3})°\s*(\d{1,2})['′]\s*(\d+(?:\.\d+)?)["″]?\s*([EWO])$/i.exec(
+      t,
+    );
+  if (graus) {
+    const [, la, lm, ls, ns, ga, gm, gs, eo] = graus as unknown as string[];
+    const lat = (Number(la) + Number(lm) / 60 + Number(ls) / 3600) * (/s/i.test(ns!) ? -1 : 1);
+    const lng = (Number(ga) + Number(gm) / 60 + Number(gs) / 3600) * (/[wo]/i.test(eo!) ? -1 : 1);
+    return ponto(seisCasas(lat), seisCasas(lng));
+  }
+  if (/^https?:\/\//i.test(t)) {
+    let u = t;
+    try {
+      u = decodeURIComponent(t);
+    } catch {
+      // Um «%» partido: lê-se como veio.
+    }
+    const n = '(-?\\d{1,3}(?:\\.\\d+)?)';
+    const m =
+      new RegExp(`!3d${n}!4d${n}`).exec(u) ??
+      new RegExp(`[?&](?:q|query|ll|destination|daddr|center)=${n},\\s*${n}`).exec(u) ??
+      new RegExp(`@${n},${n}`).exec(u);
+    if (m) return ponto(Number(m[1]), Number(m[2]));
+  }
+  return null;
 }
 
 /** Ligações que o backoffice deixa pôr (marcações, WhatsApp, TikTok): só https. */

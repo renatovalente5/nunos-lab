@@ -5,10 +5,12 @@ import {
   DIAS_DE_CLIENTE_ACTIVO,
   DIAS_PARA_A_PRENDA,
   LIMITES_DO_PROGRAMA,
+  LIMITES_DO_SALDO,
   MESES,
   MESES_EN,
   diaEmLisboa,
   eAniversarioValido,
+  eurosComSinal,
   normalizarCodigo,
   normalizarEmail,
   textoDeBusca,
@@ -18,6 +20,13 @@ import {
 } from '@nunos-lab/dominio';
 import type { Ambiente, C } from '../ambiente.ts';
 import { anularCarimbo } from '../carimbos.ts';
+import {
+  consultaDoSaldo,
+  consultaDosMovimentos,
+  movimentoPublico,
+  saldoDe,
+  type LinhaDoMovimento,
+} from '../saldo.ts';
 import { apagarConta } from '../cliente/apagar.ts';
 import { DIA, agora, corpo, idDaMorada, recusar, registar, traduzirErroDaBase } from '../util.ts';
 import { nomeLimpo } from '../nomes.ts';
@@ -125,11 +134,12 @@ rotasDosClientes.get('/clientes', async (c) => {
 
 async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
   const db = c.env.DB;
-  const [cliente, cartoes, carimbos] = await db.batch([
-    db.prepare(`${LISTA} WHERE k.id = ?`).bind(id),
-    db
-      .prepare(
-        `SELECT c.id, c.numero, c.objectivo, c.recompensa, c.recompensa_en, c.iniciado_em, c.completo_em, c.usado_em,
+  const [cliente, cartoes, carimbos, saldo, movimentos, feitos, recebido, codigoConvite] =
+    await db.batch([
+      db.prepare(`${LISTA} WHERE k.id = ?`).bind(id),
+      db
+        .prepare(
+          `SELECT c.id, c.numero, c.objectivo, c.recompensa, c.recompensa_en, c.iniciado_em, c.completo_em, c.usado_em,
            l.nome AS usado_loja, e.nome AS usado_por,
            c.meio, c.meio_recompensa, c.meio_recompensa_en, c.meio_ganho_em, c.meio_usado_em,
            ml.nome AS meio_usado_loja, me.nome AS meio_usado_por,
@@ -137,19 +147,38 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
          FROM cartoes c LEFT JOIN lojas l ON l.id = c.usado_loja_id LEFT JOIN equipa e ON e.id = c.usado_por
          LEFT JOIN lojas ml ON ml.id = c.meio_usado_loja_id LEFT JOIN equipa me ON me.id = c.meio_usado_por
          WHERE c.cliente_id = ? ORDER BY c.numero DESC`,
-      )
-      .bind(id),
-    db
-      .prepare(
-        `SELECT x.id, x.criado_em AS quando, l.nome AS loja, e.nome AS pessoa, c.numero,
+        )
+        .bind(id),
+      db
+        .prepare(
+          `SELECT x.id, x.criado_em AS quando, l.nome AS loja, e.nome AS pessoa, c.numero,
            x.anulado_em, a.nome AS anulado_por, x.repetido, x.sem_leitura
          FROM carimbos x JOIN cartoes c ON c.id = x.cartao_id
          LEFT JOIN lojas l ON l.id = x.loja_id LEFT JOIN equipa e ON e.id = x.pessoa_id
          LEFT JOIN equipa a ON a.id = x.anulado_por
          WHERE x.cliente_id = ? ORDER BY x.criado_em DESC LIMIT 200`,
-      )
-      .bind(id),
-  ]);
+        )
+        .bind(id),
+      consultaDoSaldo(db, id),
+      consultaDosMovimentos(db, id, 200),
+      // Quem ele convidou, e quando recebeu o prémio de cada um (o que vale: um anulado não conta).
+      db
+        .prepare(
+          `SELECT v.convidado_id AS cliente_id, k.nome, k.apagado_em, v.criado_em, v.visitou_em, v.premio_padrinho,
+           (SELECT min(m.criado_em) FROM movimentos_de_saldo m
+             WHERE m.convite_id = v.id AND m.tipo = 'convite' AND m.anulado_em IS NULL) AS premio_em
+         FROM convites v JOIN clientes k ON k.id = v.convidado_id
+         WHERE v.padrinho_id = ? ORDER BY v.criado_em DESC, v.id DESC`,
+        )
+        .bind(id),
+      db
+        .prepare(
+          `SELECT v.padrinho_id AS cliente_id, k.nome, k.apagado_em, v.criado_em
+         FROM convites v JOIN clientes k ON k.id = v.padrinho_id WHERE v.convidado_id = ?`,
+        )
+        .bind(id),
+      db.prepare('SELECT codigo_convite FROM clientes WHERE id = ?').bind(id),
+    ]);
   const l = cliente!.results[0] as Linha | undefined;
   if (!l) recusar(404, 'nao_existe');
   type Cartao = {
@@ -183,8 +212,53 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
     repetido: number;
     sem_leitura: number;
   };
+  // O saldo e os convites (10 nov 2026): aqui com os nomes inteiros e quem fez cada movimento.
+  const por = recebido!.results[0] as
+    { cliente_id: number; nome: string; apagado_em: number | null; criado_em: number } | undefined;
   const ficha: FichaDoCliente = {
     ...publico(l),
+    saldo: {
+      valor: saldoDe(saldo!),
+      movimentos: (movimentos!.results as LinhaDoMovimento[]).map((m) => ({
+        ...movimentoPublico(m, true),
+        por: m.por,
+        semLeitura: m.sem_leitura === 1,
+        anuladoPor: m.anulado_por_nome,
+        anuladoEm: m.anulado_em,
+        quemId: m.quem_id,
+        quemApagado: m.quem_apagado === 1,
+      })),
+      convites: (
+        feitos!.results as {
+          cliente_id: number;
+          nome: string;
+          apagado_em: number | null;
+          criado_em: number;
+          visitou_em: number | null;
+          premio_padrinho: number;
+          premio_em: number | null;
+        }[]
+      ).map((v) => ({
+        clienteId: v.cliente_id,
+        nome: v.nome,
+        criadoEm: v.criado_em,
+        visitouEm: v.visitou_em,
+        premio: v.premio_padrinho,
+        premioEm: v.premio_em,
+        apagado: v.apagado_em !== null,
+      })),
+      convidadoPor: por
+        ? {
+            clienteId: por.cliente_id,
+            nome: por.nome,
+            criadoEm: por.criado_em,
+            apagado: por.apagado_em !== null,
+          }
+        : null,
+      codigoDoConvite:
+        (codigoConvite!.results[0] as { codigo_convite: string | null } | undefined)
+          ?.codigo_convite ?? null,
+    },
     cartoes: (cartoes!.results as Cartao[]).map((x) => ({
       id: x.id,
       numero: x.numero,
@@ -226,6 +300,72 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
 }
 
 rotasDosClientes.get('/clientes/:id', async (c) => c.json(await lerFicha(c, idDaMorada(c))));
+
+/**
+ * Acertar o saldo (o Renato, 10 nov 2026): o Nuno dá ou tira, com uma nota que o cliente vê na carteira.
+ * Tirar mais do que o saldo é recusado (como ao balcão: o saldo nunca fica negativo por um acerto).
+ */
+rotasDosClientes.post('/clientes/:id/saldo', async (c) => {
+  const id = idDaMorada(c);
+  const { valor, nota, chave } = await corpo(
+    c,
+    z.object({
+      valor: z
+        .number()
+        .int()
+        .min(-LIMITES_DO_SALDO.movimento.max)
+        .max(LIMITES_DO_SALDO.movimento.max)
+        .refine((v) => v !== 0),
+      nota: z.string().trim().min(1).max(LIMITES_DO_SALDO.nota),
+      // Uma por folha aberta: a resposta perdida e o clique outra vez não dão dois acertos.
+      chave: z
+        .string()
+        .regex(/^[A-Za-z0-9_-]{8,64}$/)
+        .optional(),
+    }),
+  );
+  const db = c.env.DB;
+  const existe = await db
+    .prepare('SELECT nome FROM clientes WHERE id = ? AND apagado_em IS NULL')
+    .bind(id)
+    .first<{ nome: string }>();
+  if (!existe) recusar(404, 'nao_existe');
+  if (chave) {
+    const repetido = await db
+      .prepare('SELECT cliente_id FROM movimentos_de_saldo WHERE chave = ?')
+      .bind(chave)
+      .first<{ cliente_id: number }>();
+    if (repetido) {
+      if (repetido.cliente_id !== id) recusar(409, 'repetido');
+      return c.json(await lerFicha(c, id));
+    }
+  }
+  // O saldo decide-se no próprio INSERT (dois acertos ao mesmo tempo não o põem negativo); o histórico
+  // só regista o que entrou.
+  let r: D1Result;
+  try {
+    r = await db
+      .prepare(
+        `INSERT INTO movimentos_de_saldo (cliente_id, valor, tipo, admin_id, nota, chave)
+         SELECT ?1, ?2, 'acerto', ?3, ?4, ?5
+         WHERE ?2 > 0 OR (SELECT coalesce(sum(valor), 0) FROM movimentos_de_saldo
+                          WHERE cliente_id = ?1 AND anulado_em IS NULL) + ?2 >= 0`,
+      )
+      .bind(id, valor, c.get('admin')?.id ?? null, nota, chave ?? null)
+      .run();
+  } catch (e) {
+    // A mesma chave ao mesmo tempo por dois caminhos: conta uma.
+    if (!String(e).includes('UNIQUE constraint failed')) throw e;
+    return c.json(await lerFicha(c, id));
+  }
+  if (!r.meta.changes) recusar(409, 'saldo_insuficiente');
+  await registar(
+    c,
+    'saldo.acertado',
+    `${existe.nome || id} · ${eurosComSinal(valor)} · ${nota}`,
+  ).run();
+  return c.json(await lerFicha(c, id));
+});
 
 const ClientePedido = z.object({
   nome: nomeLimpo(LIMITES_DO_PROGRAMA.nomeDoCliente).optional(),

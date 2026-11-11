@@ -112,6 +112,9 @@ export const pt = {
     'cliente.alterado': 'alterou o cliente',
     'cliente.apagado': 'apagou o cliente',
     'carimbo.anulado': 'anulou um carimbo de',
+    // O saldo e os convites (10 nov 2026).
+    'saldo.acertado': 'acertou o saldo de',
+    'convites.alterados': 'alterou os convites:',
   } as Record<string, string>,
   /** As palavras que a API guarda em português no registo de entradas («Aparelho · ligação»). */
   aparelho: 'Aparelho',
@@ -120,6 +123,13 @@ export const pt = {
   /** Os campos que a API escreve no registo quando o Nuno muda um cliente. */
   camposDoCliente: { nome: 'nome', email: 'email', aniversário: 'aniversário', casa: 'barbearia' },
   cartoesEmCurso: (n: number) => `${n} ${n === 1 ? 'cartão' : 'cartões'} em curso`,
+  /** Os convites como a API os escreve no registo («ligados · 1 € / 1 € · 10»), por palavras. */
+  convitesNoRegisto: {
+    ligados: 'ligados',
+    desligados: 'desligados',
+    porCliente: (n: number) => `${n} por cliente`,
+    semLimite: 'sem limite',
+  },
   erros: {
     sessao: 'A sessão acabou. Entra outra vez.',
     ligacao_invalida: 'Esta ligação já foi usada ou já caducou. Entra com o Google.',
@@ -146,6 +156,7 @@ export const pt = {
     recompensa_usada: 'Esse carimbo deu um prémio já entregue: não se anula.',
     cartao_seguinte: 'O cartão seguinte já tem carimbos: esse não se anula.',
     email_ja_tem_cartao: 'Esse email já tem cartão noutro cliente.',
+    saldo_insuficiente: 'O saldo não chega para tirar isso.',
     nada_a_mudar: 'Não havia nada para gravar.',
     repetido: 'Isso já existe.',
     ultimo_admin: 'É o último admin: não se tira.',
@@ -263,12 +274,20 @@ export const en: typeof pt = {
     'cliente.alterado': 'edited the client',
     'cliente.apagado': 'deleted the client',
     'carimbo.anulado': 'undid a stamp for',
+    'saldo.acertado': 'adjusted the balance for',
+    'convites.alterados': 'changed the invites:',
   },
   aparelho: 'Device',
   ligacao: 'access link',
   semEmail: 'no email',
   camposDoCliente: { nome: 'name', email: 'email', aniversário: 'birthday', casa: 'barbershop' },
   cartoesEmCurso: (n) => `${n} ${n === 1 ? 'card' : 'cards'} in progress`,
+  convitesNoRegisto: {
+    ligados: 'on',
+    desligados: 'off',
+    porCliente: (n) => `${n} per client`,
+    semLimite: 'no limit',
+  },
   erros: {
     sessao: 'Your session has ended. Sign in again.',
     ligacao_invalida: 'This link has already been used or has expired. Sign in with Google.',
@@ -296,6 +315,7 @@ export const en: typeof pt = {
       'This stamp completed a card whose reward has already been redeemed, so it can’t be undone.',
     cartao_seguinte: 'The next card already has stamps, so this one can’t be undone.',
     email_ja_tem_cartao: 'That email is already on another client’s card.',
+    saldo_insuficiente: 'The balance isn’t enough to deduct that.',
     nada_a_mudar: 'No changes to save.',
     repetido: 'That already exists.',
     ultimo_admin: 'You can’t remove the last person with access.',

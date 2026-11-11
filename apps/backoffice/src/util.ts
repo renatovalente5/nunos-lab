@@ -1,4 +1,11 @@
-import { dataCurta, diaEmLisboa, nomeDoMes, recompensaEmIngles } from '@nunos-lab/dominio';
+import {
+  dataCurta,
+  diaEmLisboa,
+  euros as eurosDoSaldo,
+  eurosComSinal,
+  nomeDoMes,
+  recompensaEmIngles,
+} from '@nunos-lab/dominio';
 import { useEffect, useState } from 'react';
 import { etiquetaDaLingua, linguaActual } from './lingua';
 import { textos } from './textos';
@@ -40,6 +47,19 @@ export function nomeDoAparelho(aparelho: string, palavra: string): string {
 }
 
 /**
+ * Os euros que a API escreve no registo, em português («1 €», «+2,50 €», «−3 €»), na língua de agora
+ * («€1», «+€2.50»). Com o `euros` do domínio, o do saldo: o `euros` deste ficheiro escreve «1,00 €».
+ */
+function eurosNaLingua(texto: string): string {
+  const m = /^([+−]?)(\d+)(?:,(\d{2}))? €$/.exec(texto);
+  if (!m) return texto;
+  const centimos = (m[1] === '−' ? -1 : 1) * (Number(m[2]) * 100 + Number(m[3] ?? 0));
+  return m[1] === '+'
+    ? eurosComSinal(centimos, linguaActual())
+    : eurosDoSaldo(centimos, linguaActual());
+}
+
+/**
  * O alvo de uma linha do registo. A API guarda-o em português («Aparelho · ligação», «3 cartões em curso»,
  * «nome, aniversário»); as partes que são da app (não do Nuno) dizem-se aqui na língua de agora.
  */
@@ -48,6 +68,18 @@ export function alvoDoRegisto(accao: string, alvo: string): string {
   const g = t.geral;
   if (accao === 'entrou')
     return nomeDoAparelho(alvo, g.aparelho).replace(/ · ligação$/, ` · ${g.ligacao}`);
+  if (accao === 'convites.alterados') {
+    // «ligados · 1 € / 1 € · 10» (10 nov 2026): o «10» sozinho não se percebe, diz-se «10 por cliente».
+    const m = /^(ligados|desligados) · (.+?) \/ (.+?) · (\d+|sem limite)$/.exec(alvo);
+    if (!m) return alvo;
+    const [, estado, padrinho, convidado, limite] = m;
+    const c = g.convitesNoRegisto;
+    return [
+      estado === 'ligados' ? c.ligados : c.desligados,
+      `${eurosNaLingua(padrinho!)} / ${eurosNaLingua(convidado!)}`,
+      limite === 'sem limite' ? c.semLimite : c.porCliente(Number(limite)),
+    ].join(' · ');
+  }
   if (accao === 'carimbo.anulado')
     return alvo.replace(/(\d{4}-\d{2}-\d{2})$/, (dia) =>
       dataCurta(dia, diaEmLisboa(), linguaActual()),
@@ -70,6 +102,12 @@ export function alvoDoRegisto(accao: string, alvo: string): string {
       return alvo.replace(
         / · (dono|barbeiro|parceiro)$/,
         (_, papel: keyof typeof t.equipa.papeis) => ` · ${t.equipa.papeis[papel]}`,
+      );
+    case 'saldo.acertado':
+      // «Pedro Santos · +2 € · nota» (10 nov 2026): só o valor é da app; o nome e a nota ficam.
+      return alvo.replace(
+        / · ([+−]\d+(?:,\d{2})? €)(?= · |$)/,
+        (_, valor: string) => ` · ${eurosNaLingua(valor)}`,
       );
     case 'programa.alterado': {
       // «10 → 50% de desconto · 5 → 20% num produto · 3 cartões em curso» (o prémio a meio desde 10 nov).
