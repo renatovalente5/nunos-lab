@@ -15,6 +15,7 @@ import {
   normalizarInstagram,
   normalizarSite,
   normalizarTelefone,
+  soComCodigo,
 } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -498,7 +499,12 @@ export function Parceiro({ id }: { id: string }) {
               </Gaveta>
             )}
 
-            {!novo && dados.data && <GavetaDeQuemValida parceiroId={dados.data.parceiro.id} />}
+            {!novo && dados.data && (
+              <GavetaDeQuemValida
+                parceiroId={dados.data.parceiro.id}
+                semPrecisar={soComCodigo(promocoes)}
+              />
+            )}
           </div>
 
           <div className="gravar">

@@ -53,6 +53,7 @@ export const pt = {
     parceiro: 'Parceiro',
     titulo: 'Título da vantagem',
     mostraOCartao: 'Mostra o cartão ao balcão',
+    usaOCodigo: 'Usa o código ao pagar',
   },
   grafico: {
     porDia: (nome: string, total: string) =>
@@ -216,6 +217,7 @@ export const en: typeof pt = {
     parceiro: 'Partner',
     titulo: 'Perk title',
     mostraOCartao: 'Show your card when you pay',
+    usaOCodigo: 'Use the code when you pay',
   },
   grafico: {
     porDia: (nome, total) =>

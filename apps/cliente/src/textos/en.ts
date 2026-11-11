@@ -39,6 +39,7 @@ export const en: Textos = {
       sempre: 'Already used',
     },
     mostraOCartao: 'Show your card when you pay',
+    usaOCodigo: 'Use the code when you pay',
     codigo: 'Code',
     copiar: 'Copy',
     copiado: 'Copied',

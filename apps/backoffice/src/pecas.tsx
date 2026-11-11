@@ -1344,6 +1344,7 @@ export function PrevisaoDaPromocao({
   fim,
   hoje,
   limite = null,
+  comCodigo = false,
 }: {
   parceiro: {
     nome: string;
@@ -1361,10 +1362,13 @@ export function PrevisaoDaPromocao({
   hoje: string;
   /** O limite ao ler o cartão («1 por dia»), ao lado do «Mostra o cartão ao balcão». */
   limite?: string | null;
+  /** Com código de cupão, usa-se ao pagar, e não ao mostrar o cartão (como na app, 11 nov 2026). */
+  comCodigo?: boolean;
 }) {
   const t = useTextos();
   const lingua = useLingua();
   const validade = validadeEmTexto({ inicio, fim }, hoje, lingua);
+  const comoSeUsa = comCodigo ? t.geral.previsao.usaOCodigo : t.geral.previsao.mostraOCartao;
   const cor = parceiro?.cor ?? '#5C544C';
   const desenho = useDesenhoDaCategoria(parceiro?.categoriaId);
   return (
@@ -1388,13 +1392,7 @@ export function PrevisaoDaPromocao({
         <div className="fundo-capa">
           <div className="grande">{semPartir(destaque || '−10%')}</div>
           <div className="titulo-previsao">{semPartir(titulo || t.geral.previsao.titulo)}</div>
-          <div className="vale">
-            {semPartir(
-              limite
-                ? `${t.geral.previsao.mostraOCartao} · ${limite}`
-                : t.geral.previsao.mostraOCartao,
-            )}
-          </div>
+          <div className="vale">{semPartir(limite ? `${comoSeUsa} · ${limite}` : comoSeUsa)}</div>
           {validade && <div className="validade">{validade}</div>}
         </div>
       </div>

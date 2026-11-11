@@ -454,6 +454,7 @@ test('o que falta fazer: só o que deixa a app a meio, pela ordem em que importa
       destaque: '−10%',
       titulo: 'Na refeição',
       estado: 'activa',
+      cupao: '',
       fim,
       ...extra,
     }) as never;
@@ -502,6 +503,146 @@ test('o que falta fazer: só o que deixa a app a meio, pela ordem em que importa
     !lista.some((c) => 'parceiroId' in c && (c.parceiroId === 3 || c.parceiroId === 4)),
     'desligados e exemplos não contam',
   );
+});
+
+test('só com código (uma loja online): ninguém lê o cartão, nem é preciso morada (11 nov)', async () => {
+  const { oQueFaltaFazer, soComCodigo } = await import('./por-fazer.ts');
+  const parceiro = (id: number) =>
+    ({
+      id,
+      nome: `P${id}`,
+      activo: true,
+      exemplo: false,
+      promocoesNaApp: 1,
+      morada: '',
+      logotipo: null,
+    }) as never;
+  const promocao = (parceiroId: number, cupao: string, estado = 'activa') =>
+    ({
+      id: parceiroId * 10 + cupao.length,
+      parceiroId,
+      parceiro: `P${parceiroId}`,
+      estado,
+      cupao,
+      fim: null,
+    }) as never;
+  const vantagem = (cupao: string, estado = 'activa') => ({ cupao, estado }) as never;
+
+  assert.equal(soComCodigo([vantagem('SEEK10')]), true);
+  assert.equal(soComCodigo([vantagem('SEEK10'), vantagem('')]), false, 'uma lê-se ao balcão');
+  assert.equal(soComCodigo([vantagem('  ')]), false, 'espaços não são código');
+  assert.equal(soComCodigo([]), false, 'sem vantagens ainda não se sabe');
+  assert.equal(soComCodigo([vantagem('A1', 'agendada')]), true, 'as agendadas contam');
+  assert.equal(
+    soComCodigo([vantagem('A1'), vantagem('', 'pausada'), vantagem('', 'terminada')]),
+    true,
+    'as pausadas e as que acabaram não contam',
+  );
+
+  const lista = oQueFaltaFazer({
+    parceiros: [parceiro(1), parceiro(2), parceiro(3)],
+    // Alguém foi posto na loja online e nunca entrou: não é preciso que entre.
+    equipa: [
+      { nome: 'Quem 1', papel: 'parceiro', parceiroId: 1, activo: true, sessoes: [] } as never,
+    ],
+    promocoes: [promocao(1, 'SEEK10'), promocao(2, 'A1'), promocao(2, '')],
+    hoje: '2026-11-11',
+  });
+  const de = (id: number) => lista.filter((c) => 'parceiroId' in c && c.parceiroId === id);
+  assert.deepEqual(
+    de(1).map((c) => (c.tipo === 'parceiro_incompleto' ? [c.tipo, c.falta] : c.tipo)),
+    [['parceiro_incompleto', ['logotipo']]],
+    'a loja online: só o logótipo',
+  );
+  assert.deepEqual(
+    de(2).map((c) => c.tipo),
+    ['sem_quem_valide', 'parceiro_incompleto'],
+    'com uma vantagem ao balcão, como antes',
+  );
+  assert.deepEqual(
+    de(3).map((c) => c.tipo),
+    ['sem_quem_valide', 'parceiro_incompleto'],
+    'sem vantagens, como antes',
+  );
+});
+
+test('só com código: os casos à volta (11 nov)', async () => {
+  const { oQueFaltaFazer, soComCodigo } = await import('./por-fazer.ts');
+  const vantagem = (cupao: string, estado = 'activa') => ({ cupao, estado }) as never;
+  assert.equal(
+    soComCodigo([vantagem('A1', 'pausada'), vantagem('')]),
+    false,
+    'o código desligado não conta: a que está na app lê-se ao balcão',
+  );
+  assert.equal(
+    soComCodigo([vantagem('A1', 'terminada')]),
+    false,
+    'só uma que acabou: como sem vantagens',
+  );
+  assert.equal(soComCodigo([vantagem(' A1 ')]), true, 'espaços à volta de um código a sério');
+
+  const parceiro = (id: number, extra: Record<string, unknown> = {}) =>
+    ({
+      id,
+      nome: `P${id}`,
+      activo: true,
+      exemplo: false,
+      promocoesNaApp: 1,
+      morada: '',
+      logotipo: 'a'.repeat(32),
+      ...extra,
+    }) as never;
+  const promocao = (id: number, parceiroId: number, extra: Record<string, unknown> = {}) =>
+    ({
+      id,
+      parceiroId,
+      parceiro: `P${parceiroId}`,
+      destaque: '−10%',
+      titulo: 'No site',
+      estado: 'activa',
+      cupao: 'A1',
+      fim: null,
+      ...extra,
+    }) as never;
+  const lista = oQueFaltaFazer({
+    parceiros: [
+      // 1: só com código e tudo em dia, com alguém que entrou: nada.
+      parceiro(1),
+      // 2: só com código, a acabar daqui a 2 dias: o aviso de que acaba fica.
+      parceiro(2),
+      // 3: o código só começa amanhã (ainda fora da app): conta como só com código, e «fora da app» fica.
+      parceiro(3, { promocoesNaApp: 0 }),
+      // 4: código desligado e uma vantagem ao balcão na app: como antes.
+      parceiro(4, { morada: 'Rua 4' }),
+      // 5: só com código, mas desligado de propósito: não conta.
+      parceiro(5, { activo: false }),
+    ],
+    equipa: [
+      { nome: 'Quem 1', papel: 'parceiro', parceiroId: 1, activo: true, sessoes: [{}] } as never,
+    ],
+    promocoes: [
+      promocao(1, 1),
+      promocao(2, 2, { fim: '2026-11-13' }),
+      promocao(3, 3, { estado: 'agendada' }),
+      promocao(4, 4, { estado: 'pausada' }),
+      promocao(5, 4, { cupao: '' }),
+      promocao(6, 5),
+    ],
+    hoje: '2026-11-11',
+  });
+  const de = (id: number) =>
+    lista
+      .filter((c) => ('parceiroId' in c ? c.parceiroId === id : c.parceiro === `P${id}`))
+      .map((c) => c.tipo);
+  assert.deepEqual(de(1), [], 'a loja online em dia');
+  assert.deepEqual(de(2), ['a_acabar'], 'a vantagem a acabar avisa na mesma');
+  assert.deepEqual(de(3), ['fora_da_app'], 'agendada: sem quem valide nem morada, mas fora da app');
+  assert.deepEqual(
+    de(4),
+    ['sem_quem_valide'],
+    'com uma vantagem ao balcão: quem valide (tem morada)',
+  );
+  assert.deepEqual(de(5), [], 'desligado não conta');
 });
 
 test('desenhos novos: as apps antigas recebem um que conhecem (9 nov)', () => {

@@ -39,6 +39,9 @@ export const pt = {
   quemValida: 'Quem valida',
   aindaNinguem: 'Ainda ninguém',
   quemValidaAjuda: 'Quem juntares aqui valida as vantagens na app for partners.',
+  // Todas as vantagens do parceiro têm código (uma loja online, 11 nov 2026).
+  naoEPreciso: 'Não é preciso',
+  naoEPrecisoAjuda: 'As vantagens com código não precisam de quem as valide.',
   adicionarPessoa: 'Adicionar pessoa',
   jaPodeValidar: (nome: string) => `${nome} já pode validar`,
   tirarOAcesso: 'Tirar o acesso',
@@ -115,6 +118,8 @@ export const en: typeof pt = {
   quemValida: 'Who validates',
   aindaNinguem: 'No one yet',
   quemValidaAjuda: 'People you add here validate perks in the partner app.',
+  naoEPreciso: 'Not needed',
+  naoEPrecisoAjuda: 'Perks with a code don’t need anyone to validate them.',
   adicionarPessoa: 'Add person',
   jaPodeValidar: (nome) => `${nome} can now validate perks`,
   tirarOAcesso: 'Remove access',

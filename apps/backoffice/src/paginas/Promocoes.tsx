@@ -691,6 +691,7 @@ export function EditorDePromocao({
               },
               lingua,
             )}
+            comCodigo={!!f.cupao.trim()}
           />
         </div>
       </Folha>

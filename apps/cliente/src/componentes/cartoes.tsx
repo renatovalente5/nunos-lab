@@ -409,8 +409,9 @@ export function CartaoDaPromocao({
           borderTopColor: cor.linha,
         }}
       >
+        {/* Com código (uma loja online, 11 nov 2026), ninguém lê o cartão: usa-se o código ao pagar. */}
         <Icone
-          nome={bloqueio ? 'cadeado' : usada ? 'certo' : 'cartao'}
+          nome={bloqueio ? 'cadeado' : usada ? 'certo' : codigo ? 'etiqueta' : 'cartao'}
           tamanho={16}
           cor={bloqueio || usada ? cor.texto : cor.texto2}
           espessura={2.2}
@@ -422,7 +423,9 @@ export function CartaoDaPromocao({
               ? t.promocao.usadaHoje(horaDe(usadaHoje))
               : esgotada
                 ? t.promocao.jaUsaste[promocao.periodoDoLimite]
-                : t.promocao.mostraOCartao}
+                : codigo
+                  ? t.promocao.usaOCodigo
+                  : t.promocao.mostraOCartao}
         </T>
       </View>
     </>

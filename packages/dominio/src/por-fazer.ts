@@ -11,11 +11,28 @@ export type CoisaPorFazer =
   | { tipo: 'sem_quem_valide'; parceiroId: number; parceiro: string }
   | { tipo: 'nao_entrou'; parceiroId: number; parceiro: string; pessoa: string }
   | { tipo: 'fora_da_app'; parceiroId: number; parceiro: string }
-  | { tipo: 'a_acabar'; promocaoId: number; parceiro: string; promocao: string; fim: string; dias: number }
+  | {
+      tipo: 'a_acabar';
+      promocaoId: number;
+      parceiro: string;
+      promocao: string;
+      fim: string;
+      dias: number;
+    }
   | { tipo: 'parceiro_incompleto'; parceiroId: number; parceiro: string; falta: FaltaNoParceiro[] };
 
 /** As barbearias não entram: o telefone ou a marcação em falta não precisam de aviso (o Renato, 9 nov). */
 export type FaltaNoParceiro = 'morada' | 'logotipo';
+
+/**
+ * Um parceiro em que todas as vantagens têm código (o Renato, 11 nov 2026: a Seek Cosmetics, uma loja
+ * online): o código usa-se ao pagar, ninguém lê o cartão, e não é preciso quem valide nem morada.
+ * Contam as vantagens na app e as agendadas; sem nenhuma, ainda não se sabe como vai ser.
+ */
+export function soComCodigo(promocoes: Pick<Promocao, 'estado' | 'cupao'>[]): boolean {
+  const vivas = promocoes.filter((p) => p.estado === 'activa' || p.estado === 'agendada');
+  return vivas.length > 0 && vivas.every((p) => p.cupao.trim() !== '');
+}
 
 export function oQueFaltaFazer(d: {
   parceiros: Parceiro[];
@@ -27,11 +44,18 @@ export function oQueFaltaFazer(d: {
   const lista: CoisaPorFazer[] = [];
   const validam = (id: number) =>
     d.equipa.filter((e) => e.papel === 'parceiro' && e.parceiroId === id && e.activo);
-  for (const p of parceiros)
+  // Só com código, ninguém precisa de ler o cartão: nem quem valide, nem quem entre na app for partners.
+  const codigo = new Set(
+    parceiros
+      .filter((p) => soComCodigo(d.promocoes.filter((pr) => pr.parceiroId === p.id)))
+      .map((p) => p.id),
+  );
+  const leemOCartao = parceiros.filter((p) => !codigo.has(p.id));
+  for (const p of leemOCartao)
     if (!validam(p.id).length)
       lista.push({ tipo: 'sem_quem_valide', parceiroId: p.id, parceiro: p.nome });
   // Sem sessão aberta em aparelho nenhum, não valida: nunca entrou, ou saiu.
-  for (const p of parceiros)
+  for (const p of leemOCartao)
     for (const e of validam(p.id))
       if (!e.sessoes.length)
         lista.push({ tipo: 'nao_entrou', parceiroId: p.id, parceiro: p.nome, pessoa: e.nome });
@@ -56,7 +80,8 @@ export function oQueFaltaFazer(d: {
   );
   for (const p of parceiros) {
     const falta: FaltaNoParceiro[] = [];
-    if (!p.morada.trim()) falta.push('morada');
+    // Uma loja só online não tem morada para pôr.
+    if (!p.morada.trim() && !codigo.has(p.id)) falta.push('morada');
     if (!p.logotipo) falta.push('logotipo');
     if (falta.length)
       lista.push({ tipo: 'parceiro_incompleto', parceiroId: p.id, parceiro: p.nome, falta });

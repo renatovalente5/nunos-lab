@@ -37,6 +37,8 @@ export const pt = {
       sempre: 'Já usaste',
     } as Record<PeriodoDoLimite, string>,
     mostraOCartao: 'Mostra o cartão ao balcão',
+    // Com código, ninguém lê o cartão (uma loja online, 11 nov 2026).
+    usaOCodigo: 'Usa o código ao pagar',
     // O código de cupão de uma vantagem, sem o cadeado (10 nov 2026).
     codigo: 'Código',
     copiar: 'Copiar',

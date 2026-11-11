@@ -134,13 +134,24 @@ export function Equipa() {
  * Quem valida as promoções de um parceiro na app for partners: junta-se e edita-se na página do
  * parceiro, e não na Equipa (o Renato, 8 nov).
  */
-export function GavetaDeQuemValida({ parceiroId }: { parceiroId: number }) {
+export function GavetaDeQuemValida({
+  parceiroId,
+  semPrecisar = false,
+}: {
+  parceiroId: number;
+  /**
+   * Todas as vantagens têm código (uma loja online, 11 nov 2026): ninguém lê o cartão. Sem ninguém, a
+   * gaveta diz que não é preciso, para o Nuno não pôr lá um email só porque está vazia.
+   */
+  semPrecisar?: boolean;
+}) {
   const t = useTextos();
   const equipa = useEquipa();
   const [aberta, setAberta] = useState<Aberta>(null);
   const pessoas = (equipa.data ?? []).filter(
     (p) => p.papel === 'parceiro' && p.parceiroId === parceiroId,
   );
+  const vazia = semPrecisar ? t.equipa.naoEPreciso : t.equipa.aindaNinguem;
 
   return (
     <>
@@ -148,7 +159,7 @@ export function GavetaDeQuemValida({ parceiroId }: { parceiroId: number }) {
         id="parceiro.pessoas"
         chegarAqui={parametro('abrir') === 'quem-valida'}
         titulo={t.equipa.quemValida}
-        resumo={equipa.data && (pessoas.map((p) => p.nome).join(' · ') || t.equipa.aindaNinguem)}
+        resumo={equipa.data && (pessoas.map((p) => p.nome).join(' · ') || vazia)}
         lista
       >
         {!equipa.data ? (
@@ -156,7 +167,9 @@ export function GavetaDeQuemValida({ parceiroId }: { parceiroId: number }) {
         ) : pessoas.length ? (
           <ListaDePessoas pessoas={pessoas} abrir={(pessoa) => setAberta({ pessoa })} />
         ) : (
-          <Vazio titulo={t.equipa.aindaNinguem}>{t.equipa.quemValidaAjuda}</Vazio>
+          <Vazio titulo={vazia}>
+            {semPrecisar ? t.equipa.naoEPrecisoAjuda : t.equipa.quemValidaAjuda}
+          </Vazio>
         )}
         <div className="pe-gaveta">
           <button
