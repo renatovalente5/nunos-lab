@@ -18,8 +18,13 @@ export function nomeDoAparelho(): string {
   return nome ? `Android · ${nome}` : 'Android';
 }
 
-/** O cabeçalho com o nome do aparelho, só nas apps nativas (na web pedia uma autorização a mais). */
+/**
+ * O cabeçalho com o nome do aparelho, só nas apps nativas (na web pedia uma autorização a mais).
+ * Vai codificado (só ASCII), e a API descodifica-o: o fetch do Expo no Android junta os cabeçalhos com o
+ * `Headers.Builder.add()` do OkHttp, que recusa o «·» de «Android · Samsung…». O pedido rebentava no
+ * telemóvel, antes de sair, e a entrada dizia «Sem ligação» em todos os Android (13 nov 2026).
+ */
 export function cabecalhoDoAparelho(): Record<string, string> {
   const nome = nomeDoAparelho();
-  return nome ? { 'X-Aparelho': nome } : {};
+  return nome ? { 'X-Aparelho': encodeURIComponent(nome) } : {};
 }

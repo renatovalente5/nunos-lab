@@ -137,7 +137,15 @@ export function aparelhoDe(ua: string): string {
  * a lista das sessões ficava cheia de «Aparelho». A web vai pelo User-Agent («Mac · Safari»).
  */
 export function aparelhoDoPedido(c: { req: { header(nome: string): string | undefined } }): string {
-  const dito = (c.req.header('X-Aparelho') ?? '')
+  let lido = c.req.header('X-Aparelho') ?? '';
+  // As apps mandam-no codificado (o OkHttp do Android recusa cabeçalhos fora do ASCII, 13 nov 2026); as
+  // versões de antes mandam-no tal e qual («iPhone»). Um «%» solto fica como veio.
+  try {
+    lido = decodeURIComponent(lido);
+  } catch {
+    // Não era uma codificação válida.
+  }
+  const dito = lido
     .replace(/[^\p{L}\p{N} ·.,()+\-]/gu, '')
     .trim()
     .slice(0, 40);
