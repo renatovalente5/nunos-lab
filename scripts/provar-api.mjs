@@ -177,6 +177,50 @@ await passo('as contagens da app entram (texto simples, sem pré-voo)', async ()
   }
 });
 
+await passo(
+  'o desfecho da janela da Apple conta-se pela origem, e o que vem torto não fica',
+  async () => {
+    const mandar = (corpo) =>
+      fetch(`${API}/api/contar`, {
+        method: 'POST',
+        body: json(corpo),
+        headers: { 'Content-Type': 'text/plain' },
+      });
+    const bons = [
+      { tipo: 'apple_fechou', ref: 1, c: 'ERR_REQUEST_CANCELED', s: 23, n: 1, r: 0 },
+      { tipo: 'apple_fechou', ref: 1, c: 'ERR_REQUEST_CANCELED', s: 41, n: 2, r: 2 },
+      { tipo: 'apple_entrou', ref: 1, c: '', s: 6, n: 3, r: 0 },
+      { tipo: 'apple_falhou', ref: 3, c: 'ERR_REQUEST_UNKNOWN', s: 2, n: 1, r: 0 },
+      { tipo: 'apple_fechou', ref: 2, c: 'popup_closed_by_user', s: 4, n: 1 },
+    ];
+    // Sem origem conhecida, com um desfecho que não existe, ou com o corpo cortado aos 200 caracteres.
+    const tortos = [
+      { tipo: 'apple_fechou', ref: 9 },
+      { tipo: 'apple_fechou' },
+      { tipo: 'apple_abriu', ref: 1 },
+      { tipo: 'apple_fechou', ref: 1, c: 'x'.repeat(300) },
+    ];
+    for (const corpo of [...bons, ...tortos]) assert.equal((await mandar(corpo)).status, 204);
+    // As outras contagens sem tabela continuam com a referência a zero, venha o que vier.
+    assert.equal((await mandar({ tipo: 'cartao', ref: 7 })).status, 204);
+    await new Promise((r) => setTimeout(r, 400));
+    assert.deepEqual(
+      daBaseLocal(
+        "SELECT tipo, ref, n FROM contagens WHERE tipo LIKE 'apple_%' ORDER BY tipo, ref",
+      ),
+      [
+        { tipo: 'apple_entrou', ref: 1, n: 1 },
+        { tipo: 'apple_falhou', ref: 3, n: 1 },
+        { tipo: 'apple_fechou', ref: 1, n: 2 },
+        { tipo: 'apple_fechou', ref: 2, n: 1 },
+      ],
+    );
+    assert.deepEqual(daBaseLocal("SELECT ref, n FROM contagens WHERE tipo = 'cartao'"), [
+      { ref: 0, n: 1 },
+    ]);
+  },
+);
+
 await passo('sem sessão, o backoffice responde 401', async () => {
   assert.equal((await pedir('/api/bo/eu')).status, 401);
   assert.equal((await pedir('/api/bo/parceiros', { token: 'x'.repeat(43) })).status, 401);

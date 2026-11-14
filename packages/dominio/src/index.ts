@@ -17,5 +17,6 @@ export * from './fidelidade.ts';
 export * from './vales.ts';
 export * from './por-fazer.ts';
 export * from './tipos.ts';
+export * from './apple.ts';
 export * from './mapa.ts';
 export * from './saldo.ts';

@@ -143,6 +143,10 @@ export const TIPOS_DE_CONTAGEM = [
   'marcar',
   'cartao',
   'entrar',
+  // O desfecho da janela «Iniciar sessão com a Apple» (apple.ts, 14 nov 2026). O «ref» é a origem.
+  'apple_entrou',
+  'apple_fechou',
+  'apple_falhou',
 ] as const;
 export type TipoDeContagem = (typeof TIPOS_DE_CONTAGEM)[number];
 

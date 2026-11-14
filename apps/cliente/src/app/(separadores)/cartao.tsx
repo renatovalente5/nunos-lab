@@ -29,7 +29,7 @@ import {
   useEu,
   useTemSessao,
 } from '../../conta';
-import { contar, definirTitulo, useDados } from '../../dados';
+import { contar, contarApple, definirTitulo, useDados } from '../../dados';
 import {
   BotaoDaApple,
   BotaoDoGoogle,
@@ -460,6 +460,7 @@ function Selo({
 /** Sem conta: um toque na Apple ou no Google e o cartão nasce. */
 function Entrar() {
   const t = useTextos();
+  const ui = useTextosDaUi();
   const lingua = useLingua();
   const { entrarComGoogle, entrarComApple } = useConta();
   // Chegou pela ligação de um convite: entrar aqui põe o código na conta (não no telemóvel), e a app
@@ -503,6 +504,8 @@ function Entrar() {
           clienteId={APPLE_CLIENTE}
           redirectURI={moradaDeRetornoDaApple()}
           aoEntrar={(d) => correr(() => entrarComApple(d))}
+          aoDesfecho={contarApple}
+          seNaoDer={GOOGLE_CLIENTE ? ui.appleNaoDeu : undefined}
         />
       ) : null}
       {GOOGLE_CLIENTE ? (

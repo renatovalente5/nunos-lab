@@ -13,6 +13,7 @@ export * from './qr';
 export * from './carimbos';
 export * from './campo';
 export * from './entrar';
+export * from './contar-apple';
 export * from './interruptor';
 export * from './armazem';
 export * from './lingua';

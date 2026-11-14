@@ -6,6 +6,7 @@ import {
   APPLE_CLIENTE,
   ErroDaBalcao,
   GOOGLE_CLIENTE,
+  contarApple,
   guardarSessao,
   mensagemDe,
   pedir,
@@ -31,6 +32,7 @@ import {
   cor,
   raio,
   useLingua,
+  useTextosDaUi,
 } from '@nunos-lab/ui';
 import { useTextos } from '../textos';
 
@@ -230,6 +232,7 @@ function HojeParceiro() {
 
 function Entrar() {
   const t = useTextos();
+  const ui = useTextosDaUi();
   const [erro, setErro] = useState<unknown>(null);
   const correr = async (f: () => Promise<{ sessao: string }>) => {
     setErro(null);
@@ -262,6 +265,8 @@ function Entrar() {
                   : ''
               }
               aoEntrar={(d) => correr(() => pedir('/entrar/apple', { metodo: 'POST', corpo: d }))}
+              aoDesfecho={contarApple}
+              seNaoDer={GOOGLE_CLIENTE ? ui.appleNaoDeu : undefined}
             />
           ) : null}
           {GOOGLE_CLIENTE ? (

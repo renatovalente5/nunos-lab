@@ -1,8 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import { type Lingua, diaEmLisboa, type DadosDaApp, type TipoDeContagem } from '@nunos-lab/dominio';
+import {
+  ORIGEM_DA_APPLE,
+  type Lingua,
+  diaEmLisboa,
+  type DadosDaApp,
+  type DesfechoDaApple,
+  type TipoDeContagem,
+} from '@nunos-lab/dominio';
 import { Linking, Platform } from 'react-native';
 import {
   CHAVE_DA_LINGUA,
+  contarDesfechoDaApple,
   guardar as guardarNoArmazem,
   lerSincrono,
   useLingua,
@@ -140,6 +148,14 @@ export function contar(tipo: TipoDeContagem, ref = 0) {
     // Uma contagem perdida não estraga nada.
   }
 }
+
+/** O que aconteceu à janela «Iniciar sessão com a Apple», sem saber de quem (apple.ts no domínio). */
+export const contarApple = (d: DesfechoDaApple) =>
+  contarDesfechoDaApple(
+    API,
+    Platform.OS === 'web' ? ORIGEM_DA_APPLE.clienteWeb : ORIGEM_DA_APPLE.cliente,
+    d,
+  );
 
 /** Abre uma ligação de fora: o telefone na mesma janela, o resto num separador novo. */
 export function abrir(url: string) {

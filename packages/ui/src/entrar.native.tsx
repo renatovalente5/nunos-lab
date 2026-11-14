@@ -1,9 +1,10 @@
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { getRandomBytes } from 'expo-crypto';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import type { DesfechoDaApple } from '@nunos-lab/dominio';
 import { cor, letra } from './tema';
 import { T } from './texto';
 import { useTextosDaUi } from './textos';
@@ -21,37 +22,81 @@ function aleatorio(n = 24): string {
 
 export function BotaoDaApple({
   aoEntrar,
+  aoDesfecho,
+  seNaoDer,
 }: {
   clienteId: string;
   redirectURI: string;
   aoEntrar: (dados: { token: string; nonce: string; nome: string | null }) => void;
   texto?: string;
+  /** O que aconteceu à janela da Apple, para quem o quiser contar (contar-apple.ts). */
+  aoDesfecho?: (d: DesfechoDaApple) => void;
+  /** A frase por baixo do botão quando a janela se fecha sem entrar. Sem ela, nada. */
+  seNaoDer?: string;
 }) {
+  const [naoDeu, setNaoDeu] = useState(false);
+  const tentativas = useRef(0);
   if (Platform.OS !== 'ios') return null;
   return (
-    <AppleAuthentication.AppleAuthenticationButton
-      buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-      buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-      cornerRadius={22}
-      style={{ width: LARGURA_DO_BOTAO, height: 44, alignSelf: 'center' }}
-      onPress={async () => {
-        const nonce = aleatorio();
-        try {
-          const r = await AppleAuthentication.signInAsync({
-            requestedScopes: [
-              AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-              AppleAuthentication.AppleAuthenticationScope.EMAIL,
-            ],
-            nonce,
-          });
-          if (!r.identityToken) return;
-          const nome = [r.fullName?.givenName, r.fullName?.familyName].filter(Boolean).join(' ');
-          aoEntrar({ token: r.identityToken, nonce, nome: nome || null });
-        } catch {
-          // A pessoa cancelou: nada a dizer.
-        }
-      }}
-    />
+    <View style={{ alignItems: 'center', gap: 8 }}>
+      <AppleAuthentication.AppleAuthenticationButton
+        buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+        buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+        cornerRadius={22}
+        style={{ width: LARGURA_DO_BOTAO, height: 44, alignSelf: 'center' }}
+        onPress={async () => {
+          const nonce = aleatorio();
+          const desde = Date.now();
+          const tentativa = ++tentativas.current;
+          const desfecho = (como: DesfechoDaApple['desfecho'], codigo = '') => {
+            try {
+              aoDesfecho?.({
+                desfecho: como,
+                codigo,
+                segundos: Math.round((Date.now() - desde) / 1000),
+                tentativa,
+              });
+            } catch {
+              // Contar nunca estraga a entrada.
+            }
+          };
+          try {
+            const r = await AppleAuthentication.signInAsync({
+              requestedScopes: [
+                AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                AppleAuthentication.AppleAuthenticationScope.EMAIL,
+              ],
+              nonce,
+            });
+            if (!r.identityToken) {
+              setNaoDeu(true);
+              desfecho('falhou', 'SEM_TOKEN');
+              return;
+            }
+            setNaoDeu(false);
+            desfecho('entrou');
+            const nome = [r.fullName?.givenName, r.fullName?.familyName].filter(Boolean).join(' ');
+            aoEntrar({ token: r.identityToken, nonce, nome: nome || null });
+          } catch (e) {
+            // A janela é do sistema. Quando a Apple falha lá dentro («Não foi possível estabelecer
+            // ligação», com a rede boa: três clientes a 14 nov 2026), a pessoa fecha-a e chega aqui o
+            // mesmo código de quem desistiu. Por isso a frase é uma pergunta, e conta-se o desfecho.
+            const codigo = String((e as { code?: unknown } | null)?.code ?? '');
+            setNaoDeu(true);
+            desfecho(codigo === 'ERR_REQUEST_CANCELED' ? 'fechou' : 'falhou', codigo);
+          }
+        }}
+      />
+      {naoDeu && seNaoDer ? (
+        <T
+          v="legenda"
+          role="alert"
+          style={{ color: cor.texto2, textAlign: 'center', maxWidth: LARGURA_DO_BOTAO }}
+        >
+          {seNaoDer}
+        </T>
+      ) : null}
+    </View>
   );
 }
 

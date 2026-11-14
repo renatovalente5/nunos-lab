@@ -12,6 +12,9 @@ const pt = {
   carimbosDe: (carimbos: number, objectivo: number) =>
     `${carimbos} de ${objectivo} ${objectivo === 1 ? 'carimbo' : 'carimbos'}`,
   continuarComApple: 'Continuar com a Apple',
+  // Por baixo do botão da Apple quando a janela dela se fecha sem entrar: às vezes é a Apple que falha
+  // lá dentro (14 nov 2026), e a app só sabe que a janela fechou. Por isso é uma pergunta.
+  appleNaoDeu: 'Não deu com a Apple? Tenta outra vez ou entra com o Google.',
   continuarComGoogle: 'Continuar com o Google',
   googleNaoAbriu: 'O Google não abriu. Tenta outra vez.',
   googleNaoAbriuNaWeb: 'O Google não abriu. Recarrega a página.',
@@ -29,6 +32,7 @@ const en: typeof pt = {
   carimbosDe: (carimbos, objectivo) =>
     `${carimbos} of ${objectivo} ${objectivo === 1 ? 'stamp' : 'stamps'}`,
   continuarComApple: 'Continue with Apple',
+  appleNaoDeu: 'Didn’t work with Apple? Try again or continue with Google.',
   continuarComGoogle: 'Continue with Google',
   googleNaoAbriu: 'Google sign-in didn’t open. Try again.',
   googleNaoAbriuNaWeb: 'Google sign-in didn’t load. Refresh the page.',

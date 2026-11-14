@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { ETIQUETA_DA_LINGUA } from '@nunos-lab/dominio';
+import { ETIQUETA_DA_LINGUA, type DesfechoDaApple } from '@nunos-lab/dominio';
 import { linguaActual, useLingua } from './lingua';
 import { cor, letra } from './tema';
 import { T } from './texto';
@@ -152,22 +152,33 @@ function aleatorio(n = 24): string {
   return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
 }
 
+/** Os erros do script da Apple que são a pessoa a fechar a janela; os outros contam como falha. */
+const FECHOU_NA_WEB = ['popup_closed_by_user', 'user_cancelled_authorize'];
+
 export function BotaoDaApple({
   clienteId,
   redirectURI,
   aoEntrar,
   texto,
+  aoDesfecho,
+  seNaoDer,
 }: {
   clienteId: string;
   redirectURI: string;
   aoEntrar: (dados: { token: string; nonce: string; nome: string | null }) => void;
   texto?: string;
+  /** O que aconteceu à janela da Apple, para quem o quiser contar (contar-apple.ts). */
+  aoDesfecho?: (d: DesfechoDaApple) => void;
+  /** A frase por baixo do botão quando a janela se fecha sem entrar. Sem ela, nada. */
+  seNaoDer?: string;
 }) {
   const t = useTextosDaUi();
   const nome = texto ?? t.continuarComApple;
   const [estado, setEstado] = useState<'a-carregar' | 'pronto' | 'falhou' | 'a-entrar'>(
     'a-carregar',
   );
+  const [naoDeu, setNaoDeu] = useState(false);
+  const tentativas = useRef(0);
   const nonce = useRef(aleatorio());
   useEffect(() => {
     let vivo = true;
@@ -195,43 +206,74 @@ export function BotaoDaApple({
   const entrar = async () => {
     if (estado !== 'pronto' || !window.AppleID) return;
     setEstado('a-entrar');
+    const desde = Date.now();
+    const tentativa = ++tentativas.current;
+    const desfecho = (como: DesfechoDaApple['desfecho'], codigo = '') => {
+      try {
+        aoDesfecho?.({
+          desfecho: como,
+          codigo,
+          segundos: Math.round((Date.now() - desde) / 1000),
+          tentativa,
+        });
+      } catch {
+        // Contar nunca estraga a entrada.
+      }
+    };
     try {
       const r = await window.AppleID.auth.signIn();
       const nome = [r.user?.name?.firstName, r.user?.name?.lastName].filter(Boolean).join(' ');
+      setNaoDeu(false);
+      desfecho('entrou');
       aoEntrar({ token: r.authorization.id_token, nonce: nonce.current, nome: nome || null });
-    } catch {
-      // A pessoa fechou a janela: nada a dizer.
+    } catch (e) {
+      // Como no telemóvel (entrar.native.tsx): a janela fechou-se sem entrar, e nem sempre foi a
+      // pessoa que desistiu. A Apple diz porquê em «error» (popup_closed_by_user…).
+      const codigo = String((e as { error?: unknown } | null)?.error ?? '');
+      setNaoDeu(true);
+      desfecho(FECHOU_NA_WEB.includes(codigo) ? 'fechou' : 'falhou', codigo);
     } finally {
       setEstado('pronto');
     }
   };
   if (estado === 'falhou') return null;
   return (
-    <Pressable
-      onPress={entrar}
-      role="button"
-      aria-label={nome}
-      aria-disabled={estado !== 'pronto'}
-      style={({ pressed }) => ({
-        width: LARGURA_DO_BOTAO,
-        height: 44,
-        alignSelf: 'center',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        borderRadius: 999,
-        backgroundColor: pressed ? cor.claroPremido : cor.claro,
-        opacity: estado === 'pronto' ? 1 : 0.6,
-      })}
-    >
-      <Svg width={18} height={18} viewBox="0 0 24 24" aria-hidden>
-        <Path
-          fill={cor.sobreClaro}
-          d="M16.4 12.7c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.3 1.2 9.7.8 1.2 1.8 2.5 3.1 2.4 1.2 0 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8 0 0-2.6-1-2.7-3.8zM14 5.5c.7-.8 1.1-2 1-3.1-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1 3 1.1.1 2.2-.6 2.9-1.4z"
-        />
-      </Svg>
-      <T style={{ color: cor.sobreClaro, fontFamily: letra.forte, fontSize: 15 }}>{nome}</T>
-    </Pressable>
+    <View style={{ alignItems: 'center', gap: 8 }}>
+      <Pressable
+        onPress={entrar}
+        role="button"
+        aria-label={nome}
+        aria-disabled={estado !== 'pronto'}
+        style={({ pressed }) => ({
+          width: LARGURA_DO_BOTAO,
+          height: 44,
+          alignSelf: 'center',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          borderRadius: 999,
+          backgroundColor: pressed ? cor.claroPremido : cor.claro,
+          opacity: estado === 'pronto' ? 1 : 0.6,
+        })}
+      >
+        <Svg width={18} height={18} viewBox="0 0 24 24" aria-hidden>
+          <Path
+            fill={cor.sobreClaro}
+            d="M16.4 12.7c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.3 1.2 9.7.8 1.2 1.8 2.5 3.1 2.4 1.2 0 1.7-.8 3.2-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8 0 0-2.6-1-2.7-3.8zM14 5.5c.7-.8 1.1-2 1-3.1-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1 3 1.1.1 2.2-.6 2.9-1.4z"
+          />
+        </Svg>
+        <T style={{ color: cor.sobreClaro, fontFamily: letra.forte, fontSize: 15 }}>{nome}</T>
+      </Pressable>
+      {naoDeu && seNaoDer ? (
+        <T
+          v="legenda"
+          role="alert"
+          style={{ color: cor.texto2, textAlign: 'center', maxWidth: LARGURA_DO_BOTAO }}
+        >
+          {seNaoDer}
+        </T>
+      ) : null}
+    </View>
   );
 }

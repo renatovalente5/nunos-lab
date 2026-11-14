@@ -9,6 +9,7 @@ import {
   DIAS_DE_NOVO,
   TIPOS_DE_CONTAGEM,
   diaEmLisboa,
+  lerDesfechoDaApple,
   ordemDasRedes,
   type ConviteParaQuemChega,
   type DadosDaApp,
@@ -196,6 +197,7 @@ const TABELA_DA_CONTAGEM: Partial<Record<TipoDeContagem, string>> = {
  * Uma contagem da app («abriu», «viu o parceiro 3», «carregou em Ligar»). Vem
  * por sendBeacon, em texto simples, sem pré-voo de CORS; responde sempre 204,
  * porque a app não espera por nada. Sem pessoa: só o dia, o tipo e o número.
+ * Também o desfecho da janela da Apple (packages/dominio/src/apple.ts).
  */
 rotasPublicas.post('/contar', async (c) => {
   const ip = c.req.header('CF-Connecting-IP') ?? 'local';
@@ -211,8 +213,12 @@ rotasPublicas.post('/contar', async (c) => {
   const tipo = dados?.tipo;
   if (typeof tipo !== 'string' || !(TIPOS_DE_CONTAGEM as readonly string[]).includes(tipo))
     return c.body(null, 204);
+  // A janela «Iniciar sessão com a Apple» (14 nov 2026): o «ref» é a app de onde veio, não um id.
+  const daApple = tipo.startsWith('apple_');
+  const apple = daApple ? lerDesfechoDaApple(dados) : null;
+  if (daApple && !apple) return c.body(null, 204);
   const tabela = TABELA_DA_CONTAGEM[tipo as TipoDeContagem];
-  const ref = tabela ? Number(dados.ref) : 0;
+  const ref = apple ? apple.ref : tabela ? Number(dados.ref) : 0;
   if (!Number.isInteger(ref) || ref < 0 || ref > 1e9) return c.body(null, 204);
   const dia = diaEmLisboa();
   // O D1 recusa parâmetros a mais: cada forma leva só os que usa.
@@ -222,9 +228,23 @@ rotasPublicas.post('/contar', async (c) => {
          ON CONFLICT (dia, tipo, ref) DO UPDATE SET n = n + 1`,
       ).bind(dia, tipo, ref)
     : c.env.DB.prepare(
-        `INSERT INTO contagens (dia, tipo, ref, n) VALUES (?1, ?2, 0, 1)
+        `INSERT INTO contagens (dia, tipo, ref, n) VALUES (?1, ?2, ?3, 1)
          ON CONFLICT (dia, tipo, ref) DO UPDATE SET n = n + 1`,
-      ).bind(dia, tipo);
+      ).bind(dia, tipo, ref);
   c.executionCtx.waitUntil(instrucao.run().catch((e) => console.error('contagem', e)));
+  // Na base fica só o dia e o número. O pormenor (o código, os segundos, a rede, a versão do iOS que o
+  // User-Agent traz) vai para o registo do Worker, que dura poucos dias: é ele que diz porque falha.
+  if (apple)
+    console.log({
+      que: 'janela-da-apple',
+      desfecho: apple.desfecho,
+      origem: apple.origem,
+      codigo: apple.codigo,
+      segundos: apple.segundos,
+      tentativa: apple.tentativa,
+      reenvios: apple.reenvios,
+      rede: String((c.req.raw as { cf?: { asOrganization?: unknown } }).cf?.asOrganization ?? ''),
+      agente: (c.req.header('User-Agent') ?? '').slice(0, 120),
+    });
   return c.body(null, 204);
 });

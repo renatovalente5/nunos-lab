@@ -21,7 +21,7 @@ import {
   useTemSessao,
 } from '../conta';
 import { RodaDeData } from '../componentes/roda-de-data';
-import { definirTitulo, useDados } from '../dados';
+import { contarApple, definirTitulo, useDados } from '../dados';
 import {
   Botao,
   BotaoDaApple,
@@ -449,6 +449,7 @@ export default function Conta() {
                   () => setFolha(null),
                 )
               }
+              aoDesfecho={contarApple}
             />
           )}
           {formasQueFaltam.includes('google') && (

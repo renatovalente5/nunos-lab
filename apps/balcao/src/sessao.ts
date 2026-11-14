@@ -6,23 +6,27 @@
  * últimas fichas vistas ficam guardadas para a ficha ter um nome sem rede.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type {
-  EuDaBalcao,
-  FichaDepoisDoUso,
-  FichaDoBalcao,
-  FichaDoParceiro,
-  HojeDaBalcao,
-  HojeDoParceiro,
-  ResultadoDoCarimbo,
-  ResumoDaBalcao,
-  Vale,
+import {
+  ORIGEM_DA_APPLE,
+  type DesfechoDaApple,
+  type EuDaBalcao,
+  type FichaDepoisDoUso,
+  type FichaDoBalcao,
+  type FichaDoParceiro,
+  type HojeDaBalcao,
+  type HojeDoParceiro,
+  type ResultadoDoCarimbo,
+  type ResumoDaBalcao,
+  type Vale,
 } from '@nunos-lab/dominio';
 import { getRandomBytes } from 'expo-crypto';
 import { router } from 'expo-router';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { Platform } from 'react-native';
 import {
   CHAVE_DA_LINGUA,
   cabecalhoDoAparelho,
+  contarDesfechoDaApple,
   guardar as guardarNoArmazem,
   lerSincrono,
   linguaActual,
@@ -34,6 +38,14 @@ export const API = (
 ).replace(/\/$/, '');
 export const GOOGLE_CLIENTE = process.env.EXPO_PUBLIC_GOOGLE_CLIENTE ?? '';
 export const APPLE_CLIENTE = process.env.EXPO_PUBLIC_APPLE_CLIENTE ?? '';
+
+/** O que aconteceu à janela «Iniciar sessão com a Apple», sem saber de quem (apple.ts no domínio). */
+export const contarApple = (d: DesfechoDaApple) =>
+  contarDesfechoDaApple(
+    API,
+    Platform.OS === 'web' ? ORIGEM_DA_APPLE.balcaoWeb : ORIGEM_DA_APPLE.balcao,
+    d,
+  );
 
 const CHAVE_DA_SESSAO = 'nunoslab:balcao:sessao';
 const CHAVE_DO_EU = 'nunoslab:balcao:eu:1';
