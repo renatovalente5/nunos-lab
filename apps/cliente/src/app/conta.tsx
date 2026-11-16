@@ -21,6 +21,7 @@ import {
   useTemSessao,
 } from '../conta';
 import { RodaDeData } from '../componentes/roda-de-data';
+import { CabecalhoComVoltar } from '../componentes/cabecalho';
 import { contarApple, definirTitulo, useDados } from '../dados';
 import {
   Botao,
@@ -107,36 +108,6 @@ function Linha({
   );
 }
 
-/** «Voltar» e o título: ficam sempre, mesmo sem o «eu» (um ecrã vazio não tinha saída). */
-function Cabecalho() {
-  const t = useTextos();
-  return (
-    <View
-      style={{ paddingHorizontal: MARGEM, flexDirection: 'row', alignItems: 'center', gap: 14 }}
-    >
-      <Pressable
-        onPress={() => (router.canGoBack() ? router.back() : router.replace('/cartao'))}
-        role="button"
-        aria-label={t.conta.voltar}
-        hitSlop={8}
-        style={({ pressed }) => ({
-          width: 40,
-          height: 40,
-          borderRadius: 20,
-          backgroundColor: pressed ? cor.linha : cor.superficieAlta,
-          alignItems: 'center',
-          justifyContent: 'center',
-        })}
-      >
-        <Icone nome="voltar" tamanho={21} espessura={2.2} />
-      </Pressable>
-      <T v="titulo" role="heading" aria-level={1}>
-        {t.conta.titulo}
-      </T>
-    </View>
-  );
-}
-
 export default function Conta() {
   const t = useTextos();
   const lingua = useLingua();
@@ -158,7 +129,7 @@ export default function Conta() {
   if (!eu) {
     return (
       <Ecra comBarra={false}>
-        <Cabecalho />
+        <CabecalhoComVoltar titulo={t.conta.titulo} semVolta="/cartao" />
         {isError && !isFetching ? <SemLigacao tentar={() => refetch()} /> : <Esqueleto />}
       </Ecra>
     );
@@ -196,7 +167,7 @@ export default function Conta() {
 
   return (
     <Ecra comBarra={false}>
-      <Cabecalho />
+      <CabecalhoComVoltar titulo={t.conta.titulo} semVolta="/cartao" />
 
       <Rotulo>{t.conta.eu}</Rotulo>
       <Grupo>

@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   AJUSTE_DE_ORIGEM,
   ajusteDosDedos,
+  anelDoLogotipo,
   caixaDoLogotipo,
   coresPrincipais,
   lerAjusteDoLogotipo,
@@ -807,4 +808,16 @@ test('ajuste do logótipo com os dedos: um arrasta, dois aproximam sem a imagem 
     ),
     { ...inicio, x: 0.1 },
   );
+});
+
+test('o anel à volta do logótipo cabe no mesmo tamanho, nos três sítios da app (16 nov)', () => {
+  // O destaque (28), a lista (50) e a página do parceiro (84).
+  assert.deepEqual(anelDoLogotipo(28), { traco: 1.5, folga: 2, lado: 21 });
+  assert.deepEqual(anelDoLogotipo(50), { traco: 2, folga: 3, lado: 40 });
+  assert.deepEqual(anelDoLogotipo(84), { traco: 3, folga: 5, lado: 68 });
+  for (const tamanho of [24, 28, 30, 44, 50, 58, 84, 120]) {
+    const { traco, folga, lado } = anelDoLogotipo(tamanho);
+    assert.equal(lado + 2 * (traco + folga), tamanho);
+    assert.ok(lado >= tamanho * 0.7, `o logótipo fica com ${lado} de ${tamanho}`);
+  }
 });

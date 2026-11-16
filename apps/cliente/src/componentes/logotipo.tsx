@@ -1,8 +1,8 @@
 import type { ParceiroPublico } from '@nunos-lab/dominio';
-import { caixaDoLogotipo, corParaBranco } from '@nunos-lab/dominio';
+import { anelDoLogotipo, caixaDoLogotipo, COR_DO_ANEL, corParaBranco } from '@nunos-lab/dominio';
 import { Image, Text, View } from 'react-native';
 import { urlDaImagem } from '../dados';
-import { cor, letra } from '@nunos-lab/ui';
+import { letra } from '@nunos-lab/ui';
 
 const PEQUENAS = /^(do|da|dos|das|de|e|o|a|os|as)$/i;
 
@@ -17,64 +17,71 @@ export function iniciaisDe(nome: string): string {
 /**
  * O logótipo do parceiro num círculo, com o fundo, o tamanho e o sítio que o Nuno acertou no
  * backoffice (sem ajuste: branco e a 70 %); sem logótipo, as iniciais a branco sobre a cor dele
- * (escurecida se for clara). Está sempre ao lado do nome, por isso o leitor de ecrã salta-o.
+ * (escurecida se for clara). À volta, o anel claro com uma folga (o Renato escolheu-o entre quatro,
+ * 16 nov 2026): os logótipos escuros perdiam-se no preto. O anel fica dentro do `tamanho`, por isso
+ * nada à volta mexe. Está sempre ao lado do nome, por isso o leitor de ecrã salta-o.
  */
 export function Logotipo({
   parceiro,
   tamanho = 48,
-  anel = false,
 }: {
   parceiro: Pick<ParceiroPublico, 'nome' | 'cor' | 'logotipo'> &
     Partial<Pick<ParceiroPublico, 'logotipoAjuste'>>;
   tamanho?: number;
-  anel?: boolean;
 }) {
-  const borda = anel ? Math.max(3, Math.round(tamanho / 20)) : 0;
-  const base = {
-    width: tamanho,
-    height: tamanho,
-    borderRadius: tamanho / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderWidth: borda,
-    borderColor: cor.fundo,
-  } as const;
-  if (parceiro.logotipo) {
-    // Dentro do anel: as contas são do círculo de dentro (as posições contam do lado de dentro da borda).
-    const dentro = tamanho - 2 * borda;
-    const caixa = caixaDoLogotipo(parceiro.logotipoAjuste);
-    return (
-      <View style={[base, { backgroundColor: caixa.fundo }]} aria-hidden>
-        <Image
-          source={{ uri: urlDaImagem(parceiro.logotipo) }}
-          style={{
-            position: 'absolute',
-            width: dentro * caixa.lado,
-            height: dentro * caixa.lado,
-            left: dentro * caixa.esquerda,
-            top: dentro * caixa.topo,
-          }}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }
+  const { traco, lado } = anelDoLogotipo(tamanho);
+  const caixa = caixaDoLogotipo(parceiro.logotipoAjuste);
   return (
-    <View style={[base, { backgroundColor: corParaBranco(parceiro.cor) }]} aria-hidden>
-      {/* O círculo tem tamanho fixo: com a letra grande do iPhone as iniciais saíam cortadas («T» de «TV»).
-          O leitor de ecrã salta-as; o nome está ao lado. */}
-      <Text
-        allowFontScaling={false}
+    <View
+      style={{
+        width: tamanho,
+        height: tamanho,
+        borderRadius: tamanho / 2,
+        borderWidth: traco,
+        borderColor: COR_DO_ANEL,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+      aria-hidden
+    >
+      <View
         style={{
-          color: '#FFFFFF',
-          fontFamily: letra.extra,
-          fontSize: Math.round(tamanho * 0.36),
-          letterSpacing: -0.4,
+          width: lado,
+          height: lado,
+          borderRadius: lado / 2,
+          overflow: 'hidden',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: parceiro.logotipo ? caixa.fundo : corParaBranco(parceiro.cor),
         }}
       >
-        {iniciaisDe(parceiro.nome)}
-      </Text>
+        {parceiro.logotipo ? (
+          <Image
+            source={{ uri: urlDaImagem(parceiro.logotipo) }}
+            style={{
+              position: 'absolute',
+              width: lado * caixa.lado,
+              height: lado * caixa.lado,
+              left: lado * caixa.esquerda,
+              top: lado * caixa.topo,
+            }}
+            resizeMode="contain"
+          />
+        ) : (
+          // O círculo tem tamanho fixo: com a letra grande do iPhone as iniciais saíam cortadas («T» de «TV»).
+          <Text
+            allowFontScaling={false}
+            style={{
+              color: '#FFFFFF',
+              fontFamily: letra.extra,
+              fontSize: Math.round(lado * 0.36),
+              letterSpacing: -0.4,
+            }}
+          >
+            {iniciaisDe(parceiro.nome)}
+          </Text>
+        )}
+      </View>
     </View>
   );
 }

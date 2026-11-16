@@ -15,9 +15,10 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Animated, Platform, Pressable, Share, View } from 'react-native';
+import { Animated, Platform, Share, View } from 'react-native';
 import { fraseDoMovimento } from '../carteira';
 import { horaDe } from '../componentes/cartoes';
+import { CabecalhoComVoltar } from '../componentes/cabecalho';
 import { aceitarConvite, mensagemDe, useCarteira, useEuDaCache, useTemSessao } from '../conta';
 import { definirTitulo, ligacaoDoConvite } from '../dados';
 import {
@@ -47,27 +48,6 @@ const ICONES: Record<MovimentoDoSaldo['tipo'], NomeDoIcone> = {
   uso: 'tesoura',
   acerto: 'carteira',
 };
-
-function Voltar({ t }: { t: Textos }) {
-  return (
-    <Pressable
-      onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-      role="button"
-      aria-label={t.parceiro.voltar}
-      hitSlop={8}
-      style={({ pressed }) => ({
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: pressed ? cor.linha : cor.superficieAlta,
-        alignItems: 'center',
-        justifyContent: 'center',
-      })}
-    >
-      <Icone nome="voltar" tamanho={21} espessura={2.2} />
-    </Pressable>
-  );
-}
 
 /** Um movimento: o desenho, a frase, quando, e o valor (verde quando entrou; riscado se anulado). */
 function LinhaDoMovimento({ m, novo, t }: { m: MovimentoDoSaldo; novo: boolean; t: Textos }) {
@@ -203,9 +183,7 @@ export default function Carteira() {
   if (!c)
     return (
       <Ecra comBarra={false}>
-        <View style={{ paddingHorizontal: MARGEM }}>
-          <Voltar t={t} />
-        </View>
+        <CabecalhoComVoltar titulo={t.carteira.titulo} semVolta="/" />
         {isError && !isPending ? <SemLigacao tentar={() => refetch()} /> : <Esqueleto />}
       </Ecra>
     );
@@ -239,12 +217,7 @@ export default function Carteira() {
 
   return (
     <Ecra comBarra={false}>
-      <View style={{ paddingHorizontal: MARGEM }}>
-        <Voltar t={t} />
-        <T v="titulo" style={{ marginTop: 22 }} role="heading" aria-level={1}>
-          {t.carteira.titulo}
-        </T>
-      </View>
+      <CabecalhoComVoltar titulo={t.carteira.titulo} semVolta="/" />
 
       {/* O saldo, grande. */}
       <View

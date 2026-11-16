@@ -560,21 +560,14 @@ export function Parceiro({ id }: { id: string }) {
               )}
             </div>
             <div style={{ marginTop: -30, position: 'relative', paddingLeft: 6 }}>
-              <span
-                style={{
-                  display: 'inline-block',
-                  borderRadius: '50%',
-                  border: '3px solid #0a0a0a',
-                }}
-              >
-                <Logotipo
-                  nome={f.nome || '?'}
-                  cor={f.cor}
-                  logotipo={f.logotipo}
-                  ajuste={f.logotipoAjuste}
-                  tamanho={58}
-                />
-              </span>
+              <Logotipo
+                nome={f.nome || '?'}
+                cor={f.cor}
+                logotipo={f.logotipo}
+                ajuste={f.logotipoAjuste}
+                tamanho={58}
+                anel
+              />
               <div
                 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginTop: 6 }}
               >

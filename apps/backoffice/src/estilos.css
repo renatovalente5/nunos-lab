@@ -1170,6 +1170,18 @@ dialog.folha::backdrop {
 .logotipo {
   position: relative;
 }
+/* O anel das apps (16 nov 2026) nas pré-visualizações: o traço por fora, a folga, e o logótipo ao meio. */
+.logotipo-com-anel {
+  flex: none;
+  box-sizing: border-box;
+  border-style: solid;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+.logotipo-com-anel > .logotipo {
+  border: none !important;
+}
 /* A caixa do ajuste vem no estilo (as mesmas contas da app); sem ajuste, a 70 % e ao meio. */
 .logotipo img {
   position: absolute;

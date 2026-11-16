@@ -1,6 +1,8 @@
+import { router, type Href } from 'expo-router';
 import type { ReactNode } from 'react';
-import { View } from 'react-native';
-import { MARGEM, T } from '@nunos-lab/ui';
+import { Pressable, View } from 'react-native';
+import { Icone, MARGEM, T, cor } from '@nunos-lab/ui';
+import { useTextos } from '../textos';
 
 /** A linha do título dos separadores tem sempre a altura do círculo da conta, haja ou não círculo. */
 const ALTURA = 40;
@@ -38,6 +40,41 @@ export function CabecalhoDoSeparador({
         titulo
       )}
       {children}
+    </View>
+  );
+}
+
+/**
+ * O cabeçalho das páginas que abrem por cima (Conta, Carteira, Privacidade): o «Voltar» e o título na mesma
+ * linha, como na Conta e em todas as da Balcão. A Carteira e a Privacidade tinham o título por baixo do
+ * «Voltar» (o Renato, 16 nov 2026: «Conta e Carteira com o mesmo cabeçalho»). Sem página para onde voltar
+ * (uma ligação aberta direto), vai para `semVolta`.
+ */
+export function CabecalhoComVoltar({ titulo, semVolta }: { titulo: string; semVolta: Href }) {
+  const t = useTextos();
+  return (
+    <View
+      style={{ paddingHorizontal: MARGEM, flexDirection: 'row', alignItems: 'center', gap: 14 }}
+    >
+      <Pressable
+        onPress={() => (router.canGoBack() ? router.back() : router.replace(semVolta))}
+        role="button"
+        aria-label={t.conta.voltar}
+        hitSlop={8}
+        style={({ pressed }) => ({
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: pressed ? cor.linha : cor.superficieAlta,
+          alignItems: 'center',
+          justifyContent: 'center',
+        })}
+      >
+        <Icone nome="voltar" tamanho={21} espessura={2.2} />
+      </Pressable>
+      <T v="titulo" role="heading" aria-level={1} style={{ flexShrink: 1 }}>
+        {titulo}
+      </T>
     </View>
   );
 }

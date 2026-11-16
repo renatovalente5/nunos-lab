@@ -5,7 +5,9 @@ import {
   DESENHOS_DAS_CATEGORIAS,
   ICONES_DAS_CATEGORIAS,
   ajusteDosDedos,
+  anelDoLogotipo,
   caixaDoLogotipo,
+  COR_DO_ANEL,
   corParaBranco,
   eCor,
   limitarAjuste,
@@ -958,6 +960,7 @@ export function Logotipo({
   logotipo,
   ajuste,
   tamanho = 44,
+  anel = false,
 }: {
   nome: string;
   cor: string;
@@ -965,7 +968,24 @@ export function Logotipo({
   /** O fundo, o tamanho e o sítio no círculo; sem ele, branco e a 70 %. */
   ajuste?: AjusteDoLogotipo | null;
   tamanho?: number;
+  /**
+   * O anel claro das apps (16 nov 2026), nas pré-visualizações «Como fica na app»: o mesmo traço e a
+   * mesma folga, dentro do mesmo tamanho. Nas listas do backoffice (fundo claro) fica o fio de sempre.
+   */
+  anel?: boolean;
 }) {
+  if (anel) {
+    const { traco, lado } = anelDoLogotipo(tamanho);
+    return (
+      <span
+        className="logotipo-com-anel"
+        style={{ width: tamanho, height: tamanho, borderWidth: traco, borderColor: COR_DO_ANEL }}
+        aria-hidden="true"
+      >
+        <Logotipo nome={nome} cor={cor} logotipo={logotipo} ajuste={ajuste} tamanho={lado} />
+      </span>
+    );
+  }
   if (logotipo)
     return (
       <span
@@ -1385,6 +1405,7 @@ export function PrevisaoDaPromocao({
               logotipo={parceiro.logotipo}
               ajuste={parceiro.logotipoAjuste}
               tamanho={30}
+              anel
             />
           )}
           <span>{parceiro?.nome ?? t.geral.previsao.parceiro}</span>

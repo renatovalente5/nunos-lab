@@ -46,6 +46,21 @@ export function caixaDoLogotipo(a: AjusteDoLogotipo | null | undefined) {
   return { fundo, lado: zoom, esquerda: (1 - zoom) / 2 + x, topo: (1 - zoom) / 2 + y };
 }
 
+/**
+ * O anel à volta do logótipo de um parceiro nas apps (o Renato escolheu-o entre quatro, 16 nov 2026): um
+ * traço claro e uma folga da cor do que está por baixo, dentro do mesmo tamanho, para nada mexer. Os
+ * logótipos escuros (quadrados opacos tirados do Instagram) perdiam-se no preto da app. `lado` é o do
+ * círculo do logótipo, dentro do anel. A mesma conta na app e nas pré-visualizações do backoffice.
+ */
+export function anelDoLogotipo(tamanho: number): { traco: number; folga: number; lado: number } {
+  const traco = Math.max(1.5, Math.round(tamanho * 0.07) / 2);
+  const folga = Math.max(2, Math.round(tamanho * 0.055));
+  return { traco, folga, lado: tamanho - 2 * (traco + folga) };
+}
+
+/** O traço do anel: branco translúcido, que se vê no preto e sobre a cor de um destaque. */
+export const COR_DO_ANEL = 'rgba(255, 255, 255, 0.42)';
+
 /** Um dedo no círculo, em fracções do lado, a contar do centro. */
 export type PontoNoCirculo = { x: number; y: number };
 
