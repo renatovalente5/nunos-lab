@@ -17,9 +17,9 @@ export function iniciaisDe(nome: string): string {
 /**
  * O logótipo do parceiro num círculo, com o fundo, o tamanho e o sítio que o Nuno acertou no
  * backoffice (sem ajuste: branco e a 70 %); sem logótipo, as iniciais a branco sobre a cor dele
- * (escurecida se for clara). À volta, o anel claro com uma folga (o Renato escolheu-o entre quatro,
- * 16 nov 2026): os logótipos escuros perdiam-se no preto. O anel fica dentro do `tamanho`, por isso
- * nada à volta mexe. Está sempre ao lado do nome, por isso o leitor de ecrã salta-o.
+ * (escurecida se for clara). À volta, a borda: um fio claro encostado ao círculo (o Renato, 16 nov
+ * 2026, «como borda do ícone»): os logótipos escuros perdiam-se no preto. Fica dentro do `tamanho`, por
+ * isso nada à volta mexe. Está sempre ao lado do nome, por isso o leitor de ecrã salta-o.
  */
 export function Logotipo({
   parceiro,

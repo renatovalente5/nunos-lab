@@ -810,14 +810,15 @@ test('ajuste do logótipo com os dedos: um arrasta, dois aproximam sem a imagem 
   );
 });
 
-test('o anel à volta do logótipo cabe no mesmo tamanho, nos três sítios da app (16 nov)', () => {
-  // O destaque (28), a lista (50) e a página do parceiro (84).
-  assert.deepEqual(anelDoLogotipo(28), { traco: 1.5, folga: 2, lado: 21 });
-  assert.deepEqual(anelDoLogotipo(50), { traco: 2, folga: 3, lado: 40 });
-  assert.deepEqual(anelDoLogotipo(84), { traco: 3, folga: 5, lado: 68 });
+test('a borda do logótipo é um fio encostado, dentro do mesmo tamanho, nos três sítios da app (16 nov)', () => {
+  // O destaque (28), a lista (50) e a página do parceiro (84): sem folga entre o fio e o logótipo.
+  assert.deepEqual(anelDoLogotipo(28), { traco: 1, folga: 0, lado: 26 });
+  assert.deepEqual(anelDoLogotipo(50), { traco: 1, folga: 0, lado: 48 });
+  assert.deepEqual(anelDoLogotipo(84), { traco: 1.5, folga: 0, lado: 81 });
   for (const tamanho of [24, 28, 30, 44, 50, 58, 84, 120]) {
     const { traco, folga, lado } = anelDoLogotipo(tamanho);
-    assert.equal(lado + 2 * (traco + folga), tamanho);
-    assert.ok(lado >= tamanho * 0.7, `o logótipo fica com ${lado} de ${tamanho}`);
+    assert.equal(folga, 0);
+    assert.equal(lado + 2 * traco, tamanho);
+    assert.ok(traco >= 1 && traco <= 3, `o fio de ${tamanho} tem ${traco}`);
   }
 });
