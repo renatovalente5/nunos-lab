@@ -11,11 +11,13 @@ import {
 } from '@nunos-lab/dominio';
 import {
   lerCoordenadas,
+  limiteEmTexto,
   naLingua,
   normalizarInstagram,
   normalizarSite,
   normalizarTelefone,
   soComCodigo,
+  validadeEmTexto,
 } from '@nunos-lab/dominio';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -25,17 +27,13 @@ import {
   Campo,
   CampoDoLogotipo,
   Cores,
-  DesenhoDaCapa,
   Esqueleto,
   Etiqueta,
-  fundoDaCapa,
   Gaveta,
   GrupoEmIngles,
   Icone,
   Interruptor,
-  Logotipo,
   Seletor,
-  urlDaImagem,
   useAccao,
   useAvisar,
   useConfirmar,
@@ -44,6 +42,7 @@ import {
 import { CampoDoHorario } from '../horario';
 import { coresDoLogotipo } from '../imagens';
 import { useLingua } from '../lingua';
+import { PrevisaoDoParceiro } from '../previsao';
 import { useTextos } from '../textos';
 import { ir, parametro, useAvisoAoSair } from '../util';
 import { GavetaDeQuemValida } from './Equipa';
@@ -249,7 +248,7 @@ export function Parceiro({ id }: { id: string }) {
       p.activa ? t.parceiro.promocaoDesligada : t.parceiro.promocaoLigada,
     );
   const categoria = categorias.data?.find((k) => k.id === f.categoriaId);
-  // O desenho da capa sem fotografia, o mesmo da app (sem categoria, os pontos).
+  // O desenho da categoria na faixa da pré-visualização, o mesmo da app (sem categoria, os pontos).
   const desenho = categoria?.desenho ?? categoria?.icone ?? 'outro';
   // O parceiro e a categoria, para a tradução escolher as palavras («Azeméis Motor — Carros»).
   const onde = categoria ? `${f.nome} — ${categoria.nome}` : f.nome;
@@ -545,56 +544,40 @@ export function Parceiro({ id }: { id: string }) {
         </div>
 
         <aside style={{ position: 'sticky', top: 24 }} className="lado-previsao">
-          <div className="previsao" aria-label={t.geral.previsao.rotulo}>
-            <div className="rotulo-previsao">{t.geral.previsao.naApp}</div>
-            <div
-              className="capa-previsao"
-              // A proporção da capa na app (300 pt mais a barra de cima, na largura do iPhone): o
-              // desenho da categoria e as fotografias ficam do tamanho e com o corte de lá.
-              style={{ aspectRatio: '9 / 8', background: fundoDaCapa(f.cor) }}
-            >
-              {f.capa ? (
-                <img className="fundo" src={urlDaImagem(f.capa)} alt="" />
-              ) : (
-                <DesenhoDaCapa icone={desenho} />
-              )}
-            </div>
-            <div style={{ marginTop: -30, position: 'relative', paddingLeft: 6 }}>
-              <Logotipo
-                nome={f.nome || '?'}
-                cor={f.cor}
-                logotipo={f.logotipo}
-                ajuste={f.logotipoAjuste}
-                tamanho={58}
-                anel
-              />
-              <div
-                style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginTop: 6 }}
-              >
-                {f.nome || t.parceiro.nomeDoParceiro}
-              </div>
-              <div style={{ color: '#aba69e', fontSize: 13, fontWeight: 600 }}>
-                {[categoria && naLinguaDoBackoffice(categoria.nome, categoria.nomeEn), f.localidade]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </div>
-              {f.descricao && (
-                <div style={{ color: '#aba69e', fontSize: 14, marginTop: 8 }}>
-                  {naLinguaDoBackoffice(f.descricao, f.descricaoEn)}
-                </div>
-              )}
-            </div>
-            {primeira && (
-              <div className="cartao-promocao">
-                <div className="grande">
-                  {naLinguaDoBackoffice(primeira.destaque, primeira.destaqueEn)}
-                </div>
-                <div className="titulo-previsao">
-                  {naLinguaDoBackoffice(primeira.titulo, primeira.tituloEn)}
-                </div>
-              </div>
-            )}
-          </div>
+          <PrevisaoDoParceiro
+            nome={f.nome}
+            cor={f.cor}
+            logotipo={f.logotipo}
+            ajuste={f.logotipoAjuste}
+            desenho={desenho}
+            onde={[
+              categoria && naLinguaDoBackoffice(categoria.nome, categoria.nomeEn),
+              f.localidade,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+            descricao={f.descricao ? naLinguaDoBackoffice(f.descricao, f.descricaoEn) : ''}
+            // Os botões que a app mostra: o «Ir» com a morada ou o sítio exato.
+            accoes={{
+              ir: !!f.morada.trim() || lerCoordenadas(f.coordenadas)?.lat != null,
+              ligar: !!normalizarTelefone(f.telefone),
+              instagram: !!normalizarInstagram(f.instagram),
+              site: !!normalizarSite(f.site),
+            }}
+            vantagens={promocoes.filter((p) => p.estado === 'activa').length}
+            vantagem={
+              primeira
+                ? {
+                    destaque: naLinguaDoBackoffice(primeira.destaque, primeira.destaqueEn),
+                    titulo: naLinguaDoBackoffice(primeira.titulo, primeira.tituloEn),
+                    detalhe: naLinguaDoBackoffice(primeira.detalhe, primeira.detalheEn),
+                    validade: validadeEmTexto(primeira, hoje, lingua),
+                    limite: limiteEmTexto(primeira, lingua),
+                    codigo: primeira.cupao || null,
+                  }
+                : null
+            }
+          />
         </aside>
       </div>
 

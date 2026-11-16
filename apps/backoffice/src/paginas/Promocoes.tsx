@@ -31,7 +31,6 @@ import {
   useOnde,
   Icone,
   Interruptor,
-  PrevisaoDaPromocao,
   Segmentado,
   Seletor,
   useAccao,
@@ -40,6 +39,7 @@ import {
   Vazio,
 } from '../pecas';
 import { useLingua } from '../lingua';
+import { PrevisaoDaPromocao } from '../previsao';
 import { useTextos } from '../textos';
 import { numero, parametro } from '../util';
 
@@ -691,7 +691,8 @@ export function EditorDePromocao({
               },
               lingua,
             )}
-            comCodigo={!!f.cupao.trim()}
+            codigo={f.cupao.trim() || null}
+            emDestaque={f.emDestaque}
           />
         </div>
       </Folha>

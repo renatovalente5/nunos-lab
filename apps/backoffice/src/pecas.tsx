@@ -12,10 +12,7 @@ import {
   eCor,
   limitarAjuste,
   luminancia,
-  misturar,
   nomeDoDesenho,
-  semPartir,
-  validadeEmTexto,
   type AjusteDoLogotipo,
   type CategoriaComContagem,
   type IconeDaCategoria,
@@ -1306,121 +1303,6 @@ export function CampoDoLogotipo({
         <div className="mensagem-erro">{t.geral.reveEsteCampo}</div>
       ) : (
         <div className="ajuda">{ajuda}</div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Desenho de fundo de uma capa sem fotografia: a cor do parceiro a escurecer,
- * como na app (uma cor clara desce até o texto branco se ler).
- */
-export function fundoDaCapa(cor: string) {
-  const base = corParaBranco(cor);
-  return `linear-gradient(135deg, ${base}, ${misturar(base, '#000000', 0.45)})`;
-}
-
-/**
- * O desenho da categoria numa capa sem fotografia, como a `Capa` da app: em grande (95 % da
- * altura), rodado e a sair pelo canto, branco a 13 %. Vai dentro da caixa com a cor, por baixo
- * do véu (o Renato, 9 nov: «mesmo que não haja foto de capa, mostrar com a cor e o icon certo»).
- */
-export function DesenhoDaCapa({ icone }: { icone: IconeDaCategoria }) {
-  return (
-    <span className="desenho-da-capa" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none">
-        {(DESENHOS_DAS_CATEGORIAS[icone] ?? DESENHOS_DAS_CATEGORIAS.outro).map((d) => (
-          <path
-            key={d}
-            d={d}
-            stroke="#FFFFFF"
-            strokeWidth={1.1}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        ))}
-      </svg>
-    </span>
-  );
-}
-
-/** O desenho verdadeiro da categoria de um parceiro (o diamante das Joias); sem categoria, os pontos. */
-export function useDesenhoDaCategoria(categoriaId: number | null | undefined): IconeDaCategoria {
-  const categorias = useQuery({
-    queryKey: ['categorias'],
-    queryFn: () => pedir<CategoriaComContagem[]>('/api/bo/categorias'),
-  });
-  const k = categorias.data?.find((c) => c.id === categoriaId);
-  return k?.desenho ?? k?.icone ?? 'outro';
-}
-
-/** A promoção como fica no cartão grande da app (para ver antes de gravar). */
-export function PrevisaoDaPromocao({
-  parceiro,
-  destaque,
-  titulo,
-  detalhe,
-  inicio,
-  fim,
-  hoje,
-  limite = null,
-  comCodigo = false,
-}: {
-  parceiro: {
-    nome: string;
-    cor: string;
-    logotipo: string | null;
-    logotipoAjuste?: AjusteDoLogotipo | null;
-    capa: string | null;
-    categoriaId?: number | null;
-  } | null;
-  destaque: string;
-  titulo: string;
-  detalhe: string;
-  inicio: string | null;
-  fim: string | null;
-  hoje: string;
-  /** O limite ao ler o cartão («1 por dia»), ao lado do «Mostra o cartão ao balcão». */
-  limite?: string | null;
-  /** Com código de cupão, usa-se ao pagar, e não ao mostrar o cartão (como na app, 11 nov 2026). */
-  comCodigo?: boolean;
-}) {
-  const t = useTextos();
-  const lingua = useLingua();
-  const validade = validadeEmTexto({ inicio, fim }, hoje, lingua);
-  const comoSeUsa = comCodigo ? t.geral.previsao.usaOCodigo : t.geral.previsao.mostraOCartao;
-  const cor = parceiro?.cor ?? '#5C544C';
-  const desenho = useDesenhoDaCategoria(parceiro?.categoriaId);
-  return (
-    <div className="previsao" aria-label={t.geral.previsao.rotulo}>
-      <div className="rotulo-previsao">{t.geral.previsao.naApp}</div>
-      <div className="capa-previsao" style={{ background: fundoDaCapa(cor) }}>
-        {/* Só a cor e o desenho, como na app (sem fotografias de capa desde 11 nov 2026). */}
-        {parceiro && <DesenhoDaCapa icone={desenho} />}
-        <div className="topo-capa">
-          {parceiro && (
-            <Logotipo
-              nome={parceiro.nome}
-              cor={cor}
-              logotipo={parceiro.logotipo}
-              ajuste={parceiro.logotipoAjuste}
-              tamanho={30}
-              anel
-            />
-          )}
-          <span>{parceiro?.nome ?? t.geral.previsao.parceiro}</span>
-        </div>
-        <div className="fundo-capa">
-          <div className="grande">{semPartir(destaque || '−10%')}</div>
-          <div className="titulo-previsao">{semPartir(titulo || t.geral.previsao.titulo)}</div>
-          <div className="vale">{semPartir(limite ? `${comoSeUsa} · ${limite}` : comoSeUsa)}</div>
-          {validade && <div className="validade">{validade}</div>}
-        </div>
-      </div>
-      {detalhe && (
-        <div className="cartao-promocao">
-          <div className="condicoes">{semPartir(detalhe)}</div>
-        </div>
       )}
     </div>
   );

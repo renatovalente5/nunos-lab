@@ -54,6 +54,15 @@ export const pt = {
     titulo: 'Título da vantagem',
     mostraOCartao: 'Mostra o cartão ao balcão',
     usaOCodigo: 'Usa o código ao pagar',
+    // As palavras da app na página do parceiro e no cartão da vantagem.
+    ir: 'Ir',
+    ligar: 'Ligar',
+    site: 'Site',
+    aTuaVantagem: 'A tua vantagem',
+    asTuasVantagens: 'As tuas vantagens',
+    verTudo: 'Ver tudo',
+    codigo: 'Código',
+    copiar: 'Copiar',
   },
   grafico: {
     porDia: (nome: string, total: string) =>
@@ -218,6 +227,14 @@ export const en: typeof pt = {
     titulo: 'Perk title',
     mostraOCartao: 'Show your card when you pay',
     usaOCodigo: 'Use the code when you pay',
+    ir: 'Go',
+    ligar: 'Call',
+    site: 'Website',
+    aTuaVantagem: 'Your perk',
+    asTuasVantagens: 'Your perks',
+    verTudo: 'Show more',
+    codigo: 'Code',
+    copiar: 'Copy',
   },
   grafico: {
     porDia: (nome, total) =>
