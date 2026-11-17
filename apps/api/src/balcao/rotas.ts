@@ -496,8 +496,8 @@ async function carimbar(
     await novoCartao(db, cliente.id, 1, programa).run();
     cartao = (await cartaoActual(db, cliente.id))!;
   } else if (cartao.completo_em) {
-    // O cartão cheio fica cheio até o prémio ser entregue ou até este carimbo:
-    // o cliente veio pagar um corte, nasce o seguinte (e o prémio fica por usar).
+    // Um cartão cheio sem o seguinte (os completos antes de 17 nov 2026, ou um prémio de antes da
+    // regra do 10.º por entregar): o cliente veio pagar um corte, nasce aqui o seguinte.
     cartao = await abrirCartaoSeguinte(db, cliente.id, cartao, programa);
   }
   // Um prémio entregue hoje à parte («Entregar», os cartões de antes da regra do
@@ -566,8 +566,8 @@ async function carimbar(
       ),
     db.prepare('UPDATE clientes SET visto_em = unixepoch() WHERE id = ?').bind(cliente.id),
     // O 10.º corte é a oferta: o carimbo que completa o cartão entrega o prémio nesse
-    // mesmo acto (completo e usado ao mesmo segundo). O cartão fica cheio à vista até
-    // ao carimbo seguinte, que abre o próximo.
+    // mesmo acto (completo e usado ao mesmo segundo). O cartão seguinte abre-se logo a
+    // seguir a este batch.
     db
       .prepare(
         `UPDATE cartoes SET completo_em = unixepoch(), usado_em = unixepoch(), usado_loja_id = ?1, usado_por = ?2
@@ -657,6 +657,10 @@ async function carimbar(
   const completa = r[2]!.meta.changes === 1;
   const carimbosAgora = (r[3]!.results[0] as { n: number }).n;
   const ganhouMeio = r[4]!.meta.changes === 1;
+  // O cartão seguinte abre-se logo (o Renato, 17 nov 2026): o cartão cheio à vista parecia um prémio
+  // por usar, e o prémio já foi este corte. A resposta continua a ser a do cartão que se completou
+  // (o barbeiro vê «Cartão completo» e o prémio); anular o 10.º apaga o seguinte, se ainda vazio.
+  if (completa) await abrirCartaoSeguinte(db, cliente.id, cartao, programa);
   tocarPasse(c, cliente.id);
   const lingua = linguaDoPedido(c);
   const publico = cartaoPublico(cartao, lingua);

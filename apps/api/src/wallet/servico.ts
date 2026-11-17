@@ -108,6 +108,17 @@ export async function cartaoParaOPasse(
   const lingua = eLingua(cliente.lingua) ? cliente.lingua : 'pt';
   const p = programa ?? (await lerPrograma(db));
   const cartao = await cartaoActual(db, clienteId);
+  // O cartão novo a zeros logo a seguir ao 10.º (17 nov 2026): o anterior, para o aviso dizer que
+  // ficou completo (o aviso só vai com um carimbo de há pouco: MINUTOS_DO_AVISO em passe.ts).
+  const anterior =
+    cartao && cartao.carimbos === 0 && cartao.numero > 1
+      ? await db
+          .prepare(
+            'SELECT recompensa, recompensa_en, completo_em FROM cartoes WHERE cliente_id = ? AND numero = ?',
+          )
+          .bind(clienteId, cartao.numero - 1)
+          .first<{ recompensa: string; recompensa_en: string; completo_em: number | null }>()
+      : null;
   const [passe, porUsar, cortes, ultima, lojas, defs, meios] = await db.batch([
     db.prepare('SELECT serie FROM passes WHERE cliente_id = ?').bind(clienteId),
     db
@@ -151,7 +162,13 @@ export async function cartaoParaOPasse(
   const meioPt = cartao ? cartao.meio_recompensa : p.meioRecompensa;
   const meioEn = ((cartao ? cartao.meio_recompensa_en : p.meioRecompensaEn) ?? '').trim();
   const pendentes = premiosAMeioDe(meios!.results, lingua);
+  const completouAgora = anterior?.completo_em
+    ? lingua === 'en'
+      ? (anterior.recompensa_en ?? '').trim() || recompensaNaLingua(anterior.recompensa, 'en')
+      : anterior.recompensa
+    : null;
   return {
+    completouAgora,
     serie,
     codigo: cliente.codigo,
     nome: cliente.nome,

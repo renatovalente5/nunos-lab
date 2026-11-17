@@ -95,6 +95,23 @@ test('o aviso do passe muda com o estado: novo carimbo, cartão completo, nada a
   assert.equal(aviso(9), 'Carimbo novo: %@ · o próximo corte é grátis');
   assert.equal(aviso(10), 'Cartão completo (%@): este corte é grátis');
   assert.equal(aviso(0), undefined);
+  // O 10.º com o cartão seguinte já aberto (17 nov 2026): o valor novo é «0 de 10», o aviso diz o completo.
+  const completou = (lingua: 'pt' | 'en', quando = LOGO_A_SEGUIR) =>
+    passJson(
+      {
+        ...cartao,
+        carimbos: 0,
+        completouAgora: lingua === 'en' ? 'Free haircut' : 'Corte grátis',
+        lingua,
+      },
+      cfg,
+      quando,
+    ).storeCard.headerFields[0]!;
+  assert.equal(completou('pt').value, '0 de 10');
+  assert.equal(completou('pt').changeMessage, 'Cartão completo: este corte é grátis');
+  assert.equal(completou('en').changeMessage, 'Card complete – this haircut is free');
+  // Muito depois do carimbo (outro aparelho a buscar o passe), nada.
+  assert.equal(completou('pt', LOGO_A_SEGUIR + 3600).changeMessage, undefined);
   assert.equal(
     passJson({ ...cartao, carimbos: 9 }, cfg).posterGeneric.footerFields[0]!.value,
     'O próximo corte é grátis',

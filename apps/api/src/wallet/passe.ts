@@ -50,6 +50,11 @@ export type CartaoDoPasse = {
   meio?: { carimbos: number; recompensa: string; ganho: boolean } | null;
   /** Os prémios a meio ganhos e por entregar: quantos, e o primeiro. */
   meiosPorUsar?: { n: number; recompensa: string } | null;
+  /**
+   * O prémio do cartão que o último carimbo completou, quando o cartão seguinte já está aberto e a zeros
+   * (desde 17 nov 2026 abre-se logo ao 10.º): o aviso do ecrã bloqueado diz que o cartão ficou completo.
+   */
+  completouAgora?: string | null;
 };
 
 export type ConfiguracaoDoPasse = {
@@ -97,8 +102,9 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse, agoraS = Da
   const antesDoMeio = !!meio && !meio.ganho && c.carimbos < meio.carimbos;
   const meiosPorUsar = c.meiosPorUsar && c.meiosPorUsar.n > 0 ? c.meiosPorUsar : null;
   // O aviso no ecrã bloqueado: «Carimbo novo: 7 de 10»; no 10.º, que o cartão está completo e que
-  // este corte (o que se está a pagar) tem a oferta; a zeros (a entrega do prémio, ou anulado o
-  // único) nada — era «Carimbo novo: 0 de 10». Sem carimbo há pouco, também nada (MINUTOS_DO_AVISO).
+  // este corte (o que se está a pagar) tem a oferta, também com o cartão seguinte já a zeros; a zeros
+  // por outra razão (a entrega do prémio, ou anulado o único) nada — era «Carimbo novo: 0 de 10». Sem
+  // carimbo há pouco, também nada (MINUTOS_DO_AVISO).
   const carimboAgora = !!c.ultima && agoraS - c.ultima.quando < MINUTOS_DO_AVISO * 60;
   const carimbos = {
     key: 'carimbos',
@@ -106,33 +112,39 @@ export function passJson(c: CartaoDoPasse, cfg: ConfiguracaoDoPasse, agoraS = Da
     value: t.carimbosDe(c.carimbos, c.objectivo),
     ...(!carimboAgora
       ? {}
-      : c.carimbos > 0 && c.carimbos >= c.objectivo
+      : c.completouAgora && c.carimbos === 0
         ? {
-            changeMessage: t.avisoCompleto(
-              semFormato(minuscula(fraseDesteCorte(recompensa, lingua))),
+            changeMessage: t.avisoCartaoNovo(
+              semFormato(minuscula(fraseDesteCorte(c.completouAgora, lingua))),
             ),
           }
-        : meio && meio.ganho && c.carimbos === meio.carimbos
+        : c.carimbos > 0 && c.carimbos >= c.objectivo
           ? {
-              changeMessage: t.avisoNovoEProximo(
-                semFormato(t.ganhaste(minuscula(meio.recompensa))),
+              changeMessage: t.avisoCompleto(
+                semFormato(minuscula(fraseDesteCorte(recompensa, lingua))),
               ),
             }
-          : c.carimbos > 0 && c.carimbos === c.objectivo - 1
+          : meio && meio.ganho && c.carimbos === meio.carimbos
             ? {
                 changeMessage: t.avisoNovoEProximo(
-                  semFormato(minuscula(fraseDoProximo(recompensa, lingua))),
+                  semFormato(t.ganhaste(minuscula(meio.recompensa))),
                 ),
               }
-            : antesDoMeio && meio && c.carimbos > 0 && c.carimbos === meio.carimbos - 1
+            : c.carimbos > 0 && c.carimbos === c.objectivo - 1
               ? {
                   changeMessage: t.avisoNovoEProximo(
-                    semFormato(minuscula(fraseDoPremioAMeio(1, meio.recompensa, lingua))),
+                    semFormato(minuscula(fraseDoProximo(recompensa, lingua))),
                   ),
                 }
-              : c.carimbos > 0
-                ? { changeMessage: t.avisoNovo }
-                : {}),
+              : antesDoMeio && meio && c.carimbos > 0 && c.carimbos === meio.carimbos - 1
+                ? {
+                    changeMessage: t.avisoNovoEProximo(
+                      semFormato(minuscula(fraseDoPremioAMeio(1, meio.recompensa, lingua))),
+                    ),
+                  }
+                : c.carimbos > 0
+                  ? { changeMessage: t.avisoNovo }
+                  : {}),
   };
   const cliente = c.nome ? [{ key: 'nome', label: t.cliente, value: c.nome }] : [];
   const porUsar = [

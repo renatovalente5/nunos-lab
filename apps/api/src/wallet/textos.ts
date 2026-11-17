@@ -10,6 +10,8 @@ const pt = {
   carimbos: 'CARIMBOS',
   carimbosDe: (n: number, de: number) => `${n} de ${de}`,
   avisoCompleto: (frase: string) => `Cartão completo (%@): ${frase}`,
+  /** O 10.º, com o cartão seguinte já aberto: o valor novo é «0 de 10», por isso sem o «%@». */
+  avisoCartaoNovo: (frase: string) => `Cartão completo: ${frase}`,
   avisoNovo: 'Carimbo novo: %@',
   avisoNovoEProximo: (frase: string) => `Carimbo novo: %@ · ${frase}`,
   cliente: 'CLIENTE',
@@ -48,6 +50,7 @@ const en: typeof pt = {
   carimbos: 'STAMPS',
   carimbosDe: (n, de) => `${n} of ${de}`,
   avisoCompleto: (frase) => `Card complete (%@) – ${frase}`,
+  avisoCartaoNovo: (frase) => `Card complete – ${frase}`,
   avisoNovo: 'New stamp: %@',
   avisoNovoEProximo: (frase) => `New stamp: %@ – ${frase}`,
   cliente: 'NAME',

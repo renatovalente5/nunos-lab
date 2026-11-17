@@ -836,7 +836,7 @@ await passo(
 );
 
 await passo(
-  'o 10.º carimbo completa o cartão e é ele a oferta: nada fica por usar, e o cartão segue cheio',
+  'o 10.º carimbo completa o cartão e é ele a oferta: nada fica por usar, e o cartão seguinte abre-se logo',
   async () => {
     // Dez visitas num dia só são da prova: a equipa só carimba um a mais por dia (revisão de batota,
     // 11 nov 2026), e aqui o limite do dia sobe para 10 (o máximo) durante o passo.
@@ -871,15 +871,18 @@ await passo(
     const ficha = await (
       await pedir(`/api/balcao/ficha/${codigoDoCliente}`, { token: tokenBalcao })
     ).json();
-    assert.equal(ficha.cartao.numero, 1, 'o cartão cheio fica cheio até ao carimbo seguinte');
-    assert.equal(ficha.cartao.carimbos, ficha.cartao.objectivo);
+    // O cartão seguinte abre-se logo ao 10.º (o Renato, 17 nov 2026: o cheio parecia um prémio por usar).
+    assert.equal(ficha.cartao.numero, 2, 'o cartão seguinte abre-se logo');
+    assert.equal(ficha.cartao.carimbos, 0);
+    assert.equal(ultimo.cartao.numero, 1, 'a resposta do 10.º é a do cartão que se completou');
+    assert.equal(ultimo.cartao.carimbos, ultimo.cartao.objectivo);
     assert.equal(ficha.recompensas.length, 0, 'o 10.º corte foi a oferta: nada fica por usar');
     assert.equal(ficha.cliente.cortes, 10);
     assert.equal(ficha.hoje.entregue, null, 'entregue pelo próprio carimbo, não «à parte»');
     const usar = await pedir('/api/balcao/usar-recompensa', {
       method: 'POST',
       token: tokenBalcao,
-      body: json({ codigo: codigoDoCliente, cartaoId: ficha.cartao.id, lojaId: 3 }),
+      body: json({ codigo: codigoDoCliente, cartaoId: ultimo.cartao.id, lojaId: 3 }),
     });
     assert.equal(usar.status, 409, 'não há nada para entregar à parte');
     assert.equal((await programa(1)).status, 200);
@@ -902,7 +905,7 @@ await passo('o dia da casa, e procurar um cliente', async () => {
   );
   const lista = await (await pedir('/api/balcao/clientes?q=prova', { token: tokenBalcao })).json();
   assert.equal(lista.length, 1);
-  assert.equal(lista[0].carimbos, 10, 'o cartão cheio ainda à vista na procura');
+  assert.equal(lista[0].carimbos, 0, 'na procura já está o cartão novo');
   assert.equal(lista[0].objectivo, 10);
   assert.equal(
     (await (await pedir('/api/balcao/clientes?q=p', { token: tokenBalcao })).json()).length,
@@ -956,8 +959,8 @@ await passo('o cliente entra com a Google e fica com o cartão aberto ao balcão
   assert.equal(euAntes.nome, 'Cliente Prova', 'o nome escrito ao balcão fica');
   assert.equal(euAntes.codigo, codigoDoCliente);
   assert.equal(euAntes.cortes, 10);
-  assert.equal(euAntes.cartao.numero, 1, 'o cartão cheio ainda à vista');
-  assert.equal(euAntes.cartao.carimbos, 10);
+  assert.equal(euAntes.cartao.numero, 2, 'o cliente já vê o cartão novo');
+  assert.equal(euAntes.cartao.carimbos, 0);
   assert.deepEqual(euAntes.formas.map((f) => f.tipo).sort(), ['email', 'google']);
   assert.equal(euAntes.provaRecente, true);
   assert.equal(euAntes.visitas.length, 10);
@@ -1037,11 +1040,12 @@ await passo(
     passe = JSON.parse(new TextDecoder().decode(json));
     assert.equal(passe.passTypeIdentifier, 'pass.pt.nunoslab.cartao');
     assert.equal(passe.barcode.message, `NL1.${codigoDoCliente}`);
-    assert.equal(passe.storeCard.headerFields[0].value, '10 de 10');
+    // O cartão novo já aberto (17 nov 2026); o aviso diz na hora que o corte que o completou é o da
+    // oferta (o Renato, 8 nov), sem o «%@» (o valor novo é «0 de 10»).
+    assert.equal(passe.storeCard.headerFields[0].value, '0 de 10');
     assert.equal(
       passe.storeCard.headerFields[0].changeMessage,
-      // Dito na hora, ao balcão: o corte que completa o cartão é o da oferta (o Renato, 8 nov).
-      'Cartão completo (%@): este corte é grátis',
+      'Cartão completo: este corte é grátis',
     );
     assert.ok(doZip(bytes, 'signature').length > 1000, 'tem assinatura');
     assert.ok(doZip(bytes, 'icon.png') && doZip(bytes, 'logo@2x.png'), 'tem as imagens');
@@ -1933,7 +1937,7 @@ await passo(
 );
 
 await passo(
-  'o cartão cheio: o 10.º anula-se nos 10 min; o seguinte nasce no próximo carimbo; um prémio antigo entrega-se à parte',
+  'o cartão cheio: o seguinte abre-se logo; o 10.º anula-se nos 10 min e leva o cartão novo vazio; um prémio antigo entrega-se à parte',
   async () => {
     const g = await (
       await entrarTeste('google', 'id-cheio', 'id.cheio@gmail.com', { nome: 'Cheio' })
@@ -1955,8 +1959,8 @@ await passo(
     assert.equal(r.completo, true);
     assert.equal(r.cartao.carimbos, eu.cartao.objectivo);
     let e = (await euDe(g.sessao)).eu;
-    assert.equal(e.cartao.numero, 1, 'o cliente vê o cartão cheio');
-    assert.equal(e.cartao.carimbos, e.cartao.objectivo);
+    assert.equal(e.cartao.numero, 2, 'o cliente já vê o cartão novo, a zeros');
+    assert.equal(e.cartao.carimbos, 0);
     assert.equal(e.recompensas.length, 0, 'o 10.º corte foi a oferta');
     // O 10.º anula-se nos 10 minutos (a entrega vai com ele): volta a 9, e completa-se outra vez.
     const anular = await pedir('/api/balcao/anular', {
@@ -1966,10 +1970,12 @@ await passo(
     });
     assert.equal(anular.status, 204);
     e = (await euDe(g.sessao)).eu;
+    assert.equal(e.cartao.numero, 1, 'o cartão novo vazio foi-se com o 10.º');
     assert.equal(e.cartao.carimbos, e.cartao.objectivo - 1);
     r = await (await carimba(true)).json();
     assert.equal(r.completo, true);
-    // O seguinte nasce no próximo carimbo.
+    assert.equal((await euDe(g.sessao)).eu.cartao.numero, 2, 'e volta a abrir-se o seguinte');
+    // O carimbo seguinte entra no cartão novo.
     r = await (await carimba(true)).json();
     assert.equal(r.cartao.numero, 2);
     assert.equal(r.cartao.carimbos, 1);
