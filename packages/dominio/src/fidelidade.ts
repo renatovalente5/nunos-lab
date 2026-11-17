@@ -70,6 +70,26 @@ export function recompensaEmIngles(recompensa: string): string {
   return r;
 }
 
+/**
+ * O prémio sem dizer outra vez o corte, para as frases que já começam por ele (o Renato, 17 nov 2026:
+ * «Este corte tem 50% de desconto no corte» repetia «corte»): «50% de desconto no corte» → «50% de
+ * desconto», «50% discount on your haircut» → «50% discount». Sem nada antes, fica como estava.
+ */
+function semOCorte(recompensa: string): string {
+  const r = recompensa.trim();
+  const sem = r
+    .replace(
+      /\s+(?:n[oa]s?|d[oa]s?|num|numa|ao|em|para\s+o|pelo)\s+(?:teu\s+|seu\s+|pr[óo]ximo\s+)?corte\.?$/i,
+      '',
+    )
+    .replace(
+      /\s+(?:on|off|for|of|with)\s+(?:your|the|this|a|one|each)\s+(?:next\s+)?(?:hair)?cut\.?$/i,
+      '',
+    )
+    .trim();
+  return sem || r;
+}
+
 /** O prémio na língua pedida: em inglês, os dois de sempre traduzem-se; outro texto fica como está. */
 export function recompensaNaLingua(recompensa: string, lingua: Lingua): string {
   return lingua === 'en' ? recompensaEmIngles(recompensa) : recompensa.trim();
@@ -80,7 +100,7 @@ export function recompensaNaLingua(recompensa: string, lingua: Lingua): string {
  * barba grátis». Em inglês: «Your next haircut is free», «Your next haircut is 50% off», «Next: …».
  */
 export function fraseDoProximo(recompensa: string, lingua: Lingua = 'pt'): string {
-  const r = recompensa.trim();
+  const r = semOCorte(recompensa);
   if (lingua === 'en') {
     const e = recompensaEmIngles(r);
     if (!e) return '1 to go';
@@ -96,7 +116,7 @@ export function fraseDoProximo(recompensa: string, lingua: Lingua = 'pt'): strin
 
 /** O que a ficha diz ao barbeiro no corte da oferta: «Este corte é grátis», «Este corte tem 50% de desconto». */
 export function fraseDesteCorte(recompensa: string, lingua: Lingua = 'pt'): string {
-  const r = recompensa.trim();
+  const r = semOCorte(recompensa);
   if (lingua === 'en') {
     const e = recompensaEmIngles(r);
     if (eCorteGratisEn(e)) return 'This haircut is free';
@@ -113,7 +133,7 @@ export function fraseDesteCorte(recompensa: string, lingua: Lingua = 'pt'): stri
  * «O último corte foi grátis», «O último corte teve 50% de desconto».
  */
 export function fraseDoCorteOferecido(recompensa: string, lingua: Lingua = 'pt'): string {
-  const r = recompensa.trim();
+  const r = semOCorte(recompensa);
   if (lingua === 'en') {
     const e = recompensaEmIngles(r);
     if (eCorteGratisEn(e)) return 'Your last haircut was free';

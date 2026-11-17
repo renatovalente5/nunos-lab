@@ -822,3 +822,25 @@ test('a borda do logótipo é um fio encostado, dentro do mesmo tamanho, nos tr�
     assert.ok(traco >= 1 && traco <= 3, `o fio de ${tamanho} tem ${traco}`);
   }
 });
+
+test('as frases do corte não repetem «corte» quando o prémio já o diz (17 nov)', () => {
+  // O prémio do Nuno: «50% de desconto no corte».
+  assert.equal(fraseDesteCorte('50% de desconto no corte'), 'Este corte tem 50% de desconto');
+  assert.equal(fraseDoProximo('50% de desconto no corte'), 'O próximo corte tem 50% de desconto');
+  assert.equal(
+    fraseDoCorteOferecido('50% de desconto no corte'),
+    'O último corte teve 50% de desconto',
+  );
+  assert.equal(fraseDesteCorte('Barba grátis no corte'), 'Este corte: barba grátis');
+  // Em inglês, escrito no backoffice ou só em português.
+  assert.equal(fraseDesteCorte('50% discount on your haircut', 'en'), 'This haircut is 50% off');
+  assert.equal(
+    fraseDoProximo('50% discount on your haircut', 'en'),
+    'Your next haircut is 50% off',
+  );
+  assert.equal(fraseDesteCorte('50% de desconto no corte', 'en'), 'This haircut is 50% off');
+  // O que não fala do corte fica como estava.
+  assert.equal(fraseDesteCorte('50% de desconto'), 'Este corte tem 50% de desconto');
+  assert.equal(fraseDesteCorte('Corte grátis'), 'Este corte é grátis');
+  assert.equal(fraseDoProximo('Corte'), 'O próximo é corte');
+});
