@@ -1,8 +1,12 @@
-import { numero } from '../util';
+import { numero, plural } from '../util';
 
 /** As frases desta página: o português é a fonte; o inglês (britânico) tem as mesmas chaves. */
 export const pt = {
-  subtitulo: 'Quem tem cartão.',
+  // O total de clientes registados, com qualquer filtro (o Nuno, 21 nov 2026); com a lista cortada, «mais de».
+  total: (n: number, cortada: boolean) =>
+    cortada
+      ? `Mais de ${numero(n)} clientes registados`
+      : plural(n, 'cliente registado', 'clientes registados'),
   exportarCsv: 'Exportar CSV',
   ficheiroCsv: 'clientes.csv',
   estado: 'Estado',
@@ -37,7 +41,10 @@ export const pt = {
 };
 
 export const en: typeof pt = {
-  subtitulo: 'Everyone with a card.',
+  total: (n, cortada) =>
+    cortada
+      ? `Over ${numero(n)} registered clients`
+      : plural(n, 'registered client', 'registered clients'),
   exportarCsv: 'Export CSV',
   ficheiroCsv: 'clients.csv',
   estado: 'Status',

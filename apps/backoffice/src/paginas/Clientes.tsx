@@ -60,6 +60,14 @@ export function Clientes() {
   const { correr, aCorrer } = useAccao();
 
   const lista = clientes.data ?? [];
+  // O total de clientes registados no cabeçalho, sempre o mesmo com qualquer filtro ou procura (o Nuno,
+  // 21 nov 2026: «para eu ter sempre a noção do total de pessoas registadas na app»). É a consulta da
+  // lista sem filtros: na vista de origem não faz pedido nenhum a mais.
+  const todos = useQuery({
+    queryKey: ['clientes', 'todos', '', null],
+    queryFn: () => pedir<ClienteDoBackoffice[]>('/api/bo/clientes?estado=todos'),
+  });
+  const total = todos.data?.length;
 
   const exportar = () =>
     correr(async () => {
@@ -89,7 +97,9 @@ export function Clientes() {
       <div className="cabecalho">
         <div>
           <h1>{t.geral.seccoes.clientes}</h1>
-          <p className="subtitulo">{t.clientes.subtitulo}</p>
+          <p className="subtitulo">
+            {total === undefined ? ' ' : t.clientes.total(total, total >= MAXIMO_DA_LISTA)}
+          </p>
         </div>
         <button type="button" className="botao secundario" disabled={aCorrer} onClick={exportar}>
           <Icone nome="descarregar" tamanho={18} /> {t.clientes.exportarCsv}
