@@ -25,9 +25,7 @@ rotasDosNumeros.get('/resumo', async (c) => {
   const db = c.env.DB;
   const [pars, proms, abrir, porRef, lojas] = await db.batch([
     db.prepare('SELECT id, nome, activo, exemplo FROM parceiros'),
-    db.prepare(
-      'SELECT id, parceiro_id, destaque, titulo, inicio, fim, activa FROM promocoes',
-    ),
+    db.prepare('SELECT id, parceiro_id, destaque, titulo, inicio, fim, activa FROM promocoes'),
     db.prepare("SELECT dia, n FROM contagens WHERE tipo = 'abrir' AND dia >= ?").bind(desde),
     db
       .prepare(

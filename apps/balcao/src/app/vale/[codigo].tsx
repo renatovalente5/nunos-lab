@@ -1,9 +1,4 @@
-import {
-  codigoCurto,
-  limiteEmTexto,
-  semPartir,
-  type VantagemDoParceiro,
-} from '@nunos-lab/dominio';
+import { codigoCurto, limiteEmTexto, semPartir, type VantagemDoParceiro } from '@nunos-lab/dominio';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, View } from 'react-native';

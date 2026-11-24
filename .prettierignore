@@ -3,3 +3,4 @@ dist
 publico
 .expo
 *.md
+apps/api/worker-configuration.d.ts
