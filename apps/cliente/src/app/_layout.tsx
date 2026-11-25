@@ -114,7 +114,8 @@ export default function Raiz() {
     carregarArmazem(CHAVES_DO_ARMAZEM, CHAVES_SECRETAS).finally(() => setArmazemPronto(true));
   }, []);
   useEffect(() => contar('abrir'), []);
-  // No Android, o código do convite que veio pela Play Store (uma vez, com o armazém já lido).
+  // O código do convite que veio pela loja (com o armazém já lido): no Android pela Play Store, no
+  // iPhone pela App Clip.
   useEffect(() => {
     if (armazemPronto) void lerConviteDaLoja();
   }, [armazemPronto]);

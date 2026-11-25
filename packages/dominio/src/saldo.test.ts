@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  caminhoDaAppClip,
   codigoDoConviteEscrito,
   codigoDoReferrer,
   convitesQueFaltam,
@@ -8,8 +9,10 @@ import {
   eurosComSinal,
   eurosParaUsar,
   gerarCodigo,
+  ligacaoDaAppClip,
   ligacaoDaPlayStore,
   nomeCurto,
+  safariComAppClip,
 } from './index.ts';
 
 test('o saldo em euros: inteiros sem casas, cêntimos com duas (10 nov 2026)', () => {
@@ -93,4 +96,90 @@ test('o código de convite que vem da Play Store (o Install Referrer, 11 nov 202
     'convite=%E0%A4%A',
   ])
     assert.equal(codigoDoReferrer(r), null, String(r));
+});
+
+test('o código de convite pela App Clip do iPhone (25 nov 2026)', () => {
+  const codigo = gerarCodigo(new Uint8Array([7, 6, 5, 4, 3, 2, 1]));
+  // A ligação da Apple: o «p» é a App Clip, o «convite» vai até ela tal como está.
+  const ligacao = ligacaoDaAppClip(codigo);
+  assert.equal(ligacao, `https://appclip.apple.com/id?p=pt.nunoslab.app.clip&convite=${codigo}`);
+  // Com a app instalada, a mesma ligação abre a app: vai para a página inicial com o código.
+  assert.equal(caminhoDaAppClip(ligacao), `/?convite=${codigo}`);
+  assert.equal(caminhoDaAppClip(`${ligacao}&l=pt#x`), `/?convite=${codigo}`);
+  assert.equal(
+    caminhoDaAppClip(`https://appclip.apple.com/id?convite=${codigo.toLowerCase()}&p=x`),
+    `/?convite=${codigo}`,
+  );
+  // O iOS pode mandar a morada com outras letras, com «/» antes do «?», ou com o código partido.
+  assert.equal(
+    caminhoDaAppClip(ligacao.replace('https://appclip.apple.com', 'HTTPS://AppClip.Apple.com')),
+    `/?convite=${codigo}`,
+  );
+  assert.equal(caminhoDaAppClip(ligacao.replace('/id?', '/id/?')), `/?convite=${codigo}`);
+  assert.equal(
+    caminhoDaAppClip(
+      `https://appclip.apple.com/id?p=pt.nunoslab.app.clip&convite=${codigo.slice(0, 4)}%20${codigo.slice(4)}`,
+    ),
+    `/?convite=${codigo}`,
+  );
+  // A ligação da App Clip sem código (ou com um que não é um código): só a página inicial.
+  assert.equal(caminhoDaAppClip('https://appclip.apple.com/id?p=pt.nunoslab.app.clip'), '/');
+  assert.equal(
+    caminhoDaAppClip('https://appclip.apple.com/id?p=pt.nunoslab.app.clip&convite='),
+    '/',
+  );
+  assert.equal(
+    caminhoDaAppClip('https://appclip.apple.com/id?p=pt.nunoslab.app.clip&convite=%E0%A4'),
+    '/',
+  );
+  assert.equal(caminhoDaAppClip('https://appclip.apple.com/id?p=x&convite=ABCD'), '/');
+  // Outras ligações seguem como vieram.
+  for (const outra of [
+    'nunoslab://parceiro/3',
+    '/carteira',
+    `https://renatovalente5.github.io/nunos-lab/?convite=${codigo}`,
+    `https://appclip.apple.com.exemplo.pt/id?convite=${codigo}`,
+    `http://appclip.apple.com/id?convite=${codigo}`,
+    `https://appclip.apple.com/outra?convite=${codigo}`,
+    '',
+  ])
+    assert.equal(caminhoDaAppClip(outra), null, outra);
+});
+
+test('a página do convite abre a App Clip só no Safari de um iPhone com iOS 16.4+ (25 nov 2026)', () => {
+  const iphone = (versao: string, resto: string) =>
+    `Mozilla/5.0 (iPhone; CPU iPhone OS ${versao} like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) ${resto}`;
+  const safari = (versao: string) => iphone(versao, 'Version/18.6 Mobile/15E148 Safari/604.1');
+  for (const ua of [
+    safari('16_4'),
+    safari('16_4_1'),
+    safari('17_0'),
+    safari('18_6'),
+    safari('26_1'),
+    safari('27_2'),
+  ])
+    assert.equal(safariComAppClip(ua), true, ua);
+  // O Safari do iOS 27 (simulador, 25 nov 2026): a Apple congelou o sistema em 18_x desde o iOS 26.
+  assert.equal(
+    safariComAppClip(
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1',
+    ),
+    true,
+  );
+  for (const ua of [
+    // Antes da ligação da Apple existir.
+    safari('16_3_1'),
+    safari('15_8'),
+    // Outros browsers do iPhone e os de dentro de outras apps.
+    iphone('18_6', 'CriOS/131.0.6778.73 Mobile/15E148 Safari/604.1'),
+    iphone('18_6', 'FxiOS/133.0 Mobile/15E148 Safari/605.1.15'),
+    iphone('18_6', 'EdgiOS/131.0.2903.70 Version/18.0 Mobile/15E148 Safari/604.1'),
+    iphone('18_6', 'Mobile/15E148 Instagram 361.0.0.35.82 (iPhone15,3; iOS 18_6; pt_PT)'),
+    iphone('18_6', 'Mobile/15E148 [FBAN/FBIOS;FBAV/493.0.0.43.109]'),
+    // O iPad pede a página de computador; o Android e o computador não têm App Clips.
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15',
+    'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+    '',
+  ])
+    assert.equal(safariComAppClip(ua), false, ua);
 });

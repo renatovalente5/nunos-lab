@@ -17,6 +17,7 @@
     "backgroundColor": "#0A0A0A",
     "ios": {
       "bundleIdentifier": "pt.nunoslab.app",
+      "appleTeamId": "6M2QCLR98V",
       "supportsTablet": false,
       "usesAppleSignIn": true,
       "config": {
@@ -25,6 +26,12 @@
       "infoPlist": {
         "CFBundleDevelopmentRegion": "pt-PT",
         "CFBundleName": "Nuno's Lab"
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.pt.nunoslab.app"],
+        "com.apple.developer.associated-appclip-app-identifiers": [
+          "$(AppIdentifierPrefix)pt.nunoslab.app.clip"
+        ]
       }
     },
     "android": {
@@ -76,7 +83,8 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.695283550331-3vfcet7e138uqd7l18l1ebasst07mo93"
         }
-      ]
+      ],
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "baseUrl": "/nunos-lab"

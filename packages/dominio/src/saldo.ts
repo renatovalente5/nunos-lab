@@ -144,3 +144,45 @@ export function codigoDoReferrer(referrer: string | null | undefined): string | 
   const codigo = normalizarCodigo(m[1]!);
   return codigoValido(codigo) ? codigo : null;
 }
+
+/**
+ * A App Clip da app dos clientes no iPhone (o Renato, 25 nov 2026). A Apple não tem um Install Referrer
+ * como a Play Store: a forma oficial de o código chegar à app é uma App Clip, aberta pela ligação da
+ * Apple, que o deixa num ficheiro do grupo partilhado. Ao instalar a app, a Apple troca a App Clip pela
+ * app e o ficheiro fica: a app lê-o no primeiro arranque.
+ */
+export const APP_CLIP_IOS = 'pt.nunoslab.app.clip';
+/** O grupo partilhado entre a App Clip e a app (o mesmo entitlement nas duas). */
+export const GRUPO_PARTILHADO_IOS = 'group.pt.nunoslab.app';
+/** O ficheiro onde a App Clip deixa o código, dentro do grupo partilhado. */
+export const FICHEIRO_DO_CONVITE_IOS = 'convite.txt';
+
+/** A ligação da Apple que abre a App Clip com o código de um convite (iOS 16.4 ou mais recente). */
+export function ligacaoDaAppClip(codigo: string): string {
+  return `https://appclip.apple.com/id?p=${APP_CLIP_IOS}&convite=${encodeURIComponent(codigo)}`;
+}
+
+/**
+ * O Safari de um iPhone com iOS 16.4 ou mais recente: é aí que a ligação da Apple abre a App Clip. Os
+ * browsers dentro de outras apps (Instagram, Facebook) e os outros browsers (Chrome, Firefox, Edge) ficam
+ * com o caminho de antes: entrar na página, e o código fica na conta.
+ */
+export function safariComAppClip(userAgent: string): boolean {
+  const ios = /\biPhone OS (\d+)_(\d+)/.exec(userAgent);
+  if (!ios || !/\bVersion\/[\d.]+ Mobile\/\w+ Safari\/[\d.]+$/.test(userAgent.trim())) return false;
+  if (/\b(?:CriOS|FxiOS|EdgiOS|OPiOS|GSA|Instagram|FBAN|FBAV)\b/.test(userAgent)) return false;
+  const maior = Number(ios[1]);
+  return maior > 16 || (maior === 16 && Number(ios[2]) >= 4);
+}
+
+/**
+ * Com a app já instalada, a ligação da App Clip abre a app (a Apple troca uma pela outra): o caminho da
+ * página inicial, com o código como o de uma ligação (/?convite=CODIGO). null se não é a ligação da
+ * App Clip (as outras seguem como vieram).
+ */
+export function caminhoDaAppClip(ligacao: string): string | null {
+  const m = /^https:\/\/appclip\.apple\.com\/id\/?\?(.*)$/i.exec(ligacao.trim());
+  if (!m) return null;
+  const codigo = codigoDoReferrer(m[1]!.split('#')[0]!);
+  return codigo ? `/?convite=${codigo}` : '/';
+}

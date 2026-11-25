@@ -18,7 +18,7 @@ import {
 } from '../../componentes/cartoes';
 import { PilulaDoSaldo } from '../../componentes/saldo';
 import { conviteGuardado, guardarConvite, useConviteGuardado } from '../../carteira';
-import { playStoreDoConvite } from '../../convite-da-loja';
+import { appClipDoConvite, playStoreDoConvite } from '../../convite-da-loja';
 import { quemConvida, useEu, useTemSessao } from '../../conta';
 import { definirTitulo, useDados } from '../../dados';
 import { useTextos } from '../../textos';
@@ -280,8 +280,11 @@ export default function Vantagens() {
           aoTocar={() => {
             if (faixaDoConvite.destino === '/carteira') return router.push('/carteira');
             // Na página aberta num Android, a Play Store com o código: instala-se, entra-se, e o 1 € fica
-            // (11 nov 2026). No iPhone e no computador, entra-se aqui (o código fica na conta).
-            const loja = pendente ? playStoreDoConvite(pendente) : null;
+            // (11 nov 2026). No Safari de um iPhone, a App Clip, que leva o código até à app (25 nov
+            // 2026). No computador (ou antes de as lojas abrirem), entra-se aqui (o código fica na conta).
+            const loja = pendente
+              ? (playStoreDoConvite(pendente) ?? appClipDoConvite(pendente))
+              : null;
             if (loja) window.location.assign(loja);
             else router.navigate('/cartao');
           }}
