@@ -70,9 +70,9 @@ export const PLAY_STORE_ABERTA = false;
 
 /**
  * A App Clip está na App Store? A ligação da Apple só abre a App Clip depois de a Apple a aprovar e de a
- * versão sair (25 nov 2026: ainda por enviar). Passa a true nesse dia (e publica-se o site).
+ * versão sair: a 1.0.4 do iPhone saiu a 26 nov 2026, e o Renato provou a ligação no iPhone dele.
  */
-export const APP_CLIP_ABERTA = false;
+export const APP_CLIP_ABERTA = true;
 
 /**
  * Na página web aberta num Android, o convite leva à Play Store com o código (instalar e entrar chega);
