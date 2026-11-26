@@ -68,7 +68,7 @@ function medidasDoMapa(lojas: Loja[], larguraDaJanela: number) {
   const comSitio = lojas.filter((l) => l.lat !== null && l.lng !== null);
   const w = degrau(Math.min(larguraDaJanela, LARGURA_MAXIMA) - 2 * MARGEM);
   const h = degrau(w * ALTO);
-  // As casas ao meio (f=2): o servidor enquadra a imagem com as mesmas folgas.
+  // As casas ao meio (f=3): o servidor enquadra a imagem com as mesmas folgas.
   const e = enquadrar(
     comSitio as { lat: number; lng: number }[],
     w,
@@ -83,7 +83,7 @@ function medidasDoMapa(lojas: Loja[], larguraDaJanela: number) {
     w,
     h,
     e,
-    uri: `${API}/api/mapa?w=${w}&h=${h}&s=${escala}&pinos=0&v=${v}&lingua=${lingua}&f=2`,
+    uri: `${API}/api/mapa?w=${w}&h=${h}&s=${escala}&pinos=0&v=${v}&lingua=${lingua}&f=3`,
   };
 }
 

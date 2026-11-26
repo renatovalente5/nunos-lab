@@ -9,7 +9,14 @@
  * (packages/dominio, mapa.ts) para pôr os toques sobre os pinos.
  */
 import { Hono } from 'hono';
-import { FOLGAS_DO_MAPA, enquadrar, folgasAoCentro, versaoDasCasas } from '@nunos-lab/dominio';
+import {
+  AO_CENTRO,
+  AO_CENTRO_F2,
+  FOLGAS_DO_MAPA,
+  enquadrar,
+  folgasAoCentro,
+  versaoDasCasas,
+} from '@nunos-lab/dominio';
 import type { Ambiente } from './ambiente.ts';
 import { recusar } from './util.ts';
 import { buffer, paraBase64url, utf8 } from './wallet/bytes.ts';
@@ -35,8 +42,11 @@ rotasDoMapa.get('/mapa', async (c) => {
   const comBaloes = c.req.query('pinos') !== '0';
   // As legendas na língua da app; as apps de antes não a mandam e ficam em português.
   const lingua = c.req.query('lingua') === 'en' ? 'en' : 'pt';
-  // «f=2»: as casas ao meio da imagem (26 nov 2026); as apps de antes não o mandam e ficam como estavam.
-  const aoCentro = c.req.query('f') === '2';
+  // As casas ao meio da imagem (26 nov 2026): «f=3» como o Renato o pôs no iPhone (um terço de cada
+  // lado); «f=2», o primeiro, para as apps que já o pedem (os pinos delas caem no sítio). Sem «f», as
+  // apps de antes ficam como estavam.
+  const f = c.req.query('f');
+  const aoCentro = f === '3' ? AO_CENTRO : f === '2' ? AO_CENTRO_F2 : null;
   // Os limites dos Snapshots: 50 a 640 pontos de lado, escala 1 a 3. A cache é por tamanho.
   if (![w0, h0].every((n) => Number.isInteger(n) && n >= 100 && n <= 640) || ![1, 2, 3].includes(s))
     recusar(400, 'invalido');
@@ -55,7 +65,7 @@ rotasDoMapa.get('/mapa', async (c) => {
   const cache = caches.default;
   const chaveDaCache = new Request(
     new URL(
-      `/api/mapa?w=${w}&h=${h}&s=${s}&pinos=${comBaloes ? 1 : 0}&v=${versaoDasCasas(lojas)}&lingua=${lingua}${aoCentro ? '&f=2' : ''}`,
+      `/api/mapa?w=${w}&h=${h}&s=${s}&pinos=${comBaloes ? 1 : 0}&v=${versaoDasCasas(lojas)}&lingua=${lingua}${aoCentro ? `&f=${f}` : ''}`,
       c.req.url,
     ),
   );
@@ -70,7 +80,7 @@ rotasDoMapa.get('/mapa', async (c) => {
     lojas,
     w,
     h,
-    aoCentro ? folgasAoCentro(FOLGAS_DO_MAPA, w, h) : FOLGAS_DO_MAPA,
+    aoCentro ? folgasAoCentro(FOLGAS_DO_MAPA, w, h, aoCentro) : FOLGAS_DO_MAPA,
   );
   if (!e) recusar(404, 'sem_mapa');
 

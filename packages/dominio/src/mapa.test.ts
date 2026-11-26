@@ -4,6 +4,7 @@ import {
   FOLGAS_DO_MAPA,
   FOLGAS_DO_MAPA_VIVO,
   enquadrar,
+  AO_CENTRO_F2,
   folgasAoCentro,
   projectar,
   regiaoDoEnquadramento,
@@ -61,18 +62,28 @@ test('enquadrar: as duas barbearias de agora ficam ao meio, com o nome inteiro',
       const e = enquadrar(agora, w, h, folgasAoCentro(base, w, h))!;
       for (const c of agora) {
         const p = projectar(c, e, w, h);
-        // Nem nas pontas (um quarto de cada lado, pelo menos), nem com o nome cortado no mapa vivo.
-        assert.ok(p.x >= w / 4 && p.x <= (w * 3) / 4, `na ponta: x ${p.x.toFixed(1)} em ${w}`);
+        // No terço do meio (como o Renato o pôs no iPhone), e com o nome inteiro no mapa vivo.
+        assert.ok(
+          p.x >= w / 3 - 1 && p.x <= (w * 2) / 3 + 1,
+          `fora do meio: x ${p.x.toFixed(1)} em ${w}`,
+        );
         if (base === FOLGAS_DO_MAPA_VIVO)
           assert.ok(p.x >= meioNome && p.x <= w - meioNome, `nome cortado: x ${p.x.toFixed(1)}`);
-        assert.ok(p.y >= h * 0.2 && p.y <= h * 0.8, `na ponta: y ${p.y.toFixed(1)} em ${h}`);
+        assert.ok(p.y >= h / 4 && p.y <= (h * 3) / 4, `fora do meio: y ${p.y.toFixed(1)} em ${h}`);
       }
     }
   }
 });
 
 test('folgasAoCentro: uma parte do mapa, nunca menos do que as de base', () => {
+  // Como o Renato o pôs no iPhone: um terço de cada lado, um quarto em cima e em baixo.
   assert.deepEqual(folgasAoCentro(FOLGAS_DO_MAPA_VIVO, 520, 624), {
+    cima: 156,
+    baixo: 156,
+    lados: 173,
+  });
+  // O «f=2» de antes não muda (as apps que o pedem desenham os pinos com ele).
+  assert.deepEqual(folgasAoCentro(FOLGAS_DO_MAPA_VIVO, 520, 624, AO_CENTRO_F2), {
     cima: 150,
     baixo: 125,
     lados: 140,

@@ -21,17 +21,34 @@ export const FOLGAS_DO_MAPA: Folgas = { cima: 64, baixo: 40, lados: 44 };
  * com os sítios certos da Feira e da Nogueira).
  */
 export const FOLGAS_DO_MAPA_VIVO: Folgas = { cima: 100, baixo: 64, lados: 84 };
+/** Que parte do mapa fica de folga de cada lado, em cima e em baixo. */
+export type Proporcoes = { cima: number; baixo: number; lados: number };
 /**
- * As casas mais ao meio do mapa, não nas pontas (o Renato, 26 nov 2026: «não convém as barbearias
- * ficarem nas pontas do mapa, centra mais as barbearias»): folgas que são uma parte do mapa (um
- * quarto e pouco de cada lado, um quarto em cima e um quinto em baixo), nunca menos do que as de
- * `base` (o nome, o balão, o «Legal»).
+ * As casas ao meio do mapa, como o Renato o pôs no iPhone dele (26 nov 2026, «Meto o mapa centrado
+ * assim»): um terço de cada lado (as duas barbearias ocupam o terço do meio, zoom ~10,9) e um quarto
+ * em cima e em baixo.
  */
-export function folgasAoCentro(base: Folgas, largura: number, altura: number): Folgas {
+export const AO_CENTRO: Proporcoes = { cima: 0.25, baixo: 0.25, lados: 1 / 3 };
+/**
+ * O primeiro «ao meio» (26 nov 2026, «centra mais as barbearias»): ficou nas apps que o pedem com «f=2»
+ * à imagem do servidor, para os pinos delas continuarem no sítio.
+ */
+export const AO_CENTRO_F2: Proporcoes = { cima: 0.24, baixo: 0.2, lados: 0.27 };
+
+/**
+ * As casas ao meio do mapa, não nas pontas: folgas que são uma parte do mapa, nunca menos do que as
+ * de `base` (o nome, o balão, o «Legal»).
+ */
+export function folgasAoCentro(
+  base: Folgas,
+  largura: number,
+  altura: number,
+  proporcoes: Proporcoes = AO_CENTRO,
+): Folgas {
   return {
-    cima: Math.max(base.cima, Math.round(altura * 0.24)),
-    baixo: Math.max(base.baixo, Math.round(altura * 0.2)),
-    lados: Math.max(base.lados, Math.round(largura * 0.27)),
+    cima: Math.max(base.cima, Math.round(altura * proporcoes.cima)),
+    baixo: Math.max(base.baixo, Math.round(altura * proporcoes.baixo)),
+    lados: Math.max(base.lados, Math.round(largura * proporcoes.lados)),
   };
 }
 
