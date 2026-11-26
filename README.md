@@ -1,7 +1,7 @@
 # Nuno's Lab
 
 Vantagens em estabelecimentos parceiros para os clientes da barbearia
-**Nuno's Lab** (Nogueira do Cravo, Santa Maria da Feira, Aveiro).
+**Nuno's Lab** (Nogueira do Cravo e Santa Maria da Feira).
 
 - **App do cliente** — <https://renatovalente5.github.io/nunos-lab/>: as vantagens
   de cada parceiro e as marcações nas lojas. Expo (web agora; iPhone e Android
