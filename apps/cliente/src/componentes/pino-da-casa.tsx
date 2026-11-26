@@ -1,6 +1,6 @@
 import type { Loja } from '@nunos-lab/dominio';
 import { CONTINUO, T, cor } from '@nunos-lab/ui';
-import { useRef, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Image, Pressable, View } from 'react-native';
 import { abrir, contar } from '../dados';
 import { useTextos } from '../textos';
@@ -110,22 +110,43 @@ export function caixaComBalao(porBaixo: boolean) {
 }
 
 /**
+ * Quanto a pastilha do nome (com `largura`, ao meio do pino) tem de andar para caber entre as
+ * bordas, a `esquerda` e a `direita` do pino: 0 se cabe; maior que a imagem, fica ao meio dela.
+ */
+export function desvioDoNome(
+  largura: number,
+  { esquerda, direita }: { esquerda: number; direita: number },
+): number {
+  const meia = largura / 2;
+  if (meia > esquerda && meia > direita) return (direita - esquerda) / 2;
+  if (meia > esquerda) return meia - esquerda;
+  if (meia > direita) return direita - meia;
+  return 0;
+}
+
+/**
  * Um pino com o nome por baixo, numa caixa com a ponta a meio da altura: os mapas vivos põem o
  * meio da caixa no sítio, e na imagem a caixa sobe metade (ALTURA_DO_PINO). O escolhido ganha um
  * aro creme (o Renato escolheu o 5). Com o balão (só na web), a caixa cresce para o lado dele.
+ * Com `espaco` (na imagem, que não anda: o que há do pino a cada borda), o nome encosta-se para
+ * dentro em vez de sair cortado (duas casas lado a lado, 26 nov 2026).
  */
 export function PinoDaCasa({
   nome,
   escolhido,
   balao,
   balaoPorBaixo = false,
+  espaco,
 }: {
   nome: string;
   escolhido: boolean;
   balao?: ReactNode;
   balaoPorBaixo?: boolean;
+  espaco?: { esquerda: number; direita: number };
 }) {
   const { cima, baixo } = balao ? caixaComBalao(balaoPorBaixo) : { cima: 0, baixo: 0 };
+  const [larguraDoNome, setLarguraDoNome] = useState(0);
+  const desvio = espaco && larguraDoNome ? desvioDoNome(larguraDoNome, espaco) : 0;
   return (
     // Sem «collapsable», o React Native funde esta caixa (só tem medidas) e o pino do iPhone ficava
     // com o tamanho do quadrado: desenhado 62 pontos ao lado do sítio, e sem responder ao toque.
@@ -136,6 +157,8 @@ export function PinoDaCasa({
         height: cima + 2 * ALTURA_DO_PINO + baixo,
         paddingTop: cima,
         alignItems: 'center',
+        // O nome desviado pode sair da caixa do pino (no Android, a caixa cortava-o).
+        overflow: 'visible',
       }}
     >
       {escolhido && (
@@ -198,12 +221,14 @@ export function PinoDaCasa({
       />
       {/* O nome numa pastilha escura, para se ler por cima das etiquetas do mapa. */}
       <View
+        onLayout={espaco ? (e) => setLarguraDoNome(e.nativeEvent.layout.width) : undefined}
         style={{
           marginTop: 3,
           paddingHorizontal: 9,
           paddingVertical: 3,
           borderRadius: 999,
           backgroundColor: 'rgba(10,10,10,0.78)',
+          ...(desvio ? { transform: [{ translateX: desvio }] } : null),
         }}
       >
         <T

@@ -28,6 +28,12 @@ import { BotaoDeRecentrar, saiuDoInicio } from './recentrar';
  */
 export const HA_MAPA_VIVO = Platform.OS === 'ios';
 
+/**
+ * Na web, faz o mapa de antemão (mapa-vivo.web.tsx). No iPhone não é preciso: os separadores
+ * montam-se todos ao abrir a app, e o mapa nasce logo aí.
+ */
+export function aquecerMapaVivo(_lojas: Loja[], _largura: number, _altura: number): void {}
+
 export type PropsDoMapaVivo = {
   /** Só as casas com sítio. */
   lojas: Loja[];

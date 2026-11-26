@@ -3,6 +3,7 @@ import {
   FOLGAS_DO_MAPA_VIVO,
   enquadrar,
   regiaoDoEnquadramento,
+  versaoDasCasas,
   type Loja,
   type PontoNoMapa,
 } from '@nunos-lab/dominio';
@@ -78,48 +79,129 @@ async function pedirToken(): Promise<string> {
   return r.text();
 }
 
+let script: Promise<MapKit> | null = null;
+
+/** O script do MapKit JS, uma vez por página: a chamada de volta diz quando está pronto. */
+function scriptDoMapKit(): Promise<MapKit> {
+  script ??= new Promise<MapKit>((resolver, rejeitar) => {
+    const janela = window as unknown as { mapkit?: MapKit; mapkitDoNunosLab?: () => void };
+    janela.mapkitDoNunosLab = () => resolver(janela.mapkit!);
+    const s = document.createElement('script');
+    s.src = 'https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.core.js';
+    s.crossOrigin = 'anonymous';
+    s.async = true;
+    s.dataset.callback = 'mapkitDoNunosLab';
+    s.dataset.libraries = 'map,annotations';
+    s.onerror = () => {
+      // Sem rede, por exemplo: a próxima vez põe-se outro.
+      script = null;
+      s.remove();
+      rejeitar(new Error('O MapKit JS não carregou'));
+    };
+    document.head.appendChild(s);
+  });
+  return script;
+}
+
 let carregamento: Promise<MapKit> | null = null;
 
 /**
- * O MapKit JS carrega-se uma vez, do sítio da Apple, quando o mapa aparece pela primeira vez. A
- * primeira autorização pede-se antes: sem ela o mapa não vem, e fica a imagem.
+ * O MapKit JS carrega-se uma vez, do sítio da Apple: uns segundos depois de a app abrir
+ * (aquecerMapaVivo) ou, se a Barbearia abrir antes, quando o mapa aparece. A primeira autorização
+ * pede-se ao mesmo tempo que o script (era uma depois da outra); sem ela o mapa não vem, e fica a
+ * imagem.
  */
 function carregarMapKit(): Promise<MapKit> {
-  carregamento ??= pedirToken()
-    .then(
-      (primeiro) =>
-        new Promise<MapKit>((resolver, rejeitar) => {
-          const janela = window as unknown as { mapkit?: MapKit; mapkitDoNunosLab?: () => void };
-          janela.mapkitDoNunosLab = () => {
-            const mk = janela.mapkit!;
-            let token: string | null = primeiro;
-            mk.init({
-              language: ETIQUETA_DA_LINGUA[linguaActual()],
-              authorizationCallback: (feito) => {
-                // A primeira vez usa a que já veio; as seguintes (a cada meia hora) pedem outra.
-                if (token) feito(token);
-                else void pedirToken().then(feito, () => {});
-                token = null;
-              },
-            });
-            resolver(mk);
-          };
-          const s = document.createElement('script');
-          s.src = 'https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.core.js';
-          s.crossOrigin = 'anonymous';
-          s.async = true;
-          s.dataset.callback = 'mapkitDoNunosLab';
-          s.dataset.libraries = 'map,annotations';
-          s.onerror = () => rejeitar(new Error('O MapKit JS não carregou'));
-          document.head.appendChild(s);
-        }),
-    )
+  carregamento ??= Promise.all([pedirToken(), scriptDoMapKit()])
+    .then(([primeiro, mk]) => {
+      let token: string | null = primeiro;
+      mk.init({
+        language: ETIQUETA_DA_LINGUA[linguaActual()],
+        authorizationCallback: (feito) => {
+          // A primeira vez usa a que já veio; as seguintes (a cada meia hora) pedem outra.
+          if (token) feito(token);
+          else void pedirToken().then(feito, () => {});
+          token = null;
+        },
+      });
+      return mk;
+    })
     .catch((erro: unknown) => {
       // Uma falha (rede, a API) não fica guardada: a próxima vez tenta outra vez.
       carregamento = null;
       throw erro;
     });
   return carregamento;
+}
+
+type Regiao = { lat: number; lng: number; latDelta: number; lngDelta: number };
+
+/** O mapa escuro da Barbearia, sem pontos de interesse nem bússola, a abrir na região das casas. */
+function novoMapa(mk: MapKit, el: HTMLElement, r: Regiao): Mapa {
+  return new mk.Map(el, {
+    colorScheme: mk.Map.ColorSchemes.Dark,
+    pointOfInterestFilter: mk.PointOfInterestFilter.excludingAllCategories,
+    showsCompass: mk.FeatureVisibility.Hidden,
+    showsMapTypeControl: false,
+    isRotationEnabled: false,
+    region: new mk.CoordinateRegion(
+      new mk.Coordinate(r.lat, r.lng),
+      new mk.CoordinateSpan(r.latDelta, r.lngDelta),
+    ),
+  });
+}
+
+/** Para que casas (os sítios) e para que medidas foi feito um mapa. */
+const chaveDoMapa = (lojas: Loja[], largura: number, altura: number) =>
+  `${versaoDasCasas(lojas)}|${Math.round(largura)}x${Math.round(altura)}`;
+
+/** O mapa feito de antemão, escondido, à espera de a Barbearia o levar. */
+let reserva: { el: HTMLDivElement; mapa: Mapa; chave: string } | null = null;
+let aquecido = false;
+let mapasAbertos = 0;
+
+/**
+ * Faz o mapa da Barbearia escondido, uns segundos depois de a app abrir (o PrecarregarMapa da
+ * barra dos separadores): o MapKit, a autorização e os mosaicos chegam antes de a pessoa abrir a
+ * Barbearia, e ela leva-o já feito. Antes, tudo isto só começava ao abrir a Barbearia e o mapa
+ * levava uns 3 s a aparecer (o Renato: «demora muito a carregar», 26 nov 2026). Uma vez por página.
+ */
+export function aquecerMapaVivo(lojas: Loja[], largura: number, altura: number): void {
+  // Uma janela ainda sem tamanho (um separador escondido): fica para quando a Barbearia abrir.
+  if (aquecido || mapasAbertos > 0 || typeof document === 'undefined') return;
+  if (!(largura >= 100 && altura >= 100)) return;
+  aquecido = true;
+  let el: HTMLDivElement | null = null;
+  carregarMapKit()
+    .then((mk) => {
+      // A Barbearia abriu entretanto: o mapa dela já está a nascer.
+      if (mapasAbertos > 0) return;
+      const e = enquadrar(lojas as PontoNoMapa[], largura, altura, FOLGAS_DO_MAPA_VIVO);
+      if (!e) return;
+      el = document.createElement('div');
+      el.setAttribute('aria-hidden', 'true');
+      el.inert = true;
+      Object.assign(el.style, {
+        position: 'fixed',
+        left: '0px',
+        top: '0px',
+        width: `${largura}px`,
+        height: `${altura}px`,
+        opacity: '0',
+        pointerEvents: 'none',
+        zIndex: '-1',
+      });
+      document.body.appendChild(el);
+      reserva = {
+        el,
+        mapa: novoMapa(mk, el, regiaoDoEnquadramento(e, largura, altura)),
+        chave: chaveDoMapa(lojas, largura, altura),
+      };
+    })
+    .catch(() => {
+      el?.remove();
+      aquecido = false;
+    });
 }
 
 type Pino = { anotacao: Anotacao; raiz: Root; loja: Loja };
@@ -217,7 +299,10 @@ export function MapaVivo({
     if (!el) return;
     let vivo = true;
     let mapa: Mapa | null = null;
+    // O mapa feito de antemão, quando a Barbearia o leva: sai com ela.
+    let deAntes: HTMLDivElement | null = null;
     const deste = pinos.current;
+    mapasAbertos++;
     carregarMapKit()
       .then((mk) => {
         if (!vivo) return;
@@ -225,17 +310,33 @@ export function MapaVivo({
         const e = enquadrar(lojas as PontoNoMapa[], w, h, FOLGAS_DO_MAPA_VIVO);
         if (!e) return;
         const r = regiaoDoEnquadramento(e, w, h);
-        mapa = new mk.Map(el, {
-          colorScheme: mk.Map.ColorSchemes.Dark,
-          pointOfInterestFilter: mk.PointOfInterestFilter.excludingAllCategories,
-          showsCompass: mk.FeatureVisibility.Hidden,
-          showsMapTypeControl: false,
-          isRotationEnabled: false,
-          region: new mk.CoordinateRegion(
-            new mk.Coordinate(r.lat, r.lng),
-            new mk.CoordinateSpan(r.latDelta, r.lngDelta),
-          ),
-        });
+        const feitoAntes = reserva;
+        reserva = null;
+        if (feitoAntes && feitoAntes.chave === chaveDoMapa(lojas, w, h)) {
+          // Já com os mosaicos: passa do canto escondido para aqui, e vê-se logo.
+          Object.assign(feitoAntes.el.style, {
+            position: 'absolute',
+            left: '0px',
+            top: '0px',
+            width: '100%',
+            height: '100%',
+            opacity: '',
+            pointerEvents: '',
+            zIndex: '',
+          });
+          feitoAntes.el.removeAttribute('aria-hidden');
+          feitoAntes.el.inert = false;
+          el.appendChild(feitoAntes.el);
+          deAntes = feitoAntes.el;
+          mapa = feitoAntes.mapa;
+        } else {
+          // Feito para outras casas ou outro tamanho de janela: não serve.
+          if (feitoAntes) {
+            feitoAntes.mapa.destroy();
+            feitoAntes.el.remove();
+          }
+          mapa = novoMapa(mk, el, r);
+        }
         inicio.current = { lat: r.lat, lng: r.lng, latDelta: r.latDelta, lngDelta: r.lngDelta };
         mkFeito.current = mk;
         const feito = mapa;
@@ -278,8 +379,10 @@ export function MapaVivo({
       });
     return () => {
       vivo = false;
+      mapasAbertos--;
       mapaFeito.current = null;
       mapa?.destroy();
+      deAntes?.remove();
       const raizes = [...deste.values()].map((p) => p.raiz);
       deste.clear();
       // Desmontar outra raiz a meio de um render do React dá aviso: fica para a seguir.

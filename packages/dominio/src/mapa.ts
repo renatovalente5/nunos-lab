@@ -16,8 +16,11 @@ export const FOLGAS_DO_MAPA: Folgas = { cima: 64, baixo: 40, lados: 44 };
  * Nos mapas vivos o logótipo e o «Legal» da Apple ficam no canto de baixo e não se podem
  * tapar: o nome do pino mais a sul tem de ficar acima deles. Por cima cabe o balão da casa
  * mais a norte: com 64, o mapa descia para o abrir e o nome de Aveiro tapava o «Legal».
+ * Dos lados cabe o nome inteiro: a pastilha vai até 150 px, ao meio do pino, e mais 8. Com 44 (a
+ * largura do pino), duas casas lado a lado ficavam com o nome cortado nas bordas (26 nov 2026,
+ * com os sítios certos da Feira e da Nogueira).
  */
-export const FOLGAS_DO_MAPA_VIVO: Folgas = { cima: 100, baixo: 64, lados: 44 };
+export const FOLGAS_DO_MAPA_VIVO: Folgas = { cima: 100, baixo: 64, lados: 84 };
 /** Uma casa só (ou todas no mesmo sítio): à escala da vila, não da rua. */
 const ZOOM_MAXIMO = 13;
 const ZOOM_MINIMO = 3;

@@ -42,6 +42,31 @@ test('enquadrar: as casas ficam todas dentro das folgas, e a caixa toca uma dela
   }
 });
 
+test('enquadrar: as duas barbearias de agora (lado a lado) deixam o nome inteiro nos mapas vivos', () => {
+  // Nogueira do Cravo e Santa Maria da Feira, nos sítios do Google Maps (26 nov 2026).
+  const agora = [
+    { lat: 40.8849677, lng: -8.4551624 },
+    { lat: 40.9272211, lng: -8.545357 },
+  ];
+  // A pastilha do nome vai até 150 px, ao meio do pino, e fica a 8 da borda.
+  const meioNome = 150 / 2 + 8;
+  for (const [w, h] of [
+    [343, 412],
+    [358, 430],
+    [398, 478],
+    [520, 624],
+  ] as const) {
+    const e = enquadrar(agora, w, h, FOLGAS_DO_MAPA_VIVO)!;
+    for (const c of agora) {
+      const p = projectar(c, e, w, h);
+      assert.ok(
+        p.x >= meioNome && p.x <= w - meioNome,
+        `nome cortado: x ${p.x.toFixed(1)} em ${w}`,
+      );
+    }
+  }
+});
+
 test('enquadrar: uma casa só fica ao centro, à escala da vila; sem casas não há mapa', () => {
   const e = enquadrar([casas[0]!], 358, 280)!;
   assert.equal(e.z, 13);

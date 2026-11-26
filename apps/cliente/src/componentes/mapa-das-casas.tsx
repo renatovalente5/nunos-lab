@@ -13,7 +13,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, PixelRatio, Pressable, View, useWindowDimensions } from 'react-native';
 import { API, abrir, contar, useDados } from '../dados';
-import { HA_MAPA_VIVO, MapaVivo } from './mapa-vivo';
+import { HA_MAPA_VIVO, MapaVivo, aquecerMapaVivo } from './mapa-vivo';
 import {
   ALTURA_DO_BALAO,
   ALTURA_DO_PINO,
@@ -83,18 +83,31 @@ function useSossegado<V>(valor: V, ms: number): V {
   return sossegado;
 }
 
+/** As medidas do mapa vivo nesta janela: a mesma conta na Barbearia e no mapa feito de antemão. */
+function medidasDoMapaVivo(larguraDaJanela: number) {
+  const w = Math.min(larguraDaJanela, LARGURA_MAXIMA) - 2 * MARGEM;
+  return { w, h: Math.min(640, Math.round(w * ALTO)) };
+}
+
 /**
- * Pede a imagem do mapa logo que a app tem as lojas, dois segundos depois (para não
- * atrasar o que a app mostra primeiro): quando se entra na Barbearia, a imagem
- * já está no aparelho. Vive na barra de separadores, que está sempre montada. Com
- * o mapa vivo não há imagem a pedir.
+ * Prepara o mapa logo que a app tem as lojas, dois segundos depois (para não atrasar o que a
+ * app mostra primeiro): quando se entra na Barbearia, já está no aparelho. Com a imagem, pede-a;
+ * com o mapa vivo da web, fá-lo escondido (aquecerMapaVivo). Vive na barra de separadores, que
+ * está sempre montada.
  */
 export function PrecarregarMapa() {
   const { data } = useDados();
   const { width } = useWindowDimensions();
   const lojas = data?.barbearia.lojas;
   useEffect(() => {
-    if (HA_MAPA_VIVO || !lojas?.length) return;
+    if (!lojas?.length) return;
+    if (HA_MAPA_VIVO) {
+      const comSitio = lojas.filter((l) => l.lat !== null && l.lng !== null);
+      if (!comSitio.length) return;
+      const { w, h } = medidasDoMapaVivo(width);
+      const t = setTimeout(() => aquecerMapaVivo(comSitio, w, h), 2000);
+      return () => clearTimeout(t);
+    }
     const { e, uri } = medidasDoMapa(lojas, width);
     if (!e) return;
     const t = setTimeout(() => void Image.prefetch(uri).catch(() => {}), 2000);
@@ -122,8 +135,7 @@ export function MapaDasCasas({ lojas, aoIr }: { lojas: Loja[]; aoIr: (loja: Loja
   if (comSitio.length === 0 || (!vivo && imagemFalhou))
     return <ListaDasCasas lojas={lojas} aoIr={aoIr} />;
   const semSitio = lojas.filter((l) => l.lat === null || l.lng === null);
-  const w = Math.min(width, LARGURA_MAXIMA) - 2 * MARGEM;
-  const h = Math.min(640, Math.round(w * ALTO));
+  const { w, h } = medidasDoMapaVivo(width);
   return (
     <>
       {vivo ? (
@@ -239,7 +251,11 @@ function MapaEstatico({
               top: y - ALTURA_DO_PINO,
             }}
           >
-            <PinoDaCasa nome={l.nome} escolhido={aberta === l.id} />
+            <PinoDaCasa
+              nome={l.nome}
+              escolhido={aberta === l.id}
+              espaco={{ esquerda: x - FOLGA_NA_BORDA, direita: w - FOLGA_NA_BORDA - x }}
+            />
           </Pressable>
         ))}
       {pronta && escolhida && (
