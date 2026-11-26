@@ -1,4 +1,12 @@
-import { enquadrar, projectar, semPartir, versaoDasCasas, type Loja } from '@nunos-lab/dominio';
+import {
+  FOLGAS_DO_MAPA,
+  enquadrar,
+  folgasAoCentro,
+  projectar,
+  semPartir,
+  versaoDasCasas,
+  type Loja,
+} from '@nunos-lab/dominio';
 import {
   CONTINUO,
   Grupo,
@@ -60,7 +68,13 @@ function medidasDoMapa(lojas: Loja[], larguraDaJanela: number) {
   const comSitio = lojas.filter((l) => l.lat !== null && l.lng !== null);
   const w = degrau(Math.min(larguraDaJanela, LARGURA_MAXIMA) - 2 * MARGEM);
   const h = degrau(w * ALTO);
-  const e = enquadrar(comSitio as { lat: number; lng: number }[], w, h);
+  // As casas ao meio (f=2): o servidor enquadra a imagem com as mesmas folgas.
+  const e = enquadrar(
+    comSitio as { lat: number; lng: number }[],
+    w,
+    h,
+    folgasAoCentro(FOLGAS_DO_MAPA, w, h),
+  );
   const escala = Math.min(3, Math.max(1, Math.round(PixelRatio.get())));
   const v = versaoDasCasas(comSitio);
   const lingua = linguaActual();
@@ -69,7 +83,7 @@ function medidasDoMapa(lojas: Loja[], larguraDaJanela: number) {
     w,
     h,
     e,
-    uri: `${API}/api/mapa?w=${w}&h=${h}&s=${escala}&pinos=0&v=${v}&lingua=${lingua}`,
+    uri: `${API}/api/mapa?w=${w}&h=${h}&s=${escala}&pinos=0&v=${v}&lingua=${lingua}&f=2`,
   };
 }
 

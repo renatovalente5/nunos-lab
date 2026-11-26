@@ -1,6 +1,7 @@
 import {
   FOLGAS_DO_MAPA_VIVO,
   enquadrar,
+  folgasAoCentro,
   regiaoDoEnquadramento,
   type Loja,
   type PontoNoMapa,
@@ -79,7 +80,12 @@ export function MapaVivo({ lojas, largura, altura, aberta, escolher, aoIr }: Pro
   const capa = useCapa();
   // Abre com o enquadramento da imagem; depois é do cliente (arrastar, aproximar).
   const regiao = useMemo(() => {
-    const e = enquadrar(lojas as PontoNoMapa[], largura, altura, FOLGAS_DO_MAPA_VIVO);
+    const e = enquadrar(
+      lojas as PontoNoMapa[],
+      largura,
+      altura,
+      folgasAoCentro(FOLGAS_DO_MAPA_VIVO, largura, altura),
+    );
     if (!e) return undefined;
     const r = regiaoDoEnquadramento(e, largura, altura);
     return {

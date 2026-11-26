@@ -2,6 +2,7 @@ import {
   ETIQUETA_DA_LINGUA,
   FOLGAS_DO_MAPA_VIVO,
   enquadrar,
+  folgasAoCentro,
   regiaoDoEnquadramento,
   versaoDasCasas,
   type Loja,
@@ -176,7 +177,12 @@ export function aquecerMapaVivo(lojas: Loja[], largura: number, altura: number):
     .then((mk) => {
       // A Barbearia abriu entretanto: o mapa dela já está a nascer.
       if (mapasAbertos > 0) return;
-      const e = enquadrar(lojas as PontoNoMapa[], largura, altura, FOLGAS_DO_MAPA_VIVO);
+      const e = enquadrar(
+        lojas as PontoNoMapa[],
+        largura,
+        altura,
+        folgasAoCentro(FOLGAS_DO_MAPA_VIVO, largura, altura),
+      );
       if (!e) return;
       el = document.createElement('div');
       el.setAttribute('aria-hidden', 'true');
@@ -307,7 +313,12 @@ export function MapaVivo({
       .then((mk) => {
         if (!vivo) return;
         const { largura: w, altura: h } = medidas();
-        const e = enquadrar(lojas as PontoNoMapa[], w, h, FOLGAS_DO_MAPA_VIVO);
+        const e = enquadrar(
+          lojas as PontoNoMapa[],
+          w,
+          h,
+          folgasAoCentro(FOLGAS_DO_MAPA_VIVO, w, h),
+        );
         if (!e) return;
         const r = regiaoDoEnquadramento(e, w, h);
         const feitoAntes = reserva;

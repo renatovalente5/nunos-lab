@@ -21,6 +21,20 @@ export const FOLGAS_DO_MAPA: Folgas = { cima: 64, baixo: 40, lados: 44 };
  * com os sítios certos da Feira e da Nogueira).
  */
 export const FOLGAS_DO_MAPA_VIVO: Folgas = { cima: 100, baixo: 64, lados: 84 };
+/**
+ * As casas mais ao meio do mapa, não nas pontas (o Renato, 26 nov 2026: «não convém as barbearias
+ * ficarem nas pontas do mapa, centra mais as barbearias»): folgas que são uma parte do mapa (um
+ * quarto e pouco de cada lado, um quarto em cima e um quinto em baixo), nunca menos do que as de
+ * `base` (o nome, o balão, o «Legal»).
+ */
+export function folgasAoCentro(base: Folgas, largura: number, altura: number): Folgas {
+  return {
+    cima: Math.max(base.cima, Math.round(altura * 0.24)),
+    baixo: Math.max(base.baixo, Math.round(altura * 0.2)),
+    lados: Math.max(base.lados, Math.round(largura * 0.27)),
+  };
+}
+
 /** Uma casa só (ou todas no mesmo sítio): à escala da vila, não da rua. */
 const ZOOM_MAXIMO = 13;
 const ZOOM_MINIMO = 3;

@@ -4,6 +4,7 @@ import {
   FOLGAS_DO_MAPA,
   FOLGAS_DO_MAPA_VIVO,
   enquadrar,
+  folgasAoCentro,
   projectar,
   regiaoDoEnquadramento,
   versaoDasCasas,
@@ -42,7 +43,7 @@ test('enquadrar: as casas ficam todas dentro das folgas, e a caixa toca uma dela
   }
 });
 
-test('enquadrar: as duas barbearias de agora (lado a lado) deixam o nome inteiro nos mapas vivos', () => {
+test('enquadrar: as duas barbearias de agora ficam ao meio, com o nome inteiro', () => {
   // Nogueira do Cravo e Santa Maria da Feira, nos sítios do Google Maps (26 nov 2026).
   const agora = [
     { lat: 40.8849677, lng: -8.4551624 },
@@ -50,21 +51,34 @@ test('enquadrar: as duas barbearias de agora (lado a lado) deixam o nome inteiro
   ];
   // A pastilha do nome vai até 150 px, ao meio do pino, e fica a 8 da borda.
   const meioNome = 150 / 2 + 8;
-  for (const [w, h] of [
-    [343, 412],
-    [358, 430],
-    [398, 478],
-    [520, 624],
-  ] as const) {
-    const e = enquadrar(agora, w, h, FOLGAS_DO_MAPA_VIVO)!;
-    for (const c of agora) {
-      const p = projectar(c, e, w, h);
-      assert.ok(
-        p.x >= meioNome && p.x <= w - meioNome,
-        `nome cortado: x ${p.x.toFixed(1)} em ${w}`,
-      );
+  for (const base of [FOLGAS_DO_MAPA_VIVO, FOLGAS_DO_MAPA]) {
+    for (const [w, h] of [
+      [343, 412],
+      [358, 430],
+      [398, 478],
+      [520, 624],
+    ] as const) {
+      const e = enquadrar(agora, w, h, folgasAoCentro(base, w, h))!;
+      for (const c of agora) {
+        const p = projectar(c, e, w, h);
+        // Nem nas pontas (um quarto de cada lado, pelo menos), nem com o nome cortado no mapa vivo.
+        assert.ok(p.x >= w / 4 && p.x <= (w * 3) / 4, `na ponta: x ${p.x.toFixed(1)} em ${w}`);
+        if (base === FOLGAS_DO_MAPA_VIVO)
+          assert.ok(p.x >= meioNome && p.x <= w - meioNome, `nome cortado: x ${p.x.toFixed(1)}`);
+        assert.ok(p.y >= h * 0.2 && p.y <= h * 0.8, `na ponta: y ${p.y.toFixed(1)} em ${h}`);
+      }
     }
   }
+});
+
+test('folgasAoCentro: uma parte do mapa, nunca menos do que as de base', () => {
+  assert.deepEqual(folgasAoCentro(FOLGAS_DO_MAPA_VIVO, 520, 624), {
+    cima: 150,
+    baixo: 125,
+    lados: 140,
+  });
+  // Num mapa pequeno ficam as de base (o balão, o «Legal», o nome).
+  assert.deepEqual(folgasAoCentro(FOLGAS_DO_MAPA_VIVO, 200, 240), FOLGAS_DO_MAPA_VIVO);
 });
 
 test('enquadrar: uma casa só fica ao centro, à escala da vila; sem casas não há mapa', () => {

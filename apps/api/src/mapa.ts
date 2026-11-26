@@ -9,7 +9,7 @@
  * (packages/dominio, mapa.ts) para pôr os toques sobre os pinos.
  */
 import { Hono } from 'hono';
-import { enquadrar, versaoDasCasas } from '@nunos-lab/dominio';
+import { FOLGAS_DO_MAPA, enquadrar, folgasAoCentro, versaoDasCasas } from '@nunos-lab/dominio';
 import type { Ambiente } from './ambiente.ts';
 import { recusar } from './util.ts';
 import { buffer, paraBase64url, utf8 } from './wallet/bytes.ts';
@@ -35,6 +35,8 @@ rotasDoMapa.get('/mapa', async (c) => {
   const comBaloes = c.req.query('pinos') !== '0';
   // As legendas na língua da app; as apps de antes não a mandam e ficam em português.
   const lingua = c.req.query('lingua') === 'en' ? 'en' : 'pt';
+  // «f=2»: as casas ao meio da imagem (26 nov 2026); as apps de antes não o mandam e ficam como estavam.
+  const aoCentro = c.req.query('f') === '2';
   // Os limites dos Snapshots: 50 a 640 pontos de lado, escala 1 a 3. A cache é por tamanho.
   if (![w0, h0].every((n) => Number.isInteger(n) && n >= 100 && n <= 640) || ![1, 2, 3].includes(s))
     recusar(400, 'invalido');
@@ -53,7 +55,7 @@ rotasDoMapa.get('/mapa', async (c) => {
   const cache = caches.default;
   const chaveDaCache = new Request(
     new URL(
-      `/api/mapa?w=${w}&h=${h}&s=${s}&pinos=${comBaloes ? 1 : 0}&v=${versaoDasCasas(lojas)}&lingua=${lingua}`,
+      `/api/mapa?w=${w}&h=${h}&s=${s}&pinos=${comBaloes ? 1 : 0}&v=${versaoDasCasas(lojas)}&lingua=${lingua}${aoCentro ? '&f=2' : ''}`,
       c.req.url,
     ),
   );
@@ -64,7 +66,12 @@ rotasDoMapa.get('/mapa', async (c) => {
   if (!(await c.env.CONTAR.limit({ key: `mapa:${ip}` }))?.success)
     recusar(429, 'muitas_tentativas');
 
-  const e = enquadrar(lojas, w, h);
+  const e = enquadrar(
+    lojas,
+    w,
+    h,
+    aoCentro ? folgasAoCentro(FOLGAS_DO_MAPA, w, h) : FOLGAS_DO_MAPA,
+  );
   if (!e) recusar(404, 'sem_mapa');
 
   const pedido = new URLSearchParams({
