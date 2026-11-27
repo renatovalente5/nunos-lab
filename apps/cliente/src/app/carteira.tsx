@@ -336,7 +336,14 @@ export default function Carteira() {
               </T>
               <T
                 selectable
-                style={{ fontFamily: letra.extra, fontSize: 24, letterSpacing: 2.5, marginTop: 2 }}
+                // A linha à medida da letra: a do «corpo» (21) cortava o código ao meio no iPhone.
+                style={{
+                  fontFamily: letra.extra,
+                  fontSize: 24,
+                  lineHeight: 30,
+                  letterSpacing: 2.5,
+                  marginTop: 2,
+                }}
               >
                 {codigoCurto(codigo)}
               </T>

@@ -146,12 +146,18 @@ export default function Ficha() {
   // A caixa do aviso: o 409 traz a hora e a pessoa mais frescas do que a ficha.
   const ultimoDeHoje = aviso?.quando && !aviso.entregue ? aviso : (ficha?.hoje.ultimo ?? null);
   const entregue = aviso?.quando && aviso.entregue ? aviso : entregueHoje;
+  // O «Hoje» e o «Procurar» mostram os carimbos: um carimbo dado, anulado ou trocado pelo prémio muda os
+  // dois. Sem o «Procurar», a lista de onde se veio ficava com «sem visitas · 0/10» (testes de 27 nov 2026).
+  const refrescarListas = () => {
+    consultas.invalidateQueries({ queryKey: ['balcao', 'clientes'] });
+    return consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
+  };
   const sair = () => {
     clearTimeout(temporizador.current ?? undefined);
     return router.canGoBack() ? router.back() : router.replace('/');
   };
   const concluir = () => {
-    consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
+    refrescarListas();
     // 1,4 s passava despercebido e o barbeiro carregava outra vez; 3 s, e o «Concluir» para quem tem pressa.
     temporizador.current = setTimeout(sair, 3000);
   };
@@ -183,7 +189,7 @@ export default function Ficha() {
       // Com um prémio fica até «Concluir»: o barbeiro tem de o dizer ao cliente. Com saldo também: o
       // «Usar saldo» fica à mão depois de carimbar (10 nov 2026).
       if (!r.completo && !r.premioAMeio && !temSaldoParaUsar) concluir();
-      else consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
+      else refrescarListas();
     } catch (e) {
       if (
         e instanceof ErroDaBalcao &&
@@ -270,7 +276,7 @@ export default function Ficha() {
       Animated.spring(escala, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
       // Com saldo à mão (ou um uso de hoje para anular), o ecrã espera pelo «Concluir».
       if (!temSaldoParaUsar) concluir();
-      else consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
+      else refrescarListas();
     } catch (e) {
       setEstado('erro');
       setErro(mensagemDe(e));
@@ -307,7 +313,7 @@ export default function Ficha() {
         chaveDoSaldo.current = chaveNova();
         await pedir('/anular', { metodo: 'POST', corpo: { carimboId: doHoje.id } });
         consultas.invalidateQueries({ queryKey: ['balcao', 'ficha', codigo] });
-        await consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
+        await refrescarListas();
         sair();
         return;
       }
@@ -337,7 +343,7 @@ export default function Ficha() {
       }
       consultas.invalidateQueries({ queryKey: ['balcao', 'ficha', codigo] });
       // Fecha com a lista nova: a linha chega ao «Hoje» já riscada.
-      await consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
+      await refrescarListas();
       sair();
     } catch (e) {
       setEstado('pronto');

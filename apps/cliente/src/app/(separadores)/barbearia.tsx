@@ -38,7 +38,16 @@ export default function Barbearia() {
         <View style={{ marginTop: 18 }}>
           <MapaDasCasas
             lojas={b.lojas}
-            aoIr={(l) => setDestino({ nome: l.nome, morada: l.morada, procurar: "Nuno's Lab" })}
+            aoIr={(l) =>
+              setDestino({
+                nome: l.nome,
+                morada: l.morada,
+                procurar: "Nuno's Lab",
+                // O sítio do backoffice, como nos parceiros: procurar pela morada punha o pino da Feira
+                // a ~750 m da barbearia nos Mapas da Apple (testes de 27 nov 2026).
+                sitio: l.lat !== null && l.lng !== null ? { lat: l.lat, lng: l.lng } : null,
+              })
+            }
           />
         </View>
       )}

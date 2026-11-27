@@ -1,7 +1,7 @@
 import { codigoLido } from '@nunos-lab/dominio';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconeDaLanterna } from '../componentes/lanterna';
 import { Leitor } from '../componentes/leitor';
@@ -122,47 +122,51 @@ export default function Ler() {
           <IconeDaLanterna tamanho={20} cor={lanterna ? cor.sobreClaro : cor.texto} />
         </Pressable>
       )}
-      <View
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          width: '100%',
-          maxWidth: LARGURA_MAXIMA,
-          marginHorizontal: 'auto',
-          paddingHorizontal: MARGEM,
-          paddingTop: 18,
-          paddingBottom: margens.bottom + 18,
-          backgroundColor: cor.fundo,
-          borderTopLeftRadius: 28,
-          borderTopRightRadius: 28,
-          gap: 12,
-        }}
+      {/* O código à mão sobe com o teclado, que no iPhone o tapava com o «Abrir» (testes de 27 nov 2026).
+          A margem de baixo (a barra do iPhone) fica por trás do teclado: sobe só o resto. */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={-margens.bottom}
+        style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
       >
-        <T v="legenda" style={{ color: cor.texto2 }}>
-          {semCamara ? t.ler.escreveOCodigo : t.ler.ouEscreveOCodigo}
-        </T>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={{ flex: 1 }}>
-            <Campo
-              value={texto}
-              onChangeText={(v) => {
-                setTexto(v.toUpperCase());
-                setErro(null);
-              }}
-              placeholder="7K3Q 9M2X"
-              autoCapitalize="characters"
-              autoCorrect={false}
-              maxLength={12}
-              onSubmitEditing={() => abrir(texto, true)}
-              style={{ letterSpacing: 2, fontSize: 18 }}
-              erro={erro}
-            />
+        <View
+          style={{
+            width: '100%',
+            maxWidth: LARGURA_MAXIMA,
+            marginHorizontal: 'auto',
+            paddingHorizontal: MARGEM,
+            paddingTop: 18,
+            paddingBottom: margens.bottom + 18,
+            backgroundColor: cor.fundo,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            gap: 12,
+          }}
+        >
+          <T v="legenda" style={{ color: cor.texto2 }}>
+            {semCamara ? t.ler.escreveOCodigo : t.ler.ouEscreveOCodigo}
+          </T>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <Campo
+                value={texto}
+                onChangeText={(v) => {
+                  setTexto(v.toUpperCase());
+                  setErro(null);
+                }}
+                placeholder="7K3Q 9M2X"
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={12}
+                onSubmitEditing={() => abrir(texto, true)}
+                style={{ letterSpacing: 2, fontSize: 18 }}
+                erro={erro}
+              />
+            </View>
+            <Botao nome={t.ler.abrir} onPress={() => abrir(texto, true)} />
           </View>
-          <Botao nome={t.ler.abrir} onPress={() => abrir(texto, true)} />
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }

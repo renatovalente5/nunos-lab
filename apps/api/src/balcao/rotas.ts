@@ -783,16 +783,20 @@ rotasDaBalcao.post('/usar-saldo', async (c) => {
   // A trava própria do saldo (mais curta do que a dos carimbos): uma sessão perdida não esvazia saldos.
   if (!(await c.env.USAR_SALDO.limit({ key: `saldo:${pessoa.sessao}` }))?.success)
     recusar(429, 'muitas_tentativas');
-  const repetido = await db
-    .prepare('SELECT cliente_id, anulado_em FROM movimentos_de_saldo WHERE chave = ?')
-    .bind(chave)
-    .first<{ cliente_id: number; anulado_em: number | null }>();
-  if (repetido) {
+  /** O uso que esta chave já fez: o mesmo pedido, que conta uma vez — se for deste cliente e não anulado. */
+  const usoDaChave = async () => {
+    const uso = await db
+      .prepare('SELECT cliente_id, anulado_em FROM movimentos_de_saldo WHERE chave = ?')
+      .bind(chave)
+      .first<{ cliente_id: number; anulado_em: number | null }>();
+    if (!uso) return false;
     // A mesma chave noutro cliente é um erro da app: nunca o saldo do outro.
-    if (repetido.cliente_id !== cliente.id) recusar(409, 'repetido');
+    if (uso.cliente_id !== cliente.id) recusar(409, 'repetido');
     // A chave de um uso que já se anulou não o devolve como feito: a folha dizia «Usado» sem descontar.
-    if (repetido.anulado_em !== null) recusar(409, 'uso_anulado');
-  } else {
+    if (uso.anulado_em !== null) recusar(409, 'uso_anulado');
+    return true;
+  };
+  if (!(await usoDaChave())) {
     try {
       const r = await db
         .prepare(
@@ -814,7 +818,9 @@ rotasDaBalcao.post('/usar-saldo', async (c) => {
           diaEmLisboa(),
         )
         .run();
-      if (!r.meta.changes) {
+      // A mesma chave ao mesmo tempo: o outro pedido já descontou, e o saldo que sobra não chega para
+      // este — é o mesmo uso, não «saldo insuficiente» (a prova da API apanhou-o, 27 nov 2026).
+      if (!r.meta.changes && !(await usoDaChave())) {
         // O saldo usa-se com um corte: o de quem nunca cortou (as boas-vindas) com o primeiro; e, para a
         // equipa, num dia com carimbo — sem isso, gastava-se o saldo de um cliente ausente (11 nov 2026).
         const [algum, deHoje] = await db.batch([
@@ -841,11 +847,7 @@ rotasDaBalcao.post('/usar-saldo', async (c) => {
       // A mesma chave ao mesmo tempo por dois caminhos: conta uma — se for deste cliente. A de outro (ao
       // mesmo instante) não é «feito»: o saldo deste não se mexeu.
       if (!String(e).includes('UNIQUE constraint failed')) throw e;
-      const dona = await db
-        .prepare('SELECT cliente_id FROM movimentos_de_saldo WHERE chave = ?')
-        .bind(chave)
-        .first<{ cliente_id: number }>();
-      if (dona?.cliente_id !== cliente.id) recusar(409, 'repetido');
+      if (!(await usoDaChave())) throw e;
     }
   }
   // O uso desta chave (o que a folha mostra e anula): o último de hoje podia ser outro, de outro

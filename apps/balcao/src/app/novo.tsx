@@ -73,6 +73,8 @@ export default function Novo() {
         },
       );
       consultas.invalidateQueries({ queryKey: ['balcao', 'hoje'] });
+      // Uma procura de há pouco («ninguém com…») já o encontra.
+      consultas.invalidateQueries({ queryKey: ['balcao', 'clientes'] });
       setFeito(r.ficha);
     } catch (x) {
       // O email já tem cartão: a API diz qual, e abre-se logo essa ficha em vez de mandar procurar.
