@@ -20,6 +20,9 @@ export default function Ler() {
   const [semCamara, setSemCamara] = useState(false);
   const [lanterna, setLanterna] = useState(false);
   const [podeLanterna, setPodeLanterna] = useState(false);
+  // A moldura só com a câmara aberta: sem ela (sem autorização, ou ainda a abrir), o aviso do meio ficava por cima
+  // dos cantos de baixo da moldura (testes de 27 nov 2026).
+  const [comCamara, setComCamara] = useState(false);
   const { data: eu } = useEu();
   // Só o leitor marca o cartão como lido. O código escrito à mão não prova que o cliente está ali (um
   // código visto noutro sítio): a ficha abre «sem leitura», como a procura, uma morada escrita no browser
@@ -45,38 +48,43 @@ export default function Ler() {
         aoLer={abrir}
         aoSemCamara={() => setSemCamara(true)}
         lanterna={lanterna}
-        aoAbrir={(c) => setPodeLanterna(c.lanterna)}
+        aoAbrir={(c) => {
+          setComCamara(true);
+          setPodeLanterna(c.lanterna);
+        }}
       />
-      <View
-        pointerEvents="none"
-        style={{ position: 'absolute', left: 0, right: 0, top: '22%', alignItems: 'center' }}
-      >
-        <View style={{ width: 230, height: 230 }}>
-          {[0, 1, 2, 3].map((i) => (
-            <View
-              key={i}
-              style={{
-                position: 'absolute',
-                width: 34,
-                height: 34,
-                borderColor: 'rgba(244,241,236,0.8)',
-                borderTopWidth: i < 2 ? 3 : 0,
-                borderBottomWidth: i >= 2 ? 3 : 0,
-                borderLeftWidth: i % 2 === 0 ? 3 : 0,
-                borderRightWidth: i % 2 === 1 ? 3 : 0,
-                top: i < 2 ? 0 : undefined,
-                bottom: i >= 2 ? 0 : undefined,
-                left: i % 2 === 0 ? 0 : undefined,
-                right: i % 2 === 1 ? 0 : undefined,
-                borderTopLeftRadius: i === 0 ? 14 : 0,
-                borderTopRightRadius: i === 1 ? 14 : 0,
-                borderBottomLeftRadius: i === 2 ? 14 : 0,
-                borderBottomRightRadius: i === 3 ? 14 : 0,
-              }}
-            />
-          ))}
+      {comCamara && (
+        <View
+          pointerEvents="none"
+          style={{ position: 'absolute', left: 0, right: 0, top: '22%', alignItems: 'center' }}
+        >
+          <View style={{ width: 230, height: 230 }}>
+            {[0, 1, 2, 3].map((i) => (
+              <View
+                key={i}
+                style={{
+                  position: 'absolute',
+                  width: 34,
+                  height: 34,
+                  borderColor: 'rgba(244,241,236,0.8)',
+                  borderTopWidth: i < 2 ? 3 : 0,
+                  borderBottomWidth: i >= 2 ? 3 : 0,
+                  borderLeftWidth: i % 2 === 0 ? 3 : 0,
+                  borderRightWidth: i % 2 === 1 ? 3 : 0,
+                  top: i < 2 ? 0 : undefined,
+                  bottom: i >= 2 ? 0 : undefined,
+                  left: i % 2 === 0 ? 0 : undefined,
+                  right: i % 2 === 1 ? 0 : undefined,
+                  borderTopLeftRadius: i === 0 ? 14 : 0,
+                  borderTopRightRadius: i === 1 ? 14 : 0,
+                  borderBottomLeftRadius: i === 2 ? 14 : 0,
+                  borderBottomRightRadius: i === 3 ? 14 : 0,
+                }}
+              />
+            ))}
+          </View>
         </View>
-      </View>
+      )}
       <Pressable
         onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
         role="button"
