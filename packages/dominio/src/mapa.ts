@@ -9,7 +9,13 @@
 export type PontoNoMapa = { lat: number; lng: number };
 export type Enquadramento = { lat: number; lng: number; z: number };
 
-export type Folgas = { cima: number; baixo: number; lados: number };
+export type Folgas = {
+  cima: number;
+  baixo: number;
+  lados: number;
+  /** Quanto as casas ficam à direita do meio, em pontos: o mapa mostra mais do lado de oeste (o mar). */
+  aDireita?: number;
+};
 /** As folgas, em pontos: mais por cima, porque o balão do pino desenha-se acima do ponto. */
 export const FOLGAS_DO_MAPA: Folgas = { cima: 64, baixo: 40, lados: 44 };
 /**
@@ -21,14 +27,17 @@ export const FOLGAS_DO_MAPA: Folgas = { cima: 64, baixo: 40, lados: 44 };
  * com os sítios certos da Feira e da Nogueira).
  */
 export const FOLGAS_DO_MAPA_VIVO: Folgas = { cima: 100, baixo: 64, lados: 84 };
-/** Que parte do mapa fica de folga de cada lado, em cima e em baixo. */
-export type Proporcoes = { cima: number; baixo: number; lados: number };
+/** Que parte do mapa fica de folga de cada lado, em cima e em baixo (e quanto as casas vão para a direita). */
+export type Proporcoes = { cima: number; baixo: number; lados: number; aDireita?: number };
 /**
  * As casas ao meio do mapa, como o Renato o pôs no iPhone dele (26 nov 2026, «Meto o mapa centrado
  * assim»): um terço de cada lado (as duas barbearias ocupam o terço do meio, zoom ~10,9) e um quarto
- * em cima e em baixo.
+ * em cima e em baixo. E um pouco à direita do meio, para se ver o mar de Espinho no canto de cima
+ * (27 nov 2026, «para dar para ver um bocadinho do mar»): ele arrastou-o 19 pontos num mapa de 350.
  */
-export const AO_CENTRO: Proporcoes = { cima: 0.25, baixo: 0.25, lados: 1 / 3 };
+export const AO_CENTRO: Proporcoes = { cima: 0.25, baixo: 0.25, lados: 1 / 3, aDireita: 0.055 };
+/** O de 26 nov, sem o mar: o das apps que pedem «f=3» à imagem do servidor (os pinos delas caem no sítio). */
+export const AO_CENTRO_F3: Proporcoes = { cima: 0.25, baixo: 0.25, lados: 1 / 3 };
 /**
  * O primeiro «ao meio» (26 nov 2026, «centra mais as barbearias»): ficou nas apps que o pedem com «f=2»
  * à imagem do servidor, para os pinos delas continuarem no sítio.
@@ -45,11 +54,16 @@ export function folgasAoCentro(
   altura: number,
   proporcoes: Proporcoes = AO_CENTRO,
 ): Folgas {
-  return {
+  const lados = Math.max(base.lados, Math.round(largura * proporcoes.lados));
+  const folgas: Folgas = {
     cima: Math.max(base.cima, Math.round(altura * proporcoes.cima)),
     baixo: Math.max(base.baixo, Math.round(altura * proporcoes.baixo)),
-    lados: Math.max(base.lados, Math.round(largura * proporcoes.lados)),
+    lados,
   };
+  // Do lado direito fica sempre a folga de base: o nome da casa mais a leste não se corta.
+  const aDireita = Math.min(lados - base.lados, Math.round(largura * (proporcoes.aDireita ?? 0)));
+  if (aDireita > 0) folgas.aDireita = aDireita;
+  return folgas;
 }
 
 /** Uma casa só (ou todas no mesmo sítio): à escala da vila, não da rua. */
@@ -86,9 +100,11 @@ export function enquadrar(
   const z = Math.round(Math.max(ZOOM_MINIMO, Math.min(ZOOM_MAXIMO, zLng, zLat)) * 100) / 100;
   // O meio da caixa dos pontos, deslocado para norte: a caixa fica entre a folga de cima e a de baixo.
   const yCentro = (yMax + yMin) / 2 + (folgas.cima - folgas.baixo) / 2 / pixeisPorMercator(z);
+  // E deslocado para oeste, quando as casas vão para a direita.
+  const lngCentro = (lngMax + lngMin) / 2 - (folgas.aDireita ?? 0) / pixeisPorGrau(z);
   return {
     lat: Math.round(deMercator(yCentro) * 1e6) / 1e6,
-    lng: Math.round(((lngMax + lngMin) / 2) * 1e6) / 1e6,
+    lng: Math.round(lngCentro * 1e6) / 1e6,
     z,
   };
 }

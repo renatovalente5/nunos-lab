@@ -12,6 +12,7 @@ import { Hono } from 'hono';
 import {
   AO_CENTRO,
   AO_CENTRO_F2,
+  AO_CENTRO_F3,
   FOLGAS_DO_MAPA,
   enquadrar,
   folgasAoCentro,
@@ -42,11 +43,12 @@ rotasDoMapa.get('/mapa', async (c) => {
   const comBaloes = c.req.query('pinos') !== '0';
   // As legendas na língua da app; as apps de antes não a mandam e ficam em português.
   const lingua = c.req.query('lingua') === 'en' ? 'en' : 'pt';
-  // As casas ao meio da imagem (26 nov 2026): «f=3» como o Renato o pôs no iPhone (um terço de cada
-  // lado); «f=2», o primeiro, para as apps que já o pedem (os pinos delas caem no sítio). Sem «f», as
-  // apps de antes ficam como estavam.
+  // As casas ao meio da imagem: «f=4» como o Renato o pôs no iPhone (um terço de cada lado, e um
+  // pouco à direita para se ver o mar, 27 nov 2026); «f=3» e «f=2», os de 26 nov, para as apps que já
+  // os pedem (os pinos delas caem no sítio). Sem «f», as apps de antes ficam como estavam.
   const f = c.req.query('f');
-  const aoCentro = f === '3' ? AO_CENTRO : f === '2' ? AO_CENTRO_F2 : null;
+  const aoCentro =
+    f === '4' ? AO_CENTRO : f === '3' ? AO_CENTRO_F3 : f === '2' ? AO_CENTRO_F2 : null;
   // Os limites dos Snapshots: 50 a 640 pontos de lado, escala 1 a 3. A cache é por tamanho.
   if (![w0, h0].every((n) => Number.isInteger(n) && n >= 100 && n <= 640) || ![1, 2, 3].includes(s))
     recusar(400, 'invalido');

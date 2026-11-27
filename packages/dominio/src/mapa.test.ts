@@ -5,6 +5,7 @@ import {
   FOLGAS_DO_MAPA_VIVO,
   enquadrar,
   AO_CENTRO_F2,
+  AO_CENTRO_F3,
   folgasAoCentro,
   projectar,
   regiaoDoEnquadramento,
@@ -59,29 +60,47 @@ test('enquadrar: as duas barbearias de agora ficam ao meio, com o nome inteiro',
       [398, 478],
       [520, 624],
     ] as const) {
-      const e = enquadrar(agora, w, h, folgasAoCentro(base, w, h))!;
+      const folgas = folgasAoCentro(base, w, h);
+      const e = enquadrar(agora, w, h, folgas)!;
+      // Um pouco à direita do meio (o Renato arrastou-o 19 pontos num mapa de 350), sem mudar o zoom.
+      const desvio = folgas.aDireita ?? 0;
+      assert.ok(desvio >= 0.05 * w && desvio <= 0.06 * w, `desvio ${desvio} em ${w}`);
       for (const c of agora) {
         const p = projectar(c, e, w, h);
-        // No terço do meio (como o Renato o pôs no iPhone), e com o nome inteiro no mapa vivo.
+        // No terço do meio (como o Renato o pôs no iPhone) mais o desvio, e com o nome inteiro no mapa vivo.
         assert.ok(
-          p.x >= w / 3 - 1 && p.x <= (w * 2) / 3 + 1,
+          p.x >= w / 3 + desvio - 1 && p.x <= (w * 2) / 3 + desvio + 1,
           `fora do meio: x ${p.x.toFixed(1)} em ${w}`,
         );
         if (base === FOLGAS_DO_MAPA_VIVO)
           assert.ok(p.x >= meioNome && p.x <= w - meioNome, `nome cortado: x ${p.x.toFixed(1)}`);
         assert.ok(p.y >= h / 4 && p.y <= (h * 3) / 4, `fora do meio: y ${p.y.toFixed(1)} em ${h}`);
       }
+      // Vê-se o mar: a borda de oeste passa a costa de Espinho (-8,646), como na captura dele (27 nov).
+      const r = regiaoDoEnquadramento(e, w, h);
+      const oeste = r.lng - r.lngDelta / 2;
+      assert.ok(oeste <= -8.648, `sem mar: a borda de oeste é ${oeste.toFixed(4)} em ${w}`);
     }
   }
 });
 
 test('folgasAoCentro: uma parte do mapa, nunca menos do que as de base', () => {
-  // Como o Renato o pôs no iPhone: um terço de cada lado, um quarto em cima e em baixo.
+  // Como o Renato o pôs no iPhone: um terço de cada lado, um quarto em cima e em baixo, e 5,5 % à direita.
   assert.deepEqual(folgasAoCentro(FOLGAS_DO_MAPA_VIVO, 520, 624), {
     cima: 156,
     baixo: 156,
     lados: 173,
+    aDireita: 29,
   });
+  // O «f=3» de 26 nov não muda (as apps que o pedem desenham os pinos com ele).
+  assert.deepEqual(folgasAoCentro(FOLGAS_DO_MAPA_VIVO, 520, 624, AO_CENTRO_F3), {
+    cima: 156,
+    baixo: 156,
+    lados: 173,
+  });
+  // O desvio nunca come a folga de base do lado direito (o nome da casa mais a leste).
+  const estreito = folgasAoCentro(FOLGAS_DO_MAPA_VIVO, 280, 336);
+  assert.equal(estreito.lados - (estreito.aDireita ?? 0), FOLGAS_DO_MAPA_VIVO.lados);
   // O «f=2» de antes não muda (as apps que o pedem desenham os pinos com ele).
   assert.deepEqual(folgasAoCentro(FOLGAS_DO_MAPA_VIVO, 520, 624, AO_CENTRO_F2), {
     cima: 150,
