@@ -9,6 +9,7 @@ import type {
   ClienteEu,
   ConviteParaQuemChega,
   Lingua,
+  CarimboDoQr,
 } from '@nunos-lab/dominio';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { Linking, Platform } from 'react-native';
@@ -359,4 +360,18 @@ export function moradaDeRetornoDaApple(): string {
 export function guardarLinguaNaConta(lingua: Lingua): void {
   if (!sessao()) return;
   void pedir('/perfil', { metodo: 'PATCH', corpo: { lingua } }).catch(() => {});
+}
+
+/**
+ * O carimbo pelo QR do balcão (o Nuno, 27 nov 2026): o código lido, onde o telemóvel está agora (a API
+ * não o guarda) e uma chave por leitura (a resposta perdida e o toque outra vez contam um carimbo).
+ */
+export function carimbarPeloQr(corpo: {
+  codigo: string;
+  chave: string;
+  lat?: number;
+  lng?: number;
+  precisao?: number;
+}): Promise<CarimboDoQr> {
+  return pedir<CarimboDoQr>('/carimbo-do-balcao', { metodo: 'POST', corpo });
 }

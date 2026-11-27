@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCarimbosNovos } from '../../carimbos-novos';
 import { definirQrAberto, useConviteGuardado } from '../../carteira';
 import { CartaoDoCliente } from '../../componentes/cartao';
+import { temCamara } from '../../componentes/tem-camara';
 import { CabecalhoDoSeparador } from '../../componentes/cabecalho';
 import { horaDe } from '../../componentes/cartoes';
 import {
@@ -248,6 +249,46 @@ export default function Cartao() {
               </T>
             </View>
           </Pressable>
+
+          {/* O QR do balcão (o Nuno, 27 nov 2026): o cliente carimba-se ao ler o QR da barbearia. Só
+              nas apps com câmara (a 1.0.6 em diante, e a da web). */}
+          {temCamara && (
+            <Pressable
+              onPress={() => router.push('/balcao')}
+              role="button"
+              style={({ pressed }) => ({
+                marginHorizontal: MARGEM,
+                marginTop: 14,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 14,
+                padding: 16,
+                borderRadius: raio.grupo,
+                backgroundColor: pressed ? cor.superficieAlta : cor.superficie,
+                ...CONTINUO,
+              })}
+            >
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: cor.claro,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icone nome="camara" tamanho={22} cor={cor.sobreClaro} espessura={2.2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <T v="forte">{t.cartao.lerOQr}</T>
+                <T v="legenda" style={{ color: cor.texto2, marginTop: 2 }}>
+                  {t.cartao.lerOQrLegenda}
+                </T>
+              </View>
+              <Icone nome="seguinte" tamanho={18} cor={cor.texto3} espessura={2.4} />
+            </Pressable>
+          )}
 
           {eu.prenda && (
             <View

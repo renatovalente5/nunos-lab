@@ -1,0 +1,10 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Nuno's Lab",
+    "NSCameraUsageDescription": "The app uses the camera to scan the counter QR and give you your stamp.",
+    "NSLocationWhenInUseUsageDescription": "The app checks that you're at the barbershop when you scan the counter QR. Your location isn't stored."
+  },
+  "android": {
+    "app_name": "Nuno's Lab"
+  }
+}

@@ -194,7 +194,9 @@ export default function ValeDoParceiro() {
                     v="legenda"
                     style={{ color: ficha.cliente.activo ? cor.sobreClaro : cor.texto2 }}
                   >
-                    {ficha.cliente.activo ? t.vale.clienteActivo : t.vale.semCorteNoUltimoAno}
+                    {ficha.cliente.activo
+                      ? t.vale.clienteActivo
+                      : t.vale.semCorteRecente(ficha.cliente.diasDasVantagens)}
                   </T>
                 </View>
               </View>

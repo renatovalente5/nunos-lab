@@ -1174,29 +1174,185 @@ dialog.folha::backdrop {
   object-fit: contain;
 }
 
-/* O logótipo para acertar no círculo: arrasta-se, e a roda aproxima. */
-.ajuste-do-logotipo {
-  position: relative;
+/* O logótipo na página: como fica no círculo; um toque abre o editor grande (27 nov 2026). */
+.previa-do-logotipo {
   flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
   border-radius: 50%;
-  overflow: hidden;
-  border: 1px solid var(--linha);
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
+  cursor: pointer;
+  line-height: 0;
 }
-.ajuste-do-logotipo:active {
-  cursor: grabbing;
-}
-.ajuste-do-logotipo img {
-  position: absolute;
-  object-fit: contain;
-  pointer-events: none;
+.previa-do-logotipo:hover .logotipo {
+  box-shadow: 0 0 0 3px var(--superficie-2);
 }
 .fundo-do-logotipo {
   display: grid;
   gap: 8px;
-  margin-top: 12px;
+}
+
+/* ——— o editor grande do logótipo (o Nuno, 27 nov 2026), como o do Instagram ——— */
+/* No telemóvel a folha já ocupa a largura toda (de baixo para cima). */
+@media (min-width: 641px) {
+  dialog.folha.larga {
+    width: min(860px, calc(100vw - 32px));
+  }
+}
+.editor-do-logotipo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 24px;
+  align-items: start;
+}
+.coluna-do-palco,
+.coluna-dos-acertos {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+/* O palco: o círculo parado ao meio e a imagem por trás; o que fica de fora vê-se mais escuro. */
+.palco-do-logotipo {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  aspect-ratio: 1;
+  justify-self: center;
+  border-radius: 18px;
+  overflow: hidden;
+  background: repeating-conic-gradient(#1c1c1c 0% 25%, #141414 0% 50%) 50% / 24px 24px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.palco-do-logotipo.a-mexer {
+  cursor: grabbing;
+}
+.palco-do-logotipo:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: 3px;
+}
+.palco-do-logotipo img {
+  position: absolute;
+  object-fit: contain;
+  pointer-events: none;
+}
+.palco-do-logotipo img.fora {
+  opacity: 0.38;
+}
+.palco-do-logotipo .circulo {
+  position: absolute;
+  left: 14%;
+  top: 14%;
+  width: 72%;
+  height: 72%;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.55),
+    0 0 0 9999px rgba(0, 0, 0, 0.28);
+}
+/* Os terços, enquanto se mexe (como no Instagram). */
+.palco-do-logotipo .grelha {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)) 33.333% 0 / 1px 100%
+      no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)) 66.667% 0 / 1px 100%
+      no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)) 0 33.333% / 100% 1px
+      no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)) 0 66.667% / 100% 1px
+      no-repeat;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
+}
+.palco-do-logotipo.a-mexer .grelha {
+  opacity: 1;
+}
+/* A linha do meio, quando a imagem é puxada para o meio. */
+.palco-do-logotipo .guia {
+  position: absolute;
+  pointer-events: none;
+  background: #ffd60a;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.35);
+}
+.palco-do-logotipo .guia.vertical {
+  left: calc(50% - 0.5px);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+.palco-do-logotipo .guia.horizontal {
+  top: calc(50% - 0.5px);
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+.barra-do-tamanho {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 480px;
+  justify-self: center;
+}
+.barra-do-tamanho input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--marca);
+  height: 32px;
+}
+.como-mexer {
+  margin: -6px 0 0;
+  text-align: center;
+  justify-self: center;
+  max-width: 480px;
+}
+.coluna-dos-acertos .botoes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+/* Como fica na app: no preto dela, nos dois tamanhos (a página do parceiro e o cartão da vantagem). */
+.logotipo-na-app {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 16px;
+  border-radius: 18px;
+  background: #0a0a0a;
+  color: #f4f1ec;
+}
+.logotipo-na-app .rotulo {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(244, 241, 236, 0.6);
+}
+.logotipo-na-app .tamanhos {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+.logotipo-na-app .no-cartao {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 14px;
+}
+@media (max-width: 640px) {
+  .editor-do-logotipo {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
 }
 
 /* ——— «Na app»: a app dos clientes no backoffice (previsao.tsx) ———
@@ -2824,4 +2980,112 @@ details.gaveta[open] > summary > .resumo {
   height: 100%;
   border-radius: 999px;
   background: var(--tinta);
+}
+
+/* ——— o QR do balcão de cada barbearia (o Nuno, 27 nov 2026) ——— */
+.qr-do-balcao {
+  display: grid;
+  gap: 8px;
+}
+.qr-do-balcao .com-qr {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.qr-do-balcao .quadrado-do-qr {
+  flex: none;
+  width: 132px;
+  height: 132px;
+  padding: 10px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid var(--linha);
+}
+.qr-do-balcao .quadrado-do-qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.qr-do-balcao .accoes-do-qr {
+  flex: 1;
+  min-width: 220px;
+  display: grid;
+  gap: 10px;
+}
+.qr-do-balcao .accoes-do-qr .ajuda,
+.qr-do-balcao .sem-qr .ajuda {
+  margin: 0;
+}
+.qr-do-balcao .sem-qr {
+  display: grid;
+  gap: 10px;
+}
+
+/* O cartaz para imprimir: só existe enquanto se imprime, e só ele sai no papel (A5, preto da marca). */
+.cartaz-do-qr {
+  display: none;
+}
+@media print {
+  @page {
+    size: A5 portrait;
+    margin: 0;
+  }
+  html,
+  body {
+    background: #0a0a0a !important;
+  }
+  body > :not(.cartaz-do-qr) {
+    display: none !important;
+  }
+  .cartaz-do-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7mm;
+    width: 148mm;
+    height: 209mm;
+    padding: 12mm;
+    box-sizing: border-box;
+    background: #0a0a0a;
+    color: #f4f1ec;
+    text-align: center;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-family: 'Manrope Variable', system-ui, sans-serif;
+  }
+  .cartaz-do-qr .palavra {
+    width: 62mm;
+    height: auto;
+  }
+  .cartaz-do-qr .carimba-aqui {
+    font-size: 30pt;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+  .cartaz-do-qr .quadrado {
+    width: 92mm;
+    height: 92mm;
+    padding: 7mm;
+    box-sizing: border-box;
+    border-radius: 6mm;
+    background: #fff;
+  }
+  .cartaz-do-qr .quadrado svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .cartaz-do-qr .como-ler {
+    font-size: 13pt;
+    font-weight: 700;
+    line-height: 1.35;
+    max-width: 110mm;
+  }
+  .cartaz-do-qr .um-por-dia {
+    font-size: 10pt;
+    color: rgba(244, 241, 236, 0.65);
+  }
 }

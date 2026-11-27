@@ -4,7 +4,7 @@ import type { Lingua } from './lingua.ts';
 /**
  * As vantagens que o parceiro valida ao ler o cartão: quantas vezes cada
  * cliente pode usar uma (por dia, semana, mês, ou no total) e quantas no total
- * para toda a gente. Todas são só para clientes activos (corte no último ano).
+ * para toda a gente. Todas são só para clientes activos (corte nos dias das vantagens, que o Nuno escolhe).
  */
 export const PERIODOS_DO_LIMITE = ['dia', 'semana', 'mes', 'sempre'] as const;
 export type PeriodoDoLimite = (typeof PERIODOS_DO_LIMITE)[number];

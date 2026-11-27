@@ -844,3 +844,124 @@ test('as frases do corte não repetem «corte» quando o prémio já o diz (17 n
   assert.equal(fraseDesteCorte('Corte grátis'), 'Este corte é grátis');
   assert.equal(fraseDoProximo('Corte'), 'O próximo é corte');
 });
+
+test('as vantagens valem os dias que o Nuno escolhe; a prenda de anos, um ano (27 nov 2026)', async () => {
+  const { DIAS_DE_CLIENTE_DA_CASA, PROGRAMA_PREDEFINIDO, eClienteDaCasa, temAsVantagens } =
+    await import('./index.ts');
+  const agora = 1_800_000_000;
+  const dia = 86400;
+  assert.equal(PROGRAMA_PREDEFINIDO.diasDasVantagens, 45);
+  assert.equal(temAsVantagens(null, 45, agora), false);
+  assert.equal(temAsVantagens(agora - 44 * dia, 45, agora), true);
+  // No 45.º dia ainda vale até à hora do corte; um segundo depois, já não.
+  assert.equal(temAsVantagens(agora - 45 * dia + 1, 45, agora), true);
+  assert.equal(temAsVantagens(agora - 45 * dia, 45, agora), false);
+  assert.equal(temAsVantagens(agora - 46 * dia, 45, agora), false);
+  // Quem corta de dois em dois meses perde as vantagens a meio, mas é da casa (leva a prenda).
+  assert.equal(temAsVantagens(agora - 60 * dia, 45, agora), false);
+  assert.equal(eClienteDaCasa(agora - 60 * dia, agora), true);
+  assert.equal(eClienteDaCasa(agora - DIAS_DE_CLIENTE_DA_CASA * dia, agora), false);
+  assert.equal(eClienteDaCasa(null, agora), false);
+});
+
+test('o editor grande do logótipo: aproximar no sítio, inteiro, encher e o meio (27 nov 2026)', async () => {
+  const { ajusteAproximado, ajusteInteiro, ajusteCheio, ajusteAoMeio, caixaDoLogotipo } =
+    await import('./index.ts');
+  const a = { fundo: '#FFFFFF', zoom: 1, x: 0.1, y: -0.1 };
+  // À volta do centro, o desvio cresce com o tamanho; o ponto do meio da imagem não foge.
+  assert.deepEqual(ajusteAproximado(a, 2), { fundo: '#FFFFFF', zoom: 2, x: 0.2, y: -0.2 });
+  // À volta de um ponto: o ponto da imagem debaixo dele fica debaixo dele.
+  const ponto = { x: 0.3, y: 0.2 };
+  const b = ajusteAproximado(a, 1.5, ponto);
+  const naImagem = (q: typeof a) => ({
+    u: (ponto.x - q.x) / q.zoom,
+    v: (ponto.y - q.y) / q.zoom,
+  });
+  assert.ok(Math.abs(naImagem(a).u - naImagem(b).u) < 0.002);
+  assert.ok(Math.abs(naImagem(a).v - naImagem(b).v) < 0.002);
+  // Os limites do tamanho valem: nem a 0 nem a 100 vezes.
+  assert.equal(ajusteAproximado(a, 0.0001).zoom, 0.3);
+  assert.equal(ajusteAproximado(a, 100).zoom, 3);
+  assert.equal(ajusteAproximado(a, Number.NaN).zoom, 1);
+  // Inteiro: os cantos da imagem dentro do círculo (de lado 1), ao meio.
+  for (const r of [1, 2, 0.5, 4, 0.25]) {
+    const q = ajusteInteiro(a, r);
+    const largura = r >= 1 ? q.zoom : q.zoom * r;
+    const altura = r >= 1 ? q.zoom / r : q.zoom;
+    assert.ok(Math.hypot(largura / 2, altura / 2) <= 0.5, `cabe com ${r}`);
+    assert.ok(Math.hypot(largura / 2, altura / 2) > 0.45, `sem ficar pequeno com ${r}`);
+    assert.equal(q.x, 0);
+    assert.equal(q.y, 0);
+    assert.equal(q.fundo, '#FFFFFF');
+  }
+  // Encher: o lado mais curto da imagem do tamanho do círculo (até ao limite de 3).
+  assert.equal(ajusteCheio(a, 1).zoom, 1);
+  assert.equal(ajusteCheio(a, 2).zoom, 2);
+  assert.equal(ajusteCheio(a, 0.5).zoom, 2);
+  assert.equal(ajusteCheio(a, 5).zoom, 3);
+  assert.equal(caixaDoLogotipo(ajusteCheio(a, 1)).esquerda, 0);
+  // Quase ao meio vai ao meio, e diz em que eixo.
+  assert.deepEqual(ajusteAoMeio({ ...a, x: 0.005, y: 0.2 }), {
+    ajuste: { ...a, x: 0, y: 0.2 },
+    x: true,
+    y: false,
+  });
+  assert.deepEqual(ajusteAoMeio({ ...a, x: 0.05, y: -0.01 }).ajuste, { ...a, x: 0.05, y: 0 });
+});
+
+test('o QR do balcão: o código, a ligação, perto da barbearia e as horas (27 nov 2026)', async () => {
+  const {
+    gerarCodigoDoBalcao,
+    codigoDoBalcaoValido,
+    codigoDoBalcaoLido,
+    ligacaoDoBalcao,
+    distanciaEmMetros,
+    pertoDoBalcao,
+    dentroDasHorasDoQr,
+    RAIO_DO_BALCAO,
+    FOLGA_DA_PRECISAO,
+  } = await import('./index.ts');
+  const codigo = gerarCodigoDoBalcao(new Uint8Array(16).map((_, i) => i * 37));
+  assert.equal(codigo.length, 16);
+  assert.ok(codigoDoBalcaoValido(codigo));
+  assert.ok(!codigoDoBalcaoValido(codigo.slice(1)));
+  assert.ok(!codigoDoBalcaoValido(`${codigo.slice(1)}I`), 'sem letras que se confundem');
+  // A ligação lê-se de volta, de qualquer morada (um QR impresso continua a servir se a app mudar).
+  const ligacao = ligacaoDoBalcao(codigo, 'https://exemplo.pt/nunos-lab/');
+  assert.equal(ligacao, `https://exemplo.pt/nunos-lab/?balcao=${codigo}`);
+  assert.equal(codigoDoBalcaoLido(ligacao), codigo);
+  assert.equal(
+    codigoDoBalcaoLido(`https://outra.pt/?x=1&balcao=${codigo.toLowerCase()}#a`),
+    codigo,
+  );
+  assert.equal(codigoDoBalcaoLido(codigo), codigo);
+  // O QR do cartão de um cliente não é o do balcão.
+  assert.equal(codigoDoBalcaoLido('NL1.7K3Q9M2X'), null);
+  assert.equal(codigoDoBalcaoLido(`https://exemplo.pt/?balcao=${codigo}X`), null);
+  // A distância: um grau de latitude são uns 111 km; a Feira e a Nogueira estão a ~8 km.
+  assert.ok(Math.abs(distanciaEmMetros({ lat: 40, lng: -8 }, { lat: 41, lng: -8 }) - 111_195) < 50);
+  const nogueira = { lat: 40.8849677, lng: -8.4551624 };
+  const feira = { lat: 40.9272211, lng: -8.545357 };
+  assert.ok(distanciaEmMetros(nogueira, feira) > 8_000);
+  // Perto: dentro do raio, mais a imprecisão do telemóvel até à folga.
+  const aDistancia = (m: number) => ({ lat: nogueira.lat + m / 111_195, lng: nogueira.lng });
+  assert.ok(pertoDoBalcao({ ...aDistancia(40), precisao: 10 }, nogueira));
+  assert.ok(pertoDoBalcao({ ...aDistancia(RAIO_DO_BALCAO + 60), precisao: 65 }, nogueira));
+  assert.ok(!pertoDoBalcao({ ...aDistancia(RAIO_DO_BALCAO + 60), precisao: 30 }, nogueira));
+  assert.ok(
+    !pertoDoBalcao(
+      { ...aDistancia(RAIO_DO_BALCAO + FOLGA_DA_PRECISAO + 20), precisao: 5000 },
+      nogueira,
+    ),
+    'uma precisão má não deixa carimbar de longe',
+  );
+  assert.ok(!pertoDoBalcao({ ...feira, precisao: 20 }, nogueira));
+  assert.ok(!pertoDoBalcao({ lat: Number.NaN, lng: 0, precisao: 10 }, nogueira));
+  // As horas de Lisboa: no inverno é a hora UTC; no verão, mais uma.
+  assert.ok(!dentroDasHorasDoQr(Date.UTC(2026, 11, 1, 7, 59)));
+  assert.ok(dentroDasHorasDoQr(Date.UTC(2026, 11, 1, 8, 0)));
+  assert.ok(dentroDasHorasDoQr(Date.UTC(2026, 11, 1, 21, 59)));
+  assert.ok(!dentroDasHorasDoQr(Date.UTC(2026, 11, 1, 22, 0)));
+  assert.ok(dentroDasHorasDoQr(Date.UTC(2026, 6, 1, 7, 30)), 'às 8h30 de verão');
+  assert.ok(!dentroDasHorasDoQr(Date.UTC(2026, 6, 1, 21, 0)), 'às 22h de verão');
+});

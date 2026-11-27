@@ -6,6 +6,8 @@ import {
   estadoDaPromocao,
   type CategoriaComContagem,
   type Promocao as PromocaoDoContrato,
+  gerarCodigoDoBalcao,
+  type QrDaLoja,
 } from '@nunos-lab/dominio';
 import type { z } from 'zod';
 import type { Ambiente, C } from '../ambiente.ts';
@@ -685,6 +687,71 @@ async function lerBarbearia(db: D1Database) {
 }
 
 rotasDoConteudo.get('/barbearia', async (c) => c.json(await lerBarbearia(c.env.DB)));
+
+// ——— o QR do balcão de cada barbearia (o Nuno, 27 nov 2026) ———
+
+type LinhaDoQr = {
+  id: number;
+  nome: string;
+  lat: number | null;
+  lng: number | null;
+  codigo_qr: string | null;
+};
+
+async function lojaDoQr(c: C): Promise<LinhaDoQr> {
+  const loja = await c.env.DB.prepare(
+    'SELECT id, nome, lat, lng, codigo_qr FROM lojas WHERE id = ?',
+  )
+    .bind(idDaMorada(c))
+    .first<LinhaDoQr>();
+  if (!loja) recusar(404, 'nao_existe');
+  return loja;
+}
+
+const qrDaLoja = (l: LinhaDoQr): QrDaLoja => ({
+  lojaId: l.id,
+  codigo: l.codigo_qr,
+  temSitio: l.lat !== null && l.lng !== null,
+});
+
+/** O código do QR só sai aqui, para o Nuno o imprimir: a API pública nunca o mostra. */
+rotasDoConteudo.get('/lojas/:id/qr', async (c) => c.json(qrDaLoja(await lojaDoQr(c))));
+
+/**
+ * Criar o QR, ou trocá-lo por outro (os impressos antes deixam de valer). Sem as coordenadas da barbearia
+ * não há QR: é por elas que se sabe se o cliente está ao balcão.
+ */
+rotasDoConteudo.post('/lojas/:id/qr', async (c) => {
+  const loja = await lojaDoQr(c);
+  if (loja.lat === null || loja.lng === null) recusar(409, 'loja_sem_sitio');
+  const db = c.env.DB;
+  for (let i = 0; i < 5; i++) {
+    const codigo = gerarCodigoDoBalcao(crypto.getRandomValues(new Uint8Array(16)));
+    try {
+      await db.batch([
+        db.prepare('UPDATE lojas SET codigo_qr = ? WHERE id = ?').bind(codigo, loja.id),
+        registar(c, loja.codigo_qr ? 'qr.trocado' : 'qr.criado', loja.nome),
+      ]);
+      return c.json(qrDaLoja({ ...loja, codigo_qr: codigo }));
+    } catch (e) {
+      // O mesmo código noutra barbearia (o índice único): tenta-se outro.
+      if (!String(e).includes('UNIQUE constraint failed')) throw e;
+    }
+  }
+  throw new Error('Não houve código de QR livre');
+});
+
+/** Desligar o QR: os impressos deixam de valer, e a barbearia carimba só pela for partners. */
+rotasDoConteudo.delete('/lojas/:id/qr', async (c) => {
+  const loja = await lojaDoQr(c);
+  const db = c.env.DB;
+  if (loja.codigo_qr)
+    await db.batch([
+      db.prepare('UPDATE lojas SET codigo_qr = NULL WHERE id = ?').bind(loja.id),
+      registar(c, 'qr.desligado', loja.nome),
+    ]);
+  return c.json(qrDaLoja({ ...loja, codigo_qr: null }));
+});
 
 /** Grava tudo de uma vez: as lojas que não vierem na lista apagam-se — só as sem história (409 casa_com_historia). */
 rotasDoConteudo.put('/barbearia', async (c) => {

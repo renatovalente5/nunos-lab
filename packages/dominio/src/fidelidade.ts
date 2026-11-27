@@ -22,6 +22,11 @@ export type Programa = {
   recompensaEn?: string;
   aniversarioEn?: string;
   meioRecompensaEn?: string;
+  /**
+   * Quantos dias as vantagens dos parceiros valem depois do último corte (o Nuno, 27 nov 2026: era um
+   * ano fixo, passou a ser ele a decidir; começou nos 45). Depois, voltam no corte seguinte.
+   */
+  diasDasVantagens: number;
 };
 
 export const PROGRAMA_PREDEFINIDO: Programa = {
@@ -31,12 +36,15 @@ export const PROGRAMA_PREDEFINIDO: Programa = {
   aniversario: '',
   meioRecompensa: '',
   meio: 5,
+  diasDasVantagens: 45,
 };
 
 export const LIMITES_DO_PROGRAMA = {
   objectivo: { min: 1, max: 50 },
   porDia: { min: 1, max: 10 },
   meio: { min: 1, max: 49 },
+  /** Os dias das vantagens dos parceiros depois do último corte: de uma semana a dois anos. */
+  diasDasVantagens: { min: 7, max: 730 },
   recompensa: 40,
   aniversario: 60,
   nomeDoCliente: 40,
@@ -201,8 +209,25 @@ export const DIAS_MAXIMOS_DA_SESSAO = 365;
 export const DIAS_A_EXPERIENCIA = 7;
 /** Quem carimbou pode anular nestes minutos; o dono anula sempre. */
 export const MINUTOS_PARA_ANULAR = 10;
-/** Um cliente conta como activo com um carimbo nestes dias (as vantagens dos parceiros). */
-export const DIAS_DE_CLIENTE_ACTIVO = 365;
+/**
+ * Um cliente da casa: com um carimbo neste último ano. Só estes levam a prenda de anos (sem isto, cada
+ * conta nova recebia uma), e sem ele o backoffice conta-o como perdido. As vantagens dos parceiros têm o
+ * prazo delas, que o Nuno escolhe (`Programa.diasDasVantagens`, 27 nov 2026).
+ */
+export const DIAS_DE_CLIENTE_DA_CASA = 365;
+
+/**
+ * As vantagens dos parceiros valem: o último corte (em segundos; null: nunca cortou) foi há menos de
+ * `dias` dias. Depois, voltam no corte seguinte.
+ */
+export function temAsVantagens(ultimoCorte: number | null, dias: number, agoraS: number): boolean {
+  return ultimoCorte !== null && ultimoCorte > agoraS - dias * 86400;
+}
+
+/** É cliente da casa: cortou no último ano (a prenda de anos e o «perdido» do backoffice). */
+export function eClienteDaCasa(ultimoCorte: number | null, agoraS: number): boolean {
+  return temAsVantagens(ultimoCorte, DIAS_DE_CLIENTE_DA_CASA, agoraS);
+}
 
 /** «MM-DD» que existe no calendário (29 de fevereiro conta). */
 export function eAniversarioValido(valor: unknown): valor is string {

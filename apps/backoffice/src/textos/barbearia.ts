@@ -44,6 +44,28 @@ export const pt = {
   siteErrado: 'Uma morada de site, como nunoslab.com.',
   guardar: 'Guardar',
   porGuardar: 'Alterações por guardar',
+  // O QR do balcão (o Nuno, 27 nov 2026).
+  qr: {
+    titulo: 'QR do balcão',
+    semQr:
+      'Com um QR ao balcão, o cliente carimba ao lê-lo com a app, sem tirares o telemóvel do bolso.',
+    semSitio: 'Para ter QR, a barbearia precisa das coordenadas (guarda-as primeiro).',
+    criar: 'Criar QR',
+    comQr:
+      'O cliente lê-o com a app, na barbearia, das 8h às 22h. O primeiro carimbo de um cliente novo e o do prémio continuam a ser dados por ti.',
+    imprimir: 'Imprimir',
+    trocar: 'Trocar QR',
+    desligar: 'Desligar',
+    trocarPergunta: 'Trocar o QR?',
+    trocarTexto: 'O QR impresso deixa de dar carimbos. Imprime o novo e troca-o ao balcão.',
+    desligarPergunta: 'Desligar o QR?',
+    desligarTexto: 'O QR impresso deixa de dar carimbos. Carimba-se só pela app for partners.',
+    rotulo: (loja: string) => `QR do balcão de ${loja}`,
+    // O cartaz que se imprime.
+    carimbaAqui: 'Carimba aqui',
+    comoLer: 'Abre a app do Nuno’s Lab › Cartão › Ler o QR do balcão',
+    umPorDia: 'Um carimbo por corte, na barbearia',
+  },
 };
 
 export const en: typeof pt = {
@@ -91,4 +113,26 @@ export const en: typeof pt = {
   siteErrado: 'A website address, like nunoslab.com.',
   guardar: 'Save',
   porGuardar: 'Unsaved changes',
+  qr: {
+    titulo: 'Counter QR',
+    semQr:
+      'With a QR on the counter, clients get their stamp by scanning it with the app, and your phone stays in your pocket.',
+    semSitio: 'For a QR, the barbershop needs its coordinates (save them first).',
+    criar: 'Create QR',
+    comQr:
+      'Clients scan it with the app at the barbershop, from 8am to 10pm. A new client’s first stamp and the reward stamp are still given by you.',
+    imprimir: 'Print',
+    trocar: 'Replace QR',
+    desligar: 'Switch off',
+    trocarPergunta: 'Replace the QR?',
+    trocarTexto:
+      'The printed QR will stop giving stamps. Print the new one and swap it on the counter.',
+    desligarPergunta: 'Switch off the QR?',
+    desligarTexto:
+      'The printed QR will stop giving stamps. Stamps are then given only in the partners app.',
+    rotulo: (loja) => `${loja} counter QR`,
+    carimbaAqui: 'Carimba aqui',
+    comoLer: 'Abre a app do Nuno’s Lab › Cartão › Ler o QR do balcão',
+    umPorDia: 'Um carimbo por corte, na barbearia',
+  },
 };

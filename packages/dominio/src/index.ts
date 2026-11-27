@@ -20,3 +20,4 @@ export * from './tipos.ts';
 export * from './apple.ts';
 export * from './mapa.ts';
 export * from './saldo.ts';
+export * from './qr-do-balcao.ts';

@@ -1,4 +1,4 @@
-import { euros, eurosParaUsar, type FichaDoBalcao } from '@nunos-lab/dominio';
+import { euros, valoresParaUsar, type FichaDoBalcao } from '@nunos-lab/dominio';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Pressable, View } from 'react-native';
@@ -98,9 +98,13 @@ export function SaldoDaFicha({
   // A API de antes do saldo não o manda.
   if (!saldo) return null;
   const consulta = ['balcao', 'ficha', codigo];
-  const maximo = eurosParaUsar(saldo.valor);
+  // Os euros inteiros e, com cêntimos, o saldo todo no fim (1 €, 1,50 €): os convites com cêntimos
+  // (27 nov 2026) deixavam 50 cêntimos por usar. O contador anda por estes valores.
+  const valores = valoresParaUsar(saldo.valor);
+  const maximo = valores.length;
   // A ficha fresca pode trazer menos saldo com a folha aberta: o contador nunca passa dele.
   const escolhido = Math.min(Math.max(1, quantos), maximo);
+  const valorEscolhido = valores[escolhido - 1] ?? 0;
   const uso = saldo.usadoHoje;
   // Como a API: o dono usa o saldo de quem já cortou; a equipa, com o cartão lido e um carimbo de hoje
   // (sem isso, gastava-se o saldo de um cliente ausente; revisão de 11 nov 2026).
@@ -150,9 +154,9 @@ export function SaldoDaFicha({
   };
 
   const usar = async () => {
-    if (!lojaId || aEnviar || escolhido < 1) return;
+    if (!lojaId || aEnviar || valorEscolhido < 1) return;
     const vez = abertura.current;
-    const valor = escolhido * 100;
+    const valor = valorEscolhido;
     setAEnviar(true);
     setErro(null);
     try {
@@ -394,7 +398,7 @@ export function SaldoDaFicha({
                   aria-live="polite"
                   style={{ minWidth: 132, textAlign: 'center', fontVariant: ['tabular-nums'] }}
                 >
-                  {euros(escolhido * 100, lingua)}
+                  {euros(valorEscolhido, lingua)}
                 </T>
                 <BotaoDoContador
                   icone="mais"
@@ -404,7 +408,7 @@ export function SaldoDaFicha({
                 />
               </View>
               <T v="corpo" style={{ color: cor.texto2, marginTop: 6 }}>
-                {t.ficha.fica(saldo.valor - escolhido * 100)}
+                {t.ficha.fica(saldo.valor - valorEscolhido)}
               </T>
               {/* Já houve um uso hoje (talvez de outro barbeiro): à vista antes de usar outra vez. */}
               {uso && (
@@ -420,10 +424,10 @@ export function SaldoDaFicha({
               )}
               <View style={{ flexDirection: 'row', marginTop: 24, alignSelf: 'stretch' }}>
                 <Botao
-                  nome={aEnviar ? t.ficha.aUsar : t.ficha.usar(escolhido * 100)}
+                  nome={aEnviar ? t.ficha.aUsar : t.ficha.usar(valorEscolhido)}
                   largo
                   ocupado={aEnviar}
-                  inactivo={!lojaId || escolhido < 1}
+                  inactivo={!lojaId || valorEscolhido < 1}
                   onPress={usar}
                 />
               </View>

@@ -1,4 +1,5 @@
 import {
+  codigoDoBalcaoLido,
   codigoValido,
   euros,
   normalizarCodigo,
@@ -150,11 +151,21 @@ export default function Vantagens() {
   useEffect(() => definirTitulo(t.titulos.vantagens), [t]);
   // Uma ligação partilhada (/?parceiro=N) abre o parceiro; o «Voltar» de lá vem
   // para aqui, já sem o parâmetro.
-  const { parceiro, convite } = useLocalSearchParams<{ parceiro?: string; convite?: string }>();
+  const { parceiro, convite, balcao } = useLocalSearchParams<{
+    parceiro?: string;
+    convite?: string;
+    balcao?: string;
+  }>();
   useEffect(() => {
     if (parceiro && /^\d+$/.test(parceiro))
       router.replace({ pathname: '/parceiro/[id]', params: { id: parceiro } });
   }, [parceiro]);
+  // O QR do balcão lido com a câmara do telemóvel (/?balcao=CODIGO, 27 nov 2026): abre o ecrã do QR já
+  // com o código, que carimba (ou pede para entrar primeiro).
+  useEffect(() => {
+    const codigo = balcao ? codigoDoBalcaoLido(balcao) : null;
+    if (codigo) router.replace({ pathname: '/balcao', params: { codigo } });
+  }, [balcao]);
   // A ligação de um convite (/?convite=CODIGO, o Renato, 10 nov 2026): o código fica guardado até a
   // pessoa entrar, e usa-se então (componentes/saldo.tsx). Sai da morada, para um recarregar não o
   // trazer outra vez.
@@ -236,9 +247,10 @@ export default function Vantagens() {
       pathname: '/parceiro/[id]',
       params: { id: String(p.id), ...(pr ? { p: String(pr.id) } : {}) },
     });
-  // Sem corte no último ano as vantagens não valem (são todas só para clientes activos): o aviso diz
-  // que um corte as dá, e leva às Barbearias (o Renato, 8 e 9 nov). Só com vantagens na app. Sem
-  // conta, o aviso de quem nunca cortou, como o cadeado na página do parceiro (o Renato, 9 nov).
+  // Sem corte nos dias das vantagens (o Nuno escolhe-os) elas não valem (são todas só para clientes
+  // activos): o aviso diz que um corte as dá, e leva às Barbearias (o Renato, 8 e 9 nov). Só com
+  // vantagens na app. Sem conta, o aviso de quem nunca cortou, como o cadeado na página do parceiro
+  // (o Renato, 9 nov).
   const avisoDoCorte =
     (!temSessao || (!!eu && !eu.activo)) && (data?.parceiros.length ?? 0) > 0
       ? temSessao && eu && eu.cortes > 0

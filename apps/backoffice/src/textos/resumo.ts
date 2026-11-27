@@ -21,6 +21,8 @@ export const pt = {
   clientesNovos: 'Clientes novos',
   quemCarimbou: 'Quem carimbou',
   ninguemCarimbou: 'Ninguém carimbou neste período',
+  // Os carimbos que o cliente deu a si mesmo, pelo QR do balcão (27 nov 2026).
+  peloQr: 'QR do balcão',
   entregou: (n: number) => `entregou ${n} ${n === 1 ? 'recompensa' : 'recompensas'}`,
   porCasa: 'Por barbearia',
   // O gráfico dos carimbos.
@@ -57,6 +59,7 @@ export const en: typeof pt = {
   clientesNovos: 'New clients',
   quemCarimbou: 'Who stamped',
   ninguemCarimbou: 'No one stamped in this period',
+  peloQr: 'Counter QR',
   entregou: (n) => `redeemed ${n} ${n === 1 ? 'reward' : 'rewards'}`,
   porCasa: 'By barbershop',
   carimbosN: (n, um) => `${n} ${um ? 'stamp' : 'stamps'}`,

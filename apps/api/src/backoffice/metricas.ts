@@ -194,6 +194,12 @@ rotasDasMetricas.get('/metricas', async (c) => {
          sum(NOT EXISTS (SELECT 1 FROM identidades i WHERE i.cliente_id = k.id AND (i.tipo != 'email' OR i.dona = 1))) AS so_balcao
        FROM clientes k WHERE k.apagado_em IS NULL AND k.exemplo = 0`,
     ),
+    // 24 os carimbos pelo QR do balcão (27 nov 2026), que não são de ninguém da equipa
+    db
+      .prepare(
+        `SELECT count(*) AS n FROM carimbos x WHERE x.pelo_qr = 1 AND x.dia BETWEEN ? AND ? AND x.anulado_em IS NULL ${casa}`,
+      )
+      .bind(de, ate, ...l),
   ]);
   const n = (i: number) => Number((r[i]!.results[0] as { n: number | null }).n ?? 0);
 
@@ -309,6 +315,7 @@ rotasDasMetricas.get('/metricas', async (c) => {
     },
     porDia,
     porLoja: r[10]!.results as Metricas['porLoja'],
+    peloQr: n(24),
     porPessoa: (
       r[11]!.results as (Omit<Metricas['porPessoa'][number], 'semLeitura'> & {
         sem_leitura: number;

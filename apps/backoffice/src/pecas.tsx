@@ -1,22 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 import {
-  AJUSTE_DE_ORIGEM,
   CORES_DOS_PARCEIROS,
   DESENHOS_DAS_CATEGORIAS,
   ICONES_DAS_CATEGORIAS,
-  ajusteDosDedos,
   anelDoLogotipo,
   caixaDoLogotipo,
   COR_DO_ANEL,
   corParaBranco,
   eCor,
-  limitarAjuste,
   luminancia,
   nomeDoDesenho,
   type AjusteDoLogotipo,
   type CategoriaComContagem,
   type IconeDaCategoria,
-  type PontoNoCirculo,
 } from '@nunos-lab/dominio';
 import {
   createContext,
@@ -29,7 +25,6 @@ import {
   type ReactNode,
 } from 'react';
 import { API, mensagemDe, pedir } from './api';
-import { carregarImagem, carregarLogotipo, corDoLogotipo } from './imagens';
 import { useLingua } from './lingua';
 import { textos, useTextos } from './textos';
 import { numero } from './util';
@@ -769,6 +764,7 @@ export function Folha({
   children,
   pe,
   sujo = false,
+  classe,
 }: {
   aberta: boolean;
   fechar: () => void;
@@ -777,6 +773,8 @@ export function Folha({
   pe?: ReactNode;
   /** Há alterações por guardar: fechar pergunta primeiro. */
   sujo?: boolean;
+  /** Uma classe a mais («larga»: o editor do logótipo). */
+  classe?: string;
 }) {
   const t = useTextos();
   const ref = useRef<HTMLDialogElement>(null);
@@ -795,7 +793,7 @@ export function Folha({
   return (
     <dialog
       ref={ref}
-      className="folha"
+      className={classe ? `folha ${classe}` : 'folha'}
       aria-labelledby="titulo-da-folha"
       onCancel={(e) => {
         e.preventDefault();
@@ -940,7 +938,7 @@ export function urlDaImagem(id: string) {
 }
 
 /** A imagem do logótipo na caixa do ajuste, em percentagem do círculo (as contas da app). */
-function estiloDoLogotipo(ajuste: AjusteDoLogotipo | null | undefined) {
+export function estiloDoLogotipo(ajuste: AjusteDoLogotipo | null | undefined) {
   const caixa = caixaDoLogotipo(ajuste);
   const pc = (n: number) => `${n * 100}%`;
   return {
@@ -1012,299 +1010,6 @@ export function Logotipo({
     >
       {iniciaisDe(nome)}
     </span>
-  );
-}
-
-/**
- * O logótipo no círculo, para acertar como fica na app: arrastar muda-o de sítio, dois dedos
- * aproximam ou afastam (o segundo pode assentar fora do círculo, pequeno para dois dedos no
- * telemóvel), a roda (ou os dedos no trackpad, que chegam como roda com Ctrl) aproxima, e no teclado
- * as setas e o + e o −.
- */
-function EditorDoLogotipo({
-  id,
-  ajuste,
-  mudar,
-}: {
-  id: string;
-  ajuste: AjusteDoLogotipo;
-  mudar: (a: AjusteDoLogotipo) => void;
-}) {
-  const t = useTextos();
-  const lado = 112;
-  const idDasTeclas = useId();
-  const moldura = useRef<HTMLDivElement>(null);
-  // Os tratadores lêem daqui o último ajuste e o último «mudar» (a roda é um ouvinte posto uma vez).
-  const ultimo = useRef(ajuste);
-  const mudarAgora = useRef(mudar);
-  useEffect(() => {
-    ultimo.current = ajuste;
-    mudarAgora.current = mudar;
-  }, [ajuste, mudar]);
-  const aplicar = (novo: Partial<AjusteDoLogotipo>) => {
-    const a = limitarAjuste({ ...ultimo.current, ...novo });
-    if (!a) return;
-    ultimo.current = a;
-    mudarAgora.current(a);
-  };
-  // Os dedos (ou o rato) a carregar, pela ordem em que assentaram, onde estão no ecrã; e o ajuste e
-  // os dedos de quando o gesto mudou: as contas fazem-se sempre a partir daí, e um dedo que chega ou
-  // sai recomeça-o, sem a imagem saltar (o Renato, 10 nov: com dois dedos, no telemóvel, ela fugia).
-  const dedos = useRef(new Map<number, { x: number; y: number }>());
-  const partida = useRef<{ ajuste: AjusteDoLogotipo; dedos: PontoNoCirculo[] } | null>(null);
-  // Os dedos que assentaram fora do círculo sem gesto a decorrer: se um assenta no círculo logo a
-  // seguir (os dois quase ao mesmo tempo, como quem afasta os dedos), também contam.
-  const soltos = useRef(new Map<number, { x: number; y: number; quando: number }>());
-  // Só mexem em refs: os ouvintes postos uma vez podem chamá-las.
-  const noCirculo = (): PontoNoCirculo[] => {
-    // O lado medido, não o 112: o CSS pode mudá-lo.
-    const r = moldura.current?.getBoundingClientRect();
-    if (!r?.width) return [];
-    return [...dedos.current.values()].slice(0, 2).map((d) => ({
-      x: (d.x - r.left - r.width / 2) / r.width,
-      y: (d.y - r.top - r.height / 2) / r.height,
-    }));
-  };
-  const recomecar = () => {
-    partida.current = dedos.current.size ? { ajuste: ultimo.current, dedos: noCirculo() } : null;
-  };
-  const assentar = (e: PointerEvent) => {
-    dedos.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (dedos.current.size === 1)
-      for (const [id, d] of soltos.current)
-        if (e.timeStamp - d.quando < 250) dedos.current.set(id, { x: d.x, y: d.y });
-    soltos.current.clear();
-    recomecar();
-  };
-  // A roda do React é passiva: para a página não rolar enquanto se aproxima, um ouvinte nativo.
-  useEffect(() => {
-    const el = moldura.current;
-    if (!el) return;
-    const roda = (e: WheelEvent) => {
-      e.preventDefault();
-      const a = ultimo.current;
-      const novo = limitarAjuste({
-        ...a,
-        zoom: a.zoom * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.002)),
-      });
-      if (!novo) return;
-      ultimo.current = novo;
-      mudarAgora.current(novo);
-    };
-    el.addEventListener('wheel', roda, { passive: false });
-    return () => el.removeEventListener('wheel', roda);
-  }, []);
-  // O resto do gesto ouve-se no documento: o dedo que assenta fora do círculo não chega a ele.
-  useEffect(() => {
-    const fora = (e: PointerEvent) => {
-      const el = moldura.current;
-      if (!el || e.pointerType !== 'touch' || el.contains(e.target as Node)) return;
-      if (!dedos.current.size) {
-        soltos.current.set(e.pointerId, { x: e.clientX, y: e.clientY, quando: e.timeStamp });
-        return;
-      }
-      if (dedos.current.size !== 1) return;
-      // Com um dedo já no círculo, este é o segundo: entra no gesto e não toca no que tem por baixo.
-      e.preventDefault();
-      e.stopPropagation();
-      assentar(e);
-    };
-    const mexer = (e: PointerEvent) => {
-      const solto = soltos.current.get(e.pointerId);
-      if (solto) soltos.current.set(e.pointerId, { ...solto, x: e.clientX, y: e.clientY });
-      if (!dedos.current.has(e.pointerId)) return;
-      dedos.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      const p = partida.current;
-      const novo = p && ajusteDosDedos(p.ajuste, p.dedos, noCirculo());
-      if (!novo) return;
-      ultimo.current = novo;
-      mudarAgora.current(novo);
-    };
-    const largar = (e: PointerEvent) => {
-      soltos.current.delete(e.pointerId);
-      if (dedos.current.delete(e.pointerId)) recomecar();
-    };
-    document.addEventListener('pointerdown', fora, true);
-    document.addEventListener('pointermove', mexer, true);
-    document.addEventListener('pointerup', largar, true);
-    document.addEventListener('pointercancel', largar, true);
-    return () => {
-      document.removeEventListener('pointerdown', fora, true);
-      document.removeEventListener('pointermove', mexer, true);
-      document.removeEventListener('pointerup', largar, true);
-      document.removeEventListener('pointercancel', largar, true);
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  return (
-    <div
-      ref={moldura}
-      className="ajuste-do-logotipo"
-      style={{ width: lado, height: lado, background: ajuste.fundo }}
-      tabIndex={0}
-      role="group"
-      aria-label={t.parceiro.ajustarLogotipo}
-      aria-describedby={idDasTeclas}
-      onPointerDown={(e) => {
-        if (e.pointerType === 'mouse' && e.button !== 0) return;
-        try {
-          e.currentTarget.setPointerCapture(e.pointerId);
-        } catch {
-          // Sem a captura, o resto do gesto ouve-se na mesma no documento.
-        }
-        assentar(e.nativeEvent);
-      }}
-      onKeyDown={(e) => {
-        const a = ultimo.current;
-        const passo = e.shiftKey ? 0.1 : 0.02;
-        const teclas: Record<string, Partial<AjusteDoLogotipo>> = {
-          ArrowLeft: { x: a.x - passo },
-          ArrowRight: { x: a.x + passo },
-          ArrowUp: { y: a.y - passo },
-          ArrowDown: { y: a.y + passo },
-          '+': { zoom: a.zoom * 1.08 },
-          '=': { zoom: a.zoom * 1.08 },
-          '-': { zoom: a.zoom / 1.08 },
-        };
-        const novo = teclas[e.key];
-        if (!novo) return;
-        e.preventDefault();
-        aplicar(novo);
-      }}
-    >
-      <img src={urlDaImagem(id)} alt="" draggable={false} style={estiloDoLogotipo(ajuste)} />
-      <span id={idDasTeclas} className="so-leitor">
-        {t.parceiro.teclasDoLogotipo}
-      </span>
-    </div>
-  );
-}
-
-/**
- * O logótipo do parceiro: a imagem, acertada no círculo como fica na app, e a cor do fundo do
- * círculo (o Renato, 9 nov: um logótipo quadrado de fundo verde ficava num círculo branco). A
- * primeira cor é a das orlas do logótipo; uma imagem nova já vem com ela, se for de uma cor só.
- */
-export function CampoDoLogotipo({
-  rotulo,
-  valor,
-  ajuste,
-  cor,
-  mudar,
-  ajuda,
-  erro,
-}: {
-  rotulo: string;
-  valor: string | null;
-  ajuste: AjusteDoLogotipo | null;
-  /** A cor do parceiro, que é uma das hipóteses para o fundo. */
-  cor: string;
-  mudar: (id: string | null, ajuste: AjusteDoLogotipo | null) => void;
-  ajuda: string;
-  erro?: boolean;
-}) {
-  const t = useTextos();
-  const entrada = useRef<HTMLInputElement>(null);
-  const idDoFundo = useId();
-  const avisar = useAvisar();
-  const [aCarregar, setACarregar] = useState(false);
-  const daImagem = useQuery({
-    queryKey: ['cor-do-logotipo', valor],
-    queryFn: () => (valor ? corDoLogotipo(valor) : null),
-    enabled: !!valor,
-    staleTime: Infinity,
-  });
-  const a = ajuste ?? AJUSTE_DE_ORIGEM;
-  const fundos = [
-    { cor: daImagem.data, nome: t.parceiro.fundos.logotipo },
-    { cor: '#FFFFFF', nome: t.parceiro.fundos.branco },
-    { cor: '#000000', nome: t.parceiro.fundos.preto },
-    { cor: corParaBranco(cor).toUpperCase(), nome: t.parceiro.fundos.parceiro },
-  ].filter(
-    (f, i, l): f is { cor: string; nome: string } =>
-      !!f.cor && l.findIndex((g) => g.cor === f.cor) === i,
-  );
-  return (
-    <div className={`campo${erro ? ' erro' : ''}`}>
-      <span className="rotulo-campo">{rotulo}</span>
-      <div className="imagem-campo">
-        {valor ? (
-          <EditorDoLogotipo id={valor} ajuste={a} mudar={(novo) => mudar(valor, novo)} />
-        ) : (
-          <div className="previa">
-            <span className="ajuda">—</span>
-          </div>
-        )}
-        <div className="botoes">
-          <button
-            type="button"
-            className="botao secundario pequeno"
-            disabled={aCarregar}
-            onClick={() => entrada.current?.click()}
-          >
-            {aCarregar
-              ? t.geral.imagem.aCarregar
-              : valor
-                ? t.geral.imagem.trocar
-                : t.geral.imagem.escolher}
-          </button>
-          {valor && (
-            <button
-              type="button"
-              className="botao secundario pequeno"
-              onClick={() => mudar(null, null)}
-            >
-              {t.geral.imagem.tirar}
-            </button>
-          )}
-        </div>
-        <input
-          ref={entrada}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={async (e) => {
-            const ficheiro = e.target.files?.[0];
-            e.target.value = '';
-            if (!ficheiro) return;
-            setACarregar(true);
-            try {
-              const { id, ajuste: sugestao } = await carregarLogotipo(ficheiro);
-              mudar(id, sugestao);
-            } catch (erro) {
-              avisar(mensagemDe(erro), true);
-            } finally {
-              setACarregar(false);
-            }
-          }}
-        />
-      </div>
-      {valor && (
-        <div className="fundo-do-logotipo">
-          <span className="rotulo-campo" id={idDoFundo}>
-            {t.parceiro.fundo}
-          </span>
-          <div className="cores" role="group" aria-labelledby={idDoFundo}>
-            {fundos.map((f) => (
-              <button
-                key={f.cor}
-                type="button"
-                className="cor"
-                style={{ background: f.cor }}
-                aria-pressed={a.fundo === f.cor}
-                aria-label={f.nome}
-                onClick={() => mudar(valor, { ...a, fundo: f.cor })}
-              />
-            ))}
-            <OutraCor valor={a.fundo} mudar={(fundo) => mudar(valor, { ...a, fundo })} />
-          </div>
-        </div>
-      )}
-      {erro ? (
-        <div className="mensagem-erro">{t.geral.reveEsteCampo}</div>
-      ) : (
-        <div className="ajuda">{ajuda}</div>
-      )}
-    </div>
   );
 }
 

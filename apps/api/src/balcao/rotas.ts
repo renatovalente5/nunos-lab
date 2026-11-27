@@ -6,7 +6,6 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 import {
-  DIAS_DE_CLIENTE_ACTIVO,
   LIMITES_DO_PROGRAMA,
   MINUTOS_PARA_ANULAR,
   inicioDoPeriodo,
@@ -36,8 +35,10 @@ import {
 import type { Ambiente, C } from '../ambiente.ts';
 import {
   LIMITES_DO_SALDO,
+  eClienteDaCasa,
   emailCurto,
   fazAnosHoje,
+  temAsVantagens,
   temPrendaHoje,
   textoDeBusca,
 } from '@nunos-lab/dominio';
@@ -55,8 +56,8 @@ import {
   type LinhaCartao,
 } from '../programa.ts';
 import { anularCarimbo } from '../carimbos.ts';
-import { consultaDoSaldo, saldoDe } from '../saldo.ts';
-import { DIA, agora, corpo, linguaDoPedido, recusar, traduzirErroDaBase } from '../util.ts';
+import { consultaDoSaldo, lerConvites, saldoDe } from '../saldo.ts';
+import { agora, corpo, linguaDoPedido, recusar, traduzirErroDaBase } from '../util.ts';
 import { nomeLimpo } from '../nomes.ts';
 import { tocarPasse } from '../wallet/servico.ts';
 import type { LinhaPromocao } from '../linhas.ts';
@@ -84,7 +85,7 @@ async function exigirCartaoDeOutro(c: C, clienteId: number) {
  * SQL: o cliente (uma expressão) é a própria pessoa da equipa (um parâmetro) — pelo email, ou pela Apple
  * ou Google com que ela entra na for partners (o «Ocultar o meu email» da Apple escondia o email; 11 nov).
  */
-function eDaPessoa(cliente: string, pessoa: string): string {
+export function eDaPessoa(cliente: string, pessoa: string): string {
   return `(EXISTS (SELECT 1 FROM equipa e WHERE e.id = ${pessoa} AND e.email IS NOT NULL AND (
              EXISTS (SELECT 1 FROM identidades i WHERE i.cliente_id = ${cliente} AND i.email = e.email)
              OR EXISTS (SELECT 1 FROM clientes k WHERE k.id = ${cliente} AND k.email = e.email)))
@@ -121,7 +122,7 @@ function exigirDono(c: C) {
   if (c.get('pessoa').papel !== 'dono') recusar(403, 'so_dono');
 }
 
-type LinhaCliente = {
+export type LinhaCliente = {
   id: number;
   codigo: string;
   nome: string;
@@ -251,15 +252,16 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
     (entregue!.results[0] as { quando: number; pessoa: string | null } | undefined) ?? null;
   const fazAnos = fazAnosHoje(cliente.aniversario, hoje);
   const programaDeHoje = await lerPrograma(db);
-  const activo = await clienteActivo(db, cliente.id);
+  // Um ano, e não os dias das vantagens: quem corta de dois em dois meses também leva a prenda (27 nov 2026).
+  const daCasa = eClienteDaCasa(await ultimoCorte(db, cliente.id), agora());
   const prendaEntregue =
     (prendaDesteAno!.results[0] as { quando: number; pessoa: string | null } | undefined) ?? null;
   return {
     // A prenda só com a data dada há 30 dias ou mais (senão mudava-se na véspera), uma vez por ano, e
-    // a quem teve um corte no último ano, como as vantagens: sem isso, cada conta nova recebia uma.
+    // a quem teve um corte no último ano (é da casa): sem isso, cada conta nova recebia uma.
     prenda:
       temPrendaHoje(cliente.aniversario, cliente.aniversario_desde, hoje, agora()) &&
-      activo &&
+      daCasa &&
       programaDeHoje.aniversario &&
       !prendaEntregue
         ? naLingua(lingua, programaDeHoje.aniversario, programaDeHoje.aniversarioEn)
@@ -463,14 +465,21 @@ async function resultadoDe(c: C, carimboId: number): Promise<ResultadoDoCarimbo>
   };
 }
 
-async function carimbar(
+/**
+ * O carimbo pelo QR do balcão (27 nov 2026): é o cliente que o dá a si mesmo, na barbearia do QR, sem
+ * ninguém da equipa. As regras do QR (a localização, as horas, o primeiro e o do prémio com o barbeiro, a
+ * equipa) conferem-se antes, em qr-do-balcao.ts; aqui fica o resto, igual ao da for partners.
+ */
+export type CarimboPeloQr = { peloQr: true };
+
+export async function carimbar(
   c: C,
   cliente: LinhaCliente,
   p: Omit<z.output<typeof Carimbo>, 'codigo'>,
   segundaVez = false,
+  qr?: CarimboPeloQr,
 ): Promise<ResultadoDoCarimbo> {
   const db = c.env.DB;
-  const pessoa = c.get('pessoa');
   const repetida = await db
     .prepare('SELECT id, cliente_id FROM carimbos WHERE chave = ?')
     .bind(p.chave)
@@ -480,12 +489,19 @@ async function carimbar(
     if (repetida.cliente_id !== cliente.id) recusar(409, 'repetido');
     return resultadoDe(c, repetida.id);
   }
-  if (!(await c.env.CARIMBAR.limit({ key: `sessao:${pessoa.sessao}` }))?.success)
+  // Pelo QR não há pessoa da equipa: a trava é a do cliente, e a loja é a do QR (já conferida).
+  const pessoa = qr ? null : c.get('pessoa');
+  if (
+    !(await c.env.CARIMBAR.limit({ key: pessoa ? `sessao:${pessoa.sessao}` : `qr:${cliente.id}` }))
+      ?.success
+  )
     recusar(429, 'muitas_tentativas');
-  const lojaId = await lojaDe(c, p.lojaId);
-  await exigirCartaoDeOutro(c, cliente.id);
-  await exigirConvidadoDeOutro(c, cliente.id);
-  const programa = await lerPrograma(db);
+  const lojaId = pessoa ? await lojaDe(c, p.lojaId) : p.lojaId;
+  if (pessoa) {
+    await exigirCartaoDeOutro(c, cliente.id);
+    await exigirConvidadoDeOutro(c, cliente.id);
+  }
+  const [programa, convites] = await Promise.all([lerPrograma(db), lerConvites(db)]);
   // O carimbo conta no instante em que chega. A hora que as apps de antes mandavam da fila sem rede
   // já não conta: com ela, quem tivesse uma sessão da equipa dava um carimbo por cada um dos 7 dias de
   // trás, sem «Carimbar na mesma», fora do «Hoje» e sem «repetido» (revisão de 9 nov 2026).
@@ -525,8 +541,8 @@ async function carimbar(
     .all<{ quando: number; pessoa: string | null }>();
   const repetido = deHoje.results.length >= programa.porDia;
   // «Carimbar na mesma» é um a mais, não dez: sem isto, um barbeiro enchia um cartão num minuto e o 10.º
-  // entregava o corte grátis (revisão de 11 nov 2026). O dono, sem limite.
-  const dono = pessoa.papel === 'dono' && !pessoa.demo;
+  // entregava o corte grátis (revisão de 11 nov 2026). O dono, sem limite. O QR nunca carimba na mesma.
+  const dono = !!pessoa && pessoa.papel === 'dono' && !pessoa.demo;
   if (!dono && deHoje.results.length >= programa.porDia + 1) recusar(409, 'limite_do_dia_maximo');
   if (repetido && !p.confirmar)
     throw new HTTPException(409, {
@@ -543,8 +559,8 @@ async function carimbar(
   const instrucoes = [
     db
       .prepare(
-        `INSERT INTO carimbos (cartao_id, cliente_id, loja_id, pessoa_id, chave, dia, repetido, sem_leitura, criado_em)
-         SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, coalesce(?9, unixepoch())
+        `INSERT INTO carimbos (cartao_id, cliente_id, loja_id, pessoa_id, chave, dia, repetido, sem_leitura, criado_em, pelo_qr)
+         SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, coalesce(?9, unixepoch()), ?13
          WHERE (SELECT completo_em FROM cartoes WHERE id = ?1) IS NULL
            AND (?10 = 1 OR (SELECT count(*) FROM carimbos WHERE cliente_id = ?2 AND dia = ?6 AND anulado_em IS NULL) < ?11)
            AND (?12 = 1 OR (SELECT count(*) FROM carimbos WHERE cliente_id = ?2 AND dia = ?6 AND anulado_em IS NULL) < ?11 + 1)
@@ -554,7 +570,7 @@ async function carimbar(
         cartao.id,
         cliente.id,
         lojaId,
-        pessoa.id,
+        pessoa?.id ?? null,
         p.chave,
         hoje,
         repetido || entregueHoje ? 1 : 0,
@@ -563,6 +579,7 @@ async function carimbar(
         p.confirmar ? 1 : 0,
         programa.porDia,
         dono ? 1 : 0,
+        qr ? 1 : 0,
       ),
     db.prepare('UPDATE clientes SET visto_em = unixepoch() WHERE id = ?').bind(cliente.id),
     // O 10.º corte é a oferta: o carimbo que completa o cartão entrega o prémio nesse
@@ -574,7 +591,7 @@ async function carimbar(
          WHERE id = ?3 AND completo_em IS NULL
            AND (SELECT count(*) FROM carimbos WHERE cartao_id = ?3 AND anulado_em IS NULL) >= objectivo`,
       )
-      .bind(lojaId, pessoa.id, cartao.id),
+      .bind(lojaId, pessoa?.id ?? null, cartao.id),
     db
       .prepare('SELECT count(*) AS n FROM carimbos WHERE cartao_id = ? AND anulado_em IS NULL')
       .bind(cartao.id),
@@ -590,16 +607,19 @@ async function carimbar(
     // O convite (10 nov 2026): o primeiro carimbo de quem foi convidado dá o prémio a quem o convidou,
     // no mesmo batch — só se este carimbo entrou e é o único válido do cliente (anular desfaz os dois,
     // ou passa o convite para outro carimbo válido: carimbos.ts). Quem convidou e apagou a conta já não
-    // recebe; a visita fica marcada na mesma.
+    // recebe; a visita fica marcada na mesma. O prémio é o maior dos dois: o do dia em que o amigo
+    // aceitou e o de agora, com os convites ligados (o Renato, 27 nov 2026: se o Nuno subir o valor, a
+    // carteira já o promete; se descer, ninguém recebe menos do que lhe prometeram).
     db
       .prepare(
-        `UPDATE convites SET visitou_em = unixepoch(), carimbo_id = (SELECT id FROM carimbos WHERE chave = ?2)
+        `UPDATE convites SET visitou_em = unixepoch(), carimbo_id = (SELECT id FROM carimbos WHERE chave = ?2),
+           premio_padrinho = max(premio_padrinho, ?4)
          WHERE convidado_id = ?1 AND visitou_em IS NULL
            AND EXISTS (SELECT 1 FROM carimbos WHERE chave = ?2 AND cliente_id = ?1)
            AND (SELECT count(*) FROM carimbos WHERE cliente_id = ?1 AND anulado_em IS NULL) = 1
            AND NOT ${eDaPessoa('convites.padrinho_id', '?3')}`,
       )
-      .bind(cliente.id, p.chave, pessoa.id),
+      .bind(cliente.id, p.chave, pessoa?.id ?? null, convites.ligado ? convites.valorPadrinho : 0),
     db
       .prepare(
         `INSERT INTO movimentos_de_saldo (cliente_id, valor, tipo, convite_id)
@@ -639,7 +659,7 @@ async function carimbar(
     // instante) e este pertence ao cartão seguinte — repete-se uma vez, do cartão actual —,
     // ou o limite do dia ficou feito entretanto.
     const actual = await cartaoActual(db, cliente.id);
-    if (actual?.completo_em && !segundaVez) return carimbar(c, cliente, p, true);
+    if (actual?.completo_em && !segundaVez) return carimbar(c, cliente, p, true, qr);
     const ultimo = await db
       .prepare(
         `SELECT x.criado_em AS quando, e.nome AS pessoa FROM carimbos x LEFT JOIN equipa e ON e.id = x.pessoa_id
@@ -715,6 +735,7 @@ rotasDaBalcao.post('/anular', async (c) => {
   const { clienteId, instrucoes } = await anularCarimbo(db, carimboId, {
     pessoaId: pessoa.id,
     dono,
+    lojaId: pessoa.lojaId,
   });
   await db.batch(instrucoes);
   tocarPasse(c, clienteId);
@@ -1130,15 +1151,20 @@ function filtroDaCasa(c: C): number | null {
 const ULTIMO = `SELECT x.id, x.criado_em AS quando, k.nome AS cliente, k.id AS clienteId, k.codigo,
     e.nome AS pessoa, x.pessoa_id AS pessoaId, l.nome AS loja, c.objectivo,
     (SELECT count(*) FROM carimbos y WHERE y.cartao_id = c.id AND y.anulado_em IS NULL AND y.id <= x.id) AS carimbos,
-    x.anulado_em, x.repetido,
+    x.anulado_em, x.repetido, x.pelo_qr, x.dia,
     (c.completo_em IS NOT NULL AND x.id = (SELECT max(id) FROM carimbos z WHERE z.cartao_id = c.id AND z.anulado_em IS NULL)) AS recompensa
   FROM carimbos x JOIN clientes k ON k.id = x.cliente_id JOIN cartoes c ON c.id = x.cartao_id
   LEFT JOIN equipa e ON e.id = x.pessoa_id LEFT JOIN lojas l ON l.id = x.loja_id`;
 
-type LinhaUltimo = Omit<UltimoCarimbo, 'anulado' | 'repetido' | 'recompensa' | 'anulavelAte'> & {
+type LinhaUltimo = Omit<
+  UltimoCarimbo,
+  'anulado' | 'repetido' | 'recompensa' | 'anulavelAte' | 'peloQr'
+> & {
   anulado_em: number | null;
   repetido: number;
   recompensa: number;
+  pelo_qr: number;
+  dia: string;
 };
 const ultimoPublico = (u: LinhaUltimo): UltimoCarimbo => ({
   id: u.id,
@@ -1148,7 +1174,9 @@ const ultimoPublico = (u: LinhaUltimo): UltimoCarimbo => ({
   codigo: u.codigo,
   pessoa: u.pessoa,
   pessoaId: u.pessoaId,
-  anulavelAte: u.quando + MINUTOS_PARA_ANULAR * 60,
+  // O do QR do balcão, a equipa da barbearia anula-o até ao fim do dia (carimbos.ts).
+  anulavelAte: u.pelo_qr ? inicioDoDia(somarDias(u.dia, 1)) : u.quando + MINUTOS_PARA_ANULAR * 60,
+  peloQr: u.pelo_qr === 1,
   loja: u.loja,
   carimbos: u.carimbos,
   objectivo: u.objectivo,
@@ -1292,14 +1320,15 @@ function exigirParceiro(c: C): number {
   return p.parceiroId;
 }
 
-async function clienteActivo(db: D1Database, clienteId: number): Promise<boolean> {
+/** O último corte do cliente que não foi anulado (em segundos; null: nunca cortou). */
+async function ultimoCorte(db: D1Database, clienteId: number): Promise<number | null> {
   const r = await db
     .prepare(
-      'SELECT 1 FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL AND criado_em > unixepoch() - ? LIMIT 1',
+      'SELECT max(criado_em) AS ultimo FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL',
     )
-    .bind(clienteId, DIAS_DE_CLIENTE_ACTIVO * DIA)
-    .first();
-  return !!r;
+    .bind(clienteId)
+    .first<{ ultimo: number | null }>();
+  return r?.ultimo ?? null;
 }
 
 /**
@@ -1326,7 +1355,9 @@ async function fichaDoParceiro(
   const hoje = diaEmLisboa();
   const lingua = linguaDoPedido(c);
   const promos = (await consultaDasVantagens(db, parceiroId, hoje).all<LinhaPromocao>()).results;
-  const activo = await clienteActivo(db, cliente.id);
+  // As vantagens valem os dias que o Nuno escolheu depois do último corte (27 nov 2026; era um ano).
+  const { diasDasVantagens } = await lerPrograma(db);
+  const activo = temAsVantagens(await ultimoCorte(db, cliente.id), diasDasVantagens, agora());
   const contagens = promos.length
     ? await db.batch(
         promos.flatMap((p) => [
@@ -1368,6 +1399,7 @@ async function fichaDoParceiro(
       codigo: cliente.codigo,
       nome: cliente.nome.trim().split(/\s+/)[0] ?? '',
       activo,
+      diasDasVantagens,
     },
     vantagens,
   };

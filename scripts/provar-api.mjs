@@ -4014,6 +4014,307 @@ await passo(
   },
 );
 
+// ——— 27 nov 2026 (o Nuno): o valor dos convites a meio caminho, os dias das vantagens, o QR do balcão ———
+
+await passo(
+  'convites: um valor novo vale para os aceites, e quem convidou recebe o maior dos dois (27 nov 2026)',
+  async () => {
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    await saldoProva.convites({ ...PREDEFINIDOS, valorPadrinho: 100, valorConvidado: 100 });
+    const p = await saldoProva.cliente('Padrinho Maior');
+    const subiu = await saldoProva.cliente('Convidado Subiu');
+    const desceu = await saldoProva.cliente('Convidado Desceu');
+    const codigo = await saldoProva.codigo(p);
+    // Aceite a 1 €; o Nuno sobe para 2 € antes da visita: a carteira já o promete, e recebe 2 €.
+    assert.equal((await saldoProva.aceitar(subiu, codigo)).status, 200);
+    assert.equal(
+      await saldoProva.saldo(subiu),
+      100,
+      'o convidado fica com o do dia em que aceitou',
+    );
+    await saldoProva.convites({ valorPadrinho: 200 });
+    const porVisitar = (await saldoProva.carteira(p)).convites.lista.find((v) => !v.visitouEm);
+    assert.equal(porVisitar.premio, 200, 'a carteira diz o que vai receber');
+    await saldoProva.carimbar(subiu, dono);
+    assert.equal(await saldoProva.saldo(p), 200);
+    // Aceite a 2 € (e 1,50 € para o convidado); o Nuno desce para 1 €: recebe os 2 € prometidos.
+    await saldoProva.convites({ valorConvidado: 150 });
+    assert.equal((await saldoProva.aceitar(desceu, codigo)).status, 200);
+    assert.equal(await saldoProva.saldo(desceu), 150, 'o convidado com cêntimos');
+    await saldoProva.convites({ valorPadrinho: 100, valorConvidado: 100 });
+    await saldoProva.carimbar(desceu, dono);
+    assert.equal(await saldoProva.saldo(p), 400);
+    const premios = daBaseLocal(
+      `SELECT v.premio_padrinho AS convite, m.valor FROM convites v
+       JOIN movimentos_de_saldo m ON m.convite_id = v.id AND m.tipo = 'convite' AND m.anulado_em IS NULL
+       WHERE v.padrinho_id = ${p.id} ORDER BY v.id`,
+    );
+    assert.deepEqual(
+      premios.map((x) => [x.convite, x.valor]),
+      [
+        [200, 200],
+        [200, 200],
+      ],
+    );
+    // Com os convites desligados, o já aceite paga o que foi prometido (o de agora não conta).
+    const tarde = await saldoProva.cliente('Convidado Tarde');
+    await saldoProva.convites({ valorPadrinho: 150 });
+    assert.equal((await saldoProva.aceitar(tarde, codigo)).status, 200);
+    await saldoProva.convites({ ligado: false, valorPadrinho: 500 });
+    await saldoProva.carimbar(tarde, dono);
+    assert.equal(await saldoProva.saldo(p), 550, '+1,50 €, e não os 5 € de agora');
+    await saldoProva.convites(PREDEFINIDOS);
+    // Ao balcão usam-se cêntimos (0,50 € de 5,50 €): o saldo usa-se com um corte.
+    assert.equal((await saldoProva.ficha(tarde, dono)).saldo.valor, 100);
+    await saldoProva.carimbar(p, dono);
+    const r = await saldoProva.usar(p, 50, dono);
+    assert.equal(r.status, 200, 'usar 0,50 €');
+    assert.equal(await saldoProva.saldo(p), 500);
+  },
+);
+
+await passo(
+  'as vantagens valem os dias que o Nuno escolhe; a prenda de anos continua com um ano (27 nov 2026)',
+  async () => {
+    const k = await saldoProva.cliente('Cliente Sem Corte Recente');
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    await saldoProva.carimbar(k, dono);
+    // O corte foi há 50 dias, e faz anos hoje (com a data dada há muito).
+    naBaseLocal(
+      '--command',
+      `UPDATE carimbos SET criado_em = criado_em - 50 * 86400, dia = date(dia, '-50 days') WHERE cliente_id = ${k.id};
+       UPDATE clientes SET aniversario = strftime('%m-%d', 'now', '+0 hours'), aniversario_desde = unixepoch() - 90 * 86400 WHERE id = ${k.id};`,
+    );
+    const programa = await (await pedir('/api/bo/programa', { token })).json();
+    assert.equal(programa.diasDasVantagens, 45, 'começa nos 45 dias');
+    const gravar = async (dias) => {
+      const r = await pedir('/api/bo/programa', {
+        method: 'PUT',
+        token,
+        body: json({ ...programa, aniversario: 'Barba grátis', diasDasVantagens: dias }),
+      });
+      assert.equal(r.status, 200, `gravar ${dias} dias`);
+      return r.json();
+    };
+    assert.equal((await gravar(45)).diasDasVantagens, 45);
+    let eu = (await euDe(k.sessao)).eu;
+    assert.equal(eu.activo, false, 'aos 50 dias, com 45, sem vantagens');
+    assert.equal(eu.prenda, 'Barba grátis', 'a prenda de anos não depende dos dias das vantagens');
+    const parceiro = await entrarNaBalcao('parceiro.prova@exemplo.pt');
+    let ficha = await (
+      await pedir(`/api/balcao/ficha-parceiro/${k.codigo}`, { token: parceiro })
+    ).json();
+    assert.deepEqual([ficha.cliente.activo, ficha.cliente.diasDasVantagens], [false, 45]);
+    const activos = async () =>
+      (await (await pedir('/api/bo/clientes?estado=activos', { token })).json()).some(
+        (x) => x.id === k.id,
+      );
+    assert.equal(await activos(), false);
+    // Com 60 dias, volta a ter.
+    await gravar(60);
+    eu = (await euDe(k.sessao)).eu;
+    assert.equal(eu.activo, true);
+    ficha = await (
+      await pedir(`/api/balcao/ficha-parceiro/${k.codigo}`, { token: parceiro })
+    ).json();
+    assert.deepEqual([ficha.cliente.activo, ficha.cliente.diasDasVantagens], [true, 60]);
+    assert.equal(await activos(), true);
+    // Fora dos limites (uma semana a dois anos), recusa.
+    for (const dias of [6, 731])
+      assert.equal(
+        (
+          await pedir('/api/bo/programa', {
+            method: 'PUT',
+            token,
+            body: json({ ...programa, diasDasVantagens: dias }),
+          })
+        ).status,
+        400,
+        `${dias} dias`,
+      );
+    // O histórico diz os dias.
+    const registo = await (await pedir('/api/bo/registo', { token })).json();
+    assert.ok(
+      registo.some((x) => x.accao === 'programa.alterado' && x.alvo.includes('vantagens 60 dias')),
+      'o registo diz os dias',
+    );
+    await gravar(45);
+    naBaseLocal('--command', `UPDATE clientes SET aniversario = NULL WHERE id = ${k.id}`);
+    const p2 = await (await pedir('/api/bo/programa', { token })).json();
+    await pedir('/api/bo/programa', {
+      method: 'PUT',
+      token,
+      body: json({ ...p2, aniversario: programa.aniversario }),
+    });
+  },
+);
+
+await passo(
+  'o QR do balcão: criar, carimbar perto, as recusas, anular na barbearia, trocar e desligar (27 nov 2026)',
+  async () => {
+    // As horas do QR (das 8h às 22h de Lisboa), como em packages/dominio/src/qr-do-balcao.ts.
+    const hora = Number(
+      new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/Lisbon',
+        hour: '2-digit',
+        hourCycle: 'h23',
+      }).format(Date.now()),
+    );
+    const dentroDasHorasDoQr = () => hora >= 8 && hora < 22;
+    const loja = (await (await pedir('/api/bo/barbearia', { token })).json()).lojas.find(
+      (l) => l.id === lojaDaProva,
+    );
+    assert.ok(loja.lat !== null && loja.lng !== null, 'a barbearia da prova tem coordenadas');
+    let r = await pedir(`/api/bo/lojas/${lojaDaProva}/qr`, { token });
+    assert.deepEqual(await r.json(), { lojaId: lojaDaProva, codigo: null, temSitio: true });
+    r = await pedir(`/api/bo/lojas/${lojaDaProva}/qr`, { method: 'POST', token });
+    assert.equal(r.status, 200);
+    const { codigo } = await r.json();
+    assert.match(codigo, /^[0-9A-Z]{16}$/);
+    assert.ok(
+      !JSON.stringify(await (await pedir('/api/app')).json()).includes(codigo),
+      'a API pública nunca mostra o código',
+    );
+    const perto = { lat: loja.lat + 0.0003, lng: loja.lng, precisao: 20 };
+    const longe = { lat: loja.lat + 0.03, lng: loja.lng, precisao: 20 };
+    const qr = (k, extra = {}, chave = chaveNova()) =>
+      pedir('/api/eu/carimbo-do-balcao', {
+        method: 'POST',
+        token: k.sessao,
+        body: json({ codigo, chave, ...perto, ...extra }),
+      });
+    const k = await saldoProva.cliente('Cliente Do QR');
+    const dono = await entrarNaBalcao('dono.prova@gmail.com');
+    if (!dentroDasHorasDoQr()) {
+      // Fora das horas (a prova corre de noite): só a recusa das horas se pode provar.
+      r = await qr(k);
+      assert.deepEqual([r.status, (await r.json()).erro], [409, 'fora_de_horas']);
+      console.log('    (fora das 8h–22h: o resto do QR não se prova agora)');
+      return;
+    }
+    const erro = async (resposta) => [resposta.status, (await resposta.json()).erro];
+    assert.deepEqual(await erro(await qr(k)), [409, 'primeiro_com_o_barbeiro']);
+    // O primeiro, ontem, pelo barbeiro.
+    await saldoProva.carimbar(k, dono);
+    const ontem = () =>
+      naBaseLocal(
+        '--command',
+        `UPDATE carimbos SET criado_em = criado_em - 86400, dia = date(dia, '-1 day') WHERE cliente_id = ${k.id}`,
+      );
+    ontem();
+    assert.deepEqual(
+      await erro(
+        await pedir('/api/eu/carimbo-do-balcao', {
+          method: 'POST',
+          token: k.sessao,
+          body: json({ codigo, chave: chaveNova() }),
+        }),
+      ),
+      [400, 'sem_localizacao'],
+    );
+    assert.deepEqual(await erro(await qr(k, longe)), [409, 'longe_do_balcao']);
+    assert.deepEqual(await erro(await qr(k, {}, 'x')), [400, 'invalido']);
+    const chave = chaveNova();
+    r = await qr(k, {}, chave);
+    assert.equal(r.status, 200);
+    const feito = await r.json();
+    assert.equal(feito.cartao.carimbos, 2);
+    assert.equal(feito.loja, loja.nome);
+    // A resposta perdida: a mesma chave, outra vez, é o mesmo carimbo (mesmo de longe).
+    r = await qr(k, longe, chave);
+    assert.equal(r.status, 200);
+    assert.equal((await r.json()).cartao.carimbos, 2);
+    assert.deepEqual(await erro(await qr(k)), [409, 'limite_do_dia']);
+    const linha = daBaseLocal(
+      `SELECT id, pelo_qr, pessoa_id, sem_leitura FROM carimbos WHERE cliente_id = ${k.id} ORDER BY id DESC LIMIT 1`,
+    )[0];
+    assert.deepEqual([linha.pelo_qr, linha.pessoa_id, linha.sem_leitura], [1, null, 0]);
+    // O «Hoje» da for partners diz que foi pelo QR; um barbeiro de outra barbearia não o anula, e um
+    // desta anula-o até ao fim do dia.
+    const hoje = await (await pedir('/api/balcao/hoje', { token: dono })).json();
+    const doQr = hoje.ultimos.find((u) => u.id === linha.id);
+    assert.ok(doQr.peloQr && doQr.pessoa === null && doQr.anulavelAte - doQr.quando > 600);
+    const outraLoja = (await (await pedir('/api/bo/barbearia', { token })).json()).lojas.find(
+      (l) => l.id !== lojaDaProva,
+    ).id;
+    const barbeiro = async (email, lojaId) => {
+      const criado = await pedir('/api/bo/equipa', {
+        method: 'POST',
+        token,
+        body: json({
+          nome: `Barbeiro QR ${lojaId}`,
+          email,
+          papel: 'barbeiro',
+          lojaId,
+          parceiroId: null,
+        }),
+      });
+      assert.equal(criado.status, 201, `juntar ${email}`);
+      return entrarNaBalcao(email);
+    };
+    const deFora = await barbeiro('barbeiro.qr.fora@exemplo.pt', outraLoja);
+    const daCasa = await barbeiro('barbeiro.qr.casa@exemplo.pt', lojaDaProva);
+    naBaseLocal(
+      '--command',
+      `UPDATE carimbos SET criado_em = criado_em - 3600 WHERE id = ${linha.id}`,
+    );
+    assert.equal((await saldoProva.anularCarimbo(linha.id, deFora)).status, 403);
+    assert.equal((await saldoProva.anularCarimbo(linha.id, daCasa)).status, 204);
+    // O carimbo do prémio é do barbeiro (o cartão a 1 do fim).
+    ontem();
+    naBaseLocal(
+      '--command',
+      `UPDATE cartoes SET objectivo = 2 WHERE cliente_id = ${k.id} AND completo_em IS NULL`,
+    );
+    assert.deepEqual(await erro(await qr(k)), [409, 'premio_com_o_barbeiro']);
+    naBaseLocal(
+      '--command',
+      `UPDATE cartoes SET objectivo = 10 WHERE cliente_id = ${k.id} AND completo_em IS NULL`,
+    );
+    // Quem é da equipa não se carimba pelo QR (como na for partners: pede a um colega).
+    const daEquipa = await entrarTeste('google', 'prova-qr-equipa', 'barbeiro.qr.casa@exemplo.pt', {
+      nome: 'Barbeiro QR',
+    });
+    const sessaoDaEquipa = (await daEquipa.json()).sessao;
+    assert.deepEqual(
+      await erro(
+        await pedir('/api/eu/carimbo-do-balcao', {
+          method: 'POST',
+          token: sessaoDaEquipa,
+          body: json({ codigo, chave: chaveNova(), ...perto }),
+        }),
+      ),
+      [403, 'equipa_pede_a_um_colega'],
+    );
+    // Trocar o QR: o código de antes deixa de valer; desligar: nenhum vale.
+    r = await pedir(`/api/bo/lojas/${lojaDaProva}/qr`, { method: 'POST', token });
+    const novo = (await r.json()).codigo;
+    assert.notEqual(novo, codigo);
+    assert.deepEqual(await erro(await qr(k)), [404, 'qr_desconhecido']);
+    r = await pedir(`/api/bo/lojas/${lojaDaProva}/qr`, { method: 'DELETE', token });
+    assert.equal((await r.json()).codigo, null);
+    assert.deepEqual(
+      await erro(
+        await pedir('/api/eu/carimbo-do-balcao', {
+          method: 'POST',
+          token: k.sessao,
+          body: json({ codigo: novo, chave: chaveNova(), ...perto }),
+        }),
+      ),
+      [404, 'qr_desconhecido'],
+    );
+    const registo = await (await pedir('/api/bo/registo', { token })).json();
+    for (const accao of ['qr.criado', 'qr.trocado', 'qr.desligado'])
+      assert.ok(
+        registo.some((x) => x.accao === accao),
+        `o registo tem ${accao}`,
+      );
+    // O resumo conta os do QR (o anulado não).
+    const m = await (await pedir('/api/bo/metricas', { token })).json();
+    assert.equal(typeof m.peloQr, 'number');
+  },
+);
+
 await passo('saldo: as contas batem — as regras do dinheiro em toda a base', async () => {
   const uma = (sql) => daBaseLocal(sql)[0].n;
   // A visita do convite aponta para um corte válido do próprio convidado; sem visita, nada aponta.

@@ -110,15 +110,19 @@ export function alvoDoRegisto(accao: string, alvo: string): string {
         (_, valor: string) => ` · ${eurosNaLingua(valor)}`,
       );
     case 'programa.alterado': {
-      // «10 → 50% de desconto · 5 → 20% num produto · 3 cartões em curso» (o prémio a meio desde 10 nov).
-      const m = /^(\d+) → (.*?)(?: · (\d+) → (.*?))?(?: · (\d+) cart(?:ão|ões) em curso)?$/.exec(
-        alvo,
-      );
+      // «10 → 50% de desconto · 5 → 20% num produto · vantagens 45 dias · 3 cartões em curso» (o prémio
+      // a meio desde 10 nov; os dias das vantagens desde 27 nov).
+      const m =
+        /^(\d+) → (.*?)(?: · (\d+) → (.*?))?(?: · vantagens (\d+) dias)?(?: · (\d+) cart(?:ão|ões) em curso)?$/.exec(
+          alvo,
+        );
       if (!m) return alvo;
-      const [, objectivo, recompensa, meio, meioRecompensa, emCurso] = m;
+      const [, objectivo, recompensa, meio, meioRecompensa, dias, emCurso] = m;
       return `${objectivo} → ${recompensaEmIngles(recompensa ?? '')}${
         meio === undefined ? '' : ` · ${meio} → ${recompensaEmIngles(meioRecompensa ?? '')}`
-      }${emCurso === undefined ? '' : ` · ${g.cartoesEmCurso(Number(emCurso))}`}`;
+      }${dias === undefined ? '' : ` · ${g.diasDasVantagens(Number(dias))}`}${
+        emCurso === undefined ? '' : ` · ${g.cartoesEmCurso(Number(emCurso))}`
+      }`;
     }
   }
   return alvo;

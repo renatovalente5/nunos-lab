@@ -1,6 +1,7 @@
 import {
   LIMITES_DO_PROGRAMA,
   LIMITES_DO_SALDO,
+  centimosDoTexto,
   diaEmLisboa,
   euros,
   eurosComSinal,
@@ -515,7 +516,8 @@ function acontecimentosDe(c: FichaDoCliente, t: Textos, lingua: Lingua): Acontec
       quando: x.quando,
       ordem: 2,
       titulo: h.carimbo,
-      onde: [x.loja, x.pessoa],
+      // O do QR do balcão não é de ninguém da equipa: diz-se de onde veio (27 nov 2026).
+      onde: [x.loja, x.peloQr ? h.peloQr : x.pessoa],
       semLeitura: x.semLeitura,
       repetido: x.repetido,
       anulado: x.anuladoEm !== null ? { em: x.anuladoEm, por: x.anuladoPor } : undefined,
@@ -689,12 +691,15 @@ function GavetaDoHistorico({
   );
 }
 
-/** Um acerto vai de 1 € a 500 €, em euros inteiros (os limites do domínio estão em cêntimos). */
-const MAXIMO_DO_ACERTO = LIMITES_DO_SALDO.movimento.max / 100;
-
-function eurosDoAcerto(texto: string): number | null {
-  const n = Number(texto.trim());
-  return texto.trim() && Number.isInteger(n) && n >= 1 && n <= MAXIMO_DO_ACERTO ? n : null;
+/**
+ * Um acerto, em cêntimos: de 0,01 € a 500 € (com cêntimos desde 27 nov 2026, como os convites: «0,50»);
+ * null enquanto o valor escrito não servir.
+ */
+function centimosDoAcerto(texto: string): number | null {
+  const centimos = centimosDoTexto(texto);
+  return centimos !== null && centimos >= 1 && centimos <= LIMITES_DO_SALDO.movimento.max
+    ? centimos
+    : null;
 }
 
 /**
@@ -704,7 +709,7 @@ function eurosDoAcerto(texto: string): number | null {
 type ErroDoAcerto = { campo: 'valor' | 'nota' | null; falha?: unknown };
 
 /**
- * Acertar o saldo: dar ou tirar euros inteiros, com uma nota que o cliente vê na carteira. Tirar mais
+ * Acertar o saldo: dar ou tirar euros (com cêntimos), com uma nota que o cliente vê na carteira. Tirar mais
  * do que há diz-se logo; se a ficha estiver para trás (um uso ao balcão entretanto), a API recusa
  * (`saldo_insuficiente`) e a ficha relê-se.
  */
@@ -737,13 +742,13 @@ function FolhaDoAcerto({
   }, [consultas, id]);
   const s = t.cliente.saldo;
 
-  const inteiros = eurosDoAcerto(escrito);
+  const centimos = centimosDoAcerto(escrito);
   // Em cêntimos, negativo para tirar; null enquanto o valor escrito não servir.
-  const valor = inteiros === null ? null : (sentido === 'tirar' ? -100 : 100) * inteiros;
+  const valor = centimos === null ? null : (sentido === 'tirar' ? -1 : 1) * centimos;
   const depois = valor === null ? null : saldo + valor;
   // Só o tirar tem de caber no saldo (dar pode sempre, como na API).
   const naoChega = sentido === 'tirar' && depois !== null && depois < 0;
-  const quanto = inteiros === null ? null : euros(inteiros * 100, lingua);
+  const quanto = centimos === null ? null : euros(centimos, lingua);
   const rotuloDoBotao =
     sentido === 'tirar'
       ? quanto
@@ -826,11 +831,7 @@ function FolhaDoAcerto({
         />
         <Campo
           rotulo={s.valor}
-          tipo="number"
-          modoDeTeclado="numeric"
-          minimo={1}
-          maximo={MAXIMO_DO_ACERTO}
-          passo={1}
+          modoDeTeclado="decimal"
           valor={escrito}
           mudar={(v) => {
             setEscrito(v);

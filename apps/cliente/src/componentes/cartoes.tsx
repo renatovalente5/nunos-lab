@@ -87,7 +87,7 @@ export function CartaoDestaque({
   hoje: string;
   largura: number;
   altura: number;
-  /** Sem corte no último ano: um cadeado ao lado do desconto, que fica com a cor (é a montra). */
+  /** Sem corte nos dias das vantagens: um cadeado ao lado do desconto, que fica com a cor (é a montra). */
   bloqueada?: boolean;
   /** Com mais de um destaque, rolam de lado e encaixam no início. */
   noCarrossel: boolean;
@@ -210,7 +210,7 @@ export function LinhaDoParceiro({
   parceiro: ParceiroPublico;
   categorias: Categoria[];
   onPress: () => void;
-  /** Sem corte no último ano: a vantagem com o cadeado, como na página do parceiro (9 nov). */
+  /** Sem corte nos dias das vantagens: a vantagem com o cadeado, como na página do parceiro (9 nov). */
   bloqueada?: boolean;
 }) {
   const t = useTextos();
@@ -302,7 +302,7 @@ export function horaDe(unix: number): string {
  * nunca cortou: desbloqueada, bastava mostrar o ecrã a um parceiro que não lê o cartão (revisão
  * de batota, 9 nov).
  */
-/** Porque uma vantagem ainda não vale: nunca cortou (ou sem conta) ou há um ano sem cortar. */
+/** Porque uma vantagem ainda não vale: nunca cortou (ou sem conta) ou passou os dias das vantagens sem cortar. */
 export type BloqueioDaVantagem = 'nunca' | 'expirou' | null;
 
 export function CartaoDaPromocao({

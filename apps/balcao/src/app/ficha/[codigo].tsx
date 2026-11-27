@@ -3,7 +3,6 @@ import {
   dataCurta,
   diaEmLisboa,
   diasEntre,
-  eurosParaUsar,
   fraseDesteCorte,
   fraseDoCartao,
   recompensaNaLingua,
@@ -104,7 +103,8 @@ export default function Ficha() {
     !doHoje.anulado &&
     !!eu &&
     (eu.pessoa.papel === 'dono' ||
-      (doHoje.pessoaId === eu.pessoa.id &&
+      // O do QR do balcão: quem é da barbearia, até ao fim do dia (a API confere a casa).
+      ((doHoje.pessoaId === eu.pessoa.id || !!doHoje.peloQr) &&
         Date.now() / 1000 < doHoje.anulavelAte &&
         !doHoje.recompensa));
   const [confirmar, folhaDeConfirmacao] = useConfirmacao();
@@ -139,10 +139,10 @@ export default function Ficha() {
   // O prémio entregue hoje: o corte grátis não leva carimbo, e carimbar pede confirmação.
   const entregueHoje = ficha?.hoje.entregue ?? null;
   const precisaConfirmar = jaHoje || !!entregueHoje;
-  // O cliente tem saldo para usar (1 € ou mais), ou usou hoje (o «Anular» fica à mão): depois de
-  // carimbar ou de entregar o prémio, a ficha não fecha sozinha por baixo da folha.
+  // O cliente tem saldo para usar (com cêntimos também, desde 27 nov 2026), ou usou hoje (o «Anular» fica
+  // à mão): depois de carimbar ou de entregar o prémio, a ficha não fecha sozinha por baixo da folha.
   const temSaldoParaUsar =
-    !daLinhaDoHoje && (eurosParaUsar(ficha?.saldo?.valor ?? 0) >= 1 || !!ficha?.saldo?.usadoHoje);
+    !daLinhaDoHoje && ((ficha?.saldo?.valor ?? 0) > 0 || !!ficha?.saldo?.usadoHoje);
   // A caixa do aviso: o 409 traz a hora e a pessoa mais frescas do que a ficha.
   const ultimoDeHoje = aviso?.quando && !aviso.entregue ? aviso : (ficha?.hoje.ultimo ?? null);
   const entregue = aviso?.quando && aviso.entregue ? aviso : entregueHoje;
@@ -572,7 +572,9 @@ export default function Ficha() {
                 {doHoje
                   ? doHoje.anulado
                     ? t.ficha.carimboAnulado(hora(doHoje.quando))
-                    : t.ficha.carimbadoAs(hora(doHoje.quando), doHoje.pessoa)
+                    : doHoje.peloQr
+                      ? t.ficha.carimbadoPeloQr(hora(doHoje.quando))
+                      : t.ficha.carimbadoAs(hora(doHoje.quando), doHoje.pessoa)
                   : ficha.ultima
                     ? [
                         t.ficha.ultimaVisita(haQuanto(ficha.ultima.quando, t, lingua)),

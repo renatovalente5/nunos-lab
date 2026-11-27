@@ -68,7 +68,12 @@ async function lerCarteira(c: C): Promise<CarteiraDoCliente> {
     nome: nomeCurto(v.nome),
     criadoEm: doDia(v.criado_em),
     visitouEm: v.visitou_em === null ? null : doDia(v.visitou_em),
-    premio: v.premio_padrinho,
+    // Ainda por visitar, o que vai receber: o maior dos dois, o do dia em que o amigo aceitou e o de agora
+    // (o Renato, 27 nov 2026; balcao/rotas.ts paga assim).
+    premio:
+      v.visitou_em === null
+        ? Math.max(v.premio_padrinho, convites.ligado ? convites.valorPadrinho : 0)
+        : v.premio_padrinho,
   }));
   const por = recebido!.results[0] as
     { nome: string; criado_em: number; premio_convidado: number } | undefined;

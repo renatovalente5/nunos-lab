@@ -45,7 +45,7 @@ export const pt = {
     copiado: 'Copiado',
     copiarCodigo: (codigo: string) => `Copiar o código ${codigo}`,
     // A vantagem apagada, com o cadeado: a quem nunca cortou (ou ainda não tem conta) e a quem não
-    // corta há um ano (o Renato, 9 nov).
+    // corta há mais dias do que os das vantagens (o Renato, 9 nov; os dias escolhe-os o Nuno, 27 nov).
     bloqueada: {
       nunca: 'Desbloqueia com o teu primeiro corte',
       expirou: 'Desbloqueia com o teu próximo corte',
@@ -54,6 +54,9 @@ export const pt = {
   cartao: {
     titulo: 'Cartão',
     conta: 'Conta',
+    // O QR do balcão (o Nuno, 27 nov 2026): o cliente carimba-se a si mesmo, ao balcão.
+    lerOQr: 'Ler o QR do balcão',
+    lerOQrLegenda: 'E o carimbo entra logo.',
     deObjectivo: (objectivo: number) => `de ${objectivo}`,
     /** Por baixo do logótipo: desde quando é cliente e, a partir do 2.º cartão, quantos cortes leva. */
     clienteDesde: (ano: number, cartao: number, cortes: number): string =>
@@ -248,6 +251,8 @@ export const pt = {
       'Podes mudar ou apagar a conta na app, a qualquer altura. Ao apagar, saem o nome, o email e as formas de entrar; os carimbos e os movimentos do saldo ficam sem nome, para as contas da barbearia. Se já cortaste ou foste convidado, fica também uma marca irreversível da forma de entrar, só para um convite não se usar duas vezes.',
       'Para o Nuno saber o que interessa, a app conta, sem saber quem és, quantas vezes é aberta e quantas vezes cada parceiro é visto ou contactado. Fica só o dia e o número.',
       'Com os convites, quem convida vê do convidado só o primeiro nome e a inicial do último, e se já foi à barbearia (o dia, não a hora); o convidado vê quem o convidou da mesma forma, e quem abre a ligação de um convite vê o nome de quem o partilhou. O saldo fica com os movimentos: quando, quanto, em que barbearia e com quem foi usado, e a nota de um acerto.',
+      // O QR do balcão (27 nov 2026): a localização só nesse momento, e não fica guardada.
+      'Ao leres o QR do balcão, a app usa a câmara para o ler e a localização do telemóvel nesse momento, só para confirmar que estás na barbearia. A localização não fica guardada; fica o carimbo, como os outros.',
       'A app guarda neste aparelho a última lista de vantagens e o teu cartão, para abrirem sem rede, e também a língua que escolheste.',
       'A app é servida pelo GitHub Pages e os dados vêm de um servidor da Cloudflare, com a base de dados na União Europeia. Como em qualquer site, estes serviços recebem o endereço do teu aparelho para te entregar a página.',
       'O mapa das barbearias é dos Mapas da Apple: para o mostrar, o teu aparelho liga-se à Apple, que recebe o endereço dele, como qualquer site. No Android é uma imagem que o nosso servidor pede à Apple e guarda por pouco tempo.',
@@ -266,6 +271,24 @@ export const pt = {
   naoEncontrado: { texto: 'Esta página não existe', verAsVantagens: 'Ver as vantagens' },
   erroDoEcra: { titulo: 'Algo correu mal', texto: 'A app não conseguiu abrir este ecrã.' },
   /** As respostas da API, pelo código do erro. */
+  // O ecrã do QR do balcão (27 nov 2026).
+  qr: {
+    titulo: 'QR do balcão',
+    aponta: 'Aponta ao QR do balcão',
+    naoEOQr: 'Isto não é o QR do balcão.',
+    aConfirmar: 'A confirmar que estás na barbearia…',
+    aCarimbar: 'A carimbar…',
+    carimbado: (loja: string) => `Carimbado em ${loja}`,
+    lerOutraVez: 'Ler outra vez',
+    fechar: 'Fechar',
+    definicoes: 'Abrir Definições',
+    entraPrimeiro: 'Entra no Cartão para receberes o carimbo.',
+    irAoCartao: 'Ir ao Cartão',
+    precisaDaCamara: 'A app precisa da câmara para ler o QR.',
+    permitir: 'Permitir',
+    semCamara: 'Sem acesso à câmara.',
+    aAbrir: 'A abrir a câmara…',
+  },
   erros: {
     sessao: 'A sessão acabou. Entra outra vez.',
     google_invalido: 'O Google não confirmou a entrada. Tenta outra vez.',
@@ -291,6 +314,20 @@ export const pt = {
     conta_ja_usada:
       'Já tiveste conta no Nuno’s Lab: o código de convite é só para quem chega pela primeira vez.',
     grande: 'O pedido é grande de mais.',
+    // O QR do balcão (27 nov 2026).
+    qr_desconhecido: 'Este QR não é de uma barbearia do Nuno’s Lab, ou já foi trocado.',
+    fora_de_horas: 'O QR do balcão carimba das 8h às 22h.',
+    sem_localizacao: 'Não consegui saber onde estás. Pede ao barbeiro para ler o teu cartão.',
+    sem_permissao_de_localizacao:
+      'Para carimbar pelo QR, a app precisa de saber que estás na barbearia. Dá a localização nas Definições, ou pede ao barbeiro para ler o teu cartão.',
+    longe_do_balcao: 'Parece que não estás na barbearia: o QR só carimba lá.',
+    primeiro_com_o_barbeiro: 'O primeiro carimbo dá-to o barbeiro: mostra-lhe o teu cartão.',
+    premio_com_o_barbeiro:
+      'Este é o corte do prémio: mostra o cartão ao barbeiro, para ele te dar o desconto.',
+    equipa_pede_a_um_colega: 'É o teu cartão: pede a um colega para o ler.',
+    limite_do_dia: 'Já tens o carimbo de hoje.',
+    limite_do_dia_maximo: 'Já tens o carimbo de hoje.',
+    entregue_hoje: 'O prémio foi entregue hoje: o corte do prémio não leva carimbo.',
     rede: 'Sem ligação. Tenta outra vez.',
     interno: 'Algo correu mal. Tenta outra vez.',
   } as Record<string, string> & { interno: string },

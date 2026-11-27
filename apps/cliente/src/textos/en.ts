@@ -52,6 +52,8 @@ export const en: Textos = {
   cartao: {
     titulo: 'Card',
     conta: 'Account',
+    lerOQr: 'Scan the counter QR',
+    lerOQrLegenda: 'And your stamp goes straight in.',
     deObjectivo: (objectivo) => `of ${objectivo}`,
     clienteDesde: (ano, cartao, cortes) =>
       cartao > 1
@@ -228,6 +230,7 @@ export const en: Textos = {
       'You can change or delete your account in the app at any time. When you delete it, your name, email and sign-in methods are removed; your stamps and balance activity stay without a name, for the barbershop’s accounts. If you had a haircut or were invited, an irreversible mark of your sign-in method is also kept, only so that an invite can’t be used twice.',
       'To help Nuno see what interests people, the app anonymously counts how often it’s opened and how often each partner is viewed or contacted. Only the date and the total are kept.',
       'With invites, the person who invites sees only the first name and last initial of whoever they invited, and whether they’ve visited (the day, not the time); the invited person sees who invited them in the same way, and anyone who opens an invite link sees the name of whoever shared it. Your balance keeps its activity: when, how much, at which barbershop and by whom it was used, and the note on any adjustment.',
+      'When you scan the counter QR, the app uses the camera to read it and your phone’s location at that moment, only to check that you’re at the barbershop. Your location isn’t stored; the stamp is kept, like any other.',
       'The app stores the latest list of perks and your card on this device, so they open without a connection. It also remembers the language you chose.',
       'The app is hosted on GitHub Pages and the data comes from a Cloudflare server, with the database in the European Union. As with any website, these services receive your device’s IP address to send you the page.',
       'The map of our barbershops comes from Apple Maps: to show it, your device connects to Apple, which receives its IP address, as with any website. On Android, it’s an image that our server requests from Apple and keeps for a short time.',
@@ -245,6 +248,23 @@ export const en: Textos = {
   },
   naoEncontrado: { texto: 'This page doesn’t exist', verAsVantagens: 'See the perks' },
   erroDoEcra: { titulo: 'Something went wrong', texto: 'The app couldn’t open this screen.' },
+  qr: {
+    titulo: 'Counter QR',
+    aponta: 'Point at the counter QR',
+    naoEOQr: 'This isn’t the counter QR.',
+    aConfirmar: 'Checking you’re at the barbershop…',
+    aCarimbar: 'Stamping…',
+    carimbado: (loja) => `Stamped at ${loja}`,
+    lerOutraVez: 'Scan again',
+    fechar: 'Close',
+    definicoes: 'Open Settings',
+    entraPrimeiro: 'Sign in on the Card tab to get your stamp.',
+    irAoCartao: 'Go to Card',
+    precisaDaCamara: 'The app needs the camera to scan the QR.',
+    permitir: 'Allow',
+    semCamara: 'No access to the camera.',
+    aAbrir: 'Opening the camera…',
+  },
   erros: {
     sessao: 'You’ve been signed out. Sign in again.',
     google_invalido: 'Google couldn’t confirm your sign-in. Try again.',
@@ -270,6 +290,19 @@ export const en: Textos = {
     conta_ja_usada:
       'You’ve had a Nuno’s Lab account before: invite codes are only for first-time customers.',
     grande: 'The request is too large.',
+    qr_desconhecido: 'This QR isn’t from a Nuno’s Lab barbershop, or it has been replaced.',
+    fora_de_horas: 'The counter QR gives stamps from 8am to 10pm.',
+    sem_localizacao: 'I couldn’t tell where you are. Ask the barber to scan your card.',
+    sem_permissao_de_localizacao:
+      'To get a stamp with the QR, the app needs to know you’re at the barbershop. Allow location in Settings, or ask the barber to scan your card.',
+    longe_do_balcao: 'It looks like you’re not at the barbershop: the QR only gives stamps there.',
+    primeiro_com_o_barbeiro: 'Your first stamp comes from the barber: show them your card.',
+    premio_com_o_barbeiro:
+      'This is your reward haircut: show your card to the barber so they apply it.',
+    equipa_pede_a_um_colega: 'It’s your own card: ask a colleague to scan it.',
+    limite_do_dia: 'You already have today’s stamp.',
+    limite_do_dia_maximo: 'You already have today’s stamp.',
+    entregue_hoje: 'The reward was given today: the reward haircut doesn’t get a stamp.',
     rede: 'No connection. Try again.',
     interno: 'Something went wrong. Try again.',
   },

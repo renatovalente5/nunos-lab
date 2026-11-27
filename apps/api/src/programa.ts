@@ -37,6 +37,11 @@ export function programaDasDefinicoes(d: Map<string, string>): Programa {
     meioRecompensa: d.get('fid.meio_recompensa') ?? '',
     meio: inteiro('fid.meio', LIMITES_DO_PROGRAMA.meio, PROGRAMA_PREDEFINIDO.meio),
     meioRecompensaEn: d.get('fid.meio_recompensa_en') ?? '',
+    diasDasVantagens: inteiro(
+      'fid.dias_vantagens',
+      LIMITES_DO_PROGRAMA.diasDasVantagens,
+      PROGRAMA_PREDEFINIDO.diasDasVantagens,
+    ),
   };
 }
 

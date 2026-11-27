@@ -112,6 +112,9 @@ export const pt = {
     'categoria.alterada': 'alterou a categoria',
     'categoria.apagada': 'apagou a categoria',
     'barbearia.alterada': 'alterou a barbearia',
+    'qr.criado': 'criou o QR do balcão de',
+    'qr.trocado': 'trocou o QR do balcão de',
+    'qr.desligado': 'desligou o QR do balcão de',
     'exemplos.apagados': 'apagou os parceiros de exemplo',
     'programa.alterado': 'alterou o programa de fidelidade:',
     'servico.criado': 'criou o serviço',
@@ -133,6 +136,7 @@ export const pt = {
   /** Os campos que a API escreve no registo quando o Nuno muda um cliente. */
   camposDoCliente: { nome: 'nome', email: 'email', aniversário: 'aniversário', casa: 'barbearia' },
   cartoesEmCurso: (n: number) => `${n} ${n === 1 ? 'cartão' : 'cartões'} em curso`,
+  diasDasVantagens: (n: number) => `vantagens ${n} dias`,
   /** Os convites como a API os escreve no registo («ligados · 1 € / 1 € · 10»), por palavras. */
   convitesNoRegisto: {
     ligados: 'ligados',
@@ -160,6 +164,7 @@ export const pt = {
     traducao_indisponivel:
       'A tradução não respondeu agora. Escreve o inglês à mão, ou guarda e ela tenta outra vez.',
     nao_existe: 'Isto já não existe. Recarrega a página.',
+    loja_sem_sitio: 'A barbearia ainda não tem coordenadas: põe-nas e guarda.',
     casa_com_historia:
       'Essa barbearia tem carimbos, clientes ou equipa: não se tira. Se fechou, muda-lhe o nome.',
     ja_anulado: 'Esse carimbo já estava anulado.',
@@ -283,6 +288,9 @@ export const en: typeof pt = {
     'categoria.alterada': 'edited the category',
     'categoria.apagada': 'deleted the category',
     'barbearia.alterada': 'edited the barbershop',
+    'qr.criado': 'created the counter QR for',
+    'qr.trocado': 'replaced the counter QR for',
+    'qr.desligado': 'switched off the counter QR for',
     'exemplos.apagados': 'deleted the sample partners',
     'programa.alterado': 'changed the loyalty programme:',
     'servico.criado': 'created the service',
@@ -301,6 +309,7 @@ export const en: typeof pt = {
   semEmail: 'no email',
   camposDoCliente: { nome: 'name', email: 'email', aniversário: 'birthday', casa: 'barbershop' },
   cartoesEmCurso: (n) => `${n} ${n === 1 ? 'card' : 'cards'} in progress`,
+  diasDasVantagens: (n) => `perks ${n} days`,
   convitesNoRegisto: {
     ligados: 'on',
     desligados: 'off',
@@ -327,6 +336,7 @@ export const en: typeof pt = {
     traducao_indisponivel:
       'Translation isn’t available right now. Write the English yourself, or save and it will try again.',
     nao_existe: 'This no longer exists. Reload the page.',
+    loja_sem_sitio: 'The barbershop has no coordinates yet: add them and save.',
     casa_com_historia:
       'This barbershop has stamps, clients or team members, so it can’t be removed. If it has closed, rename it.',
     ja_anulado: 'That stamp has already been undone.',

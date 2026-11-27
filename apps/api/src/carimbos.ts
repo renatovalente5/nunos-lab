@@ -5,7 +5,7 @@
  * e se o cartão seguinte já tem carimbos, também não (ficavam dois abertos). O
  * mesmo com o prémio a meio: entregue, o carimbo que o deu já não se anula.
  */
-import { MINUTOS_PARA_ANULAR } from '@nunos-lab/dominio';
+import { MINUTOS_PARA_ANULAR, diaEmLisboa } from '@nunos-lab/dominio';
 import { agora, recusar } from './util.ts';
 
 export type QuemAnula = {
@@ -13,6 +13,11 @@ export type QuemAnula = {
   pessoaId: number | null;
   /** O dono e o backoffice anulam sempre; os outros só os seus, em 10 minutos. */
   dono: boolean;
+  /**
+   * A barbearia da pessoa (null: todas). O carimbo do QR do balcão não é de ninguém da equipa: anula-o
+   * quem é dessa barbearia, até ao fim do dia (quem se carimbou sem cortar, 27 nov 2026).
+   */
+  lojaId?: number | null;
 };
 
 /** Confere as regras e devolve as instruções (para irem no mesmo batch que o registo). */
@@ -23,7 +28,8 @@ export async function anularCarimbo(
 ): Promise<{ clienteId: number; criadoEm: number; instrucoes: D1PreparedStatement[] }> {
   const x = await db
     .prepare(
-      `SELECT x.id, x.pessoa_id, x.criado_em, x.anulado_em, x.cartao_id, c.cliente_id, c.numero, c.objectivo,
+      `SELECT x.id, x.pessoa_id, x.criado_em, x.anulado_em, x.cartao_id, x.pelo_qr, x.loja_id, x.dia,
+       c.cliente_id, c.numero, c.objectivo,
        c.completo_em, c.usado_em, c.meio, c.meio_ganho_em, c.meio_usado_em,
        (SELECT count(*) FROM carimbos y WHERE y.cartao_id = c.id AND y.anulado_em IS NULL) AS carimbos,
        (SELECT max(y.id) FROM carimbos y WHERE y.cartao_id = c.id AND y.anulado_em IS NULL) AS ultimo_id
@@ -36,6 +42,9 @@ export async function anularCarimbo(
       criado_em: number;
       anulado_em: number | null;
       cartao_id: number;
+      pelo_qr: number;
+      loja_id: number | null;
+      dia: string;
       cliente_id: number;
       numero: number;
       objectivo: number;
@@ -50,8 +59,14 @@ export async function anularCarimbo(
   if (!x) recusar(404, 'nao_existe');
   if (x.anulado_em) recusar(409, 'ja_anulado');
   if (!quem.dono) {
-    if (x.pessoa_id !== quem.pessoaId) recusar(403, 'de_outra_pessoa');
-    if (x.criado_em < agora() - MINUTOS_PARA_ANULAR * 60) recusar(409, 'tarde_para_anular');
+    if (x.pelo_qr === 1) {
+      // O do QR do balcão: quem é dessa barbearia, até ao fim do dia (27 nov 2026).
+      if (quem.lojaId && x.loja_id !== quem.lojaId) recusar(403, 'de_outra_pessoa');
+      if (x.dia !== diaEmLisboa()) recusar(409, 'tarde_para_anular');
+    } else {
+      if (x.pessoa_id !== quem.pessoaId) recusar(403, 'de_outra_pessoa');
+      if (x.criado_em < agora() - MINUTOS_PARA_ANULAR * 60) recusar(409, 'tarde_para_anular');
+    }
     // O carimbo que completou o cartão (e entregou o prémio) só o dono anula: o barbeiro dava o
     // corte grátis, anulava-o nos 10 minutos, e o cartão voltava a dar outro (revisão de 9 nov 2026).
     if (x.completo_em && x.id === x.ultimo_id) recusar(403, 'premio_so_o_dono');

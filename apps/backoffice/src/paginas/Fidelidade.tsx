@@ -2,7 +2,10 @@ import {
   CONVITES_PREDEFINIDOS,
   LIMITES_DO_PROGRAMA,
   LIMITES_DO_SALDO,
+  PROGRAMA_PREDEFINIDO,
+  centimosDoTexto,
   euros,
+  eurosNoCampo,
   recompensaNaLingua,
   type Lingua,
   type ProgramaDoBackoffice,
@@ -10,7 +13,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { ErroDaApi, mensagemDe, pedir } from '../api';
-import { useLingua } from '../lingua';
+import { linguaActual, useLingua } from '../lingua';
 import { Campo, Contador, GrupoEmIngles, Interruptor, useAvisar } from '../pecas';
 import { useTextos, type Textos } from '../textos';
 
@@ -27,9 +30,11 @@ type Formulario = {
   meioRecompensa: string;
   meio: string;
   meioRecompensaEn: string;
+  /** Os dias das vantagens dos parceiros depois do último corte (o Nuno, 27 nov 2026). */
+  diasDasVantagens: string;
   /**
-   * Os convites (o Renato, 10 nov 2026): os prémios em euros inteiros, como o barbeiro os usa ao
-   * balcão (a API guarda cêntimos); o limite vazio é «sem limite».
+   * Os convites (o Renato, 10 nov 2026): os prémios em euros, com cêntimos desde 27 nov («1,50»; a API
+   * guarda cêntimos); o limite vazio é «sem limite».
    */
   convitesLigados: boolean;
   valorPadrinho: string;
@@ -37,11 +42,12 @@ type Formulario = {
   limiteDeConvites: string;
 };
 
-/** O prémio de cada lado de um convite, em euros: os limites do domínio estão em cêntimos. */
-const EUROS_DO_PREMIO = {
-  min: LIMITES_DO_SALDO.premio.min / 100,
-  max: LIMITES_DO_SALDO.premio.max / 100,
-};
+/** Os cêntimos de um prémio de convite escrito («1,50»), dentro dos limites; null se não servir. */
+function premioDoCampo(texto: string): number | null {
+  const centimos = centimosDoTexto(texto);
+  const { min, max } = LIMITES_DO_SALDO.premio;
+  return centimos !== null && centimos >= min && centimos <= max ? centimos : null;
+}
 
 /** Os campos dos convites como a API os aponta num erro («convites.limite») e como se chamam aqui. */
 const CAMPOS_DOS_CONVITES: Record<string, keyof Formulario> = {
@@ -64,9 +70,10 @@ function formularioDe(p: ProgramaDoBackoffice): Formulario {
     meioRecompensa: p.meioRecompensa ?? '',
     meio: String(p.meio ?? 5),
     meioRecompensaEn: p.meioRecompensaEn ?? '',
+    diasDasVantagens: String(p.diasDasVantagens ?? PROGRAMA_PREDEFINIDO.diasDasVantagens),
     convitesLigados: convites.ligado,
-    valorPadrinho: String(convites.valorPadrinho / 100),
-    valorConvidado: String(convites.valorConvidado / 100),
+    valorPadrinho: eurosNoCampo(convites.valorPadrinho, linguaActual()),
+    valorConvidado: eurosNoCampo(convites.valorConvidado, linguaActual()),
     limiteDeConvites: convites.limite === null ? '' : String(convites.limite),
   };
 }
@@ -77,7 +84,7 @@ function inteiroEntre(texto: string, min: number, max: number): number | null {
 }
 
 /** Os euros de um campo em cêntimos, para o resumo (um campo a meio conta como 0). */
-const centimosDoCampo = (texto: string) => Math.round((Number(texto.trim()) || 0) * 100);
+const centimosDoCampo = (texto: string) => centimosDoTexto(texto) ?? 0;
 
 /**
  * O cartão de fidelidade: era uma página («Fidelidade») e passou a gaveta da Barbearia (8 nov),
@@ -128,9 +135,14 @@ export function usePrograma() {
       LIMITES_DO_PROGRAMA.meio.min,
       Math.min(LIMITES_DO_PROGRAMA.meio.max, (objectivo ?? LIMITES_DO_PROGRAMA.objectivo.max) - 1),
     );
+    const diasDasVantagens = inteiroEntre(
+      f.diasDasVantagens,
+      LIMITES_DO_PROGRAMA.diasDasVantagens.min,
+      LIMITES_DO_PROGRAMA.diasDasVantagens.max,
+    );
     // Os convites conferem-se também desligados: os valores ficam guardados para quando se ligarem.
-    const valorPadrinho = inteiroEntre(f.valorPadrinho, EUROS_DO_PREMIO.min, EUROS_DO_PREMIO.max);
-    const valorConvidado = inteiroEntre(f.valorConvidado, EUROS_DO_PREMIO.min, EUROS_DO_PREMIO.max);
+    const valorPadrinho = premioDoCampo(f.valorPadrinho);
+    const valorConvidado = premioDoCampo(f.valorConvidado);
     const limiteDeConvites = f.limiteDeConvites.trim()
       ? inteiroEntre(
           f.limiteDeConvites,
@@ -143,6 +155,7 @@ export function usePrograma() {
       porDia === null && 'porDia',
       !f.recompensa.trim() && 'recompensa',
       f.meioRecompensa.trim() && meio === null && 'meio',
+      diasDasVantagens === null && 'diasDasVantagens',
       valorPadrinho === null && 'valorPadrinho',
       valorConvidado === null && 'valorConvidado',
       f.limiteDeConvites.trim() && limiteDeConvites === null && 'limiteDeConvites',
@@ -167,10 +180,11 @@ export function usePrograma() {
           ...(meio !== null ? { meio } : {}),
           meioRecompensaEn: f.meioRecompensaEn.trim(),
           // Conferidos acima (sem eles, `faltam` não estava vazio).
+          diasDasVantagens,
           convites: {
             ligado: f.convitesLigados,
-            valorPadrinho: valorPadrinho! * 100,
-            valorConvidado: valorConvidado! * 100,
+            valorPadrinho,
+            valorConvidado,
             limite: limiteDeConvites,
           },
         },
@@ -193,8 +207,8 @@ export function usePrograma() {
 export type ProgramaNoFormulario = ReturnType<typeof usePrograma>;
 
 /**
- * «10 carimbos · 50% de desconto · convites 1 € / 1 €», para a gaveta fechada; em inglês, o prémio em
- * inglês.
+ * «10 carimbos · 50% de desconto · vantagens 45 dias · convites 1 € / 1 €», para a gaveta fechada; em
+ * inglês, o prémio em inglês.
  */
 export function resumoDoPrograma(f: Formulario, t: Textos, lingua: Lingua): string {
   const recompensa =
@@ -209,6 +223,7 @@ export function resumoDoPrograma(f: Formulario, t: Textos, lingua: Lingua): stri
     t.fidelidade.carimbos(Number(f.objectivo) || 0),
     recompensa,
     meio && t.fidelidade.meioNoResumo(meio, Number(f.meio) || 0),
+    Number(f.diasDasVantagens) > 0 && t.fidelidade.diasNoResumo(Number(f.diasDasVantagens)),
     f.convitesLigados
       ? t.fidelidade.convitesNoResumo(
           euros(centimosDoCampo(f.valorPadrinho), lingua),
@@ -226,6 +241,7 @@ export function CamposDoPrograma({ programa }: { programa: ProgramaNoFormulario 
   const { f, mudar, erros } = programa;
   if (!f) return null;
   const eurosErrados = t.fidelidade.eurosErrados(euros(LIMITES_DO_SALDO.premio.max, lingua));
+  const { min: minimoDeDias, max: maximoDeDias } = LIMITES_DO_PROGRAMA.diasDasVantagens;
   return (
     <div className="formulario">
       <div className="duas-colunas">
@@ -336,6 +352,24 @@ export function CamposDoPrograma({ programa }: { programa: ProgramaNoFormulario 
           />
         </div>
       </GrupoEmIngles>
+      {/* Os dias das vantagens dos parceiros depois do último corte (o Nuno, 27 nov 2026): depois do
+          inglês, que é só dos textos do cartão. */}
+      <div className="duas-colunas">
+        <Campo
+          rotulo={t.fidelidade.diasDasVantagens}
+          tipo="number"
+          modoDeTeclado="numeric"
+          minimo={minimoDeDias}
+          maximo={maximoDeDias}
+          passo={1}
+          valor={f.diasDasVantagens}
+          mudar={mudar('diasDasVantagens')}
+          erro={erros.includes('diasDasVantagens')}
+          erroTexto={t.fidelidade.diasErrados(minimoDeDias, maximoDeDias)}
+          ajuda={t.fidelidade.diasDasVantagensAjuda}
+          obrigatorio
+        />
+      </div>
       {/* Os convites (o Renato, 10 nov 2026): à parte, depois do inglês, que é só dos textos do
           cartão. Desligados, os valores ficam à vista e guardam-se para quando se ligarem. */}
       <div className="cartao recheado formulario">
@@ -348,11 +382,7 @@ export function CamposDoPrograma({ programa }: { programa: ProgramaNoFormulario 
         <div className="tres-colunas">
           <Campo
             rotulo={t.fidelidade.valorPadrinho}
-            tipo="number"
-            modoDeTeclado="numeric"
-            minimo={EUROS_DO_PREMIO.min}
-            maximo={EUROS_DO_PREMIO.max}
-            passo={1}
+            modoDeTeclado="decimal"
             valor={f.valorPadrinho}
             mudar={mudar('valorPadrinho')}
             erro={erros.includes('valorPadrinho')}
@@ -361,11 +391,7 @@ export function CamposDoPrograma({ programa }: { programa: ProgramaNoFormulario 
           />
           <Campo
             rotulo={t.fidelidade.valorConvidado}
-            tipo="number"
-            modoDeTeclado="numeric"
-            minimo={EUROS_DO_PREMIO.min}
-            maximo={EUROS_DO_PREMIO.max}
-            passo={1}
+            modoDeTeclado="decimal"
             valor={f.valorConvidado}
             mudar={mudar('valorConvidado')}
             erro={erros.includes('valorConvidado')}

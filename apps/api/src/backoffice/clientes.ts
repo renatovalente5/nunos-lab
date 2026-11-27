@@ -2,14 +2,16 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import {
-  DIAS_DE_CLIENTE_ACTIVO,
   DIAS_PARA_A_PRENDA,
   LIMITES_DO_PROGRAMA,
   LIMITES_DO_SALDO,
   MESES,
   MESES_EN,
+  PROGRAMA_PREDEFINIDO,
   diaEmLisboa,
   eAniversarioValido,
+  eClienteDaCasa,
+  temAsVantagens,
   eurosComSinal,
   normalizarCodigo,
   normalizarEmail,
@@ -23,11 +25,13 @@ import { anularCarimbo } from '../carimbos.ts';
 import {
   consultaDoSaldo,
   consultaDosMovimentos,
+  lerConvites,
   movimentoPublico,
   saldoDe,
   type LinhaDoMovimento,
 } from '../saldo.ts';
 import { apagarConta } from '../cliente/apagar.ts';
+import { lerPrograma } from '../programa.ts';
 import { DIA, agora, corpo, idDaMorada, recusar, registar, traduzirErroDaBase } from '../util.ts';
 import { nomeLimpo } from '../nomes.ts';
 import { tocarPasse } from '../wallet/servico.ts';
@@ -90,8 +94,8 @@ function publico(l: Linha): ClienteDoBackoffice {
 
 /**
  * A lista, com o filtro de estado calculado aqui (são contas, não milhares). Só cinco (o Renato,
- * 8 nov): todos; novos (o 1.º corte nos últimos 30 dias); activos (um corte no último ano, o mesmo
- * ano das promoções «só clientes activos»); perdidos (sem cortar há mais de um ano); sem app. Sem os
+ * 8 nov): todos; novos (o 1.º corte nos últimos 30 dias); activos (com as vantagens: um corte nos dias
+ * que o Nuno escolheu, 27 nov; era um ano); perdidos (sem cortar há mais de um ano); sem app. Sem os
  * clientes de exemplo: em produção só existem para a revisão das lojas (a conta da Apple).
  */
 rotasDosClientes.get('/clientes', async (c) => {
@@ -114,15 +118,16 @@ rotasDosClientes.get('/clientes', async (c) => {
     )
     .all<Linha>();
   const t = agora();
+  const { diasDasVantagens } =
+    estado === 'activos' ? await lerPrograma(c.env.DB) : PROGRAMA_PREDEFINIDO;
   const lista = r.results.filter((l) => {
-    const parado = l.ultimo ? t - l.ultimo : null;
     switch (estado) {
       case 'novos':
         return l.primeiro !== null && l.primeiro > t - 30 * DIA;
       case 'activos':
-        return parado !== null && parado <= DIAS_DE_CLIENTE_ACTIVO * DIA;
+        return temAsVantagens(l.ultimo ?? null, diasDasVantagens, t);
       case 'perdidos':
-        return parado !== null && parado > DIAS_DE_CLIENTE_ACTIVO * DIA;
+        return !!l.ultimo && !eClienteDaCasa(l.ultimo, t);
       case 'sem-app':
         return !l.formas || l.formas === 'email';
       default:
@@ -134,6 +139,7 @@ rotasDosClientes.get('/clientes', async (c) => {
 
 async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
   const db = c.env.DB;
+  const convites = await lerConvites(db);
   const [cliente, cartoes, carimbos, saldo, movimentos, feitos, recebido, codigoConvite] =
     await db.batch([
       db.prepare(`${LISTA} WHERE k.id = ?`).bind(id),
@@ -152,7 +158,7 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
       db
         .prepare(
           `SELECT x.id, x.criado_em AS quando, l.nome AS loja, e.nome AS pessoa, c.numero,
-           x.anulado_em, a.nome AS anulado_por, x.repetido, x.sem_leitura
+           x.anulado_em, a.nome AS anulado_por, x.repetido, x.sem_leitura, x.pelo_qr
          FROM carimbos x JOIN cartoes c ON c.id = x.cartao_id
          LEFT JOIN lojas l ON l.id = x.loja_id LEFT JOIN equipa e ON e.id = x.pessoa_id
          LEFT JOIN equipa a ON a.id = x.anulado_por
@@ -211,6 +217,7 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
     anulado_por: string | null;
     repetido: number;
     sem_leitura: number;
+    pelo_qr: number;
   };
   // O saldo e os convites (10 nov 2026): aqui com os nomes inteiros e quem fez cada movimento.
   const por = recebido!.results[0] as
@@ -243,7 +250,11 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
         nome: v.nome,
         criadoEm: v.criado_em,
         visitouEm: v.visitou_em,
-        premio: v.premio_padrinho,
+        // Ainda por visitar, o que vai receber: o maior dos dois (27 nov 2026, como balcao/rotas.ts paga).
+        premio:
+          v.visitou_em === null
+            ? Math.max(v.premio_padrinho, convites.ligado ? convites.valorPadrinho : 0)
+            : v.premio_padrinho,
         premioEm: v.premio_em,
         apagado: v.apagado_em !== null,
       })),
@@ -294,6 +305,7 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
       anuladoPor: x.anulado_por,
       repetido: x.repetido === 1,
       semLeitura: x.sem_leitura === 1,
+      peloQr: x.pelo_qr === 1,
     })),
   };
   return ficha;

@@ -23,14 +23,20 @@ export const pt = {
   meio: 'Ao carimbo',
   meioAjuda: 'Antes do último.',
   meioNoResumo: (recompensa: string, carimbo: number) => `${recompensa} ao ${carimbo}.º`,
-  // Os convites (o Renato, 10 nov 2026): os prémios em euros inteiros.
+  // Os dias das vantagens dos parceiros depois do último corte (o Nuno, 27 nov 2026; era um ano fixo).
+  diasDasVantagens: 'Vantagens dos parceiros (dias)',
+  diasDasVantagensAjuda: 'Depois do último corte. Passado esse prazo, voltam no corte seguinte.',
+  diasErrados: (min: number, max: number) => `De ${min} a ${max} dias.`,
+  diasNoResumo: (dias: number) => `vantagens ${dias} dias`,
+  // Os convites (o Renato, 10 nov 2026); com cêntimos desde 27 nov (1,50 €).
   convitesLigados: 'Convites ligados',
-  // Os convites já aceites guardam os prémios do dia em que se aceitaram, e pagam mesmo desligados.
+  // Os convites já aceites: o convidado já recebeu; quem convidou recebe o maior dos dois valores (o do dia
+  // em que o amigo aceitou e o de agora), e pagam mesmo desligados (o Renato, 27 nov 2026).
   convitesAjuda:
-    'Quem convida ganha quando o amigo for à barbearia; o amigo ganha logo. Mudar ou desligar não mexe nos convites já aceites.',
+    'Quem convida ganha quando o amigo for à barbearia; o amigo ganha logo. Um valor novo vale para os convites novos; nos já aceites, quem convidou recebe o maior dos dois. Desligar não mexe nos já aceites.',
   valorPadrinho: 'Quem convida ganha (€)',
   valorConvidado: 'O convidado ganha (€)',
-  eurosErrados: (maximo: string) => `De 0 a ${maximo}, só euros inteiros.`,
+  eurosErrados: (maximo: string) => `De 0 a ${maximo}, em euros (ex.: 1,50).`,
   limiteDeConvites: 'Convites por cliente',
   semLimite: 'Sem limite',
   convitesNoResumo: (padrinho: string, convidado: string) => `convites ${padrinho} / ${convidado}`,
@@ -59,12 +65,17 @@ export const en: typeof pt = {
   meio: 'At stamp',
   meioAjuda: 'Before the last one.',
   meioNoResumo: (recompensa, carimbo) => `${recompensa} at stamp ${carimbo}`,
+  diasDasVantagens: 'Partner perks (days)',
+  diasDasVantagensAjuda:
+    'After the last haircut. Once that time has passed, they come back with the next haircut.',
+  diasErrados: (min, max) => `From ${min} to ${max} days.`,
+  diasNoResumo: (dias) => `perks ${dias} days`,
   convitesLigados: 'Invites on',
   convitesAjuda:
-    'The inviter earns once their friend visits the barbershop; the friend earns straight away. Changing or switching off doesn’t affect invites already accepted.',
+    'The inviter earns once their friend visits the barbershop; the friend earns straight away. A new amount applies to new invites; for invites already accepted, the inviter gets the higher of the two. Switching off doesn’t affect invites already accepted.',
   valorPadrinho: 'Inviter earns (€)',
   valorConvidado: 'Invited friend earns (€)',
-  eurosErrados: (maximo) => `From €0 to ${maximo}, whole euros only.`,
+  eurosErrados: (maximo) => `From €0 to ${maximo}, in euros (e.g. 1.50).`,
   limiteDeConvites: 'Invites per client',
   semLimite: 'No limit',
   convitesNoResumo: (padrinho, convidado) => `invites ${padrinho} / ${convidado}`,

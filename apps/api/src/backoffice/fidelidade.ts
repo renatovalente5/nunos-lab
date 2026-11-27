@@ -59,6 +59,13 @@ const ProgramaPedido = z.object({
   recompensaEn: z.string().trim().max(LIMITES_DO_PROGRAMA.recompensa).optional(),
   aniversarioEn: z.string().trim().max(LIMITES_DO_PROGRAMA.aniversario).optional(),
   meioRecompensaEn: z.string().trim().max(LIMITES_DO_PROGRAMA.recompensa).optional(),
+  /** Os dias das vantagens dos parceiros depois do último corte (27 nov 2026); sem eles, ficam como estão. */
+  diasDasVantagens: z
+    .number()
+    .int()
+    .min(LIMITES_DO_PROGRAMA.diasDasVantagens.min)
+    .max(LIMITES_DO_PROGRAMA.diasDasVantagens.max)
+    .optional(),
   /** Os convites (10 nov 2026), em cêntimos; sem eles (o backoffice de antes), ficam como estão. */
   convites: z
     .object({
@@ -90,6 +97,7 @@ rotasDaFidelidade.put('/programa', async (c) => {
   const convitesAntes = await lerConvites(db);
   const meioRecompensa = p.meioRecompensa ?? antes.meioRecompensa;
   const meio = p.meio ?? antes.meio;
+  const diasDasVantagens = p.diasDasVantagens ?? antes.diasDasVantagens;
   // O prémio a meio fica antes do fim do cartão: aos 10 de 10 seria o próprio prémio do cartão.
   if (meioRecompensa && meio >= p.objectivo)
     throw new HTTPException(400, {
@@ -152,6 +160,7 @@ rotasDaFidelidade.put('/programa', async (c) => {
     p.objectivo !== antes.objectivo ||
     p.porDia !== antes.porDia ||
     p.aniversario !== antes.aniversario ||
+    diasDasVantagens !== antes.diasDasVantagens ||
     (aniversarioEn !== undefined && aniversarioEn !== (antes.aniversarioEn ?? ''));
   const emCurso = mudouRecompensa
     ? ((
@@ -173,6 +182,7 @@ rotasDaFidelidade.put('/programa', async (c) => {
     por('fid.meio', String(meio)),
     por('fid.meio_recompensa', meioRecompensa),
     por('fid.meio_recompensa_en', meioRecompensaEn),
+    por('fid.dias_vantagens', String(diasDasVantagens)),
     ...(p.convites
       ? [
           por('conv.ligado', p.convites.ligado ? '1' : '0'),
@@ -221,7 +231,7 @@ rotasDaFidelidade.put('/programa', async (c) => {
           registar(
             c,
             'programa.alterado',
-            `${p.objectivo} → ${p.recompensa}${carimboDoMeio ? ` · ${carimboDoMeio} → ${meioRecompensa}` : ''}${mudouRecompensa ? ` · ${emCurso} ${emCurso === 1 ? 'cartão' : 'cartões'} em curso` : ''}`,
+            `${p.objectivo} → ${p.recompensa}${carimboDoMeio ? ` · ${carimboDoMeio} → ${meioRecompensa}` : ''} · vantagens ${diasDasVantagens} dias${mudouRecompensa ? ` · ${emCurso} ${emCurso === 1 ? 'cartão' : 'cartões'} em curso` : ''}`,
           ),
         ]
       : []),

@@ -1,0 +1,10 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Nuno's Lab",
+    "NSCameraUsageDescription": "A app usa a câmara para ler o QR do balcão e dar-te o carimbo.",
+    "NSLocationWhenInUseUsageDescription": "A app confirma que estás na barbearia ao ler o QR do balcão. A localização não fica guardada."
+  },
+  "android": {
+    "app_name": "Nuno's Lab"
+  }
+}

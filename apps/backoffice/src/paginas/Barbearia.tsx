@@ -23,6 +23,7 @@ import {
 } from '../pecas';
 import { useTextos } from '../textos';
 import { useAvisoAoSair, useRota } from '../util';
+import { QrDoBalcao } from '../qr-do-balcao';
 import { CamposDoPrograma, resumoDoPrograma, usePrograma } from './Fidelidade';
 
 type LojaNoFormulario = {
@@ -363,6 +364,8 @@ export function Barbearia() {
                           erroTexto={t.barbearia.marcacaoErrada}
                           ajuda={t.barbearia.marcacaoAjuda}
                         />
+                        {/* O QR do balcão (27 nov 2026): só de uma barbearia já guardada. */}
+                        {l.id !== undefined && <QrDoBalcao lojaId={l.id} loja={l.nome} />}
                         <div>
                           <button
                             type="button"

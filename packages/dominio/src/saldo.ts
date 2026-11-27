@@ -65,6 +65,27 @@ export function euros(centimos: number, lingua: Lingua = 'pt'): string {
   return lingua === 'en' ? `${sinal}€${numero}` : `${sinal}${numero} €`;
 }
 
+/**
+ * Os euros escritos num campo («1», «1,5», «1.50», «2 €») em cêntimos; null se não for um valor (mais de
+ * duas casas, negativo, letras). O Nuno escolhe o valor do convite com cêntimos (27 nov 2026: «1,5 €»).
+ */
+export function centimosDoTexto(texto: string): number | null {
+  const t = texto.trim().replace(/^€\s*/, '').replace(/\s*€$/, '');
+  const m = /^(\d{1,6})(?:[.,](\d{1,2}))?$/.exec(t);
+  if (!m) return null;
+  return Number(m[1]) * 100 + (m[2] ? Number(m[2].padEnd(2, '0')) : 0);
+}
+
+/** Os cêntimos como se escrevem num campo: «1», «1,50» (em inglês, «1.50»). */
+export function eurosNoCampo(centimos: number, lingua: Lingua = 'pt'): string {
+  const absoluto = Math.abs(Math.round(centimos));
+  const inteiros = Math.floor(absoluto / 100);
+  const resto = absoluto % 100;
+  return resto
+    ? `${inteiros}${lingua === 'en' ? '.' : ','}${String(resto).padStart(2, '0')}`
+    : String(inteiros);
+}
+
 /** Com o sinal à frente também quando entra: «+1 €», «−2 €». */
 export function eurosComSinal(centimos: number, lingua: Lingua = 'pt'): string {
   return centimos > 0 ? `+${euros(centimos, lingua)}` : euros(centimos, lingua);
@@ -73,6 +94,17 @@ export function eurosComSinal(centimos: number, lingua: Lingua = 'pt'): string {
 /** Os euros inteiros que se podem usar ao balcão de um saldo (0 se não chega a 1 €). */
 export function eurosParaUsar(saldo: number): number {
   return Math.max(0, Math.floor(saldo / 100));
+}
+
+/**
+ * Os valores que se podem usar ao balcão de um saldo, em cêntimos: os euros inteiros (1 €, 2 €…) e, se
+ * sobrarem cêntimos, o saldo todo no fim (1,50 €). Com menos de 1 €, só o saldo todo (0,50 €). Com os
+ * convites a 1,50 € (27 nov 2026), os 50 cêntimos que sobravam não se usavam.
+ */
+export function valoresParaUsar(saldo: number): number[] {
+  if (!(saldo > 0)) return [];
+  const inteiros = Array.from({ length: eurosParaUsar(saldo) }, (_, i) => (i + 1) * 100);
+  return saldo % 100 ? [...inteiros, saldo] : inteiros;
 }
 
 /**

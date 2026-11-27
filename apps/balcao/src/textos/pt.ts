@@ -28,6 +28,8 @@ export const pt = {
     clienteNovo: 'Cliente novo',
     resumo: 'Resumo',
     repetido: 'repetido',
+    // O carimbo que o cliente deu a si mesmo, pelo QR do balcão (27 nov 2026).
+    peloQr: 'QR do balcão',
     semCarimbos: (dia: string) => `${dia} · ainda sem carimbos`,
   },
   parceiro: {
@@ -76,6 +78,7 @@ export const pt = {
     jaCarimbado: 'Já carimbado hoje.',
     carimbadoAs: (hora: string, pessoa: string | null) =>
       `Carimbado hoje às ${hora}${pessoa ? ` por ${pessoa}` : ''}`,
+    carimbadoPeloQr: (hora: string) => `Carimbado hoje às ${hora} pelo QR do balcão`,
     carimboAnulado: (hora: string) => `Carimbo das ${hora} anulado`,
     anularCarimbo: 'Anular carimbo',
     anularOCarimbo: (nome: string, hora: string) =>
@@ -91,8 +94,8 @@ export const pt = {
     // O saldo (o Renato, 10 nov 2026): os valores chegam em cêntimos; ao balcão usam-se euros inteiros.
     saldo: 'Saldo',
     usarSaldo: 'Usar saldo',
-    menosUmEuro: 'Menos 1 €',
-    maisUmEuro: 'Mais 1 €',
+    menosUmEuro: 'Menos',
+    maisUmEuro: 'Mais',
     // Só 1 € é singular: «Fica 1 €», «Ficam 2 €», «Ficam 0,50 €».
     fica: (centimos: number) => `${centimos === 100 ? 'Fica' : 'Ficam'} ${euros(centimos)}`,
     usar: (centimos: number) => `Usar ${euros(centimos)}`,
@@ -127,7 +130,9 @@ export const pt = {
     validado: 'Validado',
     cliente: 'Cliente',
     clienteActivo: 'Cliente activo do Nuno’s Lab',
-    semCorteNoUltimoAno: 'Sem corte no último ano',
+    // Os dias das vantagens escolhe-os o Nuno (27 nov 2026; era um ano). A API de antes não os manda.
+    semCorteRecente: (dias: number | undefined) =>
+      dias ? `Sem corte nos últimos ${dias} dias` : 'Sem corte recente',
     semVantagens: 'Sem vantagens para validar hoje.',
     jaUsou: (n: number) => `já usou ${n}`,
     aValidar: 'A validar…',
@@ -218,7 +223,7 @@ export const pt = {
     ja_usou: 'Já usou hoje.',
     limite_do_cliente: 'Este cliente chegou ao limite.',
     limite_total: 'Esta vantagem esgotou.',
-    cliente_inactivo: 'Sem corte no último ano: não vale.',
+    cliente_inactivo: 'Sem corte recente: não vale.',
     so_dono: 'Só o dono vê isto.',
     ja_anulado: 'Já estava anulado.',
     tarde_para_anular: 'Já passaram 10 minutos: só o Nuno anula.',

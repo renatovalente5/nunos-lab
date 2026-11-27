@@ -86,9 +86,9 @@ export default function PaginaDoParceiro() {
   const { data: euGuardado } = useEu(aFrente);
   // Depois de um 401 a sessão vai-se, mas a consulta ainda tem o «eu» da conta que saiu.
   const eu = temSessao ? euGuardado : undefined;
-  // Sem corte no último ano as vantagens não valem: apagadas, com o cadeado (o Renato, 9 nov). Sem
-  // conta também (desbloqueadas, chegava mostrar o ecrã a um parceiro que não lê o cartão), com a
-  // frase de quem nunca cortou: as vantagens começam no primeiro corte.
+  // Sem corte nos dias das vantagens (o Nuno escolhe-os) as vantagens não valem: apagadas, com o
+  // cadeado (o Renato, 9 nov). Sem conta também (desbloqueadas, chegava mostrar o ecrã a um parceiro
+  // que não lê o cartão), com a frase de quem nunca cortou: as vantagens começam no primeiro corte.
   // Com sessão e sem o «eu» (ainda a chegar, ou o pedido bloqueado de propósito), fica com o cadeado:
   // abrir sem ele dava as vantagens a quem nunca cortou (revisão de batota, 11 nov 2026).
   const bloqueio: BloqueioDaVantagem = !temSessao

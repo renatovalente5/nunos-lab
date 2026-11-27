@@ -2,17 +2,20 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   caminhoDaAppClip,
+  centimosDoTexto,
   codigoDoConviteEscrito,
   codigoDoReferrer,
   convitesQueFaltam,
   euros,
   eurosComSinal,
+  eurosNoCampo,
   eurosParaUsar,
   gerarCodigo,
   ligacaoDaAppClip,
   ligacaoDaPlayStore,
   nomeCurto,
   safariComAppClip,
+  valoresParaUsar,
 } from './index.ts';
 
 test('o saldo em euros: inteiros sem casas, cêntimos com duas (10 nov 2026)', () => {
@@ -35,6 +38,38 @@ test('ao balcão usam-se euros inteiros, até ao saldo', () => {
   assert.equal(eurosParaUsar(100), 1);
   assert.equal(eurosParaUsar(350), 3);
   assert.equal(eurosParaUsar(-100), 0);
+});
+
+test('com cêntimos, o balcão usa os euros inteiros e, no fim, o saldo todo (27 nov 2026)', () => {
+  assert.deepEqual(valoresParaUsar(0), []);
+  assert.deepEqual(valoresParaUsar(-150), []);
+  assert.deepEqual(valoresParaUsar(50), [50]);
+  assert.deepEqual(valoresParaUsar(100), [100]);
+  assert.deepEqual(valoresParaUsar(150), [100, 150]);
+  assert.deepEqual(valoresParaUsar(300), [100, 200, 300]);
+  assert.deepEqual(valoresParaUsar(305), [100, 200, 300, 305]);
+});
+
+test('o valor do convite escreve-se com cêntimos, com vírgula ou ponto (27 nov 2026)', () => {
+  assert.equal(centimosDoTexto('1'), 100);
+  assert.equal(centimosDoTexto('1,5'), 150);
+  assert.equal(centimosDoTexto('1.50'), 150);
+  assert.equal(centimosDoTexto(' 2,05 € '), 205);
+  assert.equal(centimosDoTexto('€0.5'), 50);
+  assert.equal(centimosDoTexto('0'), 0);
+  assert.equal(centimosDoTexto(''), null);
+  assert.equal(centimosDoTexto('1,505'), null);
+  assert.equal(centimosDoTexto('-1'), null);
+  assert.equal(centimosDoTexto('1,'), null);
+  assert.equal(centimosDoTexto('um'), null);
+  assert.equal(eurosNoCampo(100), '1');
+  assert.equal(eurosNoCampo(150), '1,50');
+  assert.equal(eurosNoCampo(150, 'en'), '1.50');
+  assert.equal(eurosNoCampo(5), '0,05');
+  // O que se mostra no campo volta a ler-se igual.
+  for (const c of [0, 5, 50, 100, 150, 1999, 5000])
+    for (const lingua of ['pt', 'en'] as const)
+      assert.equal(centimosDoTexto(eurosNoCampo(c, lingua)), c);
 });
 
 test('nos convites cada um vê do outro só o primeiro nome e a inicial', () => {

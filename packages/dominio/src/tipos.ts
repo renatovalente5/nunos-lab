@@ -51,8 +51,8 @@ export type PromocaoPublica = {
   limitePorCliente: number | null;
   periodoDoLimite: PeriodoDoLimite;
   /**
-   * Sempre true: todas as vantagens são só para quem cortou o cabelo no último ano (o Renato,
-   * 8 nov 2026). Fica pelas apps instaladas antes disso, que o lêem.
+   * Sempre true: todas as vantagens são só para quem cortou o cabelo há pouco (o Renato, 8 nov 2026;
+   * os dias escolhe-os o Nuno desde 27 nov). Fica pelas apps instaladas antes disso, que o lêem.
    */
   soClientesActivos: true;
   /** Sempre false: o saco das surpresas saiu (8 nov 2026). Fica pelas apps instaladas antes disso. */
@@ -332,7 +332,7 @@ export type ClienteEu = {
     recompensa: string;
     meio?: { carimbos: number; recompensa: string } | null;
   };
-  /** Corte no último ano: as vantagens dos parceiros valem. */
+  /** Corte nos dias das vantagens (o Nuno escolhe-os; eram um ano): as vantagens dos parceiros valem. */
   activo: boolean;
   /** As vantagens validadas nos parceiros, da mais recente para a mais antiga. */
   vales: ValeDoCliente[];
@@ -453,6 +453,26 @@ export type ResultadoDoCarimbo = {
   cupao: null;
 };
 
+/** O carimbo pelo QR do balcão, como a app dos clientes o mostra (o Nuno, 27 nov 2026). */
+export type CarimboDoQr = {
+  /** O cartão depois do carimbo (o «4 de 10»). */
+  cartao: CartaoDoCliente;
+  /** A barbearia do QR. */
+  loja: string;
+  /** Este carimbo ganhou o prémio a meio: entrega-se ao balcão. */
+  premioAMeio: string | null;
+  /** O saldo, em cêntimos: para lembrar ao pagar. */
+  saldo: number;
+};
+
+/** O QR do balcão de uma barbearia, no backoffice (27 nov 2026): null se a barbearia não o tem. */
+export type QrDaLoja = {
+  lojaId: number;
+  codigo: string | null;
+  /** A barbearia tem as coordenadas (sem elas, o QR não sabe se o cliente está ao balcão). */
+  temSitio: boolean;
+};
+
 export type UltimoCarimbo = {
   id: number;
   quando: number;
@@ -461,7 +481,10 @@ export type UltimoCarimbo = {
   codigo: string;
   pessoa: string | null;
   pessoaId: number | null;
-  /** Até quando quem carimbou pode anular (instante do servidor). */
+  /**
+   * Até quando quem carimbou pode anular (instante do servidor). O do QR do balcão, a equipa dessa
+   * barbearia anula-o até ao fim do dia.
+   */
   anulavelAte: number;
   loja: string | null;
   carimbos: number;
@@ -469,6 +492,8 @@ export type UltimoCarimbo = {
   anulado: boolean;
   repetido: boolean;
   recompensa: boolean;
+  /** O cliente carimbou-se pelo QR do balcão (27 nov 2026; a API de antes não o manda). */
+  peloQr?: boolean;
 };
 
 export type HojeDaBalcao = {
@@ -531,7 +556,10 @@ export type FichaDoParceiro = {
     codigo: string;
     /** Só o nome próprio: o parceiro não precisa de mais. */
     nome: string;
+    /** Cortou nos dias das vantagens: as vantagens valem. */
     activo: boolean;
+    /** Os dias das vantagens depois do último corte, que o Nuno escolhe (27 nov 2026; a API de antes não o manda). */
+    diasDasVantagens?: number;
   };
   vantagens: VantagemDoParceiro[];
 };
@@ -653,6 +681,8 @@ export type FichaDoCliente = ClienteDoBackoffice & {
     anuladoPor: string | null;
     repetido: boolean;
     semLeitura: boolean;
+    /** O cliente carimbou-se pelo QR do balcão (27 nov 2026; a API de antes não o manda). */
+    peloQr?: boolean;
   })[];
   /** O saldo e os convites (10 nov 2026); falta nas respostas de antes. */
   saldo?: SaldoDoBackoffice;
@@ -719,6 +749,8 @@ export type Metricas = {
   };
   porDia: { dia: string; n: number }[];
   porLoja: { id: number; nome: string; n: number; clientes: number; anterior: number }[];
+  /** Os carimbos pelo QR do balcão no período (27 nov 2026; a API de antes não o manda). */
+  peloQr?: number;
   porPessoa: {
     id: number;
     nome: string;

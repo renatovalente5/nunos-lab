@@ -25,7 +25,6 @@ import { ErroDaApi, mensagemDe, pedir, refrescar } from '../api';
 import {
   AreaDeTexto,
   Campo,
-  CampoDoLogotipo,
   Cores,
   Esqueleto,
   Etiqueta,
@@ -41,6 +40,7 @@ import {
 } from '../pecas';
 import { CampoDoHorario } from '../horario';
 import { coresDoLogotipo } from '../imagens';
+import { CampoDoLogotipo } from '../logotipo';
 import { useLingua } from '../lingua';
 import { PrevisaoDoParceiro } from '../previsao';
 import { useTextos } from '../textos';
@@ -341,6 +341,7 @@ export function Parceiro({ id }: { id: string }) {
               rotulo={t.parceiro.logotipo}
               valor={f.logotipo}
               ajuste={f.logotipoAjuste}
+              nome={f.nome}
               cor={f.cor}
               mudar={(id, ajuste) => {
                 mudar('logotipo')(id);

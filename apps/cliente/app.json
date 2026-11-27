@@ -57,6 +57,11 @@
       "backgroundColor": "#0A0A0A",
       "description": "Vantagens nos parceiros do Nuno's Lab."
     },
+    "locales": {
+      "pt-PT": "./locales/pt.json",
+      "pt": "./locales/pt.json",
+      "en": "./locales/en.json"
+    },
     "plugins": [
       "expo-router",
       "expo-font",
@@ -78,6 +83,23 @@
         }
       ],
       "expo-apple-authentication",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "A app usa a câmara para ler o QR do balcão e dar-te o carimbo.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "A app confirma que estás na barbearia ao ler o QR do balcão. A localização não fica guardada.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
+        }
+      ],
       [
         "@react-native-google-signin/google-signin",
         {

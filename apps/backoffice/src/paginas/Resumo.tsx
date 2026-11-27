@@ -469,19 +469,25 @@ export function Resumo() {
           <div className={porCasa.length > 0 ? 'grelha duas' : undefined}>
             <section className="cartao lista-do-resumo" aria-labelledby="quem-carimbou">
               <h2 id="quem-carimbou">{t.resumo.quemCarimbou}</h2>
-              {quem.length > 0 ? (
+              {quem.length > 0 || (m.peloQr ?? 0) > 0 ? (
                 <Ordem
-                  linhas={quem.map((p) => ({
-                    chave: p.id,
-                    nome: p.nome,
-                    pessoa: true,
-                    href: `#/equipa/${p.id}`,
-                    detalhe:
-                      [p.loja, p.recompensas > 0 && t.resumo.entregou(p.recompensas)]
-                        .filter(Boolean)
-                        .join(' · ') || undefined,
-                    n: p.n,
-                  }))}
+                  linhas={[
+                    ...quem.map((p) => ({
+                      chave: p.id,
+                      nome: p.nome,
+                      pessoa: true,
+                      href: `#/equipa/${p.id}`,
+                      detalhe:
+                        [p.loja, p.recompensas > 0 && t.resumo.entregou(p.recompensas)]
+                          .filter(Boolean)
+                          .join(' · ') || undefined,
+                      n: p.n,
+                    })),
+                    // Os do QR do balcão (27 nov 2026): o cliente carimbou-se, sem ninguém da equipa.
+                    ...((m.peloQr ?? 0) > 0
+                      ? [{ chave: 'qr', nome: t.resumo.peloQr, n: m.peloQr ?? 0 }]
+                      : []),
+                  ]}
                 />
               ) : (
                 <p className="vazio-do-resumo">{t.resumo.ninguemCarimbou}</p>

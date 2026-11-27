@@ -98,3 +98,58 @@ export function ajusteDosDedos(
     y: meio1.y - (meio0.y - inicio.y) * escala,
   });
 }
+
+/**
+ * Aproximar ou afastar (`factor` > 1 aproxima) à volta de um ponto do círculo (a contar do centro, em
+ * fracções do lado): o ponto da imagem que lá estava fica lá, como ao aproximar uma fotografia com a roda
+ * ou com a barra do editor grande (o Nuno, 27 nov 2026). Sem ponto, à volta do centro do círculo.
+ */
+export function ajusteAproximado(
+  a: AjusteDoLogotipo,
+  factor: number,
+  ponto: PontoNoCirculo = { x: 0, y: 0 },
+): AjusteDoLogotipo {
+  const { min, max } = LIMITES_DO_AJUSTE.zoom;
+  const zoom = Math.min(max, Math.max(min, a.zoom * (Number.isFinite(factor) ? factor : 1)));
+  const escala = zoom / a.zoom;
+  return (
+    limitarAjuste({
+      ...a,
+      zoom,
+      x: ponto.x - (ponto.x - a.x) * escala,
+      y: ponto.y - (ponto.y - a.y) * escala,
+    }) ?? a
+  );
+}
+
+/**
+ * O logótipo inteiro dentro do círculo, ao meio, com uma folga (o «Inteiro» do editor grande). A imagem
+ * cabe sem se deformar numa caixa quadrada: com `proporcao` (largura ÷ altura) a caixa é a maior cujos
+ * cantos da imagem ficam dentro do círculo.
+ */
+export function ajusteInteiro(a: AjusteDoLogotipo, proporcao: number): AjusteDoLogotipo {
+  const r = proporcao > 0 && Number.isFinite(proporcao) ? proporcao : 1;
+  // A imagem na caixa de lado s mede s × s/r (larga) ou s·r × s (alta); os cantos no círculo de lado 1.
+  const lado = 1 / Math.sqrt(1 + (r >= 1 ? 1 / (r * r) : r * r));
+  return limitarAjuste({ ...a, zoom: lado * 0.94, x: 0, y: 0 }) ?? a;
+}
+
+/** A imagem a encher o círculo todo, ao meio (o «Encher»): o lado mais curto da imagem do tamanho do círculo. */
+export function ajusteCheio(a: AjusteDoLogotipo, proporcao: number): AjusteDoLogotipo {
+  const r = proporcao > 0 && Number.isFinite(proporcao) ? proporcao : 1;
+  return limitarAjuste({ ...a, zoom: r >= 1 ? r : 1 / r, x: 0, y: 0 }) ?? a;
+}
+
+/** A imagem ao meio quando quase lá (o editor grande puxa-a, e mostra a linha do meio). */
+export const FOLGA_DO_MEIO = 0.012;
+
+/** O ajuste com o desvio que está quase no meio posto no meio, e em que eixos isso aconteceu. */
+export function ajusteAoMeio(a: AjusteDoLogotipo): {
+  ajuste: AjusteDoLogotipo;
+  x: boolean;
+  y: boolean;
+} {
+  const x = Math.abs(a.x) < FOLGA_DO_MEIO;
+  const y = Math.abs(a.y) < FOLGA_DO_MEIO;
+  return { ajuste: { ...a, x: x ? 0 : a.x, y: y ? 0 : a.y }, x, y };
+}

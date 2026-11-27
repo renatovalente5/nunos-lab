@@ -7,11 +7,12 @@ import { z } from 'zod';
 import {
   carimboDoPremioAMeio,
   DIAS_A_EXPERIENCIA,
-  DIAS_DE_CLIENTE_ACTIVO,
   LIMITES_DO_PROGRAMA,
   diaEmLisboa,
   eAniversarioValido,
+  eClienteDaCasa,
   naLingua,
+  temAsVantagens,
   temPrendaHoje,
   textoDeBusca,
   type ClienteEu,
@@ -19,6 +20,7 @@ import {
   type TipoDeEntrada,
 } from '@nunos-lab/dominio';
 import type { Ambiente, C } from '../ambiente.ts';
+import { carimboPeloQr } from './qr-do-balcao.ts';
 import {
   consultaDeJaFoiCliente,
   consultaDoSaldo,
@@ -204,11 +206,12 @@ async function lerEu(c: C): Promise<ClienteEu> {
            WHERE v.cliente_id = ? AND v.anulado_em IS NULL ORDER BY v.criado_em DESC LIMIT 30`,
         )
         .bind(id),
+      // O último corte: as vantagens valem os dias que o Nuno escolheu, a prenda de anos um ano (27 nov 2026).
       db
         .prepare(
-          'SELECT 1 AS activo FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL AND criado_em > unixepoch() - ? LIMIT 1',
+          'SELECT max(criado_em) AS ultimo FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL',
         )
-        .bind(id, DIAS_DE_CLIENTE_ACTIVO * DIA),
+        .bind(id),
       db
         .prepare('SELECT 1 FROM prendas WHERE cliente_id = ? AND ano = ?')
         .bind(id, Number(diaEmLisboa().slice(0, 4))),
@@ -245,6 +248,8 @@ async function lerEu(c: C): Promise<ClienteEu> {
   const cliente = r[0]!.results[0] as LinhaCliente;
   const cartao = r[1]!.results[0] as LinhaCartao;
   const limite = agora() - DIAS_A_EXPERIENCIA * DIA;
+  const ultimoCorte = (r[8]!.results[0] as { ultimo: number | null } | undefined)?.ultimo ?? null;
+  const activo = temAsVantagens(ultimoCorte, programa.diasDasVantagens, agora());
   const convites = convitesDasDefinicoes(
     new Map((r[15]!.results as { chave: string; valor: string }[]).map((x) => [x.chave, x.valor])),
   );
@@ -309,7 +314,7 @@ async function lerEu(c: C): Promise<ClienteEu> {
           }
         : null,
     },
-    activo: r[8]!.results.length > 0,
+    activo,
     vales: (r[7]!.results as (ClienteEu['vales'][number] & ComIngles)[]).map(
       ({ destaque_en, titulo_en, ...v }) => ({
         ...v,
@@ -331,18 +336,18 @@ async function lerEu(c: C): Promise<ClienteEu> {
       // Como na carteira: convites ligados, ainda sem convite e sem nenhum corte (11 nov 2026).
       podeUsarCodigo,
     },
-    // Com o cadeado (sem corte no último ano), o código nem chega ao telemóvel (o Renato, 10 nov 2026).
-    codigosDasVantagens:
-      r[8]!.results.length > 0
-        ? Object.fromEntries(
-            (r[12]!.results as { id: number; cupao: string }[]).map((x) => [String(x.id), x.cupao]),
-          )
-        : {},
+    // Com o cadeado (sem corte nos dias das vantagens), o código nem chega ao telemóvel (o Renato, 10 nov 2026).
+    codigosDasVantagens: activo
+      ? Object.fromEntries(
+          (r[12]!.results as { id: number; cupao: string }[]).map((x) => [String(x.id), x.cupao]),
+        )
+      : {},
     // A prenda só com a data dada há 30 dias ou mais (senão mudava-se na véspera), uma vez por ano, e
-    // a quem teve um corte no último ano (como na for partners, que é quem a entrega).
+    // a quem teve um corte no último ano (como na for partners, que é quem a entrega). Um ano, e não os
+    // dias das vantagens: quem corta de dois em dois meses também a leva (27 nov 2026).
     prenda:
       temPrendaHoje(cliente.aniversario, cliente.aniversario_desde, diaEmLisboa(), agora()) &&
-      r[8]!.results.length > 0 &&
+      eClienteDaCasa(ultimoCorte, agora()) &&
       programa.aniversario &&
       r[9]!.results.length === 0
         ? naLingua(lingua, programa.aniversario, programa.aniversarioEn)
@@ -381,6 +386,9 @@ const Perfil = z.object({
   lojaId: z.number().int().positive().nullable().optional(),
   lingua: z.enum(['pt', 'en']).optional(),
 });
+
+/** O carimbo pelo QR do balcão (o Nuno, 27 nov 2026): as regras estão em qr-do-balcao.ts. */
+rotasDaConta.post('/carimbo-do-balcao', async (c) => c.json(await carimboPeloQr(c)));
 
 rotasDaConta.patch('/perfil', async (c) => {
   // A demonstração (os revisores das lojas) não muda o cliente de exemplo para o revisor seguinte.
