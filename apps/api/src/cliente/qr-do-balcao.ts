@@ -82,11 +82,13 @@ export async function carimboPeloQr(c: C): Promise<CarimboDoQr> {
       .prepare('SELECT 1 FROM carimbos WHERE cliente_id = ? AND anulado_em IS NULL LIMIT 1')
       .bind(id)
       .first();
-    if (!jaTem) recusar(409, 'primeiro_com_o_barbeiro');
+    // A conta da revisão das lojas (um cliente de exemplo) salta também esta regra e a do prémio: o revisor
+    // da Apple ou da Google lê o QR sem ter passado pelo barbeiro.
+    if (!jaTem && !demo) recusar(409, 'primeiro_com_o_barbeiro');
     // O carimbo que completa o cartão é o corte do prémio: o barbeiro aplica o desconto ao cobrar. (Um
     // cartão já completo, dos de antes de 17 nov, abre o seguinte: esse carimbo não é o do prémio.)
     const cartao = await cartaoActual(db, id);
-    if (cartao && cartao.completo_em === null && cartao.carimbos + 1 >= cartao.objectivo)
+    if (!demo && cartao && cartao.completo_em === null && cartao.carimbos + 1 >= cartao.objectivo)
       recusar(409, 'premio_com_o_barbeiro');
   }
   const feito = await carimbar(
