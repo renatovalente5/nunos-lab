@@ -21,6 +21,8 @@ export async function limpar(env: Env): Promise<void> {
       'DELETE FROM sessoes_de_cliente WHERE expira_em < unixepoch() - 30 * 86400 OR (revogada_em IS NOT NULL AND revogada_em < unixepoch() - 30 * 86400)',
     ),
     db.prepare('DELETE FROM codigos_de_entrada WHERE expira_em < unixepoch() - 86400'),
+    // As Apple e Google que esperavam por um código da for partners e não o tiveram.
+    db.prepare('DELETE FROM ligacoes_da_equipa WHERE expira_em < unixepoch()'),
     // O que ficou de contas apagadas: a coluna de procura, e o passe (com os registos da Apple).
     db.prepare("UPDATE clientes SET busca = '' WHERE apagado_em IS NOT NULL AND busca != ''"),
     db.prepare(

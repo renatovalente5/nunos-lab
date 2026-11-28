@@ -7,12 +7,14 @@ import {
   ErroDaBalcao,
   GOOGLE_CLIENTE,
   contarApple,
+  guardarFormaPorLigar,
   guardarSessao,
   mensagemDe,
   pedir,
   useCasa,
   useDespejarFila,
   useEu,
+  useFormasDeEntrar,
   useHoje,
   useHojeParceiro,
   useTemSessao,
@@ -25,11 +27,13 @@ import {
   Ecra,
   Grupo,
   Icone,
+  LARGURA_DO_BOTAO,
   MARGEM,
   Rotulo,
   Separador,
   T,
   cor,
+  letra,
   raio,
   useLingua,
   useTextosDaUi,
@@ -233,14 +237,26 @@ function HojeParceiro() {
 function Entrar() {
   const t = useTextos();
   const ui = useTextosDaUi();
+  const { data: formas } = useFormasDeEntrar();
   const [erro, setErro] = useState<unknown>(null);
-  const correr = async (f: () => Promise<{ sessao: string }>) => {
+  const correr = async (forma: 'apple' | 'google', f: () => Promise<{ sessao: string }>) => {
     setErro(null);
     try {
       guardarSessao((await f()).sessao);
     } catch (e) {
+      // A Apple ou a Google sem ninguém da equipa: a ligação segue com o código do email da equipa.
+      if (e instanceof ErroDaBalcao && typeof e.dados.ligar === 'string')
+        guardarFormaPorLigar(e.dados.ligar, forma);
       setErro(e);
     }
+  };
+  /** Com o código por email ligado, a recusa da Apple ou da Google aponta para ele. */
+  const textoDoErro = (e: unknown) => {
+    if (e instanceof ErroDaBalcao && typeof e.dados.ligar === 'string') {
+      if (e.codigo === 'email_escondido') return t.entrar.escondidoComEmail;
+      if (e.codigo === 'sem_acesso') return t.entrar.semAcessoComEmail;
+    }
+    return mensagemDe(e);
   };
   return (
     <Ecra comBarra={false}>
@@ -264,7 +280,9 @@ function Entrar() {
                   ? `${location.origin}${(process.env.EXPO_BASE_URL ?? '').replace(/\/$/, '')}/`
                   : ''
               }
-              aoEntrar={(d) => correr(() => pedir('/entrar/apple', { metodo: 'POST', corpo: d }))}
+              aoEntrar={(d) =>
+                correr('apple', () => pedir('/entrar/apple', { metodo: 'POST', corpo: d }))
+              }
               aoDesfecho={contarApple}
               seNaoDer={GOOGLE_CLIENTE ? ui.appleNaoDeu : undefined}
             />
@@ -273,21 +291,61 @@ function Entrar() {
             <BotaoDoGoogle
               clienteId={GOOGLE_CLIENTE}
               aoEntrar={(credencial) =>
-                correr(() => pedir('/entrar/google', { metodo: 'POST', corpo: { credencial } }))
+                correr('google', () =>
+                  pedir('/entrar/google', { metodo: 'POST', corpo: { credencial } }),
+                )
               }
             />
           ) : null}
+          {formas?.email ? <BotaoDoEmail onPress={() => router.push('/email')} /> : null}
           <T v="legenda" style={{ color: cor.texto3, textAlign: 'center', marginTop: 10 }}>
             {t.entrar.comAConta}
           </T>
         </>
         {erro !== null && (
           <T v="legenda" role="alert" style={{ color: '#E07A72', textAlign: 'center' }}>
-            {mensagemDe(erro)}
+            {textoDoErro(erro)}
           </T>
         )}
       </View>
     </Ecra>
+  );
+}
+
+/**
+ * «Continuar com email», com a cara do botão da Google ao lado (a mesma pílula escura, a mesma letra
+ * que não cresce): o código vai ao email que o Nuno registou (28 nov 2026).
+ */
+function BotaoDoEmail({ onPress }: { onPress: () => void }) {
+  const t = useTextos();
+  return (
+    <Pressable
+      onPress={onPress}
+      role="button"
+      aria-label={t.entrar.continuarComEmail}
+      style={({ pressed }) => ({
+        width: LARGURA_DO_BOTAO,
+        height: 44,
+        alignSelf: 'center',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        borderRadius: 999,
+        backgroundColor: pressed ? '#1A1A1A' : '#131313',
+        borderWidth: 1,
+        borderColor: '#3A3A3A',
+      })}
+    >
+      <Icone nome="email" tamanho={18} cor="#FFFFFF" espessura={2} />
+      <T
+        maxFontSizeMultiplier={1}
+        numberOfLines={1}
+        style={{ color: '#FFFFFF', fontFamily: letra.forte, fontSize: 15 }}
+      >
+        {t.entrar.continuarComEmail}
+      </T>
+    </Pressable>
   );
 }
 

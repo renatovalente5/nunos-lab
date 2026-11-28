@@ -374,11 +374,25 @@ rotasDaFidelidade.patch('/equipa/:id', async (c) => {
   else if (p.papel !== undefined) partes.push('parceiro_id = NULL');
   if (partes.length === 0) recusar(400, 'nada_a_mudar');
   try {
-    const r = await db
+    const mudar = db
       .prepare(`UPDATE equipa SET ${partes.join(', ')} WHERE id = ? AND removido_em IS NULL`)
-      .bind(...valores, id)
-      .run();
-    if (!r.meta.changes) recusar(404, 'nao_existe');
+      .bind(...valores, id);
+    // Um email novo leva as Apple e Google que um código ligou ao antigo (28 nov 2026): eram da outra caixa.
+    const [r] =
+      p.email !== undefined
+        ? (
+            await db.batch([
+              db
+                .prepare(
+                  `DELETE FROM identidades_da_equipa WHERE pessoa_id = ?1 AND ligada = 1
+                   AND EXISTS (SELECT 1 FROM equipa WHERE id = ?1 AND email IS NOT ?2)`,
+                )
+                .bind(id, email),
+              mudar,
+            ])
+          ).slice(1)
+        : [await mudar.run()];
+    if (!r?.meta.changes) recusar(404, 'nao_existe');
   } catch (e) {
     traduzirErroDaBase(e);
   }

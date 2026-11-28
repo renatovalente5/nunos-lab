@@ -49,9 +49,10 @@ naBaseLocal(
     'servicos',
     'sessoes_da_equipa',
     'acessos_da_equipa',
+    'codigos_de_entrada',
+    'ligacoes_da_equipa',
     'equipa',
     'sessoes_de_cliente',
-    'codigos_de_entrada',
     'identidades',
     'clientes',
   ]
@@ -80,16 +81,27 @@ async function passo(nome, f) {
     process.exitCode = 1;
   }
 }
-const pedir = (caminho, { token, ...o } = {}) =>
-  fetch(API + caminho, {
-    ...o,
-    headers: {
-      Origin: APP,
-      ...(o.body && typeof o.body === 'string' ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(o.headers ?? {}),
-    },
-  });
+const pedir = async (caminho, { token, ...o } = {}) => {
+  const fazer = () =>
+    fetch(API + caminho, {
+      ...o,
+      headers: {
+        Origin: APP,
+        ...(o.body && typeof o.body === 'string' ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(o.headers ?? {}),
+      },
+    });
+  try {
+    return await fazer();
+  } catch (e) {
+    // Uns 8 «wrangler d1 execute» seguidos (daBaseLocal) fazem o wrangler dev fechar as ligações paradas,
+    // e o pedido seguinte por uma delas dá ECONNRESET sem chegar à API (visto a 28 nov 2026). Um GET
+    // não muda nada: repete-se uma vez. Os outros pedidos não se repetem.
+    if ((o.method ?? 'GET') === 'GET' && e?.cause?.code === 'ECONNRESET') return fazer();
+    throw e;
+  }
+};
 const json = (o) => JSON.stringify(o);
 let enderecos = 0;
 /** Um endereço de ensaio por pedido de convite: a trava (30 por minuto) é por endereço. */
@@ -1933,6 +1945,295 @@ await passo(
       (await pedir(`/api/bo/equipa/${pessoa.id}`, { method: 'DELETE', token })).status,
       200,
     );
+  },
+);
+
+// ——— Entrar na for partners com um código por email (28 nov 2026) ———
+const entrarEquipaCom = (tipo, sujeito, email) =>
+  pedir('/api/balcao/entrar/teste', { method: 'POST', body: json({ tipo, sujeito, email }) });
+const pedirCodigo = (email, ip = ipNovo()) =>
+  pedir('/api/balcao/entrar/email', {
+    method: 'POST',
+    headers: { 'CF-Connecting-IP': ip },
+    body: json({ email }),
+  });
+const darCodigo = (email, codigo, extra = {}) =>
+  pedir('/api/balcao/entrar/email/codigo', {
+    method: 'POST',
+    headers: { 'CF-Connecting-IP': ipNovo() },
+    body: json({ email, codigo, ...extra }),
+  });
+/** Os códigos deste email (de ensaio) ficam com mais `s` segundos; com a validade, caducam também. */
+const envelhecer = (email, s, comValidade = false) =>
+  naBaseLocal(
+    '--command',
+    `UPDATE codigos_de_entrada SET criado_em = criado_em - ${s}${comValidade ? `, expira_em = expira_em - ${s}` : ''} WHERE email = '${email}'`,
+  );
+const quemE = async (sessao) =>
+  (await (await pedir('/api/balcao/eu', { token: sessao })).json()).pessoa.id;
+const outroCodigo = (c) => c.slice(0, 5) + String((Number(c[5]) + 1) % 10);
+async function pessoaDaProva(nome, email, papel = 'barbeiro') {
+  const parceiroId = daBaseLocal('SELECT id FROM parceiros ORDER BY id LIMIT 1')[0].id;
+  const r = await pedir('/api/bo/equipa', {
+    method: 'POST',
+    token,
+    body: json({
+      nome,
+      email,
+      papel,
+      lojaId: papel === 'parceiro' ? null : lojaDaProva,
+      parceiroId: papel === 'parceiro' ? parceiroId : null,
+    }),
+  });
+  assert.equal(r.status, 201, `criar ${nome}`);
+  return (await r.json()).find((p) => p.nome === nome).id;
+}
+const tirarDaEquipa = async (id) =>
+  assert.equal((await pedir(`/api/bo/equipa/${id}`, { method: 'DELETE', token })).status, 200);
+
+let parceiraEmail;
+let codigoDaParceira;
+await passo(
+  'código por email: a mesma resposta para quem é e para quem não é da equipa; o código nunca na base',
+  async () => {
+    assert.deepEqual(await (await pedir('/api/balcao/entrar/formas')).json(), { email: true });
+    parceiraEmail = await pessoaDaProva('Parceira Email', 'geral@restaurante-prova.pt', 'parceiro');
+    const da = await pedirCodigo('  Geral@Restaurante-Prova.PT ');
+    const de = await pedirCodigo('ninguem@restaurante-prova.pt');
+    assert.equal(da.status, 200);
+    assert.equal(de.status, 200);
+    const [a, b] = [await da.json(), await de.json()];
+    assert.match(a.codigoDeEnsaio, /^\d{6}$/, 'o código só vem na resposta no wrangler dev');
+    assert.equal(b.codigoDeEnsaio, null, 'para quem não é da equipa não sai código');
+    assert.deepEqual(
+      { ...a, codigoDeEnsaio: 0 },
+      { ...b, codigoDeEnsaio: 0 },
+      'o resto da resposta é igual',
+    );
+    assert.equal(a.reenviarEm, 30);
+    codigoDaParceira = a.codigoDeEnsaio;
+    const linhas = daBaseLocal(
+      "SELECT email, pessoa_id, rede, hex(resumo) AS resumo FROM codigos_de_entrada WHERE email LIKE '%@restaurante-prova.pt' ORDER BY id",
+    );
+    assert.equal(linhas.length, 2);
+    assert.equal(linhas[0].email, 'geral@restaurante-prova.pt', 'o email normalizado');
+    assert.equal(linhas[0].pessoa_id, parceiraEmail);
+    assert.equal(linhas[1].pessoa_id, null);
+    assert.match(linhas[0].rede, /^[0-9a-f]{32}$/, 'a rede resumida, não o endereço');
+    assert.ok(!JSON.stringify(linhas).includes(codigoDaParceira), 'o código não fica na base');
+    const invalido = await pedirCodigo('isto não é um email');
+    assert.equal(invalido.status, 400);
+    assert.equal((await invalido.json()).erro, 'email_invalido');
+    // Outra vez antes dos 30 s: vale o que já foi, e não sai outro.
+    const repetido = await (await pedirCodigo('geral@restaurante-prova.pt')).json();
+    assert.equal(repetido.ok, true);
+    assert.equal(repetido.codigoDeEnsaio, undefined);
+    assert.ok(repetido.reenviarEm > 0 && repetido.reenviarEm <= 30);
+    assert.equal(
+      daBaseLocal(
+        "SELECT count(*) AS n FROM codigos_de_entrada WHERE email = 'geral@restaurante-prova.pt'",
+      )[0].n,
+      1,
+    );
+  },
+);
+
+await passo(
+  'código por email: cinco enganos acabam com ele; o certo entra, uma vez, na pessoa que a Google e a Apple do mesmo email abrem',
+  async () => {
+    const email = 'geral@restaurante-prova.pt';
+    const errado = outroCodigo(codigoDaParceira);
+    for (let i = 1; i <= 4; i++) {
+      const r = await darCodigo(email, errado);
+      assert.equal(r.status, 401);
+      assert.equal((await r.json()).erro, 'codigo_errado', `engano ${i}`);
+    }
+    const quinto = await darCodigo(email, errado);
+    assert.equal((await quinto.json()).erro, 'codigo_esgotado', 'o 5.º engano acaba com ele');
+    const tarde = await darCodigo(email, codigoDaParceira);
+    assert.equal(tarde.status, 401);
+    assert.equal((await tarde.json()).erro, 'codigo_esgotado', 'nem o certo, depois disso');
+    envelhecer(email, 31);
+    const novo = (await (await pedirCodigo(email)).json()).codigoDeEnsaio;
+    assert.match(novo, /^\d{6}$/);
+    const formato = await darCodigo(email, '12345');
+    assert.equal(formato.status, 400, 'cinco algarismos não chegam à base');
+    const entrou = await darCodigo(email.toUpperCase(), novo);
+    assert.equal(entrou.status, 200);
+    const { sessao } = await entrou.json();
+    assert.equal(await quemE(sessao), parceiraEmail);
+    const outraVez = await darCodigo(email, novo);
+    assert.equal((await outraVez.json()).erro, 'codigo_caducado', 'um código entra uma vez');
+    // As três portas, a mesma pessoa.
+    const google = await (await entrarEquipaCom('google', 'g-geral', email)).json();
+    const apple = await (await entrarEquipaCom('apple', 'a-geral', email)).json();
+    assert.equal(await quemE(google.sessao), parceiraEmail);
+    assert.equal(await quemE(apple.sessao), parceiraEmail);
+  },
+);
+
+await passo(
+  'código por email: o mais antigo ainda vale, dez minutos e já não; cinco por hora, iguais para quem não é da equipa; dez por rede',
+  async () => {
+    const email = 'geral@restaurante-prova.pt';
+    envelhecer(email, 31);
+    const primeiro = (await (await pedirCodigo(email)).json()).codigoDeEnsaio;
+    envelhecer(email, 31);
+    const segundo = (await (await pedirCodigo(email)).json()).codigoDeEnsaio;
+    assert.equal((await darCodigo(email, primeiro)).status, 200, 'o primeiro chegou depois');
+    assert.equal(
+      (await (await darCodigo(email, segundo)).json()).erro,
+      'codigo_caducado',
+      'entrar acaba com os outros',
+    );
+    envelhecer(email, 31);
+    const quinto = (await (await pedirCodigo(email)).json()).codigoDeEnsaio;
+    envelhecer(email, 601, true);
+    assert.equal(
+      (await (await darCodigo(email, quinto)).json()).erro,
+      'codigo_caducado',
+      'passados 10 minutos',
+    );
+    // Cinco códigos nesta hora: o sexto espera, para este email e para um de fora da equipa.
+    const cheio = await pedirCodigo(email);
+    assert.equal(cheio.status, 429);
+    assert.equal((await cheio.json()).erro, 'muitos_codigos');
+    const fora = 'outra.pessoa@restaurante-prova.pt';
+    for (let i = 0; i < 5; i++) {
+      assert.equal((await pedirCodigo(fora)).status, 200);
+      envelhecer(fora, 31);
+    }
+    assert.equal((await pedirCodigo(fora)).status, 429, 'o mesmo limite para quem não é da equipa');
+    // Dez pedidos da mesma rede numa hora, cada um para o seu email.
+    const rede = '10.77.0.1';
+    for (let i = 0; i < 10; i++)
+      assert.equal((await pedirCodigo(`rede${i}@restaurante-prova.pt`, rede)).status, 200);
+    assert.equal((await pedirCodigo('rede10@restaurante-prova.pt', rede)).status, 429);
+    assert.equal((await pedirCodigo('rede10@restaurante-prova.pt')).status, 200, 'outra rede');
+  },
+);
+
+await passo(
+  'código por email: a Apple escondida e a Google de outro email ficam ligadas, e da vez seguinte entram sozinhas',
+  async () => {
+    const email = 'barbeira@empresa-prova.pt';
+    const barbeira = await pessoaDaProva('Barbeira Email', email);
+    const escondida = await entrarEquipaCom('apple', 'a-escondida', null);
+    assert.equal(escondida.status, 403);
+    const { erro, ligar } = await escondida.json();
+    assert.equal(erro, 'email_escondido');
+    assert.match(ligar, /^[A-Za-z0-9_-]{43}$/);
+    const c1 = (await (await pedirCodigo(email)).json()).codigoDeEnsaio;
+    const comLigar = await darCodigo(email, c1, { ligar });
+    assert.equal(comLigar.status, 200);
+    assert.equal(await quemE((await comLigar.json()).sessao), barbeira);
+    assert.deepEqual(
+      daBaseLocal(
+        "SELECT pessoa_id, ligada FROM identidades_da_equipa WHERE tipo = 'apple' AND sujeito = 'a-escondida'",
+      ),
+      [{ pessoa_id: barbeira, ligada: 1 }],
+    );
+    const sozinha = await entrarEquipaCom('apple', 'a-escondida', null);
+    assert.equal(sozinha.status, 200, 'a Apple escondida já entra');
+    assert.equal(await quemE((await sozinha.json()).sessao), barbeira);
+    const relay = await entrarEquipaCom('apple', 'a-escondida', 'zz@privaterelay.appleid.com');
+    assert.equal(relay.status, 200, 'e com o relay também');
+    // Uma ligação só serve uma vez.
+    envelhecer(email, 31);
+    const c2 = (await (await pedirCodigo(email)).json()).codigoDeEnsaio;
+    assert.equal((await darCodigo(email, c2, { ligar })).status, 200, 'entra, sem ligar nada');
+    // A Google de outro email.
+    const pessoal = await entrarEquipaCom('google', 'g-pessoal', 'pessoal.prova@gmail.com');
+    assert.equal(pessoal.status, 403);
+    const g = await pessoal.json();
+    assert.equal(g.erro, 'sem_acesso');
+    envelhecer(email, 31);
+    const c3 = (await (await pedirCodigo(email)).json()).codigoDeEnsaio;
+    assert.equal((await darCodigo(email, c3, { ligar: g.ligar })).status, 200);
+    const depois = await entrarEquipaCom('google', 'g-pessoal', 'pessoal.prova@gmail.com');
+    assert.equal(depois.status, 200);
+    assert.equal(await quemE((await depois.json()).sessao), barbeira);
+    // Uma ligação caducada: entra-se com o código, mas não liga nada.
+    const caduca = await (await entrarEquipaCom('google', 'g-caduca', 'caduca@gmail.com')).json();
+    naBaseLocal('--command', 'UPDATE ligacoes_da_equipa SET expira_em = unixepoch() - 1');
+    envelhecer(email, 31);
+    const c4 = (await (await pedirCodigo(email)).json()).codigoDeEnsaio;
+    assert.equal((await darCodigo(email, c4, { ligar: caduca.ligar })).status, 200);
+    assert.equal((await entrarEquipaCom('google', 'g-caduca', 'caduca@gmail.com')).status, 403);
+    // Uma forma guardada só por o email bater certo não abre a sessão quando o email muda.
+    const mudar = await pedir(`/api/bo/equipa/${parceiraEmail}`, {
+      method: 'PATCH',
+      token,
+      body: json({ email: 'novo@restaurante-prova.pt' }),
+    });
+    assert.equal(mudar.status, 200);
+    assert.equal(
+      (await entrarEquipaCom('apple', 'a-geral', 'geral@restaurante-prova.pt')).status,
+      403,
+      'a Apple de antes da mudança já não entra',
+    );
+    // Mudar o email da barbeira leva as formas ligadas ao antigo.
+    const mudarB = await pedir(`/api/bo/equipa/${barbeira}`, {
+      method: 'PATCH',
+      token,
+      body: json({ email: 'barbeira.nova@empresa-prova.pt' }),
+    });
+    assert.equal(mudarB.status, 200);
+    assert.equal((await entrarEquipaCom('apple', 'a-escondida', null)).status, 403);
+    assert.equal(
+      (await entrarEquipaCom('google', 'g-pessoal', 'pessoal.prova@gmail.com')).status,
+      403,
+    );
+    assert.equal(
+      daBaseLocal(
+        `SELECT count(*) AS n FROM identidades_da_equipa WHERE pessoa_id = ${barbeira} AND ligada = 1`,
+      )[0].n,
+      0,
+    );
+    // Mudar só o nome não mexe nas formas ligadas.
+    const nova = await (await entrarEquipaCom('apple', 'a-nova', null)).json();
+    const c5 = (await (await pedirCodigo('barbeira.nova@empresa-prova.pt')).json()).codigoDeEnsaio;
+    assert.equal(
+      (await darCodigo('barbeira.nova@empresa-prova.pt', c5, { ligar: nova.ligar })).status,
+      200,
+    );
+    await pedir(`/api/bo/equipa/${barbeira}`, {
+      method: 'PATCH',
+      token,
+      body: json({ nome: 'Barbeira Email Dois' }),
+    });
+    assert.equal((await entrarEquipaCom('apple', 'a-nova', null)).status, 200);
+    await tirarDaEquipa(barbeira);
+    assert.equal((await entrarEquipaCom('apple', 'a-nova', null)).status, 403, 'tirou-se: acabou');
+  },
+);
+
+await passo(
+  'código por email: quem sai da equipa já não entra; quinze enganos num dia fecham o email',
+  async () => {
+    const email = 'saiu@empresa-prova.pt';
+    const saiu = await pessoaDaProva('Saiu Email', email);
+    const c = (await (await pedirCodigo(email)).json()).codigoDeEnsaio;
+    await tirarDaEquipa(saiu);
+    const r = await darCodigo(email, c);
+    assert.equal(r.status, 403);
+    assert.equal((await r.json()).erro, 'sem_acesso');
+    envelhecer(email, 31);
+    assert.equal((await (await pedirCodigo(email)).json()).codigoDeEnsaio, null);
+    const teimoso = 'teimoso@empresa-prova.pt';
+    const id = await pessoaDaProva('Teimoso Email', teimoso);
+    let certo;
+    for (let codigo = 0; codigo < 3; codigo++) {
+      certo = (await (await pedirCodigo(teimoso)).json()).codigoDeEnsaio;
+      for (let i = 0; i < 5; i++) await darCodigo(teimoso, outroCodigo(certo));
+      envelhecer(teimoso, 31);
+    }
+    certo = (await (await pedirCodigo(teimoso)).json()).codigoDeEnsaio;
+    const fechado = await darCodigo(teimoso, certo);
+    assert.equal(fechado.status, 429);
+    assert.equal((await fechado.json()).erro, 'codigo_bloqueado');
+    await tirarDaEquipa(id);
+    await tirarDaEquipa(parceiraEmail);
   },
 );
 

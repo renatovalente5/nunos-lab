@@ -16,6 +16,27 @@ export const en: Textos = {
   },
   entrar: {
     comAConta: 'Sign in with the account Nuno added.',
+    continuarComEmail: 'Continue with email',
+    escondidoComEmail:
+      'Apple hid your email. Continue with email and your Apple account will be linked.',
+    semAcessoComEmail:
+      'This account isn’t on the team. If Nuno added another email of yours, continue with that email and this account will be linked.',
+  },
+  email: {
+    titulo: 'Sign in with email',
+    oTeuEmail: 'Your email',
+    enviarCodigo: 'Send code',
+    ficaLigada: (tipo: 'apple' | 'google') =>
+      `Your ${tipo === 'apple' ? 'Apple' : 'Google'} account will be linked at the end.`,
+    tituloDoCodigo: 'Enter the code',
+    enviadoPara: (email: string) => `Code sent to ${email}.`,
+    rotuloDoCodigo: '6-digit code',
+    aEntrar: 'Signing in…',
+    reenviar: 'Resend code',
+    reenviarDaqui: (s: number) => `Resend in ${s}s`,
+    reenviado: 'New code sent.',
+    mudarEmail: 'Change email',
+    soChegaAoRegistado: 'It only arrives if it’s the email Nuno added.',
   },
   inicio: {
     casaEConta: 'Barbershop and account',
@@ -194,6 +215,13 @@ export const en: Textos = {
     email_escondido:
       'Apple hid your email, and that’s how the team knows you. Sign in with Google, or stop using Sign in with Apple for this app in Settings, then sign in again and choose “Share My Email”.',
     muitas_tentativas: 'Too many attempts. Try again in a minute.',
+    email_desligado: 'Signing in with email isn’t available yet.',
+    email_invalido: 'That email doesn’t look right.',
+    muitos_codigos: 'You’ve asked for several codes. Wait a little and try again.',
+    codigo_errado: 'Wrong code. Check the email.',
+    codigo_caducado: 'This code is no longer valid. Ask for a new one.',
+    codigo_esgotado: 'Too many wrong tries. Ask for a new code.',
+    codigo_bloqueado: 'Too many wrong tries for this email. Try again later.',
     codigo_invalido: 'Wrong code.',
     cartao_desconhecido: 'This code doesn’t match any card.',
     outra_casa: 'Your account can’t stamp at this barbershop.',

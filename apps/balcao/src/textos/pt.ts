@@ -18,6 +18,28 @@ export const pt = {
   },
   entrar: {
     comAConta: 'Entra com a conta que o Nuno registou.',
+    continuarComEmail: 'Continuar com email',
+    // A Apple ou a Google que não deu com ninguém: com o código do email da equipa, fica ligada.
+    escondidoComEmail:
+      'A Apple escondeu o teu email. Continua com email: a Apple fica ligada à tua conta.',
+    semAcessoComEmail:
+      'Esta conta não está na equipa. Se o Nuno registou outro email teu, continua com esse email: esta conta fica ligada.',
+  },
+  email: {
+    titulo: 'Entrar com email',
+    oTeuEmail: 'O teu email',
+    enviarCodigo: 'Enviar código',
+    ficaLigada: (tipo: 'apple' | 'google') =>
+      `No fim, a tua conta ${tipo === 'apple' ? 'Apple' : 'Google'} fica ligada.`,
+    tituloDoCodigo: 'Escreve o código',
+    enviadoPara: (email: string) => `Código enviado para ${email}.`,
+    rotuloDoCodigo: 'Código de 6 algarismos',
+    aEntrar: 'A entrar…',
+    reenviar: 'Reenviar o código',
+    reenviarDaqui: (s: number) => `Reenviar daqui a ${s} s`,
+    reenviado: 'Código novo enviado.',
+    mudarEmail: 'Mudar o email',
+    soChegaAoRegistado: 'Só chega se for o email que o Nuno registou.',
   },
   inicio: {
     casaEConta: 'Barbearia e conta',
@@ -215,6 +237,13 @@ export const pt = {
     email_escondido:
       'A Apple escondeu o teu email, e é por ele que a equipa te conhece. Entra com o Google, ou deixa de usar «Iniciar sessão com a Apple» nesta app nas Definições e volta a entrar escolhendo «Partilhar o meu email».',
     muitas_tentativas: 'Demasiadas tentativas. Espera um minuto.',
+    email_desligado: 'Entrar com email ainda não está disponível.',
+    email_invalido: 'Esse email não parece certo.',
+    muitos_codigos: 'Já pediste vários códigos. Espera um pouco e tenta outra vez.',
+    codigo_errado: 'Código errado. Confirma no email.',
+    codigo_caducado: 'Este código já não vale. Pede outro.',
+    codigo_esgotado: 'Erraste demasiadas vezes. Pede um código novo.',
+    codigo_bloqueado: 'Demasiados enganos com este email. Tenta mais tarde.',
     codigo_invalido: 'Código errado.',
     cartao_desconhecido: 'Este código não é de nenhum cartão.',
     outra_casa: 'A tua conta não carimba nesta barbearia.',

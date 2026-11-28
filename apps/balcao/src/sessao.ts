@@ -51,6 +51,8 @@ const CHAVE_DA_SESSAO = 'nunoslab:balcao:sessao';
 const CHAVE_DO_EU = 'nunoslab:balcao:eu:1';
 const CHAVE_DA_CASA = 'nunoslab:balcao:casa';
 const CHAVE_DA_FILA = 'nunoslab:balcao:fila';
+/** Se a API manda códigos por email (o último que disse), para o botão aparecer logo ao abrir. */
+const CHAVE_DAS_FORMAS = 'nunoslab:balcao:formas';
 
 const ouvintes = new Set<() => void>();
 const avisar = () => {
@@ -65,7 +67,13 @@ for (const antiga of ['nunoslab:balcao:fichas:1', 'nunoslab:balcao:recusas'])
   escrever(antiga, null);
 
 /** As chaves que a app guarda no aparelho (o telemóvel carrega-as ao arrancar). */
-export const CHAVES_DO_ARMAZEM = [CHAVE_DA_LINGUA, CHAVE_DO_EU, CHAVE_DA_CASA, CHAVE_DA_FILA];
+export const CHAVES_DO_ARMAZEM = [
+  CHAVE_DA_LINGUA,
+  CHAVE_DO_EU,
+  CHAVE_DA_CASA,
+  CHAVE_DA_FILA,
+  CHAVE_DAS_FORMAS,
+];
 export const CHAVES_SECRETAS = [CHAVE_DA_SESSAO];
 
 export const sessao = () => ler(CHAVE_DA_SESSAO);
@@ -216,6 +224,44 @@ export function useEu() {
     staleTime: 60_000,
     retry: 1,
   });
+}
+
+/**
+ * As formas de entrar além da Apple e da Google: o código por email só aparece quando a API tiver como
+ * o mandar (o remetente no domínio do Nuno). Uma API sem esta morada (antes de 28 nov 2026) responde 404,
+ * e o botão não aparece.
+ */
+export function useFormasDeEntrar() {
+  return useQuery({
+    queryKey: ['balcao', 'formas'],
+    queryFn: async () => {
+      const formas = await pedir<{ email: boolean }>('/entrar/formas');
+      escrever(CHAVE_DAS_FORMAS, formas.email ? '1' : '0');
+      return formas;
+    },
+    initialData: () => {
+      const v = ler(CHAVE_DAS_FORMAS);
+      return v === null ? undefined : { email: v === '1' };
+    },
+    initialDataUpdatedAt: 0,
+    networkMode: 'always',
+    staleTime: 60_000,
+    retry: 1,
+  });
+}
+
+/**
+ * A Apple ou a Google que não deu com ninguém da equipa: a recusa trouxe uma ligação, que segue com o
+ * código do email da equipa e liga essa forma à pessoa. Só na memória, e por menos tempo do que a API a
+ * guarda (15 minutos).
+ */
+let porLigar: { ligar: string; tipo: 'apple' | 'google'; ate: number } | null = null;
+export function guardarFormaPorLigar(ligar: string, tipo: 'apple' | 'google') {
+  porLigar = { ligar, tipo, ate: Date.now() + 14 * 60_000 };
+}
+export const formaPorLigar = () => (porLigar && porLigar.ate > Date.now() ? porLigar : null);
+export function largarFormaPorLigar() {
+  porLigar = null;
 }
 
 /** A casa activa: a fixa da pessoa, ou a guardada, ou a primeira. */

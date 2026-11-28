@@ -112,7 +112,7 @@ if (!balcao.includes(`src="${BALCAO}/_expo/static/js/web/`))
 if (!balcao.includes(`<meta name="apple-itunes-app" content="app-id=${naLoja('balcao')}"`))
   throw new Error('A Balcão saiu sem a faixa da App Store');
 writeFileSync(join(site, 'balcao/index.html'), balcao);
-for (const rota of ['ler', 'novo', 'clientes', 'resumo', 'conta']) {
+for (const rota of ['ler', 'novo', 'clientes', 'resumo', 'conta', 'email']) {
   mkdirSync(join(site, 'balcao', rota), { recursive: true });
   writeFileSync(join(site, 'balcao', rota, 'index.html'), balcao);
 }
