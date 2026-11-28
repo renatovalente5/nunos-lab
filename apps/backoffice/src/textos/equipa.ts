@@ -16,7 +16,8 @@ export const pt = {
   exemploDeNome: 'ex.: Nuno',
   email: 'Email',
   exemploDeEmail: 'nome@gmail.com',
-  ajudaDoEmail: 'Entra na app for partners com o Google ou a Apple deste email.',
+  ajudaDoEmail:
+    'Entra na app for partners com este email: com um código que lhe chega, ou com a Google ou a Apple dele.',
   papel: 'Papel',
   casa: 'Barbearia',
   activo: 'Activo',
@@ -100,7 +101,8 @@ export const en: typeof pt = {
   exemploDeNome: 'e.g. Nuno',
   email: 'Email',
   exemploDeEmail: 'name@gmail.com',
-  ajudaDoEmail: 'They sign in to the partner app with the Google or Apple account for this email.',
+  ajudaDoEmail:
+    'They sign in to the partner app with this email: with a code sent to it, or with its Google or Apple account.',
   papel: 'Role',
   casa: 'Barbershop',
   activo: 'Active',

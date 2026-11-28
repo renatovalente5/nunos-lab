@@ -30,6 +30,10 @@
     // Usos do saldo por sessão da Balcão (20 por minuto): uma sessão roubada não esvazia saldos em série.
     { "name": "USAR_SALDO", "namespace_id": "7105", "simple": { "limit": 20, "period": 60 } },
   ],
+  // O código para entrar na for partners por email (28 nov 2026), pelo Email Sending da conta. Até o
+  // nunoslab.com estar na Cloudflare sai do carimbodigital.pt (decisão do Renato, 28 nov); depois troca-se
+  // aqui e no EMAIL_REMETENTE para app@nunoslab.com. Sem o binding, a for partners não mostra o botão.
+  "send_email": [{ "name": "EMAIL", "allowed_sender_addresses": ["nunoslab@carimbodigital.pt"] }],
   // O Workers AI da conta: traduz para inglês o que o backoffice guarda só em português
   // (src/traducao.ts). No «wrangler dev» também vai à Cloudflare (conta no gratuito diário).
   "ai": { "binding": "AI" },
@@ -59,6 +63,8 @@
     // A conta da revisão das lojas na for partners: a pessoa «App Review» (barbeiro da Nogueira, criada a
     // 8 nov 2026 para a Apple). A API prende-a aos clientes de exemplo; não se apaga entre versões.
     "REVISAO_PESSOA": "908",
+    // O remetente do código por email (com o nome «Nuno's Lab for partners»): ver o send_email acima.
+    "EMAIL_REMETENTE": "nunoslab@carimbodigital.pt",
   },
   // Os segredos (wrangler secret put): APPLE_CERTIFICADO, APPLE_CHAVE, APPLE_CADEIA,
   // APNS_CHAVE, WALLET_SEGREDO, GOOGLE_WALLET_CONTA, MAPKIT_CHAVE.

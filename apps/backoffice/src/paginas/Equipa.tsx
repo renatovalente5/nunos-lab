@@ -51,8 +51,8 @@ export const useEquipa = () =>
   });
 
 /**
- * Quem carimba na app for partners: o dono e os barbeiros de cada casa. Cada um entra com o Google
- * ou a Apple do email que aqui está.
+ * Quem carimba na app for partners: o dono e os barbeiros de cada casa. Cada um entra com o email que
+ * aqui está: com um código mandado a ele, ou com a Google ou a Apple desse email (28 nov 2026).
  */
 export function Equipa() {
   const t = useTextos();
