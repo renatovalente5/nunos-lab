@@ -18,7 +18,7 @@ import { limpar } from './limpeza.ts';
 import { rotasDoMapa } from './mapa.ts';
 import { rotasPublicas } from './publico.ts';
 import { rotasDaWallet, rotasDaWalletDoCliente } from './wallet/rotas.ts';
-import { refrescarSePreciso } from './wallet/servico.ts';
+import { avisosDaFila, refrescarSePreciso, type AvisoDoPasse } from './wallet/servico.ts';
 
 const app = new Hono<Ambiente>();
 
@@ -84,4 +84,8 @@ export default {
   async scheduled(_evento, env, ctx) {
     ctx.waitUntil(limpar(env));
   },
-} satisfies ExportedHandler<Env>;
+  // Os avisos dos passes quando mudam todos (refrescarPasses): a fila «nunos-lab-passes».
+  async queue(lote, env) {
+    await avisosDaFila(lote, env);
+  },
+} satisfies ExportedHandler<Env, AvisoDoPasse>;

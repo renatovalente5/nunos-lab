@@ -161,67 +161,81 @@ export async function tokenDaGoogle(conta: ContaDeServico): Promise<string> {
 }
 
 const API = 'https://walletobjects.googleapis.com/walletobjects/v1';
+const cabecalhos = (token: string) => ({
+  Authorization: `Bearer ${token}`,
+  'Content-Type': 'application/json',
+});
 
 /** O objecto antigo fica inactivo (o telemóvel perdido não o vê activo): «perdi o telemóvel». */
 export async function desactivarObjeto(token: string, id: string) {
   const r = await fetch(`${API}/loyaltyObject/${encodeURIComponent(id)}`, {
     method: 'PATCH',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: cabecalhos(token),
     body: JSON.stringify({ state: 'INACTIVE' }),
   });
   if (!r.ok && r.status !== 404) throw new Error(`O objecto não se desactivou: ${r.status}`);
 }
 
-/** Garante a classe e põe o objecto como está (cria ou substitui). */
-export async function actualizarObjeto(
-  token: string,
-  emissor: string,
-  origemDaApp: string,
-  c: CartaoDaGoogle,
-) {
-  const cabecalhos = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-  const classeR = await fetch(`${API}/loyaltyClass/${encodeURIComponent(classeId(emissor))}`, {
-    headers: cabecalhos,
-  });
-  if (classeR.status === 404) {
+/** O que a Google diz quando recusa (sem isto, só o número: o 400 da classe ficou três semanas por explicar). */
+async function motivo(r: Response): Promise<string> {
+  const j = (await r.json().catch(() => null)) as { error?: { message?: string } } | null;
+  return j?.error?.message ?? '';
+}
+
+/**
+ * A classe existe e tem o nome do programa e a ligação da app nas duas línguas. Uma vez por
+ * refrescamento (e ao guardar o primeiro cartão), não por objecto. Só falha se a classe não existir
+ * e não se criar: o resto fica nos registos e não pára os objectos.
+ */
+export async function garantirClasse(token: string, emissor: string, origemDaApp: string) {
+  // A classe é uma só, a da produção: o «wrangler dev» (http://localhost) não a cria nem lhe muda a ligação.
+  if (!origemDaApp.startsWith('https://')) return;
+  const url = `${API}/loyaltyClass/${encodeURIComponent(classeId(emissor))}`;
+  const r = await fetch(url, { headers: cabecalhos(token) });
+  if (r.status === 404) {
+    await r.body?.cancel();
     const criada = await fetch(`${API}/loyaltyClass`, {
       method: 'POST',
-      headers: cabecalhos,
+      headers: cabecalhos(token),
       body: JSON.stringify(classe(emissor, origemDaApp)),
     });
     if (!criada.ok && criada.status !== 409)
-      throw new Error(`A classe não se criou: ${criada.status}`);
-  } else if (classeR.ok) {
-    // A classe de antes do inglês (7 nov) ganha o nome do programa e a ligação da app em inglês.
-    // Falhar aqui não pára o objecto.
-    const actual = (await classeR.json().catch(() => ({}))) as {
-      localizedProgramName?: unknown;
-      homepageUri?: { localizedDescription?: unknown };
-    };
-    if (!actual.localizedProgramName || !actual.homepageUri?.localizedDescription)
-      await fetch(`${API}/loyaltyClass/${encodeURIComponent(classeId(emissor))}`, {
-        method: 'PATCH',
-        headers: cabecalhos,
-        body: JSON.stringify({
-          localizedProgramName: NOME_DO_PROGRAMA,
-          homepageUri: PAGINA_DA_APP(origemDaApp),
-        }),
-      })
-        .then((r) => !r.ok && console.error('classe da google', r.status))
-        .catch((e) => console.error('classe da google', e));
+      throw new Error(`A classe não se criou: ${criada.status} ${await motivo(criada)}`);
+    await criada.body?.cancel();
+    return;
   }
-  const existe = await fetch(`${API}/loyaltyObject/${encodeURIComponent(c.id)}`, {
-    headers: cabecalhos,
+  if (!r.ok) return console.error('classe da google', r.status, await motivo(r));
+  const actual = (await r.json().catch(() => ({}))) as {
+    localizedProgramName?: unknown;
+    homepageUri?: { localizedDescription?: unknown };
+  };
+  if (actual.localizedProgramName && actual.homepageUri?.localizedDescription) return;
+  // A classe de antes do inglês (7 nov) ganha o nome do programa e a ligação da app em inglês. Uma
+  // classe aprovada só muda com «UNDER_REVIEW» (a Google aprova-a outra vez sozinha); sem ele dá 400
+  // «Invalid review status "APPROVED"», como deu em todos os refrescamentos até 26 nov 2026.
+  const p = await fetch(url, {
+    method: 'PATCH',
+    headers: cabecalhos(token),
+    body: JSON.stringify({
+      reviewStatus: 'UNDER_REVIEW',
+      localizedProgramName: NOME_DO_PROGRAMA,
+      homepageUri: PAGINA_DA_APP(origemDaApp),
+    }),
   });
-  const r = await fetch(
-    existe.status === 404
-      ? `${API}/loyaltyObject`
-      : `${API}/loyaltyObject/${encodeURIComponent(c.id)}`,
-    {
-      method: existe.status === 404 ? 'POST' : 'PUT',
-      headers: cabecalhos,
-      body: JSON.stringify(objeto(emissor, c)),
-    },
-  );
-  if (!r.ok) throw new Error(`O objecto não se guardou: ${r.status}`);
+  if (!p.ok) return console.error('classe da google', p.status, await motivo(p));
+  await p.body?.cancel();
+}
+
+/** Põe o objecto como está: substitui-o (PUT) e, se ainda não existe, cria-o (POST). */
+export async function guardarObjeto(token: string, emissor: string, c: CartaoDaGoogle) {
+  const pedido = (url: string, method: 'PUT' | 'POST') =>
+    fetch(url, { method, headers: cabecalhos(token), body: JSON.stringify(objeto(emissor, c)) });
+  let r = await pedido(`${API}/loyaltyObject/${encodeURIComponent(c.id)}`, 'PUT');
+  if (r.status === 404) {
+    await r.body?.cancel();
+    r = await pedido(`${API}/loyaltyObject`, 'POST');
+  }
+  if (!r.ok) throw new Error(`O objecto não se guardou: ${r.status} ${await motivo(r)}`);
+  // A Google devolve o objecto inteiro: não se lê, mas fecha-se (o Worker só tem 6 ligações).
+  await r.body?.cancel();
 }

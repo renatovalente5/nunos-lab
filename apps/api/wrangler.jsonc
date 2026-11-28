@@ -39,6 +39,23 @@
   "ai": { "binding": "AI" },
   // A limpeza da madrugada: ligações e sessões caducadas, imagens sem dono.
   "triggers": { "crons": ["23 3 * * *"] },
+  // Os avisos dos passes quando mudam todos (barbearias, programa, VERSAO_DO_PASSE): uma mensagem
+  // por série da Apple e por cartão da Google. Saíram do waitUntil (só 30 s depois da resposta, que
+  // a 26 nov 2026 já não chegavam): cada lote tem 15 minutos. Um lote de cada vez, para o bilhete
+  // da APNs se renovar num sítio só; o que falha volta daqui a um minuto, até 3 vezes. A fila
+  // cria-se uma vez, antes de publicar: npx wrangler queues create nunos-lab-passes
+  "queues": {
+    "producers": [{ "binding": "PASSES", "queue": "nunos-lab-passes" }],
+    "consumers": [
+      {
+        "queue": "nunos-lab-passes",
+        "max_batch_size": 100,
+        "max_batch_timeout": 1,
+        "max_concurrency": 1,
+        "max_retries": 3,
+      },
+    ],
+  },
   "vars": {
     // A app e o backoffice vivem no GitHub Pages; a API só responde a esta origem.
     // No «wrangler dev», o .dev.vars sobrepõe-na com as do localhost.

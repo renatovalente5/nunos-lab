@@ -8,7 +8,7 @@ import { z } from 'zod';
 import type { Ambiente, C } from '../ambiente.ts';
 import { agora, corpo, recusar, sha256 } from '../util.ts';
 import { buffer } from './bytes.ts';
-import { actualizarObjeto, ligacaoParaGuardar, tokenDaGoogle } from './google.ts';
+import { garantirClasse, guardarObjeto, ligacaoParaGuardar, tokenDaGoogle } from './google.ts';
 import { heroDoCartao, VERSAO_DO_DESENHO } from './grelha.ts';
 import {
   appleLigada,
@@ -83,12 +83,12 @@ rotasDaWalletDoCliente.post('/wallet/google', async (c) => {
   // vez de um emissor não pode cair numa classe que ainda não há.
   try {
     const token = await tokenDaGoogle(conta);
-    await actualizarObjeto(
+    await garantirClasse(
       token,
       c.env.GOOGLE_WALLET_EMISSOR,
       configuracaoDoPasse(c.env, '').origemDaApp,
-      cartaoG,
     );
+    await guardarObjeto(token, c.env.GOOGLE_WALLET_EMISSOR, cartaoG);
   } catch (e) {
     console.error('google', e);
   }

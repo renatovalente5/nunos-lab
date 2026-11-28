@@ -16,8 +16,9 @@ import { agora, aleatorio, hex, sha256 } from '../util.ts';
 import { assinarBilheteApns, avisarApns, BILHETE_APNS_VALE } from './apns.ts';
 import { buffer } from './bytes.ts';
 import {
-  actualizarObjeto,
   desactivarObjeto,
+  garantirClasse,
+  guardarObjeto,
   tokenDaGoogle,
   type CartaoDaGoogle,
   type ContaDeServico,
@@ -282,9 +283,9 @@ export function tocarPasse(c: C, clienteId: number) {
     (async () => {
       const db = c.env.DB;
       const passe = await db
-        .prepare('SELECT serie FROM passes WHERE cliente_id = ?')
+        .prepare('SELECT serie, google_em FROM passes WHERE cliente_id = ?')
         .bind(clienteId)
-        .first<{ serie: string }>();
+        .first<{ serie: string; google_em: number | null }>();
       if (!passe) return;
       // Sempre a avançar: duas mudanças no mesmo segundo davam a mesma etiqueta, e a 2.ª não chegava à Wallet.
       await db
@@ -293,32 +294,91 @@ export function tocarPasse(c: C, clienteId: number) {
         )
         .bind(clienteId)
         .run();
-      await Promise.allSettled([avisarApple(c.env, passe.serie), avisarGoogle(c.env, clienteId)]);
+      // Só quem guardou na Google (google_em) é que se actualiza: poupa a API.
+      const feito = await Promise.allSettled([
+        avisarApple(c.env, [passe.serie]),
+        passe.google_em ? avisarGoogle(c.env, [clienteId]) : null,
+      ]);
+      for (const f of feito) if (f.status === 'rejected') console.error('passe', f.reason);
     })().catch((e) => console.error('passe', e)),
   );
 }
 
+/** O que vai na fila «nunos-lab-passes»: uma série da Apple (os aparelhos dela) ou um cliente com o cartão na Google. */
+export type AvisoDoPasse = { apple: string } | { google: number };
+
 /**
- * Todos os passes passam a «actualizado agora», cada aparelho registado na
- * Apple recebe um toque, e a Google recebe os objectos de quem lá guardou.
- * Serve quando o passe muda de cara. Devolve o que fez.
+ * Todos os passes passam a «actualizado agora», e cada série registada na Apple e cada cartão
+ * guardado na Google vão para a fila (avisosDaFila). Serve quando o passe muda de cara. Fora do
+ * waitUntil, que só dá 30 s depois da resposta: a 26 nov 2026 os ~80 iPhones e os 9 cartões da
+ * Google já não cabiam, e a Google ficou a meio. Devolve quantos foram para a fila.
  */
 export async function refrescarPasses(env: Env) {
   const db = env.DB;
-  await db.prepare('UPDATE passes SET actualizado_em = max(unixepoch(), actualizado_em + 1)').run();
-  const series = (
-    await db.prepare('SELECT DISTINCT serie FROM registos_apple').all<{ serie: string }>()
-  ).results;
-  for (const { serie } of series)
-    await avisarApple(env, serie).catch((e) => console.error('apns', e));
-  const google = (
-    await db
-      .prepare('SELECT cliente_id FROM passes WHERE google_em IS NOT NULL')
-      .all<{ cliente_id: number }>()
-  ).results;
-  for (const { cliente_id } of google)
-    await avisarGoogle(env, cliente_id).catch((e) => console.error('google', e));
-  return { apple: series.length, google: google.length };
+  const [, apple, google] = await db.batch([
+    db.prepare('UPDATE passes SET actualizado_em = max(unixepoch(), actualizado_em + 1)'),
+    db.prepare('SELECT DISTINCT serie FROM registos_apple'),
+    db.prepare('SELECT cliente_id FROM passes WHERE google_em IS NOT NULL'),
+  ]);
+  const series = apple!.results as { serie: string }[];
+  const clientes = google!.results as { cliente_id: number }[];
+  const avisos: AvisoDoPasse[] = [
+    ...series.map((r) => ({ apple: r.serie })),
+    ...clientes.map((r) => ({ google: r.cliente_id })),
+  ];
+  // Até 100 mensagens por envio.
+  for (let i = 0; i < avisos.length; i += 100)
+    await env.PASSES.sendBatch(avisos.slice(i, i + 100).map((body) => ({ body })));
+  return { apple: series.length, google: clientes.length };
+}
+
+/**
+ * Um lote da fila dos passes (até 100 avisos; 15 minutos para os fazer). Um lote de cada vez
+ * (wrangler.jsonc), para o bilhete da APNs não se renovar em dois sítios ao mesmo tempo. A mesma
+ * série ou o mesmo cliente duas vezes no lote (dois refrescamentos seguidos) leva um aviso só; o
+ * que falhou volta à fila daqui a um minuto.
+ */
+export async function avisosDaFila(lote: MessageBatch<AvisoDoPasse>, env: Env) {
+  const inicio = Date.now();
+  const series = new Set<string>();
+  const clientes = new Set<number>();
+  for (const { body } of lote.messages)
+    if ('apple' in body) series.add(body.apple);
+    else clientes.add(body.google);
+  // Uma coisa e depois a outra: as 6 ligações são as mesmas, e os registos lêem-se melhor.
+  const apple = await avisarApple(env, [...series]).catch((e: unknown) => {
+    console.error('apns', e);
+    return series;
+  });
+  const google = await avisarGoogle(env, [...clientes], { classe: true }).catch((e: unknown) => {
+    console.error('google', e);
+    return clientes;
+  });
+  for (const m of lote.messages)
+    if ('apple' in m.body ? apple.has(m.body.apple) : google.has(m.body.google))
+      m.retry({ delaySeconds: 60 });
+    else m.ack();
+  console.log(
+    'passes avisados',
+    JSON.stringify({
+      apple: series.size,
+      google: clientes.size,
+      porRepetir: apple.size + google.size,
+      ms: Date.now() - inicio,
+    }),
+  );
+}
+
+/** Quantos avisos de cada vez: o Worker só tem 6 ligações abertas ao mesmo tempo (as do D1 contam). */
+const DE_CADA_VEZ = 6;
+
+/** Corre `f` em cada item, DE_CADA_VEZ de cada vez. Quem chama trata dos erros de cada um. */
+async function emParalelo<T>(itens: readonly T[], f: (x: T) => Promise<void>) {
+  let i = 0;
+  const um = async () => {
+    while (i < itens.length) await f(itens[i++]!).catch((e) => console.error('passes', e));
+  };
+  await Promise.all(Array.from({ length: Math.min(DE_CADA_VEZ, itens.length) }, um));
 }
 
 /**
@@ -371,56 +431,98 @@ async function bilheteApns(env: Env): Promise<string> {
   return novo;
 }
 
-async function avisarApple(env: Env, serie: string) {
-  if (!appleLigada(env) || !env.APNS_CHAVE) return;
+/** O bilhete recusado sai da base, e vem outro. */
+async function renovarBilheteApns(env: Env): Promise<string> {
+  await env.DB.prepare("DELETE FROM bilhetes WHERE nome = 'apns'").run();
+  return bilheteApns(env);
+}
+
+type RegistoApple = { serie: string; aparelho: string; push_token: string };
+
+/**
+ * Um toque em cada aparelho registado destas séries, com um bilhete para todos, DE_CADA_VEZ de
+ * cada vez (um a um, os ~80 iPhones levavam 19 s). Devolve as séries com algum aparelho por
+ * avisar: a APNs pediu para repetir, ou a ligação falhou.
+ */
+async function avisarApple(env: Env, series: string[]): Promise<Set<string>> {
+  const porRepetir = new Set<string>();
+  if (!series.length || !appleLigada(env) || !env.APNS_CHAVE) return porRepetir;
   const db = env.DB;
   const registos = (
     await db
-      .prepare('SELECT aparelho, push_token FROM registos_apple WHERE serie = ?')
-      .bind(serie)
-      .all<{ aparelho: string; push_token: string }>()
+      .prepare(
+        'SELECT serie, aparelho, push_token FROM registos_apple WHERE serie IN (SELECT value FROM json_each(?))',
+      )
+      .bind(JSON.stringify(series))
+      .all<RegistoApple>()
   ).results;
-  if (!registos.length) return;
-  let bilhete = await bilheteApns(env);
-  for (const r of registos) {
-    let resposta = await avisarApns(r.push_token, bilhete, env.APPLE_PASS_TIPO, agora());
-    if (resposta === 'bilhete_recusado') {
-      await db.prepare("DELETE FROM bilhetes WHERE nome = 'apns'").run();
-      bilhete = await bilheteApns(env);
-      resposta = await avisarApns(r.push_token, bilhete, env.APPLE_PASS_TIPO, agora());
+  if (!registos.length) return porRepetir;
+  let bilhete = bilheteApns(env);
+  const mortos: RegistoApple[] = [];
+  await emParalelo(registos, async (r) => {
+    try {
+      const usado = bilhete;
+      let resposta = await avisarApns(r.push_token, await usado, env.APPLE_PASS_TIPO, agora());
+      if (resposta === 'bilhete_recusado') {
+        // O primeiro a ver o bilhete recusado pede outro; os seguintes usam esse (a Apple recusa
+        // quem o renove mais de uma vez em 20 minutos).
+        if (bilhete === usado) bilhete = renovarBilheteApns(env);
+        resposta = await avisarApns(r.push_token, await bilhete, env.APPLE_PASS_TIPO, agora());
+      }
+      // Cada aviso deixa o resultado e o começo da série e do aparelho (nunca o token): o pedido do
+      // iPhone que vier a seguir traz os mesmos começos no endereço, e vê-se se ele respondeu ao aviso.
+      console.log(
+        'apns',
+        resposta,
+        `passe ${r.serie.slice(0, 4)}`,
+        `aparelho ${r.aparelho.slice(0, 4)}`,
+      );
+      if (resposta === 'aparelho_morto') mortos.push(r);
+      else if (resposta === 'repetir') porRepetir.add(r.serie);
+    } catch (e) {
+      console.error('apns', e);
+      porRepetir.add(r.serie);
     }
-    // Cada aviso deixa o resultado e o começo da série e do aparelho (nunca o token): o pedido do
-    // iPhone que vier a seguir traz os mesmos começos no endereço, e vê-se se ele respondeu ao aviso.
-    console.log(
-      'apns',
-      resposta,
-      `passe ${serie.slice(0, 4)}`,
-      `aparelho ${r.aparelho.slice(0, 4)}`,
+  });
+  if (mortos.length)
+    await db.batch(
+      mortos.map((r) =>
+        db
+          .prepare('DELETE FROM registos_apple WHERE aparelho = ? AND serie = ?')
+          .bind(r.aparelho, r.serie),
+      ),
     );
-    if (resposta === 'aparelho_morto')
-      await db
-        .prepare('DELETE FROM registos_apple WHERE aparelho = ? AND serie = ?')
-        .bind(r.aparelho, serie)
-        .run();
-  }
+  return porRepetir;
 }
 
-async function avisarGoogle(env: Env, clienteId: number) {
-  if (!googleLigada(env)) return;
+/**
+ * Os cartões da Google destes clientes, como estão agora: um token para todos, o programa lido uma
+ * vez, DE_CADA_VEZ de cada vez. Com `classe`, a classe confere-se antes, uma vez (era por objecto).
+ * Devolve os clientes que falharam.
+ */
+async function avisarGoogle(
+  env: Env,
+  clientes: number[],
+  { classe = false } = {},
+): Promise<Set<number>> {
+  const falharam = new Set<number>();
+  if (!clientes.length || !googleLigada(env)) return falharam;
   const db = env.DB;
-  const passe = await db
-    .prepare('SELECT google_em FROM passes WHERE cliente_id = ?')
-    .bind(clienteId)
-    .first<{ google_em: number | null }>();
-  // Só quem guardou na Google (google_em) é que se actualiza: poupa a API.
-  if (!passe?.google_em) return;
-  const cartao = await cartaoParaOPasse(db, clienteId);
-  if (!cartao) return;
+  const emissor = env.GOOGLE_WALLET_EMISSOR;
   const token = await tokenDaGoogle(contaDaGoogle(env));
-  await actualizarObjeto(
-    token,
-    env.GOOGLE_WALLET_EMISSOR,
-    configuracaoDoPasse(env, '').origemDaApp,
-    cartaoDaGoogle(env, cartao),
-  );
+  if (classe)
+    await garantirClasse(token, emissor, configuracaoDoPasse(env, '').origemDaApp).catch((e) =>
+      console.error('classe da google', e),
+    );
+  const programa = await lerPrograma(db);
+  await emParalelo(clientes, async (id) => {
+    try {
+      const cartao = await cartaoParaOPasse(db, id, programa);
+      if (cartao) await guardarObjeto(token, emissor, cartaoDaGoogle(env, cartao));
+    } catch (e) {
+      console.error('google', e);
+      falharam.add(id);
+    }
+  });
+  return falharam;
 }
