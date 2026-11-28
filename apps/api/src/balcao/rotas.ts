@@ -173,6 +173,18 @@ function semExemplos(c: C, alias: string): string {
 const VISITA = `SELECT x.id, x.criado_em AS quando, l.nome AS loja, e.nome AS pessoa
   FROM carimbos x LEFT JOIN lojas l ON l.id = x.loja_id LEFT JOIN equipa e ON e.id = x.pessoa_id`;
 
+/** Os carimbos válidos de um cliente num dia (?1, ?2), o mais recente primeiro: quando, quem, e se foi pelo QR. */
+const DE_HOJE = `SELECT x.id, x.criado_em AS quando, e.nome AS pessoa, x.pelo_qr AS peloQr
+  FROM carimbos x LEFT JOIN equipa e ON e.id = x.pessoa_id
+  WHERE x.cliente_id = ?1 AND x.dia = ?2 AND x.anulado_em IS NULL ORDER BY x.criado_em DESC, x.id DESC`;
+type LinhaDeHoje = { id: number; quando: number; pessoa: string | null; peloQr: number };
+/**
+ * O último de hoje como as apps o lêem: o do QR do balcão diz-se (o barbeiro sabe que foi o cliente), com o
+ * número do carimbo para o anular dali (2.ª revisão de 27 nov 2026).
+ */
+const ultimoDeHoje = (u: LinhaDeHoje | undefined | null) =>
+  u ? { id: u.id, quando: u.quando, pessoa: u.pessoa, peloQr: u.peloQr === 1 } : null;
+
 async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
   const db = c.env.DB;
   const hoje = diaEmLisboa();
@@ -203,12 +215,7 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
         `${VISITA} WHERE x.cliente_id = ? AND x.anulado_em IS NULL ORDER BY x.criado_em DESC LIMIT 1`,
       )
       .bind(cliente.id),
-    db
-      .prepare(
-        `SELECT x.criado_em AS quando, e.nome AS pessoa FROM carimbos x LEFT JOIN equipa e ON e.id = x.pessoa_id
-         WHERE x.cliente_id = ? AND x.dia = ? AND x.anulado_em IS NULL ORDER BY x.criado_em DESC`,
-      )
-      .bind(cliente.id, hoje),
+    db.prepare(DE_HOJE).bind(cliente.id, hoje),
     db
       .prepare(
         `SELECT c.usado_em AS quando, e.nome AS pessoa FROM cartoes c LEFT JOIN equipa e ON e.id = c.usado_por
@@ -247,7 +254,7 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
   const meioEntregue = meioDeHoje!.results[0] as
     | { recompensa: string; meio_recompensa_en: string; quando: number; pessoa: string | null }
     | undefined;
-  const hojeLinhas = deHoje!.results as { quando: number; pessoa: string | null }[];
+  const hojeLinhas = deHoje!.results as LinhaDeHoje[];
   const entregueHoje =
     (entregue!.results[0] as { quando: number; pessoa: string | null } | undefined) ?? null;
   const fazAnos = fazAnosHoje(cliente.aniversario, hoje);
@@ -283,7 +290,11 @@ async function ficha(c: C, cliente: LinhaCliente): Promise<FichaDoBalcao> {
       recompensa: naLingua(lingua, r.recompensa, recompensa_en),
     })),
     ultima: (ultima!.results[0] as FichaDoBalcao['ultima']) ?? null,
-    hoje: { carimbos: hojeLinhas.length, ultimo: hojeLinhas[0] ?? null, entregue: entregueHoje },
+    hoje: {
+      carimbos: hojeLinhas.length,
+      ultimo: ultimoDeHoje(hojeLinhas[0]),
+      entregue: entregueHoje,
+    },
     premiosAMeio: premiosAMeioDe(meios!.results, lingua),
     premioAMeioEntregue: meioEntregue
       ? {
@@ -470,7 +481,46 @@ async function resultadoDe(c: C, carimboId: number): Promise<ResultadoDoCarimbo>
  * ninguém da equipa. As regras do QR (a localização, as horas, o primeiro e o do prémio com o barbeiro, a
  * equipa) conferem-se antes, em qr-do-balcao.ts; aqui fica o resto, igual ao da for partners.
  */
-export type CarimboPeloQr = { peloQr: true };
+export type CarimboPeloQr = {
+  peloQr: true;
+  /** As regras da história do cliente (regraDoQr) também no INSERT; a conta da revisão salta-as. */
+  regras: boolean;
+};
+
+/**
+ * As regras do QR do balcão que dependem da história do cliente (27 nov 2026), ou null: o primeiro carimbo
+ * é do barbeiro (um do QR não conta: anulado o do barbeiro, o QR não fica a valer por ele), um QR anulado
+ * hoje na barbearia não se repete no mesmo dia (quem se carimbou sem cortar lia outra vez), e o carimbo
+ * que completa o cartão (o do prémio) é do barbeiro. O INSERT de `carimbar` repete-as, para dois pedidos
+ * ao mesmo tempo não passarem ambos.
+ */
+export async function regraDoQr(
+  db: D1Database,
+  clienteId: number,
+  hoje: string,
+  porDia: number,
+): Promise<
+  'limite_do_dia' | 'primeiro_com_o_barbeiro' | 'qr_anulado_hoje' | 'premio_com_o_barbeiro' | null
+> {
+  const r = await db
+    .prepare(
+      `SELECT (SELECT count(*) FROM carimbos WHERE cliente_id = ?1 AND dia = ?2 AND anulado_em IS NULL) AS de_hoje,
+              EXISTS (SELECT 1 FROM carimbos WHERE cliente_id = ?1 AND anulado_em IS NULL AND pelo_qr = 0) AS do_barbeiro,
+              EXISTS (SELECT 1 FROM carimbos WHERE cliente_id = ?1 AND dia = ?2 AND pelo_qr = 1
+                      AND anulado_em IS NOT NULL) AS anulado_hoje`,
+    )
+    .bind(clienteId, hoje)
+    .first<{ de_hoje: number; do_barbeiro: number; anulado_hoje: number }>();
+  // Quem já tem o carimbo de hoje ouve isso mesmo, e não «o do prémio» nem «anulado» (2.ª revisão de 27 nov):
+  // o «o do prémio» levava o barbeiro a «Carimbar na mesma» e a dar o prémio uma visita antes.
+  if ((r?.de_hoje ?? 0) >= porDia) return 'limite_do_dia';
+  if (!r?.do_barbeiro) return 'primeiro_com_o_barbeiro';
+  if (r.anulado_hoje) return 'qr_anulado_hoje';
+  const cartao = await cartaoActual(db, clienteId);
+  if (cartao && cartao.completo_em === null && cartao.carimbos + 1 >= cartao.objectivo)
+    return 'premio_com_o_barbeiro';
+  return null;
+}
 
 export async function carimbar(
   c: C,
@@ -491,10 +541,9 @@ export async function carimbar(
   }
   // Pelo QR não há pessoa da equipa: a trava é a do cliente, e a loja é a do QR (já conferida).
   const pessoa = qr ? null : c.get('pessoa');
-  if (
-    !(await c.env.CARIMBAR.limit({ key: pessoa ? `sessao:${pessoa.sessao}` : `qr:${cliente.id}` }))
-      ?.success
-  )
+  // O travão do QR está no início de carimboPeloQr (cliente/qr-do-balcao.ts), antes das regras: os
+  // pedidos recusados também contam (2.ª revisão de 27 nov 2026).
+  if (pessoa && !(await c.env.CARIMBAR.limit({ key: `sessao:${pessoa.sessao}` }))?.success)
     recusar(429, 'muitas_tentativas');
   const lojaId = pessoa ? await lojaDe(c, p.lojaId) : p.lojaId;
   if (pessoa) {
@@ -532,13 +581,7 @@ export async function carimbar(
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
       }),
     });
-  const deHoje = await db
-    .prepare(
-      `SELECT x.criado_em AS quando, e.nome AS pessoa FROM carimbos x LEFT JOIN equipa e ON e.id = x.pessoa_id
-       WHERE x.cliente_id = ? AND x.dia = ? AND x.anulado_em IS NULL ORDER BY x.criado_em DESC`,
-    )
-    .bind(cliente.id, hoje)
-    .all<{ quando: number; pessoa: string | null }>();
+  const deHoje = await db.prepare(DE_HOJE).bind(cliente.id, hoje).all<LinhaDeHoje>();
   const repetido = deHoje.results.length >= programa.porDia;
   // «Carimbar na mesma» é um a mais, não dez: sem isto, um barbeiro enchia um cartão num minuto e o 10.º
   // entregava o corte grátis (revisão de 11 nov 2026). O dono, sem limite. O QR nunca carimba na mesma.
@@ -546,10 +589,13 @@ export async function carimbar(
   if (!dono && deHoje.results.length >= programa.porDia + 1) recusar(409, 'limite_do_dia_maximo');
   if (repetido && !p.confirmar)
     throw new HTTPException(409, {
-      res: new Response(JSON.stringify({ erro: 'limite_do_dia', ultimo: deHoje.results[0] }), {
-        status: 409,
-        headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      }),
+      res: new Response(
+        JSON.stringify({ erro: 'limite_do_dia', ultimo: ultimoDeHoje(deHoje.results[0]) }),
+        {
+          status: 409,
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        },
+      ),
     });
   // As decisões com dinheiro tomam-se no SQL, dentro do mesmo batch, e não numa leitura de
   // antes: dois carimbos ao mesmo instante no mesmo cliente (dois barbeiros, ou a fila sem
@@ -564,6 +610,11 @@ export async function carimbar(
          WHERE (SELECT completo_em FROM cartoes WHERE id = ?1) IS NULL
            AND (?10 = 1 OR (SELECT count(*) FROM carimbos WHERE cliente_id = ?2 AND dia = ?6 AND anulado_em IS NULL) < ?11)
            AND (?12 = 1 OR (SELECT count(*) FROM carimbos WHERE cliente_id = ?2 AND dia = ?6 AND anulado_em IS NULL) < ?11 + 1)
+           AND (?14 = 0 OR (
+             EXISTS (SELECT 1 FROM carimbos WHERE cliente_id = ?2 AND anulado_em IS NULL AND pelo_qr = 0)
+             AND NOT EXISTS (SELECT 1 FROM carimbos WHERE cliente_id = ?2 AND dia = ?6 AND pelo_qr = 1 AND anulado_em IS NOT NULL)
+             AND (SELECT count(*) FROM carimbos WHERE cartao_id = ?1 AND anulado_em IS NULL) + 1
+                 < (SELECT objectivo FROM cartoes WHERE id = ?1)))
          RETURNING id, criado_em`,
       )
       .bind(
@@ -580,6 +631,8 @@ export async function carimbar(
         programa.porDia,
         dono ? 1 : 0,
         qr ? 1 : 0,
+        // As regras do QR (regraDoQr) decididas no próprio INSERT, como o limite do dia.
+        qr?.regras ? 1 : 0,
       ),
     db.prepare('UPDATE clientes SET visto_em = unixepoch() WHERE id = ?').bind(cliente.id),
     // O 10.º corte é a oferta: o carimbo que completa o cartão entrega o prémio nesse
@@ -604,33 +657,34 @@ export async function carimbar(
            AND (SELECT count(*) FROM carimbos WHERE cartao_id = ?1 AND anulado_em IS NULL) >= meio`,
       )
       .bind(cartao.id),
-    // O convite (10 nov 2026): o primeiro carimbo de quem foi convidado dá o prémio a quem o convidou,
-    // no mesmo batch — só se este carimbo entrou e é o único válido do cliente (anular desfaz os dois,
-    // ou passa o convite para outro carimbo válido: carimbos.ts). Quem convidou e apagou a conta já não
-    // recebe; a visita fica marcada na mesma. O prémio é o maior dos dois: o do dia em que o amigo
-    // aceitou e o de agora, com os convites ligados (o Renato, 27 nov 2026: se o Nuno subir o valor, a
-    // carteira já o promete; se descer, ninguém recebe menos do que lhe prometeram).
+    // O convite (10 nov 2026): o primeiro carimbo DO BARBEIRO de quem foi convidado dá o prémio a quem o
+    // convidou, no mesmo batch — só se este carimbo entrou e é o único válido do barbeiro (anular desfaz os
+    // dois, ou passa o convite para outro carimbo do barbeiro: carimbos.ts). Um do QR do balcão não é a
+    // visita do convite (2.ª revisão de 27 nov 2026). Quem convidou e apagou a conta já não recebe; a
+    // visita fica marcada na mesma.
     db
       .prepare(
-        `UPDATE convites SET visitou_em = unixepoch(), carimbo_id = (SELECT id FROM carimbos WHERE chave = ?2),
-           premio_padrinho = max(premio_padrinho, ?4)
+        `UPDATE convites SET visitou_em = unixepoch(), carimbo_id = (SELECT id FROM carimbos WHERE chave = ?2)
          WHERE convidado_id = ?1 AND visitou_em IS NULL
-           AND EXISTS (SELECT 1 FROM carimbos WHERE chave = ?2 AND cliente_id = ?1)
-           AND (SELECT count(*) FROM carimbos WHERE cliente_id = ?1 AND anulado_em IS NULL) = 1
+           AND EXISTS (SELECT 1 FROM carimbos WHERE chave = ?2 AND cliente_id = ?1 AND pelo_qr = 0)
+           AND (SELECT count(*) FROM carimbos WHERE cliente_id = ?1 AND anulado_em IS NULL AND pelo_qr = 0) = 1
            AND NOT ${eDaPessoa('convites.padrinho_id', '?3')}`,
       )
-      .bind(cliente.id, p.chave, pessoa?.id ?? null, convites.ligado ? convites.valorPadrinho : 0),
+      .bind(cliente.id, p.chave, pessoa?.id ?? null),
+    // O prémio é o maior dos dois: o do dia em que o amigo aceitou (fica no convite) e o de agora, com os
+    // convites ligados (o Renato, 27 nov 2026). Calcula-se aqui, ao pagar, e não se grava no convite: uma
+    // visita anulada já não deixava o valor mais alto para a seguinte (2.ª revisão de 27 nov 2026).
     db
       .prepare(
         `INSERT INTO movimentos_de_saldo (cliente_id, valor, tipo, convite_id)
-         SELECT v.padrinho_id, v.premio_padrinho, 'convite', v.id FROM convites v
-         WHERE v.convidado_id = ?1 AND v.premio_padrinho > 0
+         SELECT v.padrinho_id, max(v.premio_padrinho, ?3), 'convite', v.id FROM convites v
+         WHERE v.convidado_id = ?1 AND max(v.premio_padrinho, ?3) > 0
            AND v.carimbo_id = (SELECT id FROM carimbos WHERE chave = ?2)
            AND NOT EXISTS (SELECT 1 FROM movimentos_de_saldo m
                            WHERE m.convite_id = v.id AND m.tipo = 'convite' AND m.anulado_em IS NULL)
            AND EXISTS (SELECT 1 FROM clientes k WHERE k.id = v.padrinho_id AND k.apagado_em IS NULL)`,
       )
-      .bind(cliente.id, p.chave),
+      .bind(cliente.id, p.chave, convites.ligado ? convites.valorPadrinho : 0),
   ];
   let r: D1Result[];
   try {
@@ -655,18 +709,19 @@ export async function carimbar(
       .bind(p.chave, cliente.id)
       .first<{ id: number }>();
     if (mesma) return resultadoDe(c, mesma.id);
+    // Pelo QR, a regra que o travou diz-se pelo nome (outro pedido chegou ao mesmo tempo).
+    if (qr?.regras) {
+      const regra = await regraDoQr(db, cliente.id, hoje, programa.porDia);
+      if (regra && regra !== 'limite_do_dia') recusar(409, regra);
+    }
     // O carimbo não entrou. Ou o cartão completou-se entretanto (outro carimbo ao mesmo
     // instante) e este pertence ao cartão seguinte — repete-se uma vez, do cartão actual —,
     // ou o limite do dia ficou feito entretanto.
     const actual = await cartaoActual(db, cliente.id);
     if (actual?.completo_em && !segundaVez) return carimbar(c, cliente, p, true, qr);
-    const ultimo = await db
-      .prepare(
-        `SELECT x.criado_em AS quando, e.nome AS pessoa FROM carimbos x LEFT JOIN equipa e ON e.id = x.pessoa_id
-         WHERE x.cliente_id = ? AND x.dia = ? AND x.anulado_em IS NULL ORDER BY x.criado_em DESC LIMIT 1`,
-      )
-      .bind(cliente.id, hoje)
-      .first<{ quando: number; pessoa: string | null }>();
+    const ultimo = ultimoDeHoje(
+      await db.prepare(`${DE_HOJE} LIMIT 1`).bind(cliente.id, hoje).first<LinhaDeHoje>(),
+    );
     throw new HTTPException(409, {
       res: new Response(JSON.stringify({ erro: 'limite_do_dia', ultimo }), {
         status: 409,
@@ -715,6 +770,16 @@ rotasDaBalcao.post('/anular', async (c) => {
   const pessoa = c.get('pessoa');
   const db = c.env.DB;
   const dono = pessoa.papel === 'dono' && !pessoa.demo;
+  // A demonstração (a conta da revisão das lojas) só anula nos clientes de exemplo, e o negócio só nos a
+  // sério, como no saldo: com o QR do balcão, a regra «da barbearia, até ao fim do dia» deixava a conta da
+  // revisão anular os carimbos do QR dos clientes da Nogueira (revisão de 27 nov 2026).
+  const doCliente = await db
+    .prepare(
+      'SELECT coalesce(k.exemplo, 0) AS exemplo FROM carimbos x LEFT JOIN clientes k ON k.id = x.cliente_id WHERE x.id = ?',
+    )
+    .bind(carimboId)
+    .first<{ exemplo: number }>();
+  if (!doCliente || (doCliente.exemplo === 1) !== pessoa.demo) recusar(404, 'nao_existe');
   await travarPorSessao(c, 'anular');
   if (!dono) {
     // Carimbar, usar o saldo e anular o carimbo deixava o saldo gasto sem visita: se este é o único

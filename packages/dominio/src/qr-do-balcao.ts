@@ -80,6 +80,24 @@ export function pertoDoBalcao(posicao: Posicao, loja: Coordenadas): boolean {
 }
 
 /**
+ * Porque é que a localização não serve (null: o telemóvel está ao pé da barbearia). Com uma precisão má
+ * e a barbearia dentro do erro (a localização «aproximada» do iPhone ou do Android, que erra quilómetros,
+ * ou um sinal fraco) não se diz «longe»: pede-se a localização exacta (revisão de 27 nov 2026).
+ */
+export function recusaDaLocalizacao(
+  posicao: Posicao,
+  loja: Coordenadas,
+): 'longe_do_balcao' | 'localizacao_imprecisa' | null {
+  if (pertoDoBalcao(posicao, loja)) return null;
+  if (![posicao.lat, posicao.lng, posicao.precisao].every(Number.isFinite))
+    return 'longe_do_balcao';
+  return posicao.precisao > FOLGA_DA_PRECISAO &&
+    distanciaEmMetros(posicao, loja) <= RAIO_DO_BALCAO + posicao.precisao
+    ? 'localizacao_imprecisa'
+    : 'longe_do_balcao';
+}
+
+/**
  * As horas em que o QR carimba, em Lisboa: as barbearias não têm horário no sistema (marca-se na
  * Fresha), e de madrugada ninguém corta o cabelo.
  */
@@ -103,7 +121,9 @@ export const RECUSAS_DO_QR = [
   'fora_de_horas',
   'sem_localizacao',
   'longe_do_balcao',
+  'localizacao_imprecisa',
   'primeiro_com_o_barbeiro',
+  'qr_anulado_hoje',
   'premio_com_o_barbeiro',
   'equipa_pede_a_um_colega',
   'limite_do_dia',

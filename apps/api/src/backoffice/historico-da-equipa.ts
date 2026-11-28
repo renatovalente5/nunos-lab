@@ -28,7 +28,8 @@ const TUDO = `
          CASE WHEN x.pessoa_id = ?1 THEN x.anulado_em END AS anulado_em,
          CASE WHEN x.pessoa_id = ?1 THEN x.anulado_por END AS anulado_por,
          CASE WHEN x.pessoa_id = ?1 THEN NULL ELSE x.pessoa_id END AS de_pessoa,
-         CASE WHEN x.pessoa_id = ?1 THEN NULL ELSE x.criado_em END AS de_quando
+         CASE WHEN x.pessoa_id = ?1 THEN NULL ELSE x.criado_em END AS de_quando,
+         x.pelo_qr AS de_pelo_qr
     FROM carimbos x WHERE x.pessoa_id = ?1 OR x.anulado_por = ?1
   UNION ALL
   SELECT CASE WHEN m.pessoa_id = ?1 THEN 'uso' ELSE 'anulou-uso' END, m.id,
@@ -38,15 +39,16 @@ const TUDO = `
          CASE WHEN m.pessoa_id = ?1 THEN m.anulado_em END,
          CASE WHEN m.pessoa_id = ?1 THEN m.anulado_por END,
          CASE WHEN m.pessoa_id = ?1 THEN NULL ELSE m.pessoa_id END,
-         CASE WHEN m.pessoa_id = ?1 THEN NULL ELSE m.criado_em END
+         CASE WHEN m.pessoa_id = ?1 THEN NULL ELSE m.criado_em END,
+         0
     FROM movimentos_de_saldo m WHERE m.tipo = 'uso' AND (m.pessoa_id = ?1 OR m.anulado_por = ?1)
   UNION ALL
   SELECT 'premio', c.id, c.usado_em, c.cliente_id, c.usado_loja_id, NULL, c.recompensa, c.recompensa_en,
-         0, 0, NULL, NULL, NULL, NULL
+         0, 0, NULL, NULL, NULL, NULL, 0
     FROM cartoes c WHERE c.usado_por = ?1 AND c.usado_em IS NOT NULL
   UNION ALL
   SELECT 'meio', c.id, c.meio_usado_em, c.cliente_id, c.meio_usado_loja_id, NULL, c.meio_recompensa,
-         c.meio_recompensa_en, 0, 0, NULL, NULL, NULL, NULL
+         c.meio_recompensa_en, 0, 0, NULL, NULL, NULL, NULL, 0
     FROM cartoes c WHERE c.meio_usado_por = ?1 AND c.meio_usado_em IS NOT NULL`;
 
 type Linha = {
@@ -61,6 +63,7 @@ type Linha = {
   repetido: number;
   anulado_em: number | null;
   de_quando: number | null;
+  de_pelo_qr: number;
   cliente_nome: string | null;
   cliente_apagado_em: number | null;
   loja: string | null;
@@ -145,7 +148,11 @@ rotasDoHistoricoDaEquipa.get('/equipa/:id/historico', async (c) => {
       semLeitura: l.sem_leitura === 1,
       repetido: l.repetido === 1,
       anulado: l.anulado_em !== null ? { em: l.anulado_em, por: l.anulado_por_nome } : null,
-      de: l.de_quando !== null ? { pessoa: l.de_nome, quando: l.de_quando } : null,
+      // O do QR do balcão não tem pessoa: diz-se que era do QR (2.ª revisão de 27 nov 2026).
+      de:
+        l.de_quando !== null
+          ? { pessoa: l.de_nome, quando: l.de_quando, peloQr: l.de_pelo_qr === 1 }
+          : null,
     })),
     seguinte:
       todas.length > POR_PAGINA && ultima ? `${ultima.quando}.${ultima.tipo}.${ultima.id}` : null,

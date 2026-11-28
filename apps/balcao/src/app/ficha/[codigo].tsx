@@ -114,6 +114,9 @@ export default function Ficha() {
   const [aviso, setAviso] = useState<{
     quando: number;
     pessoa: string | null;
+    /** Foi o cliente, pelo QR do balcão (a API de 27 nov 2026 di-lo), e o número do carimbo. */
+    peloQr?: boolean;
+    id?: number;
     entregue?: boolean;
   } | null>(null);
   const escala = useRef(new Animated.Value(0.6)).current;
@@ -196,7 +199,9 @@ export default function Ficha() {
         (e.codigo === 'limite_do_dia' || e.codigo === 'entregue_hoje')
       ) {
         setAviso({
-          ...((e.dados.ultimo as { quando: number; pessoa: string | null } | undefined) ?? {
+          ...((e.dados.ultimo as
+            | { id?: number; quando: number; pessoa: string | null; peloQr?: boolean }
+            | undefined) ?? {
             quando: 0,
             pessoa: null,
           }),
@@ -345,6 +350,31 @@ export default function Ficha() {
       // Fecha com a lista nova: a linha chega ao «Hoje» já riscada.
       await refrescarListas();
       sair();
+    } catch (e) {
+      setEstado('pronto');
+      setErro(mensagemDe(e));
+    }
+  };
+  /**
+   * O carimbo do QR do balcão de hoje, à vista ao ler o cartão: anula-se daqui também, e não só pela linha
+   * do «Hoje» (quem é desta barbearia, até ao fim do dia: a API confere; 2.ª revisão de 27 nov 2026).
+   */
+  const anularOQr = async () => {
+    const alvo = ultimoDeHoje;
+    if (!alvo?.peloQr || !alvo.id || estado === 'a-enviar') return;
+    const sim = await confirmar({
+      titulo: t.ficha.anularOQr(hora(alvo.quando)),
+      accao: t.geral.anular,
+    });
+    if (!sim) return;
+    setEstado('a-enviar');
+    setErro(null);
+    try {
+      await pedir('/anular', { metodo: 'POST', corpo: { carimboId: alvo.id } });
+      setAviso(null);
+      await consultas.invalidateQueries({ queryKey: ['balcao', 'ficha', codigo] });
+      await refrescarListas();
+      setEstado('pronto');
     } catch (e) {
       setEstado('pronto');
       setErro(mensagemDe(e));
@@ -783,7 +813,9 @@ export default function Ficha() {
                 <Icone nome="atencao" tamanho={18} cor={cor.texto} espessura={2} />
                 <T v="legenda" style={{ flex: 1 }}>
                   {ultimoDeHoje
-                    ? t.ficha.jaCarimbadoAs(hora(ultimoDeHoje.quando), ultimoDeHoje.pessoa)
+                    ? ultimoDeHoje.peloQr
+                      ? t.ficha.jaCarimbadoPeloQr(hora(ultimoDeHoje.quando))
+                      : t.ficha.jaCarimbadoAs(hora(ultimoDeHoje.quando), ultimoDeHoje.pessoa)
                     : entregue
                       ? t.ficha.premioEntregueHoje(
                           recompensaNaLingua(ficha.cartao.recompensa, lingua),
@@ -792,6 +824,21 @@ export default function Ficha() {
                         )
                       : t.ficha.jaCarimbado}
                 </T>
+                {ultimoDeHoje?.peloQr && !!ultimoDeHoje.id && (
+                  <Pressable
+                    onPress={anularOQr}
+                    role="button"
+                    hitSlop={10}
+                    aria-disabled={estado === 'a-enviar'}
+                    style={({ pressed }) => ({
+                      opacity: pressed || estado === 'a-enviar' ? 0.6 : 1,
+                    })}
+                  >
+                    <T v="forte" style={{ color: cor.perigo }}>
+                      {t.geral.anular}
+                    </T>
+                  </Pressable>
+                )}
               </View>
             )}
           </ScrollView>

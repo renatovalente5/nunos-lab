@@ -422,7 +422,9 @@ export default function Carteira() {
                     </View>
                   ) : (
                     <T v="legenda" style={{ color: cor.texto3 }}>
-                      {t.carteira.aindaNaoFoi}
+                      {v.premio > 0
+                        ? t.carteira.aindaNaoFoiRecebes(euros(v.premio, lingua))
+                        : t.carteira.aindaNaoFoi}
                     </T>
                   )}
                 </View>

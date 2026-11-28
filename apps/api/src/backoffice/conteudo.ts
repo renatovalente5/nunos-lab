@@ -723,6 +723,10 @@ rotasDoConteudo.get('/lojas/:id/qr', async (c) => c.json(qrDaLoja(await lojaDoQr
  */
 rotasDoConteudo.post('/lojas/:id/qr', async (c) => {
   const loja = await lojaDoQr(c);
+  // «Criar» numa página antiga (o QR já foi criado noutra) não troca o impresso: trocar só com «trocar»
+  // (o «Trocar QR», com a confirmação; 2.ª revisão de 27 nov 2026).
+  const { trocar } = ((await c.req.json().catch(() => ({}))) ?? {}) as { trocar?: unknown };
+  if (loja.codigo_qr && trocar !== true) recusar(409, 'ja_tem_qr');
   if (loja.lat === null || loja.lng === null) recusar(409, 'loja_sem_sitio');
   const db = c.env.DB;
   for (let i = 0; i < 5; i++) {
@@ -783,6 +787,21 @@ rotasDoConteudo.put('/barbearia', async (c) => {
         db.prepare('DELETE FROM lojas WHERE id = ?').bind(id),
       );
     }
+  // Uma barbearia com o QR do balcão ligado não fica sem coordenadas: o QR continuava a valer e recusava
+  // toda a gente («não estás na barbearia»), sem aviso (2.ª revisão de 27 nov 2026). Desliga-se primeiro.
+  const semSitio = b.lojas
+    .filter((l) => l.id !== undefined && l.lat !== undefined && l.lng !== undefined)
+    .filter((l) => l.lat === null || l.lng === null)
+    .map((l) => l.id as number);
+  if (semSitio.length) {
+    const comQr = await db
+      .prepare(
+        `SELECT 1 FROM lojas WHERE codigo_qr IS NOT NULL AND id IN (${semSitio.map(() => '?').join(',')}) LIMIT 1`,
+      )
+      .bind(...semSitio)
+      .first();
+    if (comQr) recusar(409, 'loja_com_qr_sem_sitio');
+  }
   b.lojas.forEach((l, i) => {
     // As coordenadas (o mapa e o passe) só mudam quando o formulário as traz.
     const comCoordenadas = l.lat !== undefined && l.lng !== undefined;

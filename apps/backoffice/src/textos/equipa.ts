@@ -80,6 +80,8 @@ export const pt = {
     anulouUso: (valor: string) => `Anulou um uso de ${valor} · `,
     /** De quem era o que anulou: «de Bruno Costa às 10:28». */
     de: (pessoa: string | null, quando: string) => (pessoa ? `de ${pessoa} ${quando}` : quando),
+    /** O que anulou era do QR do balcão (o cliente carimbou-se): «do QR do balcão às 10:28». */
+    doQr: (quando: string) => `do QR do balcão ${quando}`,
   },
 };
 
@@ -153,5 +155,6 @@ export const en: typeof pt = {
     anulouCarimbo: 'Undid a stamp · ',
     anulouUso: (valor) => `Undid a ${valor} balance use · `,
     de: (pessoa, quando) => (pessoa ? `by ${pessoa} ${quando}` : quando),
+    doQr: (quando) => `from the counter QR ${quando}`,
   },
 };

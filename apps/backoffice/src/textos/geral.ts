@@ -165,6 +165,10 @@ export const pt = {
       'A tradução não respondeu agora. Escreve o inglês à mão, ou guarda e ela tenta outra vez.',
     nao_existe: 'Isto já não existe. Recarrega a página.',
     loja_sem_sitio: 'A barbearia ainda não tem coordenadas: põe-nas e guarda.',
+    loja_com_qr_sem_sitio:
+      'Esta barbearia tem o QR do balcão ligado: sem coordenadas, deixava de carimbar. Desliga o QR primeiro.',
+    ja_tem_qr:
+      'Esta barbearia já tem um QR (criado noutra página): está à vista. Para outro, «Trocar QR».',
     casa_com_historia:
       'Essa barbearia tem carimbos, clientes ou equipa: não se tira. Se fechou, muda-lhe o nome.',
     ja_anulado: 'Esse carimbo já estava anulado.',
@@ -337,6 +341,10 @@ export const en: typeof pt = {
       'Translation isn’t available right now. Write the English yourself, or save and it will try again.',
     nao_existe: 'This no longer exists. Reload the page.',
     loja_sem_sitio: 'The barbershop has no coordinates yet: add them and save.',
+    loja_com_qr_sem_sitio:
+      'This barbershop has its counter QR on: without coordinates it would stop giving stamps. Switch the QR off first.',
+    ja_tem_qr:
+      'This barbershop already has a QR (created on another page): it’s shown now. For a new one, “Replace QR”.',
     casa_com_historia:
       'This barbershop has stamps, clients or team members, so it can’t be removed. If it has closed, rename it.',
     ja_anulado: 'That stamp has already been undone.',

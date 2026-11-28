@@ -40,7 +40,9 @@ async function lerCarteira(c: C): Promise<CarteiraDoCliente> {
     consultaDosMovimentos(db, id),
     db
       .prepare(
-        `SELECT k.nome, v.criado_em, v.visitou_em, v.premio_padrinho
+        `SELECT k.nome, v.criado_em, v.visitou_em, v.premio_padrinho,
+           (SELECT m.valor FROM movimentos_de_saldo m WHERE m.convite_id = v.id AND m.tipo = 'convite'
+              AND m.anulado_em IS NULL ORDER BY m.id DESC LIMIT 1) AS pago
          FROM convites v JOIN clientes k ON k.id = v.convidado_id
          WHERE v.padrinho_id = ? ORDER BY v.criado_em DESC, v.id DESC`,
       )
@@ -62,6 +64,7 @@ async function lerCarteira(c: C): Promise<CarteiraDoCliente> {
       criado_em: number;
       visitou_em: number | null;
       premio_padrinho: number;
+      pago: number | null;
     }[]
   ).map((v) => ({
     // Quem convida vê do convidado só o nome curto e se já foi (a privacidade diz isto mesmo).
@@ -73,7 +76,7 @@ async function lerCarteira(c: C): Promise<CarteiraDoCliente> {
     premio:
       v.visitou_em === null
         ? Math.max(v.premio_padrinho, convites.ligado ? convites.valorPadrinho : 0)
-        : v.premio_padrinho,
+        : (v.pago ?? v.premio_padrinho),
   }));
   const por = recebido!.results[0] as
     { nome: string; criado_em: number; premio_convidado: number } | undefined;

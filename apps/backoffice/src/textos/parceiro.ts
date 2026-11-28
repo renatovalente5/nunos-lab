@@ -46,6 +46,7 @@ export const pt = {
   inteiroAjuda: 'O logótipo inteiro dentro do círculo, ao meio',
   encher: 'Encher',
   encherAjuda: 'A imagem a encher o círculo todo, ao meio',
+  encherLargoDeMais: 'O logótipo é largo (ou alto) de mais para encher o círculo: usa «Inteiro»',
   concluir: 'Concluir',
   fundo: 'Fundo',
   fundos: {
@@ -139,6 +140,7 @@ export const en: typeof pt = {
   inteiroAjuda: 'The whole logo inside the circle, centred',
   encher: 'Fill',
   encherAjuda: 'The image filling the whole circle, centred',
+  encherLargoDeMais: 'The logo is too wide (or tall) to fill the circle: use “Whole”',
   concluir: 'Done',
   fundo: 'Background',
   fundos: {

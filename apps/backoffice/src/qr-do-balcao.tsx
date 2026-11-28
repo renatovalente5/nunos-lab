@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { encode } from 'uqr';
-import { pedir } from './api';
+import { ErroDaApi, pedir } from './api';
 import { useAccao, useConfirmar } from './pecas';
 import { useTextos } from './textos';
 
@@ -80,25 +80,58 @@ export function QrDoBalcao({ lojaId, loja }: { lojaId: number; loja: string }) {
     () => (codigo ? desenhoDoQr(ligacaoDoBalcao(codigo, SITIO)) : null),
     [codigo],
   );
-  // O cartaz entra na página, imprime-se, e sai quando a janela da impressão fecha.
+  // O cartaz entra na página, imprime-se, e sai quando a janela da impressão fecha. A folha A5 e o
+  // esconder o resto só valem para ele: a classe no <html> e o @page entram e saem com o cartaz.
   useEffect(() => {
     if (!aImprimir) return;
+    const raiz = document.documentElement;
+    raiz.classList.add('a-imprimir-o-cartaz');
+    const pagina = document.createElement('style');
+    pagina.textContent = '@page { size: A5 portrait; margin: 0; }';
+    document.head.appendChild(pagina);
     const acabou = () => setAImprimir(false);
     window.addEventListener('afterprint', acabou);
-    // Um instante para o logótipo do cartaz carregar antes de a impressão o fotografar.
-    const vez = window.setTimeout(() => window.print(), 300);
+    // Imprime quando o logótipo do cartaz já carregou (com a rede lenta, um tempo fixo saía sem ele); se
+    // nunca carregar, ao fim de 3 s imprime-se na mesma (o «Imprimir» ficava sem fazer nada).
+    let vez = 0;
+    let impresso = false;
+    const imprimir = () => {
+      if (impresso) return;
+      impresso = true;
+      vez = window.setTimeout(() => window.print(), 50);
+    };
+    const prazo = window.setTimeout(imprimir, 3000);
+    const palavra = document.querySelector<HTMLImageElement>('.cartaz-do-qr .palavra');
+    if (!palavra || palavra.complete) imprimir();
+    else {
+      palavra.addEventListener('load', imprimir, { once: true });
+      palavra.addEventListener('error', imprimir, { once: true });
+    }
     return () => {
       window.clearTimeout(vez);
+      window.clearTimeout(prazo);
       window.removeEventListener('afterprint', acabou);
+      palavra?.removeEventListener('load', imprimir);
+      palavra?.removeEventListener('error', imprimir);
+      raiz.classList.remove('a-imprimir-o-cartaz');
+      pagina.remove();
     };
   }, [aImprimir]);
 
-  const pedirQr = (metodo: 'POST' | 'DELETE') =>
+  // «Criar» só cria (numa página antiga, com o QR já criado noutra, a API recusa e o de agora aparece);
+  // «Trocar QR» diz que é para trocar (2.ª revisão de 27 nov 2026).
+  const pedirQr = (metodo: 'POST' | 'DELETE', corpo?: { trocar: true }) =>
     correr(async () => {
-      consultas.setQueryData(
-        chave,
-        await pedir<QrDaLoja>(`/api/bo/lojas/${lojaId}/qr`, { metodo }),
-      );
+      try {
+        consultas.setQueryData(
+          chave,
+          await pedir<QrDaLoja>(`/api/bo/lojas/${lojaId}/qr`, { metodo, corpo }),
+        );
+      } catch (e) {
+        if (e instanceof ErroDaApi && e.codigo === 'ja_tem_qr')
+          await consultas.invalidateQueries({ queryKey: chave });
+        throw e;
+      }
     });
 
   return (
@@ -110,6 +143,8 @@ export function QrDoBalcao({ lojaId, loja }: { lojaId: number; loja: string }) {
             <QR desenho={desenho} rotulo={q.rotulo(loja)} />
           </div>
           <div className="accoes-do-qr">
+            {/* Sem coordenadas (de antes da regra que o impede), o QR não carimba: diz-se aqui. */}
+            {!qr.data.temSitio && <p className="mensagem-erro">{q.semSitioComQr}</p>}
             <p className="ajuda">{q.comQr}</p>
             <div className="botoes">
               <button type="button" className="botao pequeno" onClick={() => setAImprimir(true)}>
@@ -121,7 +156,7 @@ export function QrDoBalcao({ lojaId, loja }: { lojaId: number; loja: string }) {
                 disabled={aCorrer}
                 onClick={async () => {
                   if (await confirmar(q.trocarPergunta, q.trocarTexto, q.trocar))
-                    await pedirQr('POST');
+                    await pedirQr('POST', { trocar: true });
                 }}
               >
                 {q.trocar}

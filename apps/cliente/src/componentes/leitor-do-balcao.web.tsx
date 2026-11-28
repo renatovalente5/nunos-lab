@@ -8,16 +8,24 @@ import { View } from 'react-native';
 import { T, cor } from '@nunos-lab/ui';
 import { useTextos } from '../textos';
 
+/** Como está a câmara: o ecrã do QR diz em baixo o que fazer (sem câmara, não «Aponta ao QR»). */
+export type EstadoDaCamara = 'a-abrir' | 'aberta' | 'sem-camara';
+
 export function LeitorDoBalcao({
   aoLer,
   activo,
+  aoMudar,
 }: {
   aoLer: (texto: string) => void;
   activo: boolean;
+  aoMudar?: (estado: EstadoDaCamara) => void;
 }) {
   const t = useTextos();
   const caixa = useRef<ComponentRef<typeof View>>(null);
-  const [estado, setEstado] = useState<'a-abrir' | 'aberta' | 'sem-camara'>('a-abrir');
+  const [estado, setEstado] = useState<EstadoDaCamara>('a-abrir');
+  const avisar = useRef(aoMudar);
+  avisar.current = aoMudar;
+  useEffect(() => avisar.current?.(estado), [estado]);
   const ultimo = useRef(aoLer);
   ultimo.current = aoLer;
   useEffect(() => {
@@ -70,13 +78,28 @@ export function LeitorDoBalcao({
           return;
         }
         fluxo = f;
+        // A câmara perdida a meio (outra app, o sistema) diz-se, com o «Tentar outra vez», em vez de o
+        // ecrã ficar parado a pedir para apontar ao QR.
+        const perdida = () => {
+          if (!vivo) return;
+          clearTimeout(temporizador);
+          video.style.visibility = 'hidden';
+          setEstado('sem-camara');
+        };
+        for (const faixa of f.getVideoTracks()) {
+          if (faixa.readyState === 'ended') throw new Error('camara_perdida');
+          faixa.addEventListener('ended', perdida);
+        }
         video.srcObject = f;
         return video.play().then(() => {
           setEstado('aberta');
           ler();
         });
       })
-      .catch(() => vivo && setEstado('sem-camara'));
+      .catch(() => {
+        fluxo?.getTracks().forEach((faixa) => faixa.stop());
+        if (vivo) setEstado('sem-camara');
+      });
     return () => {
       vivo = false;
       clearTimeout(temporizador);

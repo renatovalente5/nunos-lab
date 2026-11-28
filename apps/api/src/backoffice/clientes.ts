@@ -171,6 +171,8 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
       db
         .prepare(
           `SELECT v.convidado_id AS cliente_id, k.nome, k.apagado_em, v.criado_em, v.visitou_em, v.premio_padrinho,
+           (SELECT m.valor FROM movimentos_de_saldo m WHERE m.convite_id = v.id AND m.tipo = 'convite'
+              AND m.anulado_em IS NULL ORDER BY m.id DESC LIMIT 1) AS pago,
            (SELECT min(m.criado_em) FROM movimentos_de_saldo m
              WHERE m.convite_id = v.id AND m.tipo = 'convite' AND m.anulado_em IS NULL) AS premio_em
          FROM convites v JOIN clientes k ON k.id = v.convidado_id
@@ -243,6 +245,7 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
           criado_em: number;
           visitou_em: number | null;
           premio_padrinho: number;
+          pago: number | null;
           premio_em: number | null;
         }[]
       ).map((v) => ({
@@ -254,7 +257,7 @@ async function lerFicha(c: C, id: number): Promise<FichaDoCliente> {
         premio:
           v.visitou_em === null
             ? Math.max(v.premio_padrinho, convites.ligado ? convites.valorPadrinho : 0)
-            : v.premio_padrinho,
+            : (v.pago ?? v.premio_padrinho),
         premioEm: v.premio_em,
         apagado: v.apagado_em !== null,
       })),

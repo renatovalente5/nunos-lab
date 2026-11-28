@@ -72,14 +72,13 @@ function acontecimento(
     case 'anulou-carimbo':
     case 'anulou-uso': {
       // De quem era e quando: «de Bruno Costa às 10:28» (no mesmo dia), «… a 10 nov» (noutro).
-      const de =
+      const quando =
         a.de &&
-        p.de(
-          a.de.pessoa,
-          diaEmLisboa(a.de.quando * 1000) === diaEmLisboa(a.quando * 1000)
-            ? h.aHora(horaDe(a.de.quando))
-            : h.aDia(diaDe(a.de.quando, hoje, lingua)),
-        );
+        (diaEmLisboa(a.de.quando * 1000) === diaEmLisboa(a.quando * 1000)
+          ? h.aHora(horaDe(a.de.quando))
+          : h.aDia(diaDe(a.de.quando, hoje, lingua)));
+      // O do QR do balcão não tem pessoa: «do QR do balcão às 10:28» (2.ª revisão de 27 nov 2026).
+      const de = a.de && quando && (a.de.peloQr ? p.doQr(quando) : p.de(a.de.pessoa, quando));
       return {
         ...base,
         titulo: comCliente(

@@ -101,6 +101,7 @@ export const pt = {
     foiA: (dia: string) => `foi a ${dia}`,
     jaFoi: 'Já foi',
     aindaNaoFoi: 'Ainda não foi',
+    aindaNaoFoiRecebe: (valor: string) => `Ainda não foi · recebe ${valor}`,
     /** Para o leitor de ecrã, a seguir ao valor riscado. */
     anulado: 'Anulado',
     // A folha de acertar.
@@ -111,6 +112,7 @@ export const pt = {
     tirarValor: (valor: string) => `Tirar ${valor}`,
     valor: 'Valor (€)',
     valorErrado: (maximo: string) => `Até ${maximo}, em euros (ex.: 2 ou 1,50).`,
+    valorZero: 'Escreve um valor maior do que 0.',
     nota: 'Nota',
     notaAjuda: 'O cliente vê-a na carteira.',
     fica: (saldo: string) => `Fica ${saldo}`,
@@ -209,6 +211,7 @@ export const en: typeof pt = {
     foiA: (dia) => `visited ${dia}`,
     jaFoi: 'Visited',
     aindaNaoFoi: 'Not visited yet',
+    aindaNaoFoiRecebe: (valor) => `Not visited yet · gets ${valor}`,
     anulado: 'Undone',
     dar: 'Add',
     tirar: 'Deduct',
@@ -217,6 +220,7 @@ export const en: typeof pt = {
     tirarValor: (valor) => `Deduct ${valor}`,
     valor: 'Amount (€)',
     valorErrado: (maximo) => `Up to ${maximo}, in euros (e.g. 2 or 1.50).`,
+    valorZero: 'Enter an amount above 0.',
     nota: 'Note',
     notaAjuda: 'The client sees it in their wallet.',
     fica: (saldo) => `New balance: ${saldo}`,

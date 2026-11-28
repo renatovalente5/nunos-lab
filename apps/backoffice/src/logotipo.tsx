@@ -322,11 +322,18 @@ function EditorDoLogotipo({
             >
               {p.inteiro}
             </button>
+            {/* Mais largo (ou alto) do que o zoom deixa, o «Encher» não enchia: fica desligado, a dizer porquê. */}
             <button
               type="button"
               className="botao secundario pequeno"
-              disabled={!proporcao}
-              title={p.encherAjuda}
+              disabled={
+                !proporcao || Math.max(proporcao, 1 / proporcao) > LIMITES_DO_AJUSTE.zoom.max
+              }
+              title={
+                proporcao && Math.max(proporcao, 1 / proporcao) > LIMITES_DO_AJUSTE.zoom.max
+                  ? p.encherLargoDeMais
+                  : p.encherAjuda
+              }
               onClick={() => proporcao && mudar(ajusteCheio(ultimo.current, proporcao))}
             >
               {p.encher}
@@ -422,7 +429,17 @@ export function CampoDoLogotipo({
   const [aCarregar, setACarregar] = useState(false);
   const [edicao, setEdicao] = useState<Edicao | null>(null);
   const a = ajuste ?? AJUSTE_DE_ORIGEM;
-  const ajustar = () => valor && setEdicao({ id: valor, ajuste: a });
+  // O botão que abriu o editor recebe o foco quando ele fecha (quem usa o teclado não volta ao topo).
+  const quemAbriu = useRef<HTMLElement | null>(null);
+  const lembrar = () => {
+    quemAbriu.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  };
+  const voltarAoBotao = () => window.setTimeout(() => quemAbriu.current?.focus(), 0);
+  const ajustar = () => {
+    lembrar();
+    if (valor) setEdicao({ id: valor, ajuste: a });
+  };
   return (
     <div className={`campo${erro ? ' erro' : ''}`}>
       <span className="rotulo-campo">{rotulo}</span>
@@ -451,7 +468,10 @@ export function CampoDoLogotipo({
             type="button"
             className="botao secundario pequeno"
             disabled={aCarregar}
-            onClick={() => entrada.current?.click()}
+            onClick={() => {
+              lembrar();
+              entrada.current?.click();
+            }}
           >
             {aCarregar
               ? t.geral.imagem.aCarregar
@@ -504,8 +524,12 @@ export function CampoDoLogotipo({
           concluir={(novo) => {
             mudar(edicao.id, novo);
             setEdicao(null);
+            voltarAoBotao();
           }}
-          cancelar={() => setEdicao(null)}
+          cancelar={() => {
+            setEdicao(null);
+            voltarAoBotao();
+          }}
         />
       )}
     </div>

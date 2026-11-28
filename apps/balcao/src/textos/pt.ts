@@ -73,6 +73,9 @@ export const pt = {
       `Prenda de anos entregue ${hoje ? 'às' : 'a'} ${quando}${pessoa ? ` por ${pessoa}` : ''}`,
     jaCarimbadoAs: (hora: string, pessoa: string | null) =>
       `Já carimbado hoje às ${hora}${pessoa ? ` por ${pessoa}` : ''}.`,
+    // O cliente carimbou-se ao balcão (27 nov 2026): o barbeiro sabe que já foi, e não carimba outra vez.
+    jaCarimbadoPeloQr: (hora: string) => `Já carimbado hoje às ${hora} pelo QR do balcão.`,
+    anularOQr: (hora: string) => `Anular o carimbo das ${hora}, do QR do balcão?`,
     premioEntregueHoje: (recompensa: string, hora: string, pessoa: string | null) =>
       `${recompensa || 'Prémio'} entregue hoje às ${hora}${pessoa ? ` por ${pessoa}` : ''}. Não leva carimbo.`,
     jaCarimbado: 'Já carimbado hoje.',

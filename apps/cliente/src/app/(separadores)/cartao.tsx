@@ -14,6 +14,7 @@ import { Image, Modal, Pressable, useWindowDimensions, View } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCarimbosNovos } from '../../carimbos-novos';
 import { definirQrAberto, useConviteGuardado } from '../../carteira';
+import { tirarQrPendente } from '../../qr-pendente';
 import { CartaoDoCliente } from '../../componentes/cartao';
 import { temCamara } from '../../componentes/tem-camara';
 import { CabecalhoDoSeparador } from '../../componentes/cabecalho';
@@ -85,13 +86,22 @@ export default function Cartao() {
   const t = useTextos();
   const lingua = useLingua();
   const temSessao = useTemSessao();
+  // O QR do balcão lido com a câmara antes de entrar (a app da web sem sessão): já com sessão, volta-se
+  // ao ecrã do QR com o código, que carimba (revisão de 27 nov 2026).
+  useEffect(() => {
+    if (!temSessao) return;
+    const codigo = tirarQrPendente();
+    if (codigo) router.push({ pathname: '/qr', params: { codigo } });
+  }, [temSessao]);
   // A cerimónia do carimbo novo, e os pedidos de 15 em 15 s, só com este separador à frente.
   const [focado, setFocado] = useState(false);
   useFocusEffect(
     useCallback(() => {
       setFocado(true);
+      // De volta do QR (que muda o título), o separador volta a dizer «Cartão».
+      definirTitulo(t.titulos.cartao);
       return () => setFocado(false);
-    }, []),
+    }, [t]),
   );
   const { data: eu, isError, isFetching, dataUpdatedAt, refetch } = useEu(focado);
   const { data: dadosDaApp } = useDados();
@@ -254,7 +264,7 @@ export default function Cartao() {
               nas apps com câmara (a 1.0.6 em diante, e a da web). */}
           {temCamara && (
             <Pressable
-              onPress={() => router.push('/balcao')}
+              onPress={() => router.push('/qr')}
               role="button"
               style={({ pressed }) => ({
                 marginHorizontal: MARGEM,

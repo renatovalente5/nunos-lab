@@ -50,6 +50,7 @@ export const pt = {
     semQr:
       'Com um QR ao balcão, o cliente carimba ao lê-lo com a app, sem tirares o telemóvel do bolso.',
     semSitio: 'Para ter QR, a barbearia precisa das coordenadas (guarda-as primeiro).',
+    semSitioComQr: 'Sem coordenadas, este QR não carimba: põe-nas na barbearia e guarda.',
     criar: 'Criar QR',
     comQr:
       'O cliente lê-o com a app, na barbearia, das 8h às 22h. O primeiro carimbo de um cliente novo e o do prémio continuam a ser dados por ti.',
@@ -118,6 +119,8 @@ export const en: typeof pt = {
     semQr:
       'With a QR on the counter, clients get their stamp by scanning it with the app, and your phone stays in your pocket.',
     semSitio: 'For a QR, the barbershop needs its coordinates (save them first).',
+    semSitioComQr:
+      'Without coordinates this QR gives no stamps: add them to the barbershop and save.',
     criar: 'Create QR',
     comQr:
       'Clients scan it with the app at the barbershop, from 8am to 10pm. A new client’s first stamp and the reward stamp are still given by you.',

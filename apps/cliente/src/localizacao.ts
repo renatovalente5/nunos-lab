@@ -11,25 +11,34 @@ export const temLocalizacao = !!requireOptionalNativeModule('ExpoLocation');
 
 /** Um erro com o código das mensagens (textos › erros). */
 export class ErroDaLocalizacao extends Error {
-  constructor(public codigo: 'sem_permissao_de_localizacao' | 'sem_localizacao') {
+  constructor(
+    public codigo: 'sem_permissao_de_localizacao' | 'sem_localizacao' | 'localizacao_aproximada',
+  ) {
     super(codigo);
   }
 }
 
-export async function ondeEstou(): Promise<Posicao> {
+/** Onde estou agora. `fresca`: sem a última posição guardada (o «Ler outra vez» depois de uma recusa). */
+export async function ondeEstou({ fresca = false }: { fresca?: boolean } = {}): Promise<Posicao> {
   if (!temLocalizacao) throw new ErroDaLocalizacao('sem_localizacao');
   const Location = require('expo-location') as typeof import('expo-location');
   const permissao = await Location.requestForegroundPermissionsAsync();
   if (!permissao.granted) throw new ErroDaLocalizacao('sem_permissao_de_localizacao');
-  // A última posição, se é recente e boa, chega logo; senão pede-se uma, com prazo.
-  const ultima = await Location.getLastKnownPositionAsync({
-    maxAge: 60_000,
-    requiredAccuracy: 100,
-  }).catch(() => null);
+  // A localização «aproximada» (o iPhone sem «Exata», o Android 12+ com «Aproximada») erra quilómetros:
+  // o servidor diria «não estás na barbearia». Pede-se a exacta nas Definições (revisão de 27 nov 2026).
+  if (permissao.ios?.accuracy === 'reduced' || permissao.android?.accuracy === 'coarse')
+    throw new ErroDaLocalizacao('localizacao_aproximada');
+  // A última posição, se é de agora e boa, chega logo (uma de há um minuto podia ser do caminho);
+  // senão pede-se uma, com prazo. A «Balanced» do Android, dentro de uma loja, errava centenas de metros.
+  const ultima = fresca
+    ? null
+    : await Location.getLastKnownPositionAsync({ maxAge: 15_000, requiredAccuracy: 50 }).catch(
+        () => null,
+      );
   const posicao =
     ultima ??
     (await Promise.race([
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 12_000)),
     ]).catch(() => null));
   if (!posicao) throw new ErroDaLocalizacao('sem_localizacao');

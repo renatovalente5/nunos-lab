@@ -1215,7 +1215,9 @@ dialog.folha::backdrop {
 .palco-do-logotipo {
   position: relative;
   width: 100%;
-  max-width: 480px;
+  /* Num ecrã baixo (um portátil a 800 × 600), o palco encolhe para a barra e a ajuda caberem acima do
+     «Concluir» (2.ª revisão de 27 nov 2026). */
+  max-width: max(240px, min(480px, calc(100dvh - 340px)));
   aspect-ratio: 1;
   justify-self: center;
   border-radius: 18px;
@@ -3022,20 +3024,20 @@ details.gaveta[open] > summary > .resumo {
   gap: 10px;
 }
 
-/* O cartaz para imprimir: só existe enquanto se imprime, e só ele sai no papel (A5, preto da marca). */
+/*
+ * O cartaz para imprimir: só existe enquanto se imprime, e só ele sai no papel (A5, preto da marca). As
+ * regras da página só valem com a classe que o QR põe no <html> ao imprimir (o A5 vem com ela, em
+ * qr-do-balcao.tsx): antes, imprimir qualquer outra página do backoffice dava uma folha A5 em branco.
+ */
 .cartaz-do-qr {
   display: none;
 }
 @media print {
-  @page {
-    size: A5 portrait;
-    margin: 0;
-  }
-  html,
-  body {
+  html.a-imprimir-o-cartaz,
+  html.a-imprimir-o-cartaz body {
     background: #0a0a0a !important;
   }
-  body > :not(.cartaz-do-qr) {
+  html.a-imprimir-o-cartaz body > :not(.cartaz-do-qr) {
     display: none !important;
   }
   .cartaz-do-qr {
@@ -3065,10 +3067,11 @@ details.gaveta[open] > summary > .resumo {
     letter-spacing: -0.02em;
     line-height: 1.05;
   }
+  /* A margem branca à volta do QR: 9 mm são mais de 4 módulos, como pede a norma (7 mm eram 3,3). */
   .cartaz-do-qr .quadrado {
     width: 92mm;
     height: 92mm;
-    padding: 7mm;
+    padding: 9mm;
     box-sizing: border-box;
     border-radius: 6mm;
     background: #fff;

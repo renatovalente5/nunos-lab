@@ -193,6 +193,7 @@ export const pt = {
       `${aceites} · ${foram} já ${foram === 1 ? 'foi' : 'foram'}`,
     jaFoi: 'Já foi',
     aindaNaoFoi: 'Ainda não foi',
+    aindaNaoFoiRecebes: (valor: string) => `Ainda não foi · recebes ${valor}`,
     temCodigo: 'Tens um código de convite?',
     codigo: 'Código de convite',
     usar: 'Usar',
@@ -284,6 +285,14 @@ export const pt = {
     definicoes: 'Abrir Definições',
     entraPrimeiro: 'Entra no Cartão para receberes o carimbo.',
     irAoCartao: 'Ir ao Cartão',
+    // Lido com a câmara do telemóvel, o QR abre a web, sem a sessão da app (revisão de 27 nov 2026).
+    abreAApp: 'Para carimbar, abre a app Nuno’s Lab: Cartão › Ler o QR do balcão.',
+    abrirAApp: 'Abrir a app',
+    entrarAqui: 'Entrar aqui',
+    actualiza: 'Actualiza a app Nuno’s Lab para carimbar com o QR do balcão.',
+    semApp: 'Se a app não abriu, instala o Nuno’s Lab na App Store, ou entra aqui.',
+    semCamaraAjuda: 'Dá autorização à câmara, ou pede ao barbeiro para ler o teu cartão.',
+    tentarOutraVez: 'Tentar outra vez',
     precisaDaCamara: 'A app precisa da câmara para ler o QR.',
     permitir: 'Permitir',
     semCamara: 'Sem acesso à câmara.',
@@ -321,9 +330,13 @@ export const pt = {
     sem_permissao_de_localizacao:
       'Para carimbar pelo QR, a app precisa de saber que estás na barbearia. Dá a localização nas Definições, ou pede ao barbeiro para ler o teu cartão.',
     longe_do_balcao: 'Parece que não estás na barbearia: o QR só carimba lá.',
+    localizacao_aproximada:
+      'A app só tem a localização aproximada: liga a «Localização exacta» nas Definições e tenta outra vez.',
+    localizacao_imprecisa:
+      'O telemóvel não está a conseguir uma localização precisa. Chega-te à porta e tenta outra vez.',
+    qr_anulado_hoje: 'O carimbo de hoje foi anulado na barbearia. Fala com o barbeiro.',
     primeiro_com_o_barbeiro: 'O primeiro carimbo dá-to o barbeiro: mostra-lhe o teu cartão.',
-    premio_com_o_barbeiro:
-      'Este é o corte do prémio: mostra o cartão ao barbeiro, para ele te dar o desconto.',
+    premio_com_o_barbeiro: 'Este é o corte do prémio: mostra o cartão ao barbeiro.',
     equipa_pede_a_um_colega: 'É o teu cartão: pede a um colega para o ler.',
     limite_do_dia: 'Já tens o carimbo de hoje.',
     limite_do_dia_maximo: 'Já tens o carimbo de hoje.',

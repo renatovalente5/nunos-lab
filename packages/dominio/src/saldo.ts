@@ -103,8 +103,10 @@ export function eurosParaUsar(saldo: number): number {
  */
 export function valoresParaUsar(saldo: number): number[] {
   if (!(saldo > 0)) return [];
-  const inteiros = Array.from({ length: eurosParaUsar(saldo) }, (_, i) => (i + 1) * 100);
-  return saldo % 100 ? [...inteiros, saldo] : inteiros;
+  // Um uso vai até 500 € (a API recusa mais): com mais saldo, os valores param aí (2.ª revisão de 27 nov).
+  const ate = Math.min(saldo, LIMITES_DO_SALDO.movimento.max);
+  const inteiros = Array.from({ length: eurosParaUsar(ate) }, (_, i) => (i + 1) * 100);
+  return ate % 100 ? [...inteiros, ate] : inteiros;
 }
 
 /**

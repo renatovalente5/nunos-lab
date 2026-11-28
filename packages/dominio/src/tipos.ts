@@ -410,7 +410,8 @@ export type FichaDoBalcao = {
   ultima: VisitaDoCliente | null;
   hoje: {
     carimbos: number;
-    ultimo: { quando: number; pessoa: string | null } | null;
+    /** O último carimbo de hoje: quando, quem, e se foi o cliente pelo QR do balcão (27 nov 2026). */
+    ultimo: { id?: number; quando: number; pessoa: string | null; peloQr?: boolean } | null;
     /** O prémio entregue hoje (o corte grátis não leva carimbo). */
     entregue: { quando: number; pessoa: string | null } | null;
   };
@@ -607,7 +608,8 @@ export type AcontecimentoDaPessoa = {
   /** O que fez e foi anulado: quando e por quem (null: no backoffice). */
   anulado: { em: number; por: string | null } | null;
   /** O que anulou: quem o tinha feito e quando. */
-  de: { pessoa: string | null; quando: number } | null;
+  /** De quem era o que anulou (o do QR do balcão não tem pessoa: `peloQr`, 27 nov 2026). */
+  de: { pessoa: string | null; quando: number; peloQr?: boolean } | null;
 };
 
 /** O histórico de uma pessoa da equipa, do mais recente para trás, às páginas. */

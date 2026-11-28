@@ -486,7 +486,12 @@ function GavetaDoSaldo({
                     ) : v.visitouEm !== null ? (
                       <Etiqueta tom="bom">{s.jaFoi}</Etiqueta>
                     ) : (
-                      <Etiqueta semPonto>{s.aindaNaoFoi}</Etiqueta>
+                      // Por visitar, quanto vai receber (o maior dos dois, que a API calcula).
+                      <Etiqueta semPonto>
+                        {v.premio > 0
+                          ? s.aindaNaoFoiRecebe(euros(v.premio, lingua))
+                          : s.aindaNaoFoi}
+                      </Etiqueta>
                     )}
                   </div>
                 </a>
@@ -761,7 +766,9 @@ function FolhaDoAcerto({
     ? t.geral.erros.saldo_insuficiente
     : erro?.falha !== undefined
       ? mensagemDe(erro.falha)
-      : s.valorErrado(euros(LIMITES_DO_SALDO.movimento.max, lingua));
+      : centimosDoTexto(escrito) === 0
+        ? s.valorZero
+        : s.valorErrado(euros(LIMITES_DO_SALDO.movimento.max, lingua));
 
   async function acertar() {
     if (valor === null) {

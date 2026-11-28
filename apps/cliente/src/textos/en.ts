@@ -176,6 +176,7 @@ export const en: Textos = {
     resumo: (aceites, foram) => `${aceites} · ${foram} visited`,
     jaFoi: 'Visited',
     aindaNaoFoi: 'Not yet',
+    aindaNaoFoiRecebes: (valor) => `Not yet · you’ll get ${valor}`,
     temCodigo: 'Got an invite code?',
     codigo: 'Invite code',
     usar: 'Use',
@@ -260,6 +261,13 @@ export const en: Textos = {
     definicoes: 'Open Settings',
     entraPrimeiro: 'Sign in on the Card tab to get your stamp.',
     irAoCartao: 'Go to Card',
+    abreAApp: 'To get your stamp, open the Nuno’s Lab app: Card › Scan the counter QR.',
+    abrirAApp: 'Open the app',
+    entrarAqui: 'Sign in here',
+    actualiza: 'Update the Nuno’s Lab app to get stamps with the counter QR.',
+    semApp: 'If the app didn’t open, install Nuno’s Lab from the App Store, or sign in here.',
+    semCamaraAjuda: 'Allow camera access, or ask the barber to scan your card.',
+    tentarOutraVez: 'Try again',
     precisaDaCamara: 'The app needs the camera to scan the QR.',
     permitir: 'Allow',
     semCamara: 'No access to the camera.',
@@ -296,9 +304,13 @@ export const en: Textos = {
     sem_permissao_de_localizacao:
       'To get a stamp with the QR, the app needs to know you’re at the barbershop. Allow location in Settings, or ask the barber to scan your card.',
     longe_do_balcao: 'It looks like you’re not at the barbershop: the QR only gives stamps there.',
+    localizacao_aproximada:
+      'The app only has your approximate location: turn on Precise Location in Settings and try again.',
+    localizacao_imprecisa:
+      'Your phone can’t get a precise location. Move closer to the door and try again.',
+    qr_anulado_hoje: 'Today’s stamp was cancelled at the barbershop. Talk to the barber.',
     primeiro_com_o_barbeiro: 'Your first stamp comes from the barber: show them your card.',
-    premio_com_o_barbeiro:
-      'This is your reward haircut: show your card to the barber so they apply it.',
+    premio_com_o_barbeiro: 'This is your reward haircut: show your card to the barber.',
     equipa_pede_a_um_colega: 'It’s your own card: ask a colleague to scan it.',
     limite_do_dia: 'You already have today’s stamp.',
     limite_do_dia_maximo: 'You already have today’s stamp.',

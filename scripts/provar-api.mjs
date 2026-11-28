@@ -4044,6 +4044,7 @@ await passo(
     await saldoProva.convites({ valorPadrinho: 100, valorConvidado: 100 });
     await saldoProva.carimbar(desceu, dono);
     assert.equal(await saldoProva.saldo(p), 400);
+    // O convite guarda o do dia em que foi aceite; o pagamento é o maior dos dois (calculado ao pagar).
     const premios = daBaseLocal(
       `SELECT v.premio_padrinho AS convite, m.valor FROM convites v
        JOIN movimentos_de_saldo m ON m.convite_id = v.id AND m.tipo = 'convite' AND m.anulado_em IS NULL
@@ -4052,9 +4053,17 @@ await passo(
     assert.deepEqual(
       premios.map((x) => [x.convite, x.valor]),
       [
-        [200, 200],
+        [100, 200],
         [200, 200],
       ],
+    );
+    // A carteira diz o que se pagou, não o do dia em que foi aceite.
+    assert.deepEqual(
+      (await saldoProva.carteira(p)).convites.lista
+        .filter((v) => v.visitouEm)
+        .map((v) => v.premio)
+        .sort(),
+      [200, 200],
     );
     // Com os convites desligados, o já aceite paga o que foi prometido (o de agora não conta).
     const tarde = await saldoProva.cliente('Convidado Tarde');
@@ -4229,6 +4238,13 @@ await passo(
       `SELECT id, pelo_qr, pessoa_id, sem_leitura FROM carimbos WHERE cliente_id = ${k.id} ORDER BY id DESC LIMIT 1`,
     )[0];
     assert.deepEqual([linha.pelo_qr, linha.pessoa_id, linha.sem_leitura], [1, null, 0]);
+    // O barbeiro que lê o cartão sabe que foi o cliente, pelo QR (não carimba outra vez sem saber).
+    const fichaDoQr = await (await pedir(`/api/balcao/ficha/${k.codigo}`, { token: dono })).json();
+    assert.deepEqual(
+      [fichaDoQr.hoje.ultimo.peloQr, fichaDoQr.hoje.ultimo.pessoa],
+      [true, null],
+      'a ficha diz que foi pelo QR',
+    );
     // O «Hoje» da for partners diz que foi pelo QR; um barbeiro de outra barbearia não o anula, e um
     // desta anula-o até ao fim do dia.
     const hoje = await (await pedir('/api/balcao/hoje', { token: dono })).json();
@@ -4260,6 +4276,8 @@ await passo(
     );
     assert.equal((await saldoProva.anularCarimbo(linha.id, deFora)).status, 403);
     assert.equal((await saldoProva.anularCarimbo(linha.id, daCasa)).status, 204);
+    // Anulado na barbearia (quem se carimbou sem cortar), não se lê outra vez no mesmo dia.
+    assert.deepEqual(await erro(await qr(k)), [409, 'qr_anulado_hoje']);
     // O carimbo do prémio é do barbeiro (o cartão a 1 do fim).
     ontem();
     naBaseLocal(
@@ -4286,8 +4304,15 @@ await passo(
       ),
       [403, 'equipa_pede_a_um_colega'],
     );
-    // Trocar o QR: o código de antes deixa de valer; desligar: nenhum vale.
+    // «Criar» com o QR já criado (uma página antiga) não troca o impresso: recusa, e o código fica.
     r = await pedir(`/api/bo/lojas/${lojaDaProva}/qr`, { method: 'POST', token });
+    assert.deepEqual(await erro(r), [409, 'ja_tem_qr']);
+    // Trocar o QR: o código de antes deixa de valer; desligar: nenhum vale.
+    r = await pedir(`/api/bo/lojas/${lojaDaProva}/qr`, {
+      method: 'POST',
+      token,
+      body: json({ trocar: true }),
+    });
     const novo = (await r.json()).codigo;
     assert.notEqual(novo, codigo);
     assert.deepEqual(await erro(await qr(k)), [404, 'qr_desconhecido']);
@@ -4338,9 +4363,9 @@ await passo('saldo: as contas batem — as regras do dinheiro em toda a base', a
   assert.equal(
     uma(`SELECT count(*) AS n FROM movimentos_de_saldo m JOIN convites v ON v.id = m.convite_id
          WHERE m.tipo = 'convite' AND m.anulado_em IS NULL
-           AND (v.visitou_em IS NULL OR m.cliente_id != v.padrinho_id OR m.valor != v.premio_padrinho)`),
+           AND (v.visitou_em IS NULL OR m.cliente_id != v.padrinho_id OR m.valor < v.premio_padrinho)`),
     0,
-    'prémios sem visita, ou na pessoa errada, ou com outro valor',
+    'prémios sem visita, ou na pessoa errada, ou abaixo do prometido',
   );
   // As boas-vindas: uma por convite, ao convidado, com o valor do convite.
   assert.equal(

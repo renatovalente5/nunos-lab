@@ -463,11 +463,13 @@ function BotaoDoContador({
   onPress: () => void;
 }) {
   return (
+    // `disabled` e não `aria-disabled`: na web, o Pressable escreve o dele por cima (o «+» no máximo não
+    // se dizia desligado aos leitores de ecrã; 2.ª revisão de 27 nov 2026).
     <Pressable
-      onPress={activo ? onPress : undefined}
+      onPress={onPress}
+      disabled={!activo}
       role="button"
       aria-label={rotulo}
-      aria-disabled={!activo}
       hitSlop={6}
       style={({ pressed }) => ({
         width: 56,

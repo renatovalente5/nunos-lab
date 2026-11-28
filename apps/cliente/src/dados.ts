@@ -210,6 +210,8 @@ export const CHAVES_DO_ARMAZEM = [
   'nunoslab:convite',
   // Já se leu o código que a Play Store guardou (o Install Referrer, 11 nov 2026).
   'nunoslab:convite-da-loja',
+  // O QR do balcão lido antes de entrar (27 nov 2026): espera pela entrada, também depois de reiniciar.
+  'nunoslab:qr-pendente',
   CHAVE_DA_LINGUA,
 ];
 export const CHAVES_SECRETAS = ['nunoslab:sessao'];

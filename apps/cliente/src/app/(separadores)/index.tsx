@@ -154,17 +154,18 @@ export default function Vantagens() {
   const { parceiro, convite, balcao } = useLocalSearchParams<{
     parceiro?: string;
     convite?: string;
-    balcao?: string;
+    balcao?: string | string[];
   }>();
   useEffect(() => {
     if (parceiro && /^\d+$/.test(parceiro))
       router.replace({ pathname: '/parceiro/[id]', params: { id: parceiro } });
   }, [parceiro]);
   // O QR do balcão lido com a câmara do telemóvel (/?balcao=CODIGO, 27 nov 2026): abre o ecrã do QR já
-  // com o código, que carimba (ou pede para entrar primeiro).
+  // com o código, que carimba (ou pede para entrar primeiro). O ecrã é /qr: /balcao, na web, é a for
+  // partners. Uma morada com o parâmetro repetido dá uma lista: só um texto serve.
   useEffect(() => {
-    const codigo = balcao ? codigoDoBalcaoLido(balcao) : null;
-    if (codigo) router.replace({ pathname: '/balcao', params: { codigo } });
+    const codigo = typeof balcao === 'string' ? codigoDoBalcaoLido(balcao) : null;
+    if (codigo) router.replace({ pathname: '/qr', params: { codigo } });
   }, [balcao]);
   // A ligação de um convite (/?convite=CODIGO, o Renato, 10 nov 2026): o código fica guardado até a
   // pessoa entrar, e usa-se então (componentes/saldo.tsx). Sai da morada, para um recarregar não o

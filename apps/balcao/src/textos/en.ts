@@ -68,6 +68,8 @@ export const en: Textos = {
       `Birthday gift given ${hoje ? 'at' : 'on'} ${quando}${pessoa ? ` by ${pessoa}` : ''}`,
     jaCarimbadoAs: (hora, pessoa) =>
       `Already stamped today at ${hora}${pessoa ? ` by ${pessoa}` : ''}.`,
+    jaCarimbadoPeloQr: (hora) => `Already stamped today at ${hora} with the counter QR.`,
+    anularOQr: (hora) => `Undo the ${hora} stamp from the counter QR?`,
     premioEntregueHoje: (recompensa, hora, pessoa) =>
       `${recompensa || 'Reward'} redeemed today at ${hora}${pessoa ? ` by ${pessoa}` : ''}. This haircut doesn’t get a stamp.`,
     jaCarimbado: 'Already stamped today.',

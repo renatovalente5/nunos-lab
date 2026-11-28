@@ -115,8 +115,9 @@ export async function anularCarimbo(
   // quem convidou já o gastou, o saldo dele fica negativo até ao próximo — raro, e à vista.
   // Vai sempre, decidido no SQL do mesmo batch (o carimbo já vem anulado pela primeira instrução): uma
   // leitura de antes perdia a corrida de dois «Anular» ao mesmo tempo, e o prémio ficava (11 nov 2026).
+  // Só outro carimbo do barbeiro: um do QR do balcão não é a visita do convite (2.ª revisão de 27 nov).
   const outro = `SELECT %s FROM carimbos WHERE cliente_id = ?1 AND anulado_em IS NULL AND id != ?2
-                 ORDER BY criado_em, id LIMIT 1`;
+                 AND pelo_qr = 0 ORDER BY criado_em, id LIMIT 1`;
   instrucoes.push(
     db
       .prepare(
